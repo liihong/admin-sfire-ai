@@ -45,8 +45,9 @@ class RequestHttp {
         // 当前请求不需要显示 loading，在 api 服务中通过指定的第三个参数: { loading: false } 来控制
         config.loading ??= true;
         config.loading && showFullScreenLoading();
-        if (config.headers && typeof config.headers.set === "function") {
-          config.headers.set("x-access-token", userStore.token);
+        // 设置 Authorization header（Bearer Token）
+        if (userStore.token && config.headers) {
+          config.headers.Authorization = `Bearer ${userStore.token}`;
         }
         return config;
       },

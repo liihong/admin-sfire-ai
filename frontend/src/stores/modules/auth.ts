@@ -2,6 +2,7 @@ import { defineStore } from "pinia";
 import { AuthState } from "@/stores/interface";
 import { getAuthButtonListApi, getAuthMenuListApi } from "@/api/modules/login";
 import { getFlatMenuList, getShowMenuList, getAllBreadcrumbList } from "@/utils";
+import { ElMessage } from "element-plus";
 
 export const useAuthStore = defineStore({
   id: "geeker-auth",
@@ -28,13 +29,30 @@ export const useAuthStore = defineStore({
   actions: {
     // Get AuthButtonList
     async getAuthButtonList() {
-      const { data } = await getAuthButtonListApi();
-      this.authButtonList = data;
+      try {
+        const { data } = await getAuthButtonListApi();
+        // 后端返回格式: { code: 200, data: {...}, msg: "..." }
+        // axios 拦截器已经提取了 data，所以这里直接使用
+        this.authButtonList = data || {};
+      } catch (error) {
+        console.error("获取按钮权限失败:", error);
+        ElMessage.error("获取按钮权限失败");
+        this.authButtonList = {};
+      }
     },
     // Get AuthMenuList
     async getAuthMenuList() {
-      const { data } = await getAuthMenuListApi();
-      this.authMenuList = data;
+      try {
+        const { data } = await getAuthMenuListApi();
+        // 后端返回格式: { code: 200, data: [...], msg: "..." }
+        // axios 拦截器已经提取了 data，所以这里直接使用
+        this.authMenuList = Array.isArray(data) ? data : [];
+      } catch (error) {
+        console.error("获取菜单列表失败:", error);
+        ElMessage.error("获取菜单列表失败");
+        this.authMenuList = [];
+        throw error; // 抛出错误，让调用方处理
+      }
     },
     // Set RouteName
     async setRouteName(name: string) {

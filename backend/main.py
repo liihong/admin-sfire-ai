@@ -1,0 +1,79 @@
+"""
+SFire Admin API - FastAPI Application Entry Point
+"""
+import uvicorn
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+from contextlib import asynccontextmanager
+
+from app.core.config import settings
+from app.api.v1.router import api_router
+from app.utils.exceptions import register_exception_handlers
+from app.db.session import init_db, close_db
+from app.db.redis import init_redis, close_redis
+from app.middleware.rate_limiter import RateLimiterMiddleware
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """应用生命周期管理"""
+    # 启动时初始化
+    await init_db()
+    await init_redis()
+    yield
+    # 关闭时清理
+    await close_redis()
+    await close_db()
+
+
+def create_app() -> FastAPI:
+    """创建 FastAPI 应用实例"""
+    app = FastAPI(
+        title=settings.APP_NAME,
+        description="SFire Admin 管理后台 API",
+        version="1.0.0",
+        docs_url="/docs" if settings.DEBUG else None,
+        redoc_url="/redoc" if settings.DEBUG else None,
+        openapi_url="/openapi.json" if settings.DEBUG else None,
+        lifespan=lifespan,
+    )
+
+    # 注册 CORS 中间件
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=settings.CORS_ORIGINS,
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
+    
+    # 注册 API 限流中间件
+    app.add_middleware(RateLimiterMiddleware)
+
+    # 注册全局异常处理器
+    register_exception_handlers(app)
+
+    # 注册 API 路由
+    app.include_router(api_router, prefix="/api/v1")
+
+    return app
+
+
+app = create_app()
+
+
+@app.get("/health")
+async def health_check():
+    """健康检查接口"""
+    return {"status": "ok", "message": "Service is running"}
+
+
+if __name__ == "__main__":
+    uvicorn.run(
+        "main:app",
+        host=settings.HOST,
+        port=settings.PORT,
+        reload=settings.DEBUG,
+    )
+
+

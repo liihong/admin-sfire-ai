@@ -12,6 +12,12 @@ type ProxyTargetList = Record<string, ProxyOptions>;
  */
 export function createProxy(list: ProxyList = []) {
   const ret: ProxyTargetList = {};
+  
+  if (!list || list.length === 0) {
+    console.warn("[WARNING] VITE_PROXY is empty or not configured! Requests will not be proxied.");
+    return ret;
+  }
+  
   for (const [prefix, target] of list) {
     const httpsRE = /^https:\/\//;
     const isHttps = httpsRE.test(target);
@@ -26,5 +32,6 @@ export function createProxy(list: ProxyList = []) {
       ...(isHttps ? { secure: false } : {})
     };
   }
+  
   return ret;
 }

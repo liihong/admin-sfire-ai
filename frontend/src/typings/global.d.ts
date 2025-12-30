@@ -1,3 +1,6 @@
+/* 用户等级类型（用于路由权限） */
+declare type UserLevelType = "free" | "v1" | "v2" | "v3";
+
 /* Menu */
 declare namespace Menu {
   interface MenuOptions {
@@ -17,6 +20,20 @@ declare namespace Menu {
     isFull: boolean;
     isAffix: boolean;
     isKeepAlive: boolean;
+    /**
+     * @description 访问该页面所需的最低用户等级
+     * @example requiredLevel: "v1" 表示至少需要 V1 会员才能访问
+     */
+    requiredLevel?: UserLevelType;
+    /**
+     * @description 访问该页面所需的最低算力
+     * @example requiredComputePower: 100 表示至少需要 100 算力才能访问
+     */
+    requiredComputePower?: number;
+    /**
+     * @description 该页面每次访问消耗的算力
+     */
+    consumeComputePower?: number;
   }
 }
 
