@@ -5,7 +5,7 @@
 from typing import Optional, List, TYPE_CHECKING
 from sqlalchemy import (
     String,
-    Integer,
+    BigInteger,
     Boolean,
     ForeignKey,
     Index,
@@ -49,7 +49,7 @@ class Menu(BaseModel):
     
     # === 基础字段 ===
     parent_id: Mapped[Optional[int]] = mapped_column(
-        Integer,
+        BigInteger,  # 改为 BigInteger 以匹配 id 的类型
         ForeignKey("menus.id", ondelete="CASCADE"),
         nullable=True,
         comment="父菜单ID",
@@ -81,7 +81,7 @@ class Menu(BaseModel):
     )
     
     sort_order: Mapped[int] = mapped_column(
-        Integer,
+        BigInteger,  # 改为 BigInteger 以匹配 id 的类型
         default=0,
         server_default="0",
         nullable=False,
@@ -164,13 +164,13 @@ class Menu(BaseModel):
     )
     
     required_compute_power: Mapped[Optional[int]] = mapped_column(
-        Integer,
+        BigInteger,
         nullable=True,
         comment="所需最低算力",
     )
     
     consume_compute_power: Mapped[Optional[int]] = mapped_column(
-        Integer,
+        BigInteger,
         nullable=True,
         comment="每次访问消耗的算力",
     )

@@ -1,22 +1,22 @@
 {
-  "name": "geeker-admin",
+  "name": "sfire-admin",
   "private": true,
   "version": "1.2.0",
   "type": "module",
-  "description": "geeker-admin open source management system",
+  "description": "sfire-admin open source management system",
   "author": {
-    "name": "Geeker",
+    "name": "SFire",
     "email": "848130454@qq.com",
     "url": "https://github.com/HalseySpicy"
   },
   "license": "MIT",
-  "homepage": "https://github.com/HalseySpicy/Geeker-Admin",
+  "homepage": "https://github.com/HalseySpicy/SFire-Admin",
   "repository": {
     "type": "git",
-    "url": "git@github.com:HalseySpicy/Geeker-Admin.git"
+    "url": "git@github.com:HalseySpicy/SFire-Admin.git"
   },
   "bugs": {
-    "url": "https://github.com/HalseySpicy/Geeker-Admin/issues"
+    "url": "https://github.com/HalseySpicy/SFire-Admin/issues"
   },
   "scripts": {
     "dev": "vite",

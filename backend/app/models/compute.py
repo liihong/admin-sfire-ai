@@ -9,7 +9,7 @@ from sqlalchemy import (
     String,
     Enum as SQLEnum,
     DECIMAL,
-    Integer,
+    BigInteger,
     ForeignKey,
     Index,
     Text,
@@ -77,7 +77,7 @@ class ComputeLog(BaseModel):
     
     # === 核心字段 ===
     user_id: Mapped[int] = mapped_column(
-        Integer,
+        BigInteger,  # 改为 BigInteger 以匹配 users.id 的类型
         ForeignKey("users.id", ondelete="CASCADE"),
         nullable=False,
         comment="用户ID",
@@ -127,7 +127,7 @@ class ComputeLog(BaseModel):
     )
     
     operator_id: Mapped[Optional[int]] = mapped_column(
-        Integer,
+        BigInteger,  # 改为 BigInteger 以匹配 users.id 的类型
         nullable=True,
         comment="操作人ID（管理员操作时记录）",
     )
