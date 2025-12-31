@@ -24,8 +24,8 @@ export const createVitePlugins = (viteEnv: ViteEnv): (PluginOption | PluginOptio
     vueJsx(),
     // devTools
     VITE_DEVTOOLS && NextDevTools({ launchEditor: "code" }),
-    // esLint 报错信息显示在浏览器界面上
-    eslintPlugin(),
+    // esLint 报错信息显示在浏览器界面上（已禁用）
+    // eslintPlugin(),
     // name 可以写在 script 标签上
     vueSetupExtend({}),
     // 创建打包压缩配置

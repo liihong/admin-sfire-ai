@@ -55,4 +55,3 @@ export const getPromptTemplates = () => {
 export const getAvailableModels = () => {
   return http.get<Array<{ id: string; name: string; maxTokens: number }>>(`/api/v1/agents/models`);
 };
-

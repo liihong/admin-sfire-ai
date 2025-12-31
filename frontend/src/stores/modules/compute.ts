@@ -85,4 +85,3 @@ export const useComputeStore = defineStore({
   },
   persist: piniaPersistConfig("sfire-compute")
 });
-

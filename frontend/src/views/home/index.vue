@@ -53,7 +53,7 @@
             <div class="card-label">API 余额</div>
             <div class="card-extra">
               <el-tag :type="statsData.apiBalance > alertThreshold ? 'success' : 'danger'" size="small">
-                {{ statsData.apiBalance > alertThreshold ? '余额充足' : '余额不足' }}
+                {{ statsData.apiBalance > alertThreshold ? "余额充足" : "余额不足" }}
               </el-tag>
             </div>
           </div>
@@ -154,7 +154,7 @@
       <div class="refresh-info">
         <el-icon class="rotating" v-if="isRefreshing"><Loading /></el-icon>
         <el-icon v-else><Clock /></el-icon>
-        <span>{{ isRefreshing ? '数据刷新中...' : `上次更新: ${lastUpdateTime}` }}</span>
+        <span>{{ isRefreshing ? "数据刷新中..." : `上次更新: ${lastUpdateTime}` }}</span>
         <span class="next-refresh">（每 10 分钟自动刷新）</span>
       </div>
       <el-button type="primary" plain size="small" :loading="isRefreshing" @click="refreshAllData">
@@ -184,13 +184,7 @@ import {
 import { ECOption } from "@/components/ECharts/config";
 import ECharts from "@/components/ECharts/index.vue";
 import CountUp from "./components/CountUp.vue";
-import {
-  getStatsData,
-  getUserTrend,
-  getAgentRank,
-  getAlertConfig,
-  Dashboard
-} from "@/api/modules/dashboard";
+import { getStatsData, getUserTrend, getAgentRank, getAlertConfig, Dashboard } from "@/api/modules/dashboard";
 
 // ==================== 数据定义 ====================
 
@@ -228,7 +222,7 @@ let refreshTimer: ReturnType<typeof setInterval> | null = null;
 const userTrendOption = computed<ECOption>(() => {
   const data = userTrendData.value;
   const isNewUser = trendType.value === "new";
-  
+
   return {
     tooltip: {
       trigger: "axis",
@@ -239,7 +233,7 @@ const userTrendOption = computed<ECOption>(() => {
         const item = params[0];
         return `<div style="padding: 4px 8px;">
           <div style="font-weight: 600; margin-bottom: 4px;">${item.name}</div>
-          <div>${isNewUser ? '新增用户' : '活跃用户'}: <strong>${item.value}</strong></div>
+          <div>${isNewUser ? "新增用户" : "活跃用户"}: <strong>${item.value}</strong></div>
         </div>`;
       }
     },
@@ -272,12 +266,15 @@ const userTrendOption = computed<ECOption>(() => {
         smooth: true,
         symbol: "circle",
         symbolSize: 8,
-        data: data.map(item => isNewUser ? item.newUsers : item.activeUsers),
+        data: data.map(item => (isNewUser ? item.newUsers : item.activeUsers)),
         lineStyle: {
           width: 3,
           color: {
             type: "linear",
-            x: 0, y: 0, x2: 1, y2: 0,
+            x: 0,
+            y: 0,
+            x2: 1,
+            y2: 0,
             colorStops: [
               { offset: 0, color: "#FF7700" },
               { offset: 1, color: "#FFB366" }
@@ -292,7 +289,10 @@ const userTrendOption = computed<ECOption>(() => {
         areaStyle: {
           color: {
             type: "linear",
-            x: 0, y: 0, x2: 0, y2: 1,
+            x: 0,
+            y: 0,
+            x2: 0,
+            y2: 1,
             colorStops: [
               { offset: 0, color: "rgba(255, 119, 0, 0.3)" },
               { offset: 1, color: "rgba(255, 119, 0, 0.02)" }
@@ -307,7 +307,7 @@ const userTrendOption = computed<ECOption>(() => {
 // 智能体排行柱状图配置
 const agentRankOption = computed<ECOption>(() => {
   const data = agentRankData.value;
-  
+
   return {
     tooltip: {
       trigger: "axis",
@@ -354,7 +354,7 @@ const agentRankOption = computed<ECOption>(() => {
         fontSize: 13,
         formatter: (value: string) => {
           const agent = data.find(a => a.name === value);
-          return `{icon|${agent?.icon || '🤖'}} ${value.length > 6 ? value.slice(0, 6) + '...' : value}`;
+          return `{icon|${agent?.icon || "🤖"}} ${value.length > 6 ? value.slice(0, 6) + "..." : value}`;
         },
         rich: {
           icon: { fontSize: 16 }
@@ -371,7 +371,10 @@ const agentRankOption = computed<ECOption>(() => {
           itemStyle: {
             color: {
               type: "linear",
-              x: 0, y: 0, x2: 1, y2: 0,
+              x: 0,
+              y: 0,
+              x2: 1,
+              y2: 0,
               colorStops: [
                 { offset: 0, color: index === 0 ? "#FF7700" : "#FFB366" },
                 { offset: 1, color: index === 0 ? "#FFB366" : "#FFD9B3" }
@@ -414,7 +417,7 @@ const fetchStatsData = async () => {
   try {
     const { data } = await getStatsData();
     Object.assign(statsData, data);
-    
+
     // 检查是否需要显示预警
     if (statsData.apiBalance < alertThreshold.value) {
       showAlert.value = true;
@@ -423,9 +426,9 @@ const fetchStatsData = async () => {
     // 使用模拟数据
     Object.assign(statsData, {
       todayNewUsers: 156,
-      apiBalance: 8520.50,
+      apiBalance: 8520.5,
       todayComputeUsage: 23456,
-      todayOrderAmount: 12680.00,
+      todayOrderAmount: 12680.0,
       userGrowthRate: 12.5,
       computeGrowthRate: -5.2,
       orderGrowthRate: 8.3
@@ -490,11 +493,7 @@ const refreshAgentRank = async () => {
 const refreshAllData = async () => {
   isRefreshing.value = true;
   try {
-    await Promise.all([
-      fetchStatsData(),
-      fetchUserTrend(),
-      fetchAgentRank()
-    ]);
+    await Promise.all([fetchStatsData(), fetchUserTrend(), fetchAgentRank()]);
     lastUpdateTime.value = getCurrentTime();
     ElMessage.success("数据已刷新");
   } finally {
@@ -505,9 +504,12 @@ const refreshAllData = async () => {
 // 启动定时刷新
 const startAutoRefresh = () => {
   // 每 10 分钟刷新一次
-  refreshTimer = setInterval(() => {
-    refreshAllData();
-  }, 10 * 60 * 1000);
+  refreshTimer = setInterval(
+    () => {
+      refreshAllData();
+    },
+    10 * 60 * 1000
+  );
 };
 
 // 停止定时刷新
@@ -523,15 +525,10 @@ const stopAutoRefresh = () => {
 onMounted(async () => {
   // 初始化加载数据
   isRefreshing.value = true;
-  await Promise.all([
-    fetchAlertConfig(),
-    fetchStatsData(),
-    fetchUserTrend(),
-    fetchAgentRank()
-  ]);
+  await Promise.all([fetchAlertConfig(), fetchStatsData(), fetchUserTrend(), fetchAgentRank()]);
   lastUpdateTime.value = getCurrentTime();
   isRefreshing.value = false;
-  
+
   // 启动自动刷新
   startAutoRefresh();
 });
@@ -552,16 +549,16 @@ onUnmounted(() => {
 .balance-alert {
   margin-bottom: 20px;
   border-radius: 8px;
-  background: linear-gradient(135deg, #FFF7ED 0%, #FFEDD5 100%);
-  border: 1px solid #FDBA74;
+  background: linear-gradient(135deg, #fff7ed 0%, #ffedd5 100%);
+  border: 1px solid #fdba74;
 
   :deep(.el-alert__title) {
     font-weight: 600;
-    color: #C2410C;
+    color: #c2410c;
   }
 
   strong {
-    color: #EA580C;
+    color: #ea580c;
     font-family: "DIN", sans-serif;
   }
 }
@@ -662,11 +659,11 @@ onUnmounted(() => {
     }
 
     &.up {
-      color: #10B981;
+      color: #10b981;
     }
 
     &.down {
-      color: #EF4444;
+      color: #ef4444;
     }
 
     .trend-label {
@@ -693,37 +690,37 @@ onUnmounted(() => {
   // 不同卡片的主题色
   &.card-users {
     .card-icon {
-      background: linear-gradient(135deg, #FF7700 0%, #FFB366 100%);
+      background: linear-gradient(135deg, #ff7700 0%, #ffb366 100%);
     }
     .card-bg {
-      background: #FF7700;
+      background: #ff7700;
     }
   }
 
   &.card-balance {
     .card-icon {
-      background: linear-gradient(135deg, #10B981 0%, #34D399 100%);
+      background: linear-gradient(135deg, #10b981 0%, #34d399 100%);
     }
     .card-bg {
-      background: #10B981;
+      background: #10b981;
     }
   }
 
   &.card-compute {
     .card-icon {
-      background: linear-gradient(135deg, #6366F1 0%, #A5B4FC 100%);
+      background: linear-gradient(135deg, #6366f1 0%, #a5b4fc 100%);
     }
     .card-bg {
-      background: #6366F1;
+      background: #6366f1;
     }
   }
 
   &.card-order {
     .card-icon {
-      background: linear-gradient(135deg, #F59E0B 0%, #FCD34D 100%);
+      background: linear-gradient(135deg, #f59e0b 0%, #fcd34d 100%);
     }
     .card-bg {
-      background: #F59E0B;
+      background: #f59e0b;
     }
   }
 }
@@ -761,7 +758,7 @@ onUnmounted(() => {
   color: var(--el-text-color-primary);
 
   .el-icon {
-    color: #FF7700;
+    color: #ff7700;
   }
 }
 
@@ -789,7 +786,7 @@ onUnmounted(() => {
 
   .el-icon {
     font-size: 16px;
-    color: #FF7700;
+    color: #ff7700;
   }
 
   .next-refresh {

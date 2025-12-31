@@ -29,6 +29,11 @@ def hash_password(password: str) -> str:
     return hashed.decode('utf-8')
 
 
+def get_password_hash(password: str) -> str:
+    """获取密码哈希（hash_password 的别名）"""
+    return hash_password(password)
+
+
 def create_access_token(
     data: dict,
     expires_delta: Optional[timedelta] = None
