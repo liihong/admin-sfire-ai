@@ -271,3 +271,4 @@ def register_exception_handlers(app: FastAPI) -> None:
     logger.info("Exception handlers registered successfully")
 
 
+

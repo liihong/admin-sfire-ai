@@ -99,3 +99,4 @@ class ComputeStatistics(BaseModel):
     totalCommission: Decimal = Field(default=Decimal("0"), description="总佣金")
     totalAdjustment: Decimal = Field(default=Decimal("0"), description="总调整")
 
+

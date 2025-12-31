@@ -60,3 +60,4 @@ export const getAgentRank = (limit: number = 5) => {
 export const getAlertConfig = () => {
   return http.get<Dashboard.AlertConfig>(`/api/v1/dashboard/alert-config`);
 };
+

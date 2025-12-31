@@ -392,3 +392,4 @@ const viewUserProfile = (row: UserType.ResUserList) => {
 </style>
 
 
+
