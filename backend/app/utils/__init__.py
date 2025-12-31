@@ -10,6 +10,7 @@ from .exceptions import (
     NotFoundException,
     ServerErrorException,
 )
+from .serializers import agent_to_response
 
 __all__ = [
     "Response",
@@ -20,6 +21,7 @@ __all__ = [
     "ForbiddenException",
     "NotFoundException",
     "ServerErrorException",
+    "agent_to_response",
 ]
 
 
