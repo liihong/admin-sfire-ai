@@ -50,7 +50,7 @@
 <script setup lang="tsx" name="useProTable">
 import { ref, reactive } from "vue";
 import { useRouter } from "vue-router";
-import { User } from "@/api/interface";
+import type { User } from "@/api/interface";
 import { useHandleData } from "@/hooks/useHandleData";
 import { useDownload } from "@/hooks/useDownload";
 import { useAuthButtons } from "@/hooks/useAuthButtons";

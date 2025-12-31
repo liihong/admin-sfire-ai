@@ -95,7 +95,7 @@
 <script setup lang="ts" name="UserProfile">
 import { ref, onMounted } from "vue";
 import { User as UserIcon, Coin, Share, Clock } from "@element-plus/icons-vue";
-import { User } from "@/api/interface";
+import type { User } from "@/api/interface";
 import { getUserDetail } from "@/api/modules/userManage";
 import { USER_LEVEL_CONFIG } from "@/config";
 

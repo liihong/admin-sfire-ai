@@ -37,7 +37,7 @@
 
 <script setup lang="tsx" name="treeProTable">
 import { onMounted, reactive, ref } from "vue";
-import { User } from "@/api/interface";
+import type { User } from "@/api/interface";
 import { genderType } from "@/utils/dict";
 import { useHandleData } from "@/hooks/useHandleData";
 import { ElMessage, ElNotification } from "element-plus";

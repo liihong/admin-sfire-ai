@@ -16,6 +16,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.db.session import init_db, async_session_maker, close_db
 from app.models.menu import Menu
 from app.models.user import User
+from app.models.role import Role
 from app.core.security import hash_password
 
 
@@ -256,6 +257,72 @@ async def init_menus(session: AsyncSession) -> None:
     logger.info("菜单数据初始化完成")
 
 
+async def init_roles(session: AsyncSession) -> None:
+    """
+    初始化角色数据
+    
+    创建三个默认角色：
+    - normal: 普通用户
+    - member: 会员用户
+    - partner: 合伙人
+    
+    角色代码（code）对应users表的level字段
+    """
+    logger.info("正在初始化角色数据...")
+    
+    # 定义默认角色数据
+    roles_data = [
+        {
+            "code": "normal",
+            "name": "普通用户",
+            "description": "普通用户角色",
+            "sort_order": 0,
+        },
+        {
+            "code": "member",
+            "name": "会员",
+            "description": "会员用户角色",
+            "sort_order": 1,
+        },
+        {
+            "code": "partner",
+            "name": "合伙人",
+            "description": "合伙人角色",
+            "sort_order": 2,
+        },
+    ]
+    
+    # 创建或更新角色
+    for role_data in roles_data:
+        code = role_data["code"]
+        
+        # 检查角色是否已存在
+        result = await session.execute(
+            select(Role).where(Role.code == code)
+        )
+        existing_role = result.scalar_one_or_none()
+        
+        if existing_role:
+            logger.info(f"角色 {code} 已存在，更新配置")
+            # 更新角色信息
+            existing_role.name = role_data["name"]
+            existing_role.description = role_data["description"]
+            existing_role.sort_order = role_data["sort_order"]
+        else:
+            logger.info(f"创建角色: {role_data['name']} (code={code})")
+            # 创建新角色
+            role = Role(
+                code=code,
+                name=role_data["name"],
+                description=role_data["description"],
+                sort_order=role_data["sort_order"],
+            )
+            session.add(role)
+    
+    await session.commit()
+    logger.info("角色数据初始化完成")
+
+
 async def main():
     """
     主函数：执行数据库初始化
@@ -277,6 +344,9 @@ async def main():
             try:
                 # 初始化管理员用户
                 await init_admin_user(session)
+                
+                # 初始化角色数据
+                await init_roles(session)
                 
                 # 初始化菜单数据
                 await init_menus(session)

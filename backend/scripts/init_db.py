@@ -133,15 +133,15 @@ INITIAL_MENUS = [
     {
         "name": "system",
         "path": "/system",
-        "redirect": "/system/menuManage",
+        "redirect": "/system/menuMange",
         "title": "系统管理",
         "icon": "Tools",
         "sort_order": 100,
         "children": [
             {
-                "name": "menuManage",
-                "path": "/system/menuManage",
-                "component": "/system/menuManage/index",
+                "name": "menuMange",
+                "path": "/system/menuMange",
+                "component": "/system/menuMange/index",
                 "title": "菜单管理",
                 "icon": "Menu",
                 "sort_order": 0,

@@ -37,7 +37,7 @@
 </template>
 <script setup lang="ts" name="useTreeFilter">
 import { ref, reactive } from "vue";
-import { User } from "@/api/interface";
+import type { User } from "@/api/interface";
 import { useRouter } from "vue-router";
 import { ElMessage, ElMessageBox } from "element-plus";
 import { useHandleData } from "@/hooks/useHandleData";

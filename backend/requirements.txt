@@ -11,3 +11,4 @@ aiomysql
 httpx
 redis
 bcrypt
+email-validator

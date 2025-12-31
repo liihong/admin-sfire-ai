@@ -41,7 +41,7 @@
 </template>
 <script setup lang="ts" name="useSelectFilter">
 import { ref, reactive, onMounted, watch } from "vue";
-import { User } from "@/api/interface";
+import type { User } from "@/api/interface";
 import { ElMessage, ElMessageBox } from "element-plus";
 import { useHandleData } from "@/hooks/useHandleData";
 import { useDownload } from "@/hooks/useDownload";

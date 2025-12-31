@@ -10,15 +10,16 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.db import get_db
 from app.core.security import decode_token
 from app.utils.exceptions import UnauthorizedException, ForbiddenException
-from app.models.user import User, UserLevel
+from app.models.admin_user import AdminUser
+from app.models.role import Role
 
 
 async def get_current_user(
     authorization: Optional[str] = Header(None, description="Bearer Token"),
     db: AsyncSession = Depends(get_db),
-) -> User:
+) -> AdminUser:
     """
-    获取当前登录用户
+    获取当前登录的管理员用户
     
     从 Authorization header 中提取并验证 JWT token
     """
@@ -40,11 +41,11 @@ async def get_current_user(
     if not user_id:
         raise UnauthorizedException(msg="令牌数据无效")
     
-    # 从数据库获取用户
+    # 从数据库获取管理员用户
     result = await db.execute(
-        select(User).where(
-            User.id == int(user_id),
-            User.is_deleted == False
+        select(AdminUser).where(
+            AdminUser.id == int(user_id),
+            AdminUser.is_deleted == False
         )
     )
     user = result.scalar_one_or_none()
@@ -59,16 +60,20 @@ async def get_current_user(
 
 
 async def get_current_active_user(
-    current_user: User = Depends(get_current_user),
-) -> User:
+    current_user: AdminUser = Depends(get_current_user),
+) -> AdminUser:
     """获取当前活跃用户（已验证状态）"""
     return current_user
 
 
 async def get_current_admin(
-    current_user: User = Depends(get_current_user),
-) -> User:
-    """获取当前管理员用户（合伙人级别）"""
-    if current_user.level != UserLevel.PARTNER:
+    current_user: AdminUser = Depends(get_current_user),
+) -> AdminUser:
+    """获取当前管理员用户（需要角色权限）"""
+    # 检查用户是否有角色
+    if not current_user.role_id:
         raise ForbiddenException(msg="需要管理员权限")
+    
+    # 可以进一步检查角色代码，例如只有特定角色才能访问
+    # 这里暂时只检查是否有角色
     return current_user

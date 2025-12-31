@@ -39,7 +39,7 @@
 <script setup lang="tsx" name="complexProTable">
 import { reactive, ref } from "vue";
 import { ElMessage } from "element-plus";
-import { User } from "@/api/interface";
+import type { User } from "@/api/interface";
 import { useHandleData } from "@/hooks/useHandleData";
 import ProTable from "@/components/ProTable/index.vue";
 import { CirclePlus, Pointer, Delete, Refresh } from "@element-plus/icons-vue";

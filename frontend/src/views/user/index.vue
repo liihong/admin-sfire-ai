@@ -114,7 +114,7 @@
 import { ref, reactive } from "vue";
 import { ElMessage, ElMessageBox, FormInstance, FormRules } from "element-plus";
 import { CirclePlus, Delete, EditPen, Download, User, Coin, InfoFilled } from "@element-plus/icons-vue";
-import { User as UserType } from "@/api/interface";
+import type { User as UserType } from "@/api/interface";
 import { useHandleData } from "@/hooks/useHandleData";
 import { useDownload } from "@/hooks/useDownload";
 import ProTable from "@/components/ProTable/index.vue";

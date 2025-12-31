@@ -1,4 +1,5 @@
-import { ResPage, User } from "@/api/interface/index";
+import { ResPage } from "@/api/interface/index";
+import type { User } from "@/api/interface/index";
 import { PORT1 } from "@/api/config/servicePort";
 import http from "@/api";
 
@@ -18,13 +19,30 @@ export const getUserDetail = (id: string) => {
 };
 
 // 新增用户
-export const addUser = (params: Partial<User.ResUserList>) => {
+export const addUser = (params: {
+  username: string;
+  password: string;
+  phone?: string;
+  nickname?: string;
+  level: string; // "normal" | "member" | "partner"
+  remark?: string;
+  parent_id?: number;
+}) => {
   return http.post(PORT1 + `/users`, params);
 };
 
 // 编辑用户
-export const editUser = (params: Partial<User.ResUserList>) => {
-  return http.put(PORT1 + `/users/${params.id}`, params);
+export const editUser = (params: {
+  id?: string;
+  username?: string;
+  phone?: string;
+  nickname?: string;
+  level?: string; // "normal" | "member" | "partner"
+  is_active?: boolean;
+  remark?: string;
+}) => {
+  const { id, ...data } = params;
+  return http.put(PORT1 + `/users/${id}`, data);
 };
 
 // 删除用户

@@ -36,13 +36,14 @@ export const initDynamicRouter = async () => {
     // 3.添加动态路由
     authStore.flatMenuListGet.forEach(item => {
       item.children && delete item.children;
+      // 只有包含 component 的菜单项才添加到路由（排除只有 redirect 的父级菜单）
       if (item.component && typeof item.component == "string") {
         item.component = modules["/src/views" + item.component + ".vue"];
-      }
-      if (item.meta.isFull) {
-        router.addRoute(item as unknown as RouteRecordRaw);
-      } else {
-        router.addRoute("layout", item as unknown as RouteRecordRaw);
+        if (item.meta.isFull) {
+          router.addRoute(item as unknown as RouteRecordRaw);
+        } else {
+          router.addRoute("layout", item as unknown as RouteRecordRaw);
+        }
       }
     });
   } catch (error) {

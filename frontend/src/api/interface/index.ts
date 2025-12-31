@@ -254,9 +254,135 @@ export namespace User {
 
   // 角色
   export interface ResRole {
-    id: string;
+    id: number;
     name: string;
-    children?: ResDepartment[];
+    code: string;
+    description?: string;
+    sort_order: number;
+    user_count: number;
+    created_at?: string;
+    updated_at?: string;
+  }
+
+  // 角色列表响应
+  export interface ResRoleList {
+    list: ResRole[];
+    total: number;
+  }
+
+  // 创建角色请求
+  export interface ReqRoleCreate {
+    name: string;
+    code: string;
+    description?: string;
+    sort_order?: number;
+  }
+
+  // 更新角色请求
+  export interface ReqRoleUpdate {
+    name?: string;
+    description?: string;
+    sort_order?: number;
+  }
+}
+
+// 角色管理模块
+export namespace Role {
+  // 角色响应
+  export interface ResRole {
+    id: number;
+    name: string;
+    code: string;
+    description?: string;
+    sort_order: number;
+    user_count: number;
+    created_at?: string;
+    updated_at?: string;
+  }
+
+  // 角色列表响应
+  export interface ResRoleList {
+    list: ResRole[];
+    total: number;
+  }
+
+  // 创建角色请求
+  export interface ReqRoleCreate {
+    name: string;
+    code: string;
+    description?: string;
+    sort_order?: number;
+  }
+
+  // 更新角色请求
+  export interface ReqRoleUpdate {
+    name?: string;
+    description?: string;
+    sort_order?: number;
+  }
+
+  // 获取角色权限响应
+  export interface ResRolePermissions {
+    role_id: number;
+    menu_ids: number[];
+  }
+
+  // 设置角色权限请求
+  export interface ReqRolePermissions {
+    menu_ids: number[];
+  }
+}
+
+// 管理员用户管理模块
+export namespace AdminUser {
+  // 管理员用户查询参数
+  export interface ReqAdminUserParams extends ReqPage {
+    username?: string;
+    email?: string;
+    role_id?: number;
+    is_active?: boolean;
+  }
+
+  // 管理员用户列表项
+  export interface ResAdminUserList {
+    id: number;
+    username: string;
+    email?: string;
+    role_id?: number;
+    role_name?: string;
+    role_code?: string;
+    is_active: boolean;
+    remark?: string;
+    created_at?: string;
+    updated_at?: string;
+  }
+
+  // 管理员用户详情
+  export interface ResAdminUser extends ResAdminUserList { }
+
+  // 创建管理员用户请求
+  export interface ReqAdminUserCreate {
+    username: string;
+    password: string;
+    email?: string;
+    role_id?: number;
+    remark?: string;
+  }
+
+  // 更新管理员用户请求
+  export interface ReqAdminUserUpdate {
+    username?: string;
+    email?: string;
+    password?: string;
+    role_id?: number;
+    is_active?: boolean;
+    remark?: string;
+  }
+
+  // 状态选项
+  export interface ResStatus {
+    userLabel: string;
+    userValue: number;
   }
 }
 
@@ -316,4 +442,102 @@ export namespace Agent {
     content: string;
     category: string;
   }
+}
+
+// 菜单管理模块
+export namespace Menu {
+  // 菜单列表项（树形结构，用于管理后台）
+  export interface ResMenuList {
+    id: number;
+    parentId: number | null;
+    name: string;
+    path: string;
+    component: string | null;
+    redirect: string | null;
+    sortOrder: number;
+    icon: string;
+    title: string;
+    isLink: string;
+    isHide: boolean;
+    isFull: boolean;
+    isAffix: boolean;
+    isKeepAlive: boolean;
+    isEnabled: boolean;
+    createdAt?: string | null;
+    updatedAt?: string | null;
+    children?: ResMenuList[];
+  }
+
+  // 菜单详情
+  export interface ResMenuDetail {
+    id: number;
+    parentId: number | null;
+    name: string;
+    path: string;
+    component: string | null;
+    redirect: string | null;
+    sortOrder: number;
+    icon: string;
+    title: string;
+    isLink: string;
+    isHide: boolean;
+    isFull: boolean;
+    isAffix: boolean;
+    isKeepAlive: boolean;
+    activeMenu: string | null;
+    perms: string | null;
+    requiredLevel: string | null;
+    requiredComputePower: number | null;
+    consumeComputePower: number | null;
+    isEnabled: boolean;
+  }
+
+  // 创建菜单请求参数
+  export interface ReqMenuCreate {
+    parent_id?: number | null;
+    name: string;
+    path: string;
+    component?: string | null;
+    redirect?: string | null;
+    sort_order?: number;
+    icon?: string;
+    title: string;
+    is_link?: string | null;
+    is_hide?: boolean;
+    is_full?: boolean;
+    is_affix?: boolean;
+    is_keep_alive?: boolean;
+    active_menu?: string | null;
+    perms?: string | null;
+    required_level?: string | null;
+    required_compute_power?: number | null;
+    consume_compute_power?: number | null;
+    is_enabled?: boolean;
+  }
+
+  // 更新菜单请求参数
+  export interface ReqMenuUpdate {
+    parent_id?: number | null;
+    name?: string;
+    path?: string;
+    component?: string | null;
+    redirect?: string | null;
+    sort_order?: number;
+    icon?: string;
+    title?: string;
+    is_link?: string | null;
+    is_hide?: boolean;
+    is_full?: boolean;
+    is_affix?: boolean;
+    is_keep_alive?: boolean;
+    active_menu?: string | null;
+    perms?: string | null;
+    required_level?: string | null;
+    required_compute_power?: number | null;
+    consume_compute_power?: number | null;
+    is_enabled?: boolean;
+  }
+
+  // MenuOptions和MetaProps已在global.d.ts中定义，这里通过declare global扩展
+  // 如果需要在模块中使用，可以通过类型引用：import type { MenuOptions } from "@/typings/global";
 }

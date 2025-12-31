@@ -279,6 +279,7 @@ class MenuService:
         return {
             "home": ["view"],
             "userManage": ["add", "edit", "delete", "export", "import", "recharge", "deduct", "changeLevel"],
+            "adminUserManage": ["add", "edit", "delete", "changeStatus"],
             "computeLog": ["view", "export"],
             "appConfig": ["view", "edit"],
             "agentManage": ["add", "edit", "delete", "status"],

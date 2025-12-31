@@ -56,7 +56,7 @@
 import { ref, reactive } from "vue";
 import { genderType } from "@/utils/dict";
 import { ElMessage, FormInstance } from "element-plus";
-import { User } from "@/api/interface";
+import type { User } from "@/api/interface";
 import UploadImg from "@/components/Upload/Img.vue";
 import UploadImgs from "@/components/Upload/Imgs.vue";
 

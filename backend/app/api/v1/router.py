@@ -3,7 +3,7 @@ API v1 Router - 路由汇总
 """
 from fastapi import APIRouter
 
-from .endpoints import auth, users, dashboard, menu, agents
+from .endpoints import auth, users, dashboard, menu, agents, roles, admin_users
 
 api_router = APIRouter()
 
@@ -14,7 +14,14 @@ api_router.include_router(
     tags=["认证"]
 )
 
-# 用户管理路由
+# 管理员用户管理路由
+api_router.include_router(
+    admin_users.router,
+    prefix="/admin-users",
+    tags=["管理员用户管理"]
+)
+
+# 用户管理路由（微信小程序用户）
 api_router.include_router(
     users.router,
     prefix="/users",
@@ -40,6 +47,13 @@ api_router.include_router(
     agents.router,
     prefix="/agents",
     tags=["智能体管理"]
+)
+
+# 角色管理路由
+api_router.include_router(
+    roles.router,
+    prefix="/roles",
+    tags=["角色管理"]
 )
 
 
