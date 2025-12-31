@@ -66,7 +66,7 @@ async def create_tables() -> None:
         raise RuntimeError("Database not initialized. Call init_db() first.")
     
     # 导入所有模型确保它们被注册
-    from app.models import User, ComputeLog, Menu  # noqa: F401
+    from app.models import User, ComputeLog, Menu, Agent  # noqa: F401
     
     logger.info("Creating database tables...")
     async with engine.begin() as conn:

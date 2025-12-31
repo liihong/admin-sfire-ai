@@ -1,4 +1,5 @@
 import http from "@/api";
+import { PORT1 } from "@/api/config/servicePort";
 
 /**
  * @name Dashboard 统计模块
@@ -43,20 +44,20 @@ export namespace Dashboard {
 
 // 获取核心统计数据
 export const getStatsData = () => {
-  return http.get<Dashboard.StatsData>(`/api/v1/dashboard/stats`);
+  return http.get<Dashboard.StatsData>(PORT1 + `/dashboard/stats`);
 };
 
 // 获取用户增长趋势（7天）
 export const getUserTrend = (days: number = 7) => {
-  return http.get<Dashboard.UserTrendItem[]>(`/api/v1/dashboard/user-trend`, { days });
+  return http.get<Dashboard.UserTrendItem[]>(PORT1 + `/dashboard/user-trend`, { days });
 };
 
 // 获取智能体调用排行（Top 5）
 export const getAgentRank = (limit: number = 5) => {
-  return http.get<Dashboard.AgentRankItem[]>(`/api/v1/dashboard/agent-rank`, { limit });
+  return http.get<Dashboard.AgentRankItem[]>(PORT1 + `/dashboard/agent-rank`, { limit });
 };
 
 // 获取预警配置
 export const getAlertConfig = () => {
-  return http.get<Dashboard.AlertConfig>(`/api/v1/dashboard/alert-config`);
+  return http.get<Dashboard.AlertConfig>(PORT1 + `/dashboard/alert-config`);
 };

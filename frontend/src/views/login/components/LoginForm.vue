@@ -87,13 +87,7 @@ const login = (formEl: FormInstance | undefined) => {
       //   type: "success",
       //   duration: 3000
       // });
-      ElNotification({
-        title: "React 付费版本 🔥🔥🔥",
-        dangerouslyUseHTMLString: true,
-        message: "预览地址：<a href='https://pro.spicyboy.cn'>https://pro.spicyboy.cn</a>",
-        type: "success",
-        duration: 8000
-      });
+      
     } finally {
       loading.value = false;
     }

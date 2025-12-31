@@ -59,6 +59,7 @@ async def init_menus(session: AsyncSession) -> None:
     
     菜单结构：
     - 首页/控制台
+    - 智能体配置
     - 用户管理
     - 财务管理 (父级)
       - 算力流水 (子级)
@@ -70,8 +71,8 @@ async def init_menus(session: AsyncSession) -> None:
     existing = result.scalar_one_or_none()
     
     if existing:
-        logger.warning("菜单数据已存在，跳过初始化")
-        return
+        logger.warning("菜单数据已存在，将更新智能体配置菜单（如果不存在）")
+        # 继续执行，确保智能体菜单存在
     
     logger.info("正在初始化菜单数据...")
     
@@ -88,6 +89,16 @@ async def init_menus(session: AsyncSession) -> None:
             "is_affix": True,
             "is_keep_alive": True,
         },
+        # 智能体配置
+        {
+            "name": "agentManage",
+            "path": "/agent/index",
+            "component": "/agent/index",
+            "title": "智能体配置",
+            "icon": "ChatDotRound",
+            "sort_order": 2,
+            "is_keep_alive": True,
+        },
         # 用户管理
         {
             "name": "userManage",
@@ -95,7 +106,7 @@ async def init_menus(session: AsyncSession) -> None:
             "component": "/user/index",
             "title": "用户管理",
             "icon": "User",
-            "sort_order": 2,
+            "sort_order": 3,
             "is_keep_alive": True,
         },
         # 财务管理 (父级)
@@ -104,7 +115,7 @@ async def init_menus(session: AsyncSession) -> None:
             "path": "/finance",
             "title": "财务管理",
             "icon": "Money",
-            "sort_order": 3,
+            "sort_order": 4,
             "is_keep_alive": True,
             "children": [
                 # 算力流水 (子级)
@@ -125,7 +136,7 @@ async def init_menus(session: AsyncSession) -> None:
             "path": "/app",
             "title": "小程序装修",
             "icon": "Management",
-            "sort_order": 4,
+            "sort_order": 5,
             "is_keep_alive": True,
             "children": [
                 # 首页配置 (子级)
@@ -159,8 +170,47 @@ async def init_menus(session: AsyncSession) -> None:
         # 检查菜单是否已存在（通过 name 判断）
         name = menu_data["name"]
         if name in created_menus:
-            logger.warning(f"菜单 {name} 已存在，跳过创建")
-            return created_menus[name]
+            logger.info(f"菜单 {name} 已存在，更新配置")
+            menu = created_menus[name]
+            # 更新菜单配置
+            menu.path = menu_data["path"]
+            menu.component = menu_data.get("component")
+            menu.redirect = menu_data.get("redirect")
+            menu.title = menu_data["title"]
+            menu.icon = menu_data.get("icon", "Menu")
+            menu.sort_order = menu_data.get("sort_order", 0)
+            menu.is_link = menu_data.get("is_link", "")
+            menu.is_hide = menu_data.get("is_hide", False)
+            menu.is_full = menu_data.get("is_full", False)
+            menu.is_affix = menu_data.get("is_affix", False)
+            menu.is_keep_alive = menu_data.get("is_keep_alive", True)
+            menu.is_enabled = True  # 确保启用
+            menu.parent_id = parent_id
+            await session.flush()
+            return menu
+        
+        # 检查数据库中是否已存在
+        result = await session.execute(select(Menu).where(Menu.name == name))
+        db_menu = result.scalar_one_or_none()
+        if db_menu:
+            logger.info(f"菜单 {name} 在数据库中已存在，更新配置")
+            # 更新菜单配置
+            db_menu.path = menu_data["path"]
+            db_menu.component = menu_data.get("component")
+            db_menu.redirect = menu_data.get("redirect")
+            db_menu.title = menu_data["title"]
+            db_menu.icon = menu_data.get("icon", "Menu")
+            db_menu.sort_order = menu_data.get("sort_order", 0)
+            db_menu.is_link = menu_data.get("is_link", "")
+            db_menu.is_hide = menu_data.get("is_hide", False)
+            db_menu.is_full = menu_data.get("is_full", False)
+            db_menu.is_affix = menu_data.get("is_affix", False)
+            db_menu.is_keep_alive = menu_data.get("is_keep_alive", True)
+            db_menu.is_enabled = True  # 确保启用
+            db_menu.parent_id = parent_id
+            await session.flush()
+            created_menus[name] = db_menu
+            return db_menu
         
         # 提取子菜单数据（不修改原字典）
         children_data = menu_data.get("children")

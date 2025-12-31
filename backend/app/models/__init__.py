@@ -5,6 +5,7 @@ from .base import BaseModel, TimestampMixin
 from .user import User, UserLevel
 from .compute import ComputeLog, ComputeType
 from .menu import Menu
+from .agent import Agent
 
 __all__ = [
     "BaseModel",
@@ -14,4 +15,5 @@ __all__ = [
     "ComputeLog",
     "ComputeType",
     "Menu",
+    "Agent",
 ]

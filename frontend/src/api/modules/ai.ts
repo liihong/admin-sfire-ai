@@ -47,6 +47,9 @@ export const getUserLevel = () => {
  * @returns EventSource URL（需配合 useSSE hook 使用）
  */
 export const getStreamChatUrl = (_params: AI.ReqChatParams): string => {
+  // 使用代理路径，确保与代理配置一致
+  // 代理配置：[["/api", "http://localhost:8000"]]
+  // 最终URL: /api/v1/ai/chat/stream
   const baseUrl = import.meta.env.VITE_API_URL as string;
   return `${baseUrl}${PORT1}/ai/chat/stream`;
 };

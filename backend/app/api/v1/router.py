@@ -3,7 +3,7 @@ API v1 Router - 路由汇总
 """
 from fastapi import APIRouter
 
-from .endpoints import auth, users, dashboard, menu
+from .endpoints import auth, users, dashboard, menu, agents
 
 api_router = APIRouter()
 
@@ -33,6 +33,13 @@ api_router.include_router(
     menu.router,
     prefix="/menu",
     tags=["菜单管理"]
+)
+
+# 智能体管理路由
+api_router.include_router(
+    agents.router,
+    prefix="/agents",
+    tags=["智能体管理"]
 )
 
 
