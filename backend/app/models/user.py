@@ -10,7 +10,7 @@ from sqlalchemy import (
     String,
     Enum as SQLEnum,
     DECIMAL,
-    Integer,
+    BigInteger,
     Boolean,
     ForeignKey,
     Index,
@@ -103,7 +103,7 @@ class User(BaseModel):
     
     # === 分销关联 ===
     parent_id: Mapped[Optional[int]] = mapped_column(
-        Integer,
+        BigInteger,  # 改为 BigInteger 以匹配 id 的类型
         ForeignKey("users.id", ondelete="SET NULL"),
         nullable=True,
         comment="上级用户ID（分销推荐人）",

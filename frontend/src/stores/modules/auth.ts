@@ -5,7 +5,7 @@ import { getFlatMenuList, getShowMenuList, getAllBreadcrumbList } from "@/utils"
 import { ElMessage } from "element-plus";
 
 export const useAuthStore = defineStore({
-  id: "geeker-auth",
+  id: "sfire-auth",
   state: (): AuthState => ({
     // 按钮权限列表
     authButtonList: {},

@@ -1,3 +1,8 @@
+:root {
+  --el-color-primary: #FA4616;
+  /* 记得生成对应的 light/dark 变体颜色 */
+}
+
 /* el-alert */
 .el-alert {
   border: 1px solid;
@@ -135,7 +140,7 @@
   .el-table {
     flex: 1;
 
-    // 修复 safari 浏览器表格错位 https://github.com/HalseySpicy/Geeker-Admin/issues/83
+    // 修复 safari 浏览器表格错位 https://github.com/HalseySpicy/SFire-Admin/issues/83
     table {
       width: 100%;
     }

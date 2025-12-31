@@ -5,6 +5,7 @@ from typing import List
 from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 import json
+from urllib.parse import quote_plus
 
 
 class Settings(BaseSettings):
@@ -67,8 +68,11 @@ class Settings(BaseSettings):
     @property
     def MYSQL_DATABASE_URL(self) -> str:
         """MySQL 异步连接 URL"""
+        # URL 编码用户名和密码，避免特殊字符（如 @）导致解析错误
+        encoded_user = quote_plus(self.MYSQL_USER)
+        encoded_password = quote_plus(self.MYSQL_PASSWORD)
         return (
-            f"mysql+aiomysql://{self.MYSQL_USER}:{self.MYSQL_PASSWORD}"
+            f"mysql+aiomysql://{encoded_user}:{encoded_password}"
             f"@{self.MYSQL_HOST}:{self.MYSQL_PORT}/{self.MYSQL_DATABASE}"
             "?charset=utf8mb4"
         )
@@ -76,8 +80,11 @@ class Settings(BaseSettings):
     @property
     def MYSQL_DATABASE_URL_SYNC(self) -> str:
         """MySQL 同步连接 URL（用于 Alembic 迁移）"""
+        # URL 编码用户名和密码，避免特殊字符（如 @）导致解析错误
+        encoded_user = quote_plus(self.MYSQL_USER)
+        encoded_password = quote_plus(self.MYSQL_PASSWORD)
         return (
-            f"mysql+pymysql://{self.MYSQL_USER}:{self.MYSQL_PASSWORD}"
+            f"mysql+pymysql://{encoded_user}:{encoded_password}"
             f"@{self.MYSQL_HOST}:{self.MYSQL_PORT}/{self.MYSQL_DATABASE}"
             "?charset=utf8mb4"
         )
