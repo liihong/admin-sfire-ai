@@ -60,7 +60,7 @@ export const useSSE = () => {
         method,
         headers: {
           "Content-Type": "application/json",
-          "x-access-token": userStore.token,
+          Authorization: userStore.token ? `Bearer ${userStore.token}` : "",
           Accept: "text/event-stream",
           ...headers
         },

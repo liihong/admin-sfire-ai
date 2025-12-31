@@ -14,7 +14,7 @@
         </el-form-item>
         <el-form-item label="状态">
           <el-select v-model="searchForm.status" placeholder="请选择状态" clearable style="width: 150px">
-            <el-option label="全部" :value="undefined" />
+            <el-option label="全部" :value="null as any" />
             <el-option label="上架" :value="1" />
             <el-option label="下架" :value="0" />
           </el-select>
@@ -80,6 +80,7 @@
             />
           </div>
           <div class="action-buttons">
+            <el-button type="warning" link :icon="Cpu" class="debug-button" @click="handleDebug(agent)">调试</el-button>
             <el-button type="primary" link :icon="EditPen" @click="handleEdit(agent)">编辑</el-button>
             <el-button type="danger" link :icon="Delete" @click="handleDelete(agent)">删除</el-button>
           </div>
@@ -126,7 +127,8 @@
 <script setup lang="ts" name="agentManage">
 import { ref, reactive, onMounted } from "vue";
 import { ElMessage, ElMessageBox } from "element-plus";
-import { Search, Refresh, Plus, EditPen, Delete, ChatDotRound } from "@element-plus/icons-vue";
+import { Search, Refresh, Plus, EditPen, Delete, ChatDotRound, Cpu } from "@element-plus/icons-vue";
+import { useRouter } from "vue-router";
 import { Agent } from "@/api/interface";
 import {
   getAgentList,
@@ -135,6 +137,8 @@ import {
   updateAgentSort,
 } from "@/api/modules/agent";
 import AgentForm from "./components/AgentForm.vue";
+
+const router = useRouter();
 
 // 搜索表单
 const searchForm = reactive({
@@ -235,6 +239,11 @@ const handleEdit = (agent: Agent.ResAgentItem) => {
   isEdit.value = true;
   currentAgent.value = { ...agent };
   dialogVisible.value = true;
+};
+
+// 调试
+const handleDebug = (agent: Agent.ResAgentItem) => {
+  router.push(`/agent/playground/${agent.id}`);
 };
 
 // 删除
@@ -386,6 +395,7 @@ onMounted(() => {
               text-overflow: ellipsis;
               display: -webkit-box;
               -webkit-line-clamp: 2;
+              line-clamp: 2;
               -webkit-box-orient: vertical;
             }
 
@@ -429,6 +439,25 @@ onMounted(() => {
         .action-buttons {
           display: flex;
           gap: 8px;
+
+          .debug-button {
+            position: relative;
+            animation: pulse 2s infinite;
+
+            &::before {
+              content: "";
+              position: absolute;
+              top: 50%;
+              left: 50%;
+              transform: translate(-50%, -50%);
+              width: 100%;
+              height: 100%;
+              border-radius: 4px;
+              background-color: var(--el-color-warning);
+              opacity: 0.3;
+              animation: breathe 2s infinite;
+            }
+          }
         }
       }
     }
@@ -438,6 +467,26 @@ onMounted(() => {
     display: flex;
     justify-content: flex-end;
     margin-top: 20px;
+  }
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.8;
+  }
+}
+
+@keyframes breathe {
+  0%, 100% {
+    transform: translate(-50%, -50%) scale(1);
+    opacity: 0.3;
+  }
+  50% {
+    transform: translate(-50%, -50%) scale(1.1);
+    opacity: 0.5;
   }
 }
 </style>

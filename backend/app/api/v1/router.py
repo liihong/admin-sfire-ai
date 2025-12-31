@@ -3,7 +3,7 @@ API v1 Router - 路由汇总
 """
 from fastapi import APIRouter
 
-from .endpoints import auth, users, dashboard, menu, agents, roles, admin_users
+from .endpoints import auth, users, dashboard, menu, agents, roles, admin_users, ai
 
 api_router = APIRouter()
 
@@ -54,6 +54,13 @@ api_router.include_router(
     roles.router,
     prefix="/roles",
     tags=["角色管理"]
+)
+
+# AI 对话路由
+api_router.include_router(
+    ai.router,
+    prefix="/ai",
+    tags=["AI 对话"]
 )
 
 
