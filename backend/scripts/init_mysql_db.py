@@ -20,6 +20,7 @@ from app.db.session import init_db, async_session_maker, close_db, create_tables
 from app.models.user import User, UserLevel
 from app.models.menu import Menu
 from app.models.compute import ComputeLog, ComputeType
+from app.models.llm_model import LLMModel
 from app.core.security import hash_password
 
 
@@ -151,30 +152,38 @@ MOCK_MENUS = [
             },
         ],
     },
-    # 小程序装修
+    # 小程序管理
     {
-        "name": "app",
-        "path": "/app",
-        "redirect": "/app/config",
-        "title": "首页装修",
+        "name": "miniprogram",
+        "path": "/miniprogram",
+        "redirect": "/miniprogram/users",
+        "title": "小程序管理",
         "icon": "Iphone",
         "sort_order": 30,
         "children": [
             {
-                "name": "appConfig",
-                "path": "/app/config",
-                "component": "/app/config",
-                "title": "首页配置",
-                "icon": "Menu",
+                "name": "miniprogramUserManage",
+                "path": "/miniprogram/users",
+                "component": "/system/userManage/index",
+                "title": "用户管理",
+                "icon": "User",
                 "sort_order": 0,
             },
             {
                 "name": "bannerManage",
-                "path": "/app/banner",
-                "component": "/app/banner",
+                "path": "/miniprogram/banner",
+                "component": "/miniprogram/banner/index",
                 "title": "Banner管理",
-                "icon": "Menu",
+                "icon": "Picture",
                 "sort_order": 10,
+            },
+            {
+                "name": "homeConfig",
+                "path": "/miniprogram/config",
+                "component": "/miniprogram/config/index",
+                "title": "首页配置",
+                "icon": "Setting",
+                "sort_order": 20,
             },
         ],
     },
@@ -210,6 +219,14 @@ MOCK_MENUS = [
                 "title": "角色管理",
                 "icon": "Menu",
                 "sort_order": 10,
+            },
+            {
+                "name": "llmModelManage",
+                "path": "/system/llmModelManage",
+                "component": "/system/llmModelManage/index",
+                "title": "大模型管理",
+                "icon": "Cpu",
+                "sort_order": 15,
             },
         ],
     },
@@ -463,6 +480,109 @@ async def init_compute_logs(session: AsyncSession) -> None:
     logger.info(f"算力变动记录初始化完成，共创建 {logs_created} 条记录")
 
 
+# 默认大模型数据
+DEFAULT_LLM_MODELS = [
+    {
+        "name": "GPT-4o",
+        "model_id": "gpt-4o",
+        "provider": "openai",
+        "api_key": None,  # 留空，由用户配置
+        "base_url": None,  # 使用默认 URL
+        "is_enabled": True,
+        "sort_order": 0,
+        "remark": "OpenAI 最新多模态模型"
+    },
+    {
+        "name": "GPT-4o Mini",
+        "model_id": "gpt-4o-mini",
+        "provider": "openai",
+        "api_key": None,
+        "base_url": None,
+        "is_enabled": True,
+        "sort_order": 1,
+        "remark": "OpenAI 更快速的 GPT-4o 版本"
+    },
+    {
+        "name": "Claude 3.5 Sonnet",
+        "model_id": "claude-3-5-sonnet-20241022",
+        "provider": "anthropic",
+        "api_key": None,
+        "base_url": None,
+        "is_enabled": True,
+        "sort_order": 10,
+        "remark": "Anthropic 最新的 Claude 3.5 模型"
+    },
+    {
+        "name": "Claude 3 Opus",
+        "model_id": "claude-3-opus-20240229",
+        "provider": "anthropic",
+        "api_key": None,
+        "base_url": None,
+        "is_enabled": True,
+        "sort_order": 11,
+        "remark": "Anthropic Claude 3 Opus 模型"
+    },
+    {
+        "name": "DeepSeek Chat",
+        "model_id": "deepseek-chat",
+        "provider": "deepseek",
+        "api_key": None,
+        "base_url": None,
+        "is_enabled": True,
+        "sort_order": 20,
+        "remark": "DeepSeek 对话模型"
+    },
+    {
+        "name": "DeepSeek Coder",
+        "model_id": "deepseek-coder",
+        "provider": "deepseek",
+        "api_key": None,
+        "base_url": None,
+        "is_enabled": True,
+        "sort_order": 21,
+        "remark": "DeepSeek 代码专用模型"
+    },
+]
+
+
+async def init_llm_models(session: AsyncSession) -> None:
+    """
+    初始化大模型数据
+    """
+    logger.info("开始初始化大模型数据...")
+    
+    models_created = 0
+    
+    for model_data in DEFAULT_LLM_MODELS:
+        # 检查模型是否已存在
+        result = await session.execute(
+            select(LLMModel).where(LLMModel.model_id == model_data["model_id"])
+        )
+        existing = result.scalar_one_or_none()
+        if existing:
+            logger.info(f"大模型 {model_data['model_id']} 已存在，跳过创建")
+            continue
+        
+        # 创建模型
+        model = LLMModel(
+            name=model_data["name"],
+            model_id=model_data["model_id"],
+            provider=model_data["provider"],
+            api_key=model_data["api_key"],
+            base_url=model_data["base_url"],
+            is_enabled=model_data["is_enabled"],
+            sort_order=model_data["sort_order"],
+            remark=model_data["remark"],
+        )
+        
+        session.add(model)
+        models_created += 1
+        logger.info(f"创建大模型: {model.name} ({model.model_id})")
+    
+    await session.commit()
+    logger.info(f"大模型初始化完成，共创建 {models_created} 个模型")
+
+
 async def main():
     """
     主函数：执行数据库初始化
@@ -498,6 +618,9 @@ async def main():
                 
                 # 初始化算力变动记录数据
                 await init_compute_logs(session)
+                
+                # 初始化大模型数据
+                await init_llm_models(session)
                 
                 logger.info("=" * 60)
                 logger.info("MySQL 数据库初始化完成！")

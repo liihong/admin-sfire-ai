@@ -5,68 +5,87 @@ import http from "@/api";
 
 /**
  * @name 用户管理模块
+ * 对接 /api/v1/users 接口
  */
+
 // 获取用户列表
 export const getUserList = (params: User.ReqUserParams) => {
-  return http.post<ResPage<User.ResUserList>>(PORT1 + `/user/list`, params);
+  return http.get<ResPage<User.ResUserList>>(PORT1 + `/users`, params);
 };
 
-// 获取树形用户列表
-export const getUserTreeList = (params: User.ReqUserParams) => {
-  return http.post<ResPage<User.ResUserList>>(PORT1 + `/user/tree/list`, params);
+// 获取用户详情
+export const getUserDetail = (id: string) => {
+  return http.get<User.ResUserDetail>(PORT1 + `/users/${id}`);
 };
 
 // 新增用户
-export const addUser = (params: { id: string }) => {
-  return http.post(PORT1 + `/user/add`, params);
-};
-
-// 批量添加用户
-export const BatchAddUser = (params: FormData) => {
-  return http.post(PORT1 + `/user/import`, params);
+export const addUser = (params: {
+  username: string;
+  password: string;
+  phone?: string;
+  nickname?: string;
+  level: string; // "normal" | "member" | "partner"
+  remark?: string;
+  parent_id?: number;
+}) => {
+  return http.post(PORT1 + `/users`, params);
 };
 
 // 编辑用户
-export const editUser = (params: { id: string }) => {
-  return http.post(PORT1 + `/user/edit`, params);
+export const editUser = (params: {
+  id?: string;
+  username?: string;
+  phone?: string;
+  nickname?: string;
+  level?: string; // "normal" | "member" | "partner"
+  is_active?: boolean;
+  remark?: string;
+}) => {
+  const { id, ...data } = params;
+  return http.put(PORT1 + `/users/${id}`, data);
 };
 
 // 删除用户
 export const deleteUser = (params: { id: string[] }) => {
-  return http.post(PORT1 + `/user/delete`, params);
+  return http.delete(PORT1 + `/users/${params.id[0]}`);
 };
 
-// 切换用户状态
+// 切换用户状态（封禁/解封）
 export const changeUserStatus = (params: { id: string; status: number }) => {
-  return http.post(PORT1 + `/user/change`, params);
+  return http.patch(PORT1 + `/users/${params.id}/status`, null, { params: { status: params.status } });
 };
 
-// 重置用户密码
-export const resetUserPassWord = (params: { id: string }) => {
-  return http.post(PORT1 + `/user/rest_password`, params);
+// 修改用户等级
+export const changeUserLevel = (params: User.ReqChangeLevel) => {
+  return http.post(PORT1 + `/users/change-level`, params);
+};
+
+// 充值算力
+export const rechargeUserCompute = (params: User.ReqRecharge) => {
+  return http.post(PORT1 + `/users/recharge`, params);
+};
+
+// 扣除算力
+export const deductUserCompute = (params: User.ReqDeduct) => {
+  return http.post(PORT1 + `/users/deduct`, params);
+};
+
+// 获取用户等级选项
+export const getUserLevelOptions = () => {
+  return http.get<User.ResLevel[]>(PORT1 + `/users/level/options`);
+};
+
+// 获取用户状态选项
+export const getUserStatusOptions = () => {
+  return http.get<User.ResStatus[]>(PORT1 + `/users/status/options`);
 };
 
 // 导出用户数据
-export const exportUserInfo = (params: User.ReqUserParams) => {
-  return http.download(PORT1 + `/user/export`, params);
+export const exportUserData = (params: User.ReqUserParams) => {
+  return http.download(PORT1 + `/users/export`, params);
 };
 
-// 获取用户状态字典
-export const getUserStatus = () => {
-  return http.get<User.ResStatus[]>(PORT1 + `/user/status`);
-};
-
-// 获取用户性别字典
-export const getUserGender = () => {
-  return http.get<User.ResGender[]>(PORT1 + `/user/gender`);
-};
-
-// 获取用户部门列表
-export const getUserDepartment = () => {
-  return http.get<User.ResDepartment[]>(PORT1 + `/user/department`, {}, { cancel: false });
-};
-
-// 获取用户角色字典
-export const getUserRole = () => {
-  return http.get<User.ResRole[]>(PORT1 + `/user/role`);
+// 获取用户算力消耗记录
+export const getUserComputeRecords = (params: { userId: string; pageNum: number; pageSize: number }) => {
+  return http.post<ResPage<User.UserActivity>>(PORT1 + `/users/compute/records`, params);
 };

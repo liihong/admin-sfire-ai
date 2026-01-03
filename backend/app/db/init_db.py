@@ -15,7 +15,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.session import init_db, async_session_maker, close_db
 from app.models.menu import Menu
-from app.models.user import User
+from app.models.admin_user import AdminUser
 from app.models.role import Role
 from app.core.security import hash_password
 
@@ -30,7 +30,7 @@ async def init_admin_user(session: AsyncSession) -> None:
     """
     # 检查是否已存在管理员用户
     result = await session.execute(
-        select(User).where(User.username == "admin")
+        select(AdminUser).where(AdminUser.username == "admin")
     )
     existing = result.scalar_one_or_none()
     
@@ -41,7 +41,7 @@ async def init_admin_user(session: AsyncSession) -> None:
     logger.info("正在创建管理员用户...")
     
     # 创建管理员用户
-    admin = User(
+    admin = AdminUser(
         username="admin",
         password_hash=hash_password("admin123"),
         is_active=True,

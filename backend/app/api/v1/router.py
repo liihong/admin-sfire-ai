@@ -3,7 +3,7 @@ API v1 Router - 路由汇总
 """
 from fastapi import APIRouter
 
-from .endpoints import auth, users, dashboard, menu, agents, roles, admin_users, ai
+from .endpoints import auth, users, dashboard, menu, agents, roles, admin_users, ai, llm_models, banner, home_config
 
 api_router = APIRouter()
 
@@ -61,6 +61,27 @@ api_router.include_router(
     ai.router,
     prefix="/ai",
     tags=["AI 对话"]
+)
+
+# 大模型管理路由
+api_router.include_router(
+    llm_models.router,
+    prefix="/llm-models",
+    tags=["大模型管理"]
+)
+
+# Banner管理路由
+api_router.include_router(
+    banner.router,
+    prefix="/banners",
+    tags=["Banner管理"]
+)
+
+# 首页配置路由
+api_router.include_router(
+    home_config.router,
+    prefix="/home-configs",
+    tags=["首页配置"]
 )
 
 

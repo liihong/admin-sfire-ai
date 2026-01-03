@@ -70,7 +70,7 @@ class UserService:
             "role": "admin" if user.level == UserLevel.PARTNER else "user",
             "inviteCode": None,  # TODO: 生成邀请码逻辑
             "inviterId": str(user.parent_id) if user.parent_id else None,
-            "inviterName": None,  # TODO: 查询上级用户名称
+            "inviterName": user.parent.username if user.parent else None,  # 使用预加载的 parent 关系
             "createTime": user.created_at.isoformat() if user.created_at else None,
             "lastLoginTime": None,  # TODO: 记录登录时间
             "status": 1 if user.is_active else 0,
@@ -116,9 +116,11 @@ class UserService:
         total_result = await self.db.execute(count_query)
         total = total_result.scalar() or 0
         
-        # 查询数据
+        # 查询数据 - 使用 selectinload 预加载 parent 关系以避免 N+1 查询
+        from sqlalchemy.orm import selectinload
         query = (
             select(User)
+            .options(selectinload(User.parent))
             .where(and_(*conditions))
             .order_by(User.created_at.desc())
             .offset(params.offset)

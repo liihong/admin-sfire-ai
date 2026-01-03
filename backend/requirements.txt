@@ -12,3 +12,6 @@ httpx
 redis
 bcrypt
 email-validator
+pydantic[email]
+sqlalchemy
+loguru

@@ -8,6 +8,7 @@ from loguru import logger
 
 from app.core.config import settings
 from app.schemas.ai import ChatMessage
+from app.services.llm_model import LLMModelService
 import httpx
 import json
 import uuid
@@ -18,8 +19,37 @@ class AIService:
     
     def __init__(self, db: AsyncSession):
         self.db = db
+        self.llm_model_service = LLMModelService(db)
+        # 兼容旧代码：如果没有配置模型，使用环境变量
         self.openai_api_key = settings.OPENAI_API_KEY
         self.openai_base_url = "https://api.openai.com/v1"
+    
+    async def _get_model_config(self, model_id: str) -> tuple[Optional[str], Optional[str]]:
+        """
+        根据模型ID获取模型配置（API key 和 base_url）
+        
+        Args:
+            model_id: 模型ID（可能是数据库ID字符串，或模型标识如 "gpt-4o"）
+        
+        Returns:
+            (api_key, base_url) 或 (None, None) 如果未找到
+        """
+        try:
+            # 先尝试作为数据库ID查找
+            try:
+                db_id = int(model_id)
+                model = await self.llm_model_service.get_llm_model_by_id(db_id)
+            except (ValueError, Exception):
+                # 如果转换失败，尝试作为 model_id 查找
+                model = await self.llm_model_service.get_llm_model_by_model_id(model_id)
+            
+            if model and model.api_key and model.is_enabled:
+                base_url = model.base_url or self.llm_model_service.DEFAULT_BASE_URLS.get(model.provider)
+                return model.api_key, base_url
+        except Exception as e:
+            logger.warning(f"Failed to get model config for {model_id}: {e}")
+        
+        return None, None
     
     async def chat(
         self,
@@ -36,7 +66,7 @@ class AIService:
         
         Args:
             messages: 消息列表
-            model: 模型名称
+            model: 模型ID（数据库ID字符串或模型标识）
             temperature: 温度参数
             max_tokens: 最大token数
             top_p: Top P采样
@@ -46,8 +76,15 @@ class AIService:
         Returns:
             对话响应字典
         """
-        if not self.openai_api_key:
-            raise ValueError("OPENAI_API_KEY 未配置")
+        # 尝试从数据库获取模型配置
+        api_key, base_url = await self._get_model_config(model)
+        
+        # 如果数据库中没有配置，使用环境变量（向后兼容）
+        if not api_key:
+            api_key = self.openai_api_key
+            base_url = self.openai_base_url
+            if not api_key:
+                raise ValueError("模型未配置 API Key，且环境变量 OPENAI_API_KEY 也未配置")
         
         # 转换消息格式（支持ChatMessage对象或字典）
         formatted_messages = []
@@ -60,16 +97,30 @@ class AIService:
                     "content": msg.content
                 })
         
-        # 调用 OpenAI API
+        # 确定实际使用的模型标识（从数据库模型配置中获取 model_id）
+        actual_model_id = model
+        try:
+            try:
+                db_id = int(model)
+                llm_model = await self.llm_model_service.get_llm_model_by_id(db_id)
+                if llm_model:
+                    actual_model_id = llm_model.model_id
+            except (ValueError, Exception):
+                # 如果 model 不是数字ID，直接使用
+                pass
+        except Exception:
+            pass
+        
+        # 调用 API
         async with httpx.AsyncClient(timeout=60.0) as client:
             response = await client.post(
-                f"{self.openai_base_url}/chat/completions",
+                f"{base_url}/chat/completions",
                 headers={
-                    "Authorization": f"Bearer {self.openai_api_key}",
+                    "Authorization": f"Bearer {api_key}",
                     "Content-Type": "application/json",
                 },
                 json={
-                    "model": model,
+                    "model": actual_model_id,
                     "messages": formatted_messages,
                     "temperature": temperature,
                     "max_tokens": max_tokens,
@@ -82,20 +133,31 @@ class AIService:
             
             if response.status_code != 200:
                 error_text = response.text
-                logger.error(f"OpenAI API error: {response.status_code} - {error_text}")
-                raise Exception(f"OpenAI API 请求失败: {error_text}")
+                logger.error(f"API error: {response.status_code} - {error_text}")
+                raise Exception(f"API 请求失败: {error_text}")
             
             data = response.json()
+            
+            # 更新 token 使用统计
+            usage = data.get("usage")
+            if usage and isinstance(usage, dict):
+                total_tokens = usage.get("total_tokens", 0)
+                if total_tokens > 0:
+                    try:
+                        # 使用实际的模型标识更新 token 使用量
+                        await self.llm_model_service.update_token_usage(actual_model_id, total_tokens)
+                    except Exception as e:
+                        logger.warning(f"Failed to update token usage: {e}")
             
             # 格式化响应
             return {
                 "id": data.get("id", str(uuid.uuid4())),
-                "model": data.get("model", model),
+                "model": data.get("model", actual_model_id),
                 "message": {
                     "role": data["choices"][0]["message"]["role"],
                     "content": data["choices"][0]["message"]["content"],
                 },
-                "usage": data.get("usage"),
+                "usage": usage,
                 "finish_reason": data["choices"][0].get("finish_reason"),
             }
     
@@ -114,7 +176,7 @@ class AIService:
         
         Args:
             messages: 消息列表
-            model: 模型名称
+            model: 模型ID（数据库ID字符串或模型标识）
             temperature: 温度参数
             max_tokens: 最大token数
             top_p: Top P采样
@@ -124,8 +186,15 @@ class AIService:
         Yields:
             JSON 字符串格式的流式数据块
         """
-        if not self.openai_api_key:
-            raise ValueError("OPENAI_API_KEY 未配置")
+        # 尝试从数据库获取模型配置
+        api_key, base_url = await self._get_model_config(model)
+        
+        # 如果数据库中没有配置，使用环境变量（向后兼容）
+        if not api_key:
+            api_key = self.openai_api_key
+            base_url = self.openai_base_url
+            if not api_key:
+                raise ValueError("模型未配置 API Key，且环境变量 OPENAI_API_KEY 也未配置")
         
         # 转换消息格式（支持ChatMessage对象或字典）
         formatted_messages = []
@@ -138,17 +207,32 @@ class AIService:
                     "content": msg.content
                 })
         
-        # 调用 OpenAI API（流式）
+        # 确定实际使用的模型标识（从数据库模型配置中获取 model_id）
+        actual_model_id = model
+        try:
+            try:
+                db_id = int(model)
+                llm_model = await self.llm_model_service.get_llm_model_by_id(db_id)
+                if llm_model:
+                    actual_model_id = llm_model.model_id
+            except (ValueError, Exception):
+                # 如果 model 不是数字ID，直接使用
+                pass
+        except Exception:
+            pass
+        
+        # 调用 API（流式）
+        usage_info = None
         async with httpx.AsyncClient(timeout=120.0) as client:
             async with client.stream(
                 "POST",
-                f"{self.openai_base_url}/chat/completions",
+                f"{base_url}/chat/completions",
                 headers={
-                    "Authorization": f"Bearer {self.openai_api_key}",
+                    "Authorization": f"Bearer {api_key}",
                     "Content-Type": "application/json",
                 },
                 json={
-                    "model": model,
+                    "model": actual_model_id,
                     "messages": formatted_messages,
                     "temperature": temperature,
                     "max_tokens": max_tokens,
@@ -160,10 +244,10 @@ class AIService:
             ) as response:
                 if response.status_code != 200:
                     error_text = await response.aread()
-                    logger.error(f"OpenAI API error: {response.status_code} - {error_text.decode()}")
+                    logger.error(f"API error: {response.status_code} - {error_text.decode()}")
                     error_chunk = {
                         "error": {
-                            "message": f"OpenAI API 请求失败: {error_text.decode()}",
+                            "message": f"API 请求失败: {error_text.decode()}",
                             "type": "APIError"
                         }
                     }
@@ -186,11 +270,22 @@ class AIService:
                         
                         # 检查是否是结束标记
                         if data_str.strip() == "[DONE]":
+                            # 流结束时更新 token 使用统计
+                            if usage_info and usage_info.get("total_tokens", 0) > 0:
+                                try:
+                                    # 使用实际的模型标识更新 token 使用量
+                                    await self.llm_model_service.update_token_usage(actual_model_id, usage_info["total_tokens"])
+                                except Exception as e:
+                                    logger.warning(f"Failed to update token usage: {e}")
                             return
                         
                         try:
                             # 解析 JSON 数据
                             data = json.loads(data_str)
+                            
+                            # 保存 usage 信息（通常在最后一个 chunk 中）
+                            if "usage" in data:
+                                usage_info = data["usage"]
                             
                             # 提取 delta content
                             choices = data.get("choices", [])

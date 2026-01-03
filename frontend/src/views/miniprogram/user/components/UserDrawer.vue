@@ -66,7 +66,7 @@
 import { ref, reactive } from "vue";
 import { ElMessage, FormInstance, FormRules } from "element-plus";
 import type { User } from "@/api/interface";
-import { addUser, editUser } from "@/api/modules/userManage";
+import { addUser, editUser } from "@/api/modules/user";
 import { USER_LEVEL_CONFIG } from "@/config";
 
 // 等级选项

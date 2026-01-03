@@ -40,10 +40,10 @@ class RequestHttp {
       (config: CustomAxiosRequestConfig) => {
         const userStore = useUserStore();
         // 重复请求不需要取消，在 api 服务中通过指定的第三个参数: { cancel: false } 来控制
-        config.cancel ??= true;
+        if (config.cancel === undefined) config.cancel = true;
         config.cancel && axiosCanceler.addPending(config);
         // 当前请求不需要显示 loading，在 api 服务中通过指定的第三个参数: { loading: false } 来控制
-        config.loading ??= true;
+        if (config.loading === undefined) config.loading = true;
         config.loading && showFullScreenLoading();
         // 设置 Authorization header（Bearer Token）
         if (userStore.token && config.headers) {
@@ -108,6 +108,9 @@ class RequestHttp {
   }
   put<T>(url: string, params?: object, _object = {}): Promise<ResultData<T>> {
     return this.service.put(url, params, _object);
+  }
+  patch<T>(url: string, params?: object | string | null, _object = {}): Promise<ResultData<T>> {
+    return this.service.patch(url, params || undefined, _object);
   }
   delete<T>(url: string, params?: any, _object = {}): Promise<ResultData<T>> {
     return this.service.delete(url, { params, ..._object });
