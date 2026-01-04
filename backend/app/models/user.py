@@ -60,6 +60,9 @@ class User(BaseModel):
         Index("ix_users_openid", "openid"),            # openid 索引（小程序查询优化）
         Index("ix_users_parent_id", "parent_id"),      # parent_id 索引（分销查询优化）
         Index("ix_users_level", "level"),              # level 索引（按等级筛选）
+        Index("ix_users_is_deleted", "is_deleted"),   # is_deleted 索引（查询优化）
+        Index("ix_users_created_at", "created_at"),    # created_at 索引（排序优化）
+        Index("ix_users_is_active", "is_active"),      # is_active 索引（筛选优化）
         {"comment": "用户表"},
     )
     

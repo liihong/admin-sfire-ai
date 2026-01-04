@@ -156,6 +156,7 @@ const columns = reactive<ColumnProps<AdminUser.ResAdminUserList>[]>([
     prop: "username",
     label: "用户名",
     width: 150,
+    isShow: true,
     search: { el: "input" }
   },
   {

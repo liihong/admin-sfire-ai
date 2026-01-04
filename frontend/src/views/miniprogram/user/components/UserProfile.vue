@@ -96,7 +96,7 @@
 import { ref, onMounted } from "vue";
 import { User as UserIcon, Coin, Share, Clock } from "@element-plus/icons-vue";
 import type { User } from "@/api/interface";
-import { getUserDetail } from "@/api/modules/userManage";
+import { getUserDetail } from "@/api/modules/user";
 import { USER_LEVEL_CONFIG } from "@/config";
 
 const props = defineProps<{

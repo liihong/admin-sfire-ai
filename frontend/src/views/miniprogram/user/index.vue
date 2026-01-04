@@ -10,8 +10,8 @@
     >
       <!-- 表格 header 按钮 -->
       <template #tableHeader="scope">
-        <el-button v-auth="'add'" type="primary" :icon="CirclePlus" @click="openDrawer('新增')">新增用户</el-button>
-        <el-button v-auth="'export'" type="primary" :icon="Download" plain @click="downloadFile">导出数据</el-button>
+        <el-button type="primary" :icon="CirclePlus" @click="openDrawer('新增')">新增用户</el-button>
+        <el-button type="primary" :icon="Download" plain @click="downloadFile">导出数据</el-button>
         <el-button
           type="danger"
           :icon="Delete"
@@ -48,8 +48,9 @@
         </div>
       </template>
 
+      <!--AI写的bug，导致这个跟新状态会影响表显示 有时间手动调把-->
       <!-- 用户状态 -->
-      <template #status="scope">
+      <!-- <template #status="scope">
         <el-switch
           v-model="scope.row.status"
           :active-value="1"
@@ -58,7 +59,7 @@
           :loading="statusLoading === scope.row.id"
           @change="handleStatusChange(scope.row)"
         />
-      </template>
+      </template> -->
 
       <!-- 表格操作 -->
       <template #operation="scope">
@@ -68,7 +69,6 @@
         <el-button type="danger" link :icon="Delete" @click="deleteAccount(scope.row)">删除</el-button>
       </template>
     </ProTable>
-
     <!-- 用户编辑抽屉 -->
     <UserDrawer ref="drawerRef" />
 
@@ -110,7 +110,7 @@
   </div>
 </template>
 
-<script setup lang="tsx" name="userManage">
+<script setup lang="tsx" name="miniprogramUserManage">
 import { ref, reactive } from "vue";
 import { ElMessage, ElMessageBox, FormInstance, FormRules } from "element-plus";
 import { CirclePlus, Delete, EditPen, Download, User, Coin, InfoFilled } from "@element-plus/icons-vue";
@@ -130,7 +130,7 @@ import {
   getUserLevelOptions,
   getUserStatusOptions,
   exportUserData
-} from "@/api/modules/userManage";
+} from "@/api/modules/user";
 
 // ProTable 实例
 const proTable = ref<ProTableInstance>();
@@ -158,8 +158,8 @@ const getTableList = (params: any) => {
 };
 
 // 等级标签类型
-const getLevelTagType = (level: UserType.LevelType) => {
-  const typeMap: Record<UserType.LevelType, string> = {
+const getLevelTagType = (level: UserType.LevelType): "info" | "warning" | "danger" | "success" | "primary" => {
+  const typeMap: Record<UserType.LevelType, "info" | "warning" | "danger" | "success" | "primary"> = {
     0: "info",
     1: "warning",
     2: "danger"
@@ -183,7 +183,7 @@ const formatNumber = (num: number) => {
 // 表格列配置
 const columns = reactive<ColumnProps<UserType.ResUserList>[]>([
   { type: "selection", fixed: "left", width: 50 },
-  { type: "index", label: "#", width: 60 },
+  { type: "index", label: "#", width: 60},
   {
     prop: "username",
     label: "用户名",
@@ -232,7 +232,7 @@ const columns = reactive<ColumnProps<UserType.ResUserList>[]>([
   {
     prop: "status",
     label: "状态",
-    width: 100,
+    width: 150,
     enum: getUserStatusOptions,
     fieldNames: { label: "userLabel", value: "userValue" },
     search: { el: "select" }

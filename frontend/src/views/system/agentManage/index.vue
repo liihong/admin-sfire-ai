@@ -160,6 +160,7 @@
                   >
                     <div class="model-option">
                       <span>{{ model.name }}</span>
+                      <span class="model-provider">{{ getProviderName(model.provider) }}</span>
                       <span class="model-tokens">{{ model.maxTokens }} tokens</span>
                     </div>
                   </el-option>
@@ -386,7 +387,7 @@ const editorVisible = ref(false);
 const isEdit = ref(false);
 const submitLoading = ref(false);
 const formRef = ref<FormInstance>();
-const modelList = ref<Array<{ id: string; name: string; maxTokens: number }>>([]);
+const modelList = ref<Array<{ id: string; name: string; model_id: string; provider: string; maxTokens: number }>>([]);
 const promptTemplates = ref<Agent.PromptTemplate[]>([]);
 
 // 默认配置参数
@@ -574,6 +575,16 @@ const handleDelete = async (agent: Agent.ResAgentItem) => {
   fetchAgentList();
 };
 
+// 获取提供商名称
+const getProviderName = (provider: string): string => {
+  const nameMap: Record<string, string> = {
+    openai: "OpenAI",
+    anthropic: "Anthropic",
+    deepseek: "DeepSeek"
+  };
+  return nameMap[provider] || provider;
+};
+
 // 获取模型列表和模板
 const fetchInitData = async () => {
   try {
@@ -581,12 +592,8 @@ const fetchInitData = async () => {
       getAvailableModels(),
       getPromptTemplates()
     ]);
-    modelList.value = modelsRes.data || [
-      { id: "gpt-4o", name: "GPT-4o", maxTokens: 4096 },
-      { id: "gpt-4o-mini", name: "GPT-4o Mini", maxTokens: 4096 },
-      { id: "claude-3-5-sonnet", name: "Claude 3.5 Sonnet", maxTokens: 4096 },
-      { id: "deepseek-chat", name: "DeepSeek Chat", maxTokens: 4096 }
-    ];
+    // 从数据库获取模型列表（已包含 provider 字段）
+    modelList.value = modelsRes.data || [];
     promptTemplates.value = templatesRes.data || [
       { id: "1", name: "客服助手", category: "客服", content: "你是一位专业的客服助手，请用友善专业的语气回答用户问题。\n\n职责：\n- 解答用户关于产品和服务的疑问\n- 处理用户投诉和反馈\n- 引导用户完成操作\n\n注意事项：\n- 保持耐心和礼貌\n- 回答要简洁明了\n- 遇到无法回答的问题，引导联系人工客服" },
       { id: "2", name: "文案写手", category: "创作", content: "你是一位专业的文案写手，擅长创作各类营销文案和内容。\n\n能力：\n- 产品描述和卖点提炼\n- 社交媒体文案\n- 广告标语和口号\n- 品牌故事撰写\n\n风格要求：\n- 语言生动有感染力\n- 突出产品价值和用户利益\n- 适应不同平台的内容风格" },
@@ -881,7 +888,17 @@ onMounted(() => {
 .model-option {
   display: flex;
   justify-content: space-between;
+  align-items: center;
   width: 100%;
+  gap: 8px;
+}
+
+.model-provider {
+  font-size: 12px;
+  color: var(--el-color-primary);
+  padding: 2px 6px;
+  background: var(--el-color-primary-light-9);
+  border-radius: 2px;
 }
 
 .model-tokens {
