@@ -32,7 +32,7 @@ class Settings(BaseSettings):
     MYSQL_HOST: str = "localhost"
     MYSQL_PORT: int = 3306
     MYSQL_USER: str = "root"
-    MYSQL_PASSWORD: str = ""
+    MYSQL_PASSWORD: str = "Sfire@2026"
     MYSQL_DATABASE: str = "sfire_admin"
 
     # Redis 配置
