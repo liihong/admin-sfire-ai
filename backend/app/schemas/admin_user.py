@@ -64,3 +64,5 @@ class AdminUserQueryParams(PageParams):
     role_id: Optional[int] = Field(None, description="角色ID")
     is_active: Optional[bool] = Field(None, description="是否激活")
 
+
+

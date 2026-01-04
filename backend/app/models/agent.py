@@ -109,3 +109,5 @@ class Agent(BaseModel):
         """是否上架"""
         return self.status == 1
 
+
+

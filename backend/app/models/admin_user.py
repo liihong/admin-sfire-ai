@@ -102,3 +102,5 @@ class AdminUser(BaseModel):
     def __repr__(self) -> str:
         return f"<AdminUser(id={self.id}, username='{self.username}', role_id={self.role_id})>"
 
+
+
