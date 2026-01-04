@@ -10,7 +10,7 @@
       :hide-required-asterisk="drawerProps.isView"
     >
       <el-form-item label="用户头像" prop="avatar">
-        <UploadImg v-model:image-url="drawerProps.row!.avatar" width="135px" height="135px" :file-size="3">
+        <UploadImg v-model:image-url="avatarUrl" width="135px" height="135px" :file-size="3">
           <template #empty>
             <el-icon><Avatar /></el-icon>
             <span>请上传头像</span>
@@ -19,7 +19,7 @@
         </UploadImg>
       </el-form-item>
       <el-form-item label="用户照片" prop="photo">
-        <UploadImgs v-model:file-list="drawerProps.row!.photo" height="140px" width="140px" border-radius="50%">
+        <UploadImgs v-model:file-list="photoList" height="140px" width="140px" border-radius="50%">
           <template #empty>
             <el-icon><Picture /></el-icon>
             <span>请上传照片</span>
@@ -53,7 +53,7 @@
 </template>
 
 <script setup lang="ts" name="UserDrawer">
-import { ref, reactive } from "vue";
+import { ref, reactive, computed } from "vue";
 import { genderType } from "@/utils/dict";
 import { ElMessage, FormInstance } from "element-plus";
 import type { User } from "@/api/interface";
@@ -82,12 +82,42 @@ const drawerVisible = ref(false);
 const drawerProps = ref<DrawerProps>({
   isView: false,
   title: "",
-  row: {}
+  row: {
+    avatar: "",
+    photo: []
+  }
+});
+
+// 计算属性确保类型安全
+const avatarUrl = computed({
+  get: () => drawerProps.value.row?.avatar ?? "",
+  set: (value: string) => {
+    if (drawerProps.value.row) {
+      drawerProps.value.row.avatar = value;
+    }
+  }
+});
+
+const photoList = computed({
+  get: () => drawerProps.value.row?.photo ?? [],
+  set: (value: any[]) => {
+    if (drawerProps.value.row) {
+      drawerProps.value.row.photo = value;
+    }
+  }
 });
 
 // 接收父组件传过来的参数
 const acceptParams = (params: DrawerProps) => {
-  drawerProps.value = params;
+  // 确保 avatar 和 photo 有默认值
+  drawerProps.value = {
+    ...params,
+    row: {
+      ...params.row,
+      avatar: params.row?.avatar ?? "",
+      photo: params.row?.photo ?? []
+    }
+  };
   drawerVisible.value = true;
 };
 

@@ -55,20 +55,23 @@ export type FieldNamesProps = {
   children?: string;
 };
 
-export type RenderScope<T> = {
+// DefaultRow type from element-plus (simplified)
+export type DefaultRow = Record<string, any>;
+
+export type RenderScope<T extends DefaultRow = DefaultRow> = {
   row: T;
   $index: number;
   column: TableColumnCtx<T>;
   [key: string]: any;
 };
 
-export type HeaderRenderScope<T> = {
+export type HeaderRenderScope<T extends DefaultRow = DefaultRow> = {
   $index: number;
   column: TableColumnCtx<T>;
   [key: string]: any;
 };
 
-export interface ColumnProps<T = any> extends Partial<
+export interface ColumnProps<T extends DefaultRow = DefaultRow> extends Partial<
   Omit<TableColumnCtx<T>, "type" | "children" | "renderCell" | "renderHeader">
 > {
   type?: TypeProps; // 列类型

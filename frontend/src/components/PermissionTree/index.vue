@@ -10,7 +10,7 @@
     <el-scrollbar :style="{ height: scrollHeight }">
       <el-tree
         ref="treeRef"
-        :data="treeData"
+        :data="props.data"
         :props="treeProps"
         :node-key="nodeKey"
         :default-expand-all="defaultExpandAll"
@@ -75,9 +75,10 @@ const treeProps = {
 };
 
 /** 过滤节点 */
-const filterNode = (value: string, data: PermissionTreeNode) => {
+const filterNode = (value: string, data: any) => {
   if (!value) return true;
-  return data.label.indexOf(value) !== -1;
+  const nodeData = data as PermissionTreeNode;
+  return nodeData.label.indexOf(value) !== -1;
 };
 
 /** 监听搜索框变化 */

@@ -214,8 +214,8 @@ const getTableList = (params: any) => {
 };
 
 // 链接类型标签
-const getLinkTypeTagType = (type: string) => {
-  const typeMap: Record<string, string> = {
+const getLinkTypeTagType = (type: string): "success" | "warning" | "info" | "primary" | "danger" => {
+  const typeMap: Record<string, "success" | "warning" | "info" | "primary" | "danger"> = {
     none: "info",
     internal: "success",
     external: "warning"
@@ -233,8 +233,8 @@ const getLinkTypeLabel = (type: string) => {
 };
 
 // 位置标签
-const getPositionTagType = (position: string) => {
-  const typeMap: Record<string, string> = {
+const getPositionTagType = (position: string): "success" | "warning" | "info" | "primary" | "danger" => {
+  const typeMap: Record<string, "success" | "warning" | "info" | "primary" | "danger"> = {
     home_top: "danger",
     home_middle: "warning",
     home_bottom: "info"
@@ -408,13 +408,13 @@ const columns = reactive<ColumnProps<BannerItem>[]>([
     search: {
       el: "select",
       props: {
-        filterable: true
-      },
-      options: [
-        { label: "首页顶部", value: "home_top" },
-        { label: "首页中部", value: "home_middle" },
-        { label: "首页底部", value: "home_bottom" }
-      ]
+        filterable: true,
+        options: [
+          { label: "首页顶部", value: "home_top" },
+          { label: "首页中部", value: "home_middle" },
+          { label: "首页底部", value: "home_bottom" }
+        ]
+      }
     }
   },
   {
@@ -429,12 +429,12 @@ const columns = reactive<ColumnProps<BannerItem>[]>([
     search: {
       el: "select",
       props: {
-        filterable: true
-      },
-      options: [
-        { label: "启用", value: true },
-        { label: "禁用", value: false }
-      ]
+        filterable: true,
+        options: [
+          { label: "启用", value: true },
+          { label: "禁用", value: false }
+        ]
+      }
     }
   },
   {

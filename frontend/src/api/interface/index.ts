@@ -58,15 +58,27 @@ export namespace User {
   export interface ResUserList {
     id: string;
     username: string;
-    gender: number;
-    user: { detail: { age: number } };
-    idCard: string;
-    email: string;
-    address: string;
+    gender?: number;
+    user?: { detail: { age: number } };
+    idCard?: string;
+    email?: string;
+    address?: string;
     createTime: string;
     status: number;
-    avatar: string;
-    photo: any[];
+    avatar?: string;
+    photo?: any[];
+    phone?: string;
+    nickname?: string;
+    level?: LevelType | "normal" | "member" | "partner";
+    remark?: string;
+    computePower?: {
+      balance: number;
+      frozen: number;
+      totalConsumed: number;
+      totalRecharged: number;
+      lastRechargeTime?: string;
+    };
+    password?: string;
     children?: ResUserList[];
   }
   export interface ResStatus {
@@ -86,6 +98,81 @@ export namespace User {
     id: string;
     name: string;
     children?: ResDepartment[];
+  }
+
+  // 用户等级类型
+  export type LevelType = 0 | 1 | 2; // 0-普通, 1-会员, 2-合伙人
+
+  // 用户详情响应
+  export interface ResUserDetail {
+    id: string;
+    username: string;
+    phone?: string;
+    nickname?: string;
+    avatar?: string;
+    level: LevelType;
+    computePower: {
+      balance: number;
+      frozen: number;
+      totalConsumed: number;
+      totalRecharged: number;
+      lastRechargeTime?: string;
+    };
+    role: string;
+    inviteCode?: string;
+    inviterId?: string;
+    inviterName?: string;
+    createTime: string;
+    lastLoginTime?: string;
+    status: number;
+    remark?: string;
+  }
+
+  // 修改用户等级请求
+  export interface ReqChangeLevel {
+    userId: string;
+    level: "normal" | "member" | "partner";
+    remark?: string;
+  }
+
+  // 充值算力请求
+  export interface ReqRecharge {
+    userId: string;
+    amount: number;
+    remark?: string;
+  }
+
+  // 扣除算力请求
+  export interface ReqDeduct {
+    userId: string;
+    amount: number;
+    reason: string;
+  }
+
+  // 用户等级选项响应
+  export interface ResLevel {
+    label: string;
+    value: "normal" | "member" | "partner";
+    level: LevelType;
+  }
+
+  // 用户算力活动记录
+  export interface UserActivity {
+    id: string;
+    userId: string;
+    username?: string;
+    type: string;
+    typeName: string;
+    amount: number;
+    beforeBalance: number;
+    afterBalance: number;
+    remark?: string;
+    orderId?: string;
+    taskId?: string;
+    operatorId?: string;
+    operatorName?: string;
+    source?: string;
+    createTime: string;
   }
 }
 
@@ -183,8 +270,27 @@ export namespace Menu {
     is_enabled?: boolean;
   }
 
-  // MenuOptions和MetaProps已在global.d.ts中定义，这里通过declare global扩展
-  // 如果需要在模块中使用，可以通过类型引用：import type { MenuOptions } from "@/typings/global";
+  // MenuOptions类型（与global.d.ts中的定义保持一致）
+  export interface MenuOptions {
+    path: string;
+    name: string;
+    component?: string | (() => Promise<unknown>);
+    redirect?: string;
+    meta: {
+      icon: string;
+      title: string;
+      activeMenu?: string;
+      isLink?: string;
+      isHide: boolean;
+      isFull: boolean;
+      isAffix: boolean;
+      isKeepAlive: boolean;
+      requiredLevel?: "free" | "v1" | "v2" | "v3";
+      requiredComputePower?: number;
+      consumeComputePower?: number;
+    };
+    children?: MenuOptions[];
+  }
 }
 
 // 大模型管理模块
@@ -353,5 +459,156 @@ export namespace Agent {
     name: string;
     content: string;
     category: string;
+  }
+}
+
+// 管理员用户模块
+export namespace AdminUser {
+  // 管理员用户查询参数
+  export interface ReqAdminUserParams extends ReqPage {
+    username?: string;
+    email?: string;
+    role_id?: number;
+    is_active?: boolean;
+  }
+
+  // 管理员用户列表项
+  export interface ResAdminUserList {
+    id: number;
+    username: string;
+    email?: string;
+    role_id?: number;
+    role_name?: string;
+    role_code?: string;
+    is_active: boolean;
+    remark?: string;
+    created_at?: string;
+    updated_at?: string;
+  }
+
+  // 管理员用户详情
+  export interface ResAdminUser {
+    id: number;
+    username: string;
+    email?: string;
+    role_id?: number;
+    role_name?: string;
+    role_code?: string;
+    is_active: boolean;
+    remark?: string;
+    created_at?: string;
+    updated_at?: string;
+  }
+
+  // 创建管理员用户请求
+  export interface ReqAdminUserCreate {
+    username: string;
+    password: string;
+    email?: string;
+    role_id?: number;
+    remark?: string;
+  }
+
+  // 更新管理员用户请求
+  export interface ReqAdminUserUpdate {
+    username?: string;
+    email?: string;
+    password?: string;
+    role_id?: number;
+    is_active?: boolean;
+    remark?: string;
+  }
+}
+
+// AI对话模块
+export namespace AI {
+  // 聊天消息
+  export interface ChatMessage {
+    role: "system" | "user" | "assistant";
+    content: string;
+    timestamp?: number;
+  }
+
+  // 聊天请求参数
+  export interface ReqChatParams {
+    messages: ChatMessage[];
+    model: string;
+    temperature?: number;
+    max_tokens?: number;
+    top_p?: number;
+    frequency_penalty?: number;
+    presence_penalty?: number;
+    stream?: boolean;
+  }
+
+  // 聊天完成响应
+  export interface ResChatCompletion {
+    id: string;
+    model: string;
+    message: ChatMessage;
+    usage?: {
+      prompt_tokens?: number;
+      completion_tokens?: number;
+      total_tokens?: number;
+    };
+    finish_reason?: string;
+  }
+
+  // 模型信息
+  export interface ResModelInfo {
+    id: string;
+    name: string;
+    model_id: string;
+    provider: "openai" | "anthropic" | "deepseek";
+    is_enabled: boolean;
+  }
+}
+
+// 算力模块
+export namespace Compute {
+  // 算力余额响应
+  export interface ResBalance {
+    balance: number;
+    frozen: number;
+    totalConsumed: number;
+    totalRecharged: number;
+    lastRechargeTime?: string;
+  }
+
+  // 算力使用记录
+  export interface ResUsageRecord {
+    id: string;
+    userId: string;
+    type: string;
+    typeName: string;
+    amount: number;
+    beforeBalance: number;
+    afterBalance: number;
+    remark?: string;
+    createTime: string;
+  }
+
+  // 算力套餐信息
+  export interface ResPlanInfo {
+    id: string;
+    name: string;
+    amount: number;
+    price: number;
+    description?: string;
+  }
+
+  // 充值算力请求参数
+  export interface ReqRechargeParams {
+    planId?: string;
+    amount: number;
+    remark?: string;
+  }
+
+  // 用户等级信息
+  export interface ResUserLevel {
+    level: "normal" | "member" | "partner";
+    levelName: string;
+    discount: number;
+    dailyLimit: number;
   }
 }

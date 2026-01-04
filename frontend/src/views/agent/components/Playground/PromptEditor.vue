@@ -37,7 +37,7 @@
   
   <script setup lang="ts" name="PromptEditor">
   import { ref, watch, computed, nextTick } from "vue";
-  import { ElMessage } from "element-plus";
+  import { ElMessage, ElInput } from "element-plus";
   import { DocumentCopy, Delete } from "@element-plus/icons-vue";
   
   interface Props {
@@ -54,7 +54,7 @@
     "update:modelValue": [value: string];
   }>();
   
-  const inputRef = ref<InstanceType<typeof HTMLTextAreaElement>>();
+  const inputRef = ref<InstanceType<typeof ElInput>>();
   const lineNumbersRef = ref<HTMLElement>();
   
   const modelValue = computed({

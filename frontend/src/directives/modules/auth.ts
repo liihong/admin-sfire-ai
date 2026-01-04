@@ -48,9 +48,9 @@ const checkPagePermission = (value: string | string[], authStore: ReturnType<typ
   const currentPageRoles = authStore.authButtonListGet[authStore.routeName] ?? [];
 
   if (value instanceof Array && value.length) {
-    return value.every(item => currentPageRoles.includes(item));
+    return value.every(item => currentPageRoles.includes(String(item)));
   }
-  return currentPageRoles.includes(value);
+  return currentPageRoles.includes(String(value));
 };
 
 /**
@@ -61,9 +61,9 @@ const checkGlobalPermission = (value: string | string[], authStore: ReturnType<t
   const allPermissions = Object.values(authStore.authButtonListGet).flat();
 
   if (value instanceof Array && value.length) {
-    return value.every(item => allPermissions.includes(item));
+    return value.every(item => allPermissions.includes(String(item)));
   }
-  return allPermissions.includes(value);
+  return allPermissions.includes(String(value));
 };
 
 /**

@@ -107,8 +107,8 @@ const loading = ref(false);
 const userDetail = ref<User.ResUserDetail | null>(null);
 
 // 等级标签类型
-const getLevelTagType = (level: User.LevelType) => {
-  const typeMap: Record<User.LevelType, string> = {
+const getLevelTagType = (level: User.LevelType): "success" | "warning" | "info" | "primary" | "danger" => {
+  const typeMap: Record<User.LevelType, "success" | "warning" | "info" | "primary" | "danger"> = {
     0: "info",
     1: "warning",
     2: "danger"

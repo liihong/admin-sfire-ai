@@ -75,17 +75,55 @@ export const getUserLevelOptions = () => {
   return http.get<User.ResLevel[]>(PORT1 + `/users/level/options`);
 };
 
-// 获取用户状态选项
-export const getUserStatusOptions = () => {
+// 获取用户状态选项（统一使用此函数）
+export const getUserStatus = () => {
   return http.get<User.ResStatus[]>(PORT1 + `/users/status/options`);
 };
 
-// 导出用户数据
-export const exportUserData = (params: User.ReqUserParams) => {
-  return http.download(PORT1 + `/users/export`, params);
-};
+// 获取用户状态选项（别名，保持向后兼容）
+export const getUserStatusOptions = getUserStatus;
 
 // 获取用户算力消耗记录
 export const getUserComputeRecords = (params: { userId: string; pageNum: number; pageSize: number }) => {
   return http.post<ResPage<User.UserActivity>>(PORT1 + `/users/compute/records`, params);
+};
+
+// 导出用户信息（统一使用此函数）
+export const exportUserInfo = (params: User.ReqUserParams) => {
+  return http.download(PORT1 + `/users/export`, params);
+};
+
+// 导出用户数据（别名，保持向后兼容）
+export const exportUserData = exportUserInfo;
+
+// 批量添加用户
+export const BatchAddUser = (params: FormData) => {
+  return http.post(PORT1 + `/users/batch`, params, {
+    headers: { "Content-Type": "multipart/form-data" }
+  });
+};
+
+// 获取用户部门列表
+export const getUserDepartment = () => {
+  return http.get<User.ResDepartment[]>(PORT1 + `/users/departments`);
+};
+
+// 重置用户密码
+export const resetUserPassWord = (params: { id: string }) => {
+  return http.post(PORT1 + `/users/${params.id}/reset-password`);
+};
+
+// 获取用户性别选项
+export const getUserGender = () => {
+  return http.get<User.ResGender[]>(PORT1 + `/users/gender/options`);
+};
+
+// 获取用户角色选项
+export const getUserRole = () => {
+  return http.get<User.ResRole[]>(PORT1 + `/users/roles`);
+};
+
+// 获取用户树形列表
+export const getUserTreeList = (params: User.ReqUserParams) => {
+  return http.get<ResPage<User.ResUserList>>(PORT1 + `/users/tree`, params);
 };

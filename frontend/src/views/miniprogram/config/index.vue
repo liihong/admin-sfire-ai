@@ -165,7 +165,7 @@ const uploadHeaders = {
 const loadConfigs = async () => {
   try {
     const response = await getAllConfigs();
-    if (response.code === 200 && response.data) {
+    if ((response.code === 200 || response.code === "200") && response.data) {
       const configs = response.data.list || [];
       
       // 解析配置值
@@ -234,7 +234,7 @@ const handleSaveAll = async () => {
     ];
 
     const response = await batchUpdateConfigs(configs);
-    if (response.code === 200) {
+    if (response.code === 200 || response.code === "200") {
       ElMessage.success("保存成功");
     } else {
       ElMessage.error(response.msg || "保存失败");

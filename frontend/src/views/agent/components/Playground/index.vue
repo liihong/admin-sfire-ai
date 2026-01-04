@@ -153,9 +153,9 @@
       agentConfig.model = agent.model;
       agentConfig.temperature = agent.config.temperature;
       agentConfig.maxTokens = agent.config.maxTokens;
-      agentConfig.topP = agent.config.topP;
-      agentConfig.frequencyPenalty = agent.config.frequencyPenalty;
-      agentConfig.presencePenalty = agent.config.presencePenalty;
+      agentConfig.topP = agent.config.topP ?? 1.0;
+      agentConfig.frequencyPenalty = agent.config.frequencyPenalty ?? 0.0;
+      agentConfig.presencePenalty = agent.config.presencePenalty ?? 0.0;
     } catch (error: unknown) {
       const err = error as { message?: string };
       ElMessage.error(err.message || "加载智能体详情失败");

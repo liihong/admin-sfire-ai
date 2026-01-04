@@ -34,12 +34,12 @@
       <template #computePower="scope">
         <div class="compute-info">
           <div class="compute-balance">
-            <span class="balance-value">{{ formatNumber(scope.row.computePower.balance) }}</span>
+            <span class="balance-value">{{ formatNumber(scope.row.computePower?.balance || 0) }}</span>
             <span class="balance-label">可用</span>
           </div>
           <el-divider direction="vertical" />
-          <div class="compute-frozen" v-if="scope.row.computePower.frozen > 0">
-            <span class="frozen-value">{{ formatNumber(scope.row.computePower.frozen) }}</span>
+          <div class="compute-frozen" v-if="(scope.row.computePower?.frozen || 0) > 0">
+            <span class="frozen-value">{{ formatNumber(scope.row.computePower?.frozen || 0) }}</span>
             <span class="frozen-label">冻结</span>
           </div>
           <el-tooltip :content="`累计消耗: ${formatNumber(scope.row.computePower.totalConsumed)}`" placement="top">
