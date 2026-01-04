@@ -249,3 +249,109 @@ export namespace LLMModel {
     message?: string;
   }
 }
+
+// 角色管理模块
+export namespace Role {
+  // 角色列表项
+  export interface ResRole {
+    id: number;
+    name: string;
+    code: string;
+    description?: string;
+    sort_order: number;
+    user_count: number;
+    created_at?: string;
+    updated_at?: string;
+  }
+
+  // 角色列表响应
+  export interface ResRoleList {
+    list: ResRole[];
+    total: number;
+  }
+
+  // 创建角色请求
+  export interface ReqRoleCreate {
+    name: string;
+    code: string;
+    description?: string;
+    sort_order?: number;
+  }
+
+  // 更新角色请求
+  export interface ReqRoleUpdate {
+    name?: string;
+    description?: string;
+    sort_order?: number;
+  }
+
+  // 角色权限响应
+  export interface ResRolePermissions {
+    menu_ids: number[];
+  }
+
+  // 设置角色权限请求
+  export interface ReqRolePermissions {
+    menu_ids: number[];
+  }
+}
+
+// 智能体管理模块
+export namespace Agent {
+  // 状态类型
+  export type StatusType = 0 | 1;
+
+  // 智能体配置参数
+  export interface AgentConfig {
+    temperature: number;
+    maxTokens: number;
+    topP?: number;
+    frequencyPenalty?: number;
+    presencePenalty?: number;
+  }
+
+  // 智能体列表项
+  export interface ResAgentItem {
+    id: string;
+    name: string;
+    icon: string;
+    description?: string;
+    systemPrompt: string;
+    model: string;
+    config: AgentConfig;
+    sortOrder: number;
+    status: StatusType;
+    usageCount?: number;
+    createdAt?: string;
+    updatedAt?: string;
+    createTime?: string;
+    updateTime?: string;
+  }
+
+  // 智能体查询参数
+  export interface ReqAgentParams extends ReqPage {
+    name?: string;
+    status?: StatusType;
+  }
+
+  // 智能体表单数据
+  export interface ReqAgentForm {
+    id?: string;
+    name: string;
+    icon: string;
+    description?: string;
+    systemPrompt: string;
+    model: string;
+    config: AgentConfig;
+    sortOrder?: number;
+    status: StatusType;
+  }
+
+  // 预设模板
+  export interface PromptTemplate {
+    id: string;
+    name: string;
+    content: string;
+    category: string;
+  }
+}

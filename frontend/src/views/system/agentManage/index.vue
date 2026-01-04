@@ -57,7 +57,7 @@
             <div class="agent-stats">
               <div class="stat-item">
                 <el-icon><ChatDotRound /></el-icon>
-                <span>{{ formatNumber(agent.usageCount) }} 次调用</span>
+                <span>{{ formatNumber(agent.usageCount || 0) }} 次调用</span>
               </div>
               <div class="stat-item">
                 <el-icon><Sort /></el-icon>
@@ -442,7 +442,7 @@ const fetchAgentList = async () => {
   loading.value = true;
   try {
     const { data } = await getAgentList();
-    agentList.value = data || [];
+    agentList.value = data?.list || [];
   } finally {
     loading.value = false;
   }
@@ -592,8 +592,15 @@ const fetchInitData = async () => {
       getAvailableModels(),
       getPromptTemplates()
     ]);
-    // 从数据库获取模型列表（已包含 provider 字段）
-    modelList.value = modelsRes.data || [];
+    // 从数据库获取模型列表，兼容后端返回格式（可能缺少 model_id 和 provider）
+    const models = modelsRes.data || [];
+    modelList.value = models.map((model: any) => ({
+      id: model.id,
+      name: model.name,
+      model_id: model.model_id || model.id,
+      provider: model.provider || 'openai',
+      maxTokens: model.maxTokens || model.max_tokens || 4096
+    }));
     promptTemplates.value = templatesRes.data || [
       { id: "1", name: "客服助手", category: "客服", content: "你是一位专业的客服助手，请用友善专业的语气回答用户问题。\n\n职责：\n- 解答用户关于产品和服务的疑问\n- 处理用户投诉和反馈\n- 引导用户完成操作\n\n注意事项：\n- 保持耐心和礼貌\n- 回答要简洁明了\n- 遇到无法回答的问题，引导联系人工客服" },
       { id: "2", name: "文案写手", category: "创作", content: "你是一位专业的文案写手，擅长创作各类营销文案和内容。\n\n能力：\n- 产品描述和卖点提炼\n- 社交媒体文案\n- 广告标语和口号\n- 品牌故事撰写\n\n风格要求：\n- 语言生动有感染力\n- 突出产品价值和用户利益\n- 适应不同平台的内容风格" },
@@ -1015,4 +1022,3 @@ onMounted(() => {
   }
 }
 </style>
-
