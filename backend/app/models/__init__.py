@@ -11,6 +11,7 @@ from .admin_user import AdminUser
 from .llm_model import LLMModel
 from .banner import Banner, LinkType, BannerPosition
 from .home_config import HomeConfig
+from .project import Project
 
 __all__ = [
     "BaseModel",
@@ -28,4 +29,5 @@ __all__ = [
     "LinkType",
     "BannerPosition",
     "HomeConfig",
+    "Project",
 ]

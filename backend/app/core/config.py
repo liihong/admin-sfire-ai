@@ -53,6 +53,15 @@ class Settings(BaseSettings):
     # 第三方 API 配置（Dashboard 监控用）
     TIKHUB_API_KEY: str = ""  # Tikhub API Key
     OPENAI_API_KEY: str = ""  # OpenAI API Key
+    
+    # 微信小程序配置
+    WECHAT_APP_ID: str = ""  # 微信小程序 AppID
+    WECHAT_APP_SECRET: str = ""  # 微信小程序 AppSecret
+    
+    # LLM 配置
+    DEEPSEEK_API_KEY: str = ""  # DeepSeek API Key
+    DOUBAO_API_KEY: str = ""  # 火山引擎（Doubao）API Key
+    ANTHROPIC_API_KEY: str = ""  # Anthropic (Claude) API Key
 
     @field_validator("CORS_ORIGINS", mode="before")
     @classmethod

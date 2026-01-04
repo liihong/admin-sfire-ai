@@ -22,6 +22,7 @@ from app.models.base import BaseModel
 
 if TYPE_CHECKING:
     from app.models.compute import ComputeLog
+    from app.models.project import Project
 
 
 class UserLevel(enum.Enum):
@@ -185,6 +186,14 @@ class User(BaseModel):
     # 算力变动记录关系
     compute_logs: Mapped[List["ComputeLog"]] = relationship(
         "ComputeLog",
+        back_populates="user",
+        cascade="all, delete-orphan",
+        lazy="dynamic",
+    )
+    
+    # 项目关系
+    projects: Mapped[List["Project"]] = relationship(
+        "Project",
         back_populates="user",
         cascade="all, delete-orphan",
         lazy="dynamic",

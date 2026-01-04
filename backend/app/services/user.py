@@ -4,7 +4,7 @@ User Service
 """
 from datetime import datetime, timezone
 from decimal import Decimal
-from typing import List, Tuple, Optional
+from typing import List, Tuple, Optional, Dict, Any
 import secrets
 import string
 
@@ -413,3 +413,89 @@ class UserService:
             f"User level changed: {user.username}, "
             f"{old_level.value} -> {level}, remark: {remark}"
         )
+    
+    async def get_user_by_openid(self, openid: str) -> Optional[User]:
+        """
+        通过 openid 查找用户
+        
+        Args:
+            openid: 微信 openid
+        
+        Returns:
+            用户对象，如果不存在则返回 None
+        """
+        result = await self.db.execute(
+            select(User).where(
+                User.openid == openid,
+                User.is_deleted == False
+            )
+        )
+        return result.scalar_one_or_none()
+    
+    async def get_user_by_username(self, username: str) -> Optional[User]:
+        """
+        通过用户名查找用户
+        
+        Args:
+            username: 用户名
+        
+        Returns:
+            用户对象，如果不存在则返回 None
+        """
+        result = await self.db.execute(
+            select(User).where(
+                User.username == username,
+                User.is_deleted == False
+            )
+        )
+        return result.scalar_one_or_none()
+    
+    async def create_user_from_dict(self, user_data: dict) -> User:
+        """
+        从字典创建用户（用于小程序登录等场景）
+        
+        Args:
+            user_data: 用户数据字典
+        
+        Returns:
+            创建的用户对象
+        """
+        from app.models.user import UserLevel
+        
+        # 检查用户名是否已存在
+        if user_data.get("username"):
+            existing = await self.get_user_by_username(user_data["username"])
+            if existing:
+                raise BadRequestException(msg="用户名已存在")
+        
+        # 检查 openid 是否已存在
+        if user_data.get("openid"):
+            existing = await self.get_user_by_openid(user_data["openid"])
+            if existing:
+                return existing
+        
+        # 转换等级
+        level = user_data.get("level", "normal")
+        level_enum = UserLevel(level) if isinstance(level, str) else level
+        
+        # 创建用户
+        user = User(
+            username=user_data.get("username") or f"user_{secrets.token_hex(4)}",
+            password_hash=user_data.get("password_hash"),
+            openid=user_data.get("openid"),
+            unionid=user_data.get("unionid"),
+            phone=user_data.get("phone"),
+            nickname=user_data.get("nickname"),
+            avatar=user_data.get("avatar"),
+            level=level_enum,
+            parent_id=user_data.get("parent_id"),
+            is_active=user_data.get("is_active", True),
+        )
+        
+        self.db.add(user)
+        await self.db.commit()
+        await self.db.refresh(user)
+        
+        logger.info(f"User created from dict: {user.username} (openid: {user.openid})")
+        
+        return user
