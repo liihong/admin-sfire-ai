@@ -12,6 +12,14 @@ try:
 except (ImportError, AttributeError):
     roles = None
 
+# Try to import AI endpoint
+try:
+    from app.api.v1.endpoints import ai
+    ai_available = True
+except (ImportError, AttributeError):
+    ai = None
+    ai_available = False
+
 api_router = APIRouter()
 
 # 注册各个模块的路由
@@ -26,3 +34,6 @@ api_router.include_router(menu.router, prefix="/menu", tags=["菜单"])
 if roles and hasattr(roles, "router"):
     api_router.include_router(roles.router, prefix="/roles", tags=["角色"])
 api_router.include_router(users.router, prefix="/users", tags=["用户"])
+
+if ai_available and hasattr(ai, "router"):
+    api_router.include_router(ai.router, prefix="/ai", tags=["AI对话"])

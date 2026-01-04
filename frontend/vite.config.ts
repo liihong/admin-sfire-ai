@@ -41,7 +41,7 @@ export default defineConfig(({ mode }: ConfigEnv): UserConfig => {
       }
     },
     server: {
-      host: "127.0.0.1",
+      host: "0.0.0.0",
       port: viteEnv.VITE_PORT,
       open: false,
       cors: true,

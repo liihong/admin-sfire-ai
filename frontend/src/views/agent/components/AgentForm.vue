@@ -355,7 +355,7 @@ onMounted(() => {
 
   .prompt-wrapper {
     position: relative;
-
+    width:100%;
     .template-actions {
       margin-top: 8px;
       text-align: right;

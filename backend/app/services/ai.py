@@ -39,13 +39,21 @@ class AIService:
             try:
                 db_id = int(model_id)
                 model = await self.llm_model_service.get_llm_model_by_id(db_id)
-            except (ValueError, Exception):
+            except (ValueError, Exception) as e:
                 # 如果转换失败，尝试作为 model_id 查找
                 model = await self.llm_model_service.get_llm_model_by_model_id(model_id)
             
-            if model and model.api_key and model.is_enabled:
-                base_url = model.base_url or self.llm_model_service.DEFAULT_BASE_URLS.get(model.provider)
-                return model.api_key, base_url
+            if model:
+                if model.api_key and model.is_enabled:
+                    base_url = model.base_url or self.llm_model_service.DEFAULT_BASE_URLS.get(model.provider)
+                    # 规范化 base_url：移除末尾斜杠和路径部分
+                    if base_url:
+                        base_url = base_url.rstrip('/')
+                        # 移除 /chat/completions 等路径（如果存在）
+                        if '/chat/completions' in base_url:
+                            base_url = base_url.split('/chat/completions')[0]
+                    
+                    return model.api_key, base_url
         except Exception as e:
             logger.warning(f"Failed to get model config for {model_id}: {e}")
         
@@ -111,10 +119,16 @@ class AIService:
         except Exception:
             pass
         
+        # 规范化 base_url 并构建完整 URL
+        normalized_base_url = base_url.rstrip('/')
+        if '/chat/completions' in normalized_base_url:
+            normalized_base_url = normalized_base_url.split('/chat/completions')[0]
+        api_url = f"{normalized_base_url}/chat/completions"
+        
         # 调用 API
         async with httpx.AsyncClient(timeout=60.0) as client:
             response = await client.post(
-                f"{base_url}/chat/completions",
+                api_url,
                 headers={
                     "Authorization": f"Bearer {api_key}",
                     "Content-Type": "application/json",
@@ -223,14 +237,24 @@ class AIService:
         
         # 调用 API（流式）
         usage_info = None
+        
+        # 构建请求头
+        request_headers = {
+            "Authorization": f"Bearer {api_key}",
+            "Content-Type": "application/json",
+        }
+        
+        # 规范化 base_url 并构建完整 URL
+        normalized_base_url = base_url.rstrip('/')
+        if '/chat/completions' in normalized_base_url:
+            normalized_base_url = normalized_base_url.split('/chat/completions')[0]
+        api_url = f"{normalized_base_url}/chat/completions"
+        
         async with httpx.AsyncClient(timeout=120.0) as client:
             async with client.stream(
                 "POST",
-                f"{base_url}/chat/completions",
-                headers={
-                    "Authorization": f"Bearer {api_key}",
-                    "Content-Type": "application/json",
-                },
+                api_url,
+                headers=request_headers,
                 json={
                     "model": actual_model_id,
                     "messages": formatted_messages,
