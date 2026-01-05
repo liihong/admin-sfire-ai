@@ -85,7 +85,7 @@ async def get_level_options():
 
 @router.get("/{user_id}", summary="获取用户详情")
 async def get_user(
-    user_id: int,
+    user_id: str,
     db: AsyncSession = Depends(get_db),
 ):
     """获取用户详情"""

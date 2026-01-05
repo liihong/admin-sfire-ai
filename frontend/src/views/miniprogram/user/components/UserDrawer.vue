@@ -121,6 +121,11 @@ const acceptParams = (params: DrawerProps) => {
     status: params.row?.status !== undefined ? params.row.status : 1,
   };
   
+  // 保留 id 字段（编辑时需要）
+  if (params.row?.id) {
+    rowData.id = params.row.id;
+  }
+  
   // 如果是新增，添加密码字段
   if (params.title === "新增") {
     rowData.password = "";
@@ -176,7 +181,8 @@ const handleSubmit = async () => {
       }
     }
     
-    await api(isNew ? submitData : { ...submitData, id: drawerProps.value.row!.id });
+    const finalData = isNew ? submitData : { ...submitData, id: drawerProps.value.row!.id };
+    await api(finalData);
     ElMessage.success(`${drawerProps.value.title}成功`);
     drawerProps.value.getTableList?.();
     drawerVisible.value = false;

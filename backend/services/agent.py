@@ -117,7 +117,7 @@ class AgentService(BaseService):
             if "sortOrder" in update_data:
                 agent.sort_order = update_data["sortOrder"]
             if "config" in update_data and update_data["config"]:
-                agent.config = update_data["config"].model_dump()
+                agent.config = update_data["config"]
         
         agent = await super().update(
             obj_id=agent_id,

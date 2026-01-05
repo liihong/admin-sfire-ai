@@ -127,7 +127,7 @@
   <script setup lang="ts" name="agentManage">
   import { ref, reactive, onMounted } from "vue";
   import { ElMessage, ElMessageBox } from "element-plus";
-  import { Search, Refresh, Plus, EditPen, Delete, ChatDotRound, Cpu } from "@element-plus/icons-vue";
+  import { Search, Refresh, Plus, EditPen, Delete, ChatDotRound, Cpu, Document } from "@element-plus/icons-vue";
   import { useRouter } from "vue-router";
   import { Agent } from "@/api/interface";
   import {
@@ -176,7 +176,7 @@
     
     // 根据key映射到不同的图标
     const iconMap: Record<string, any> = {
-      viral_copy_default: ChatDotRound,  // 文案类
+      viral_copy_default: Document,       // 文案类（已更换为 Document 图标）
       script_default: ChatDotRound,       // 脚本类
       marketing_default: ChatDotRound,     // 营销类
       ChatDotRound,                       // Element Plus图标名

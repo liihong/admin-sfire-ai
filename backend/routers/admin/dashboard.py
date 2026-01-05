@@ -132,6 +132,30 @@ async def refresh_dashboard_cache(
     return success(data=stats.model_dump(), msg="缓存已刷新")
 
 
+@router.get("/user-trend", summary="获取用户增长趋势")
+async def get_user_trend(
+    days: int = Query(7, ge=1, le=365, description="查询天数，默认7天，最大365天"),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    获取用户增长趋势数据
+    
+    返回指定天数内每天的新增用户数
+    
+    Args:
+        days: 查询天数，默认 7 天，最大 365 天
+    
+    Returns:
+        用户趋势数据列表，每个元素包含:
+        - date: 日期 (YYYY-MM-DD)
+        - count: 新增用户数
+    """
+    dashboard_service = DashboardService(db)
+    trend_data = await dashboard_service.get_user_trend(days=days)
+    
+    return success(data=[item.model_dump() for item in trend_data])
+
+
 @router.get("/abnormal-users", summary="获取异常用户列表")
 async def get_abnormal_users(
     limit: int = Query(5, ge=1, le=100, description="返回记录数量"),

@@ -42,6 +42,9 @@ export const editUser = (params: {
   remark?: string;
 }) => {
   const { id, ...data } = params;
+  if (!id) {
+    throw new Error("用户ID不能为空");
+  }
   return http.put(PORT1 + `/users/${id}`, data);
 };
 

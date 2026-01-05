@@ -66,7 +66,7 @@ async def get_status_options():
 
 @router.get("/{user_id}", summary="获取管理员用户详情")
 async def get_admin_user(
-    user_id: int,
+    user_id: str,
     db: AsyncSession = Depends(get_db),
 ):
     """获取管理员用户详情"""

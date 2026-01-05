@@ -334,6 +334,60 @@ class DashboardService:
         
         return trend_data
     
+    async def get_user_trend(self, days: int = 7) -> List[UserTrendItem]:
+        """
+        获取指定天数内每天的新增用户数
+        
+        Args:
+            days: 查询天数，默认 7 天
+        
+        Returns:
+            List[UserTrendItem]: 用户趋势数据列表
+        """
+        # 限制天数范围，防止查询范围过大
+        if days < 1:
+            days = 1
+        elif days > 365:
+            days = 365
+        
+        # 计算日期范围
+        end_date = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0) + timedelta(days=1)
+        start_date = end_date - timedelta(days=days)
+        
+        # 按日期分组统计新增用户数
+        result = await self.db.execute(
+            select(
+                func.date(User.created_at).label("date"),
+                func.count(User.id).label("count")
+            ).where(
+                and_(
+                    User.is_deleted == False,
+                    User.created_at >= start_date,
+                    User.created_at < end_date,
+                )
+            ).group_by(
+                func.date(User.created_at)
+            ).order_by(
+                func.date(User.created_at)
+            )
+        )
+        
+        # 转换为字典方便查找
+        daily_counts: Dict[str, int] = {}
+        for row in result.fetchall():
+            date_str = row.date.strftime("%Y-%m-%d") if hasattr(row.date, 'strftime') else str(row.date)
+            daily_counts[date_str] = row.count
+        
+        # 构建完整的数据（包括没有新增用户的日期）
+        trend_data: List[UserTrendItem] = []
+        for i in range(days):
+            date = start_date + timedelta(days=i)
+            date_str = date.strftime("%Y-%m-%d")
+            count = daily_counts.get(date_str, 0)
+            trend_data.append(UserTrendItem(date=date_str, count=count))
+        
+        return trend_data
+    
     async def _get_call_trend(self) -> List[CallTrendItem]:
         """
         获取过去 24 小时每小时的 API 请求数统计

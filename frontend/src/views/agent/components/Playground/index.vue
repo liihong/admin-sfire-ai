@@ -119,7 +119,7 @@
   const getIconComponent = (iconName: string) => {
     if (!iconName) return ChatDotRound;
     const iconMap: Record<string, any> = {
-      viral_copy_default: ChatDotRound,
+      viral_copy_default: Document,       // 文案类（已更换为 Document 图标）
       script_default: ChatDotRound,
       marketing_default: ChatDotRound,
       ChatDotRound
