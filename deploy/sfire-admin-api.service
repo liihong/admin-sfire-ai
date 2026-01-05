@@ -1,0 +1,31 @@
+[Unit]
+Description=SFire Admin API Service
+After=network.target mysql.service redis.service
+
+[Service]
+Type=simple
+User=www-data
+Group=www-data
+WorkingDirectory=/var/www/sfire-admin/backend
+Environment="PATH=/var/www/sfire-admin/backend/venv/bin"
+ExecStart=/var/www/sfire-admin/backend/venv/bin/uvicorn main:app --host 127.0.0.1 --port 8000 --workers 4
+ExecReload=/bin/kill -HUP $MAINPID
+Restart=always
+RestartSec=10
+
+# 日志配置
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=sfire-admin-api
+
+# 安全设置
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/www/sfire-admin/backend
+
+[Install]
+WantedBy=multi-user.target
+
+

@@ -14,7 +14,7 @@ from loguru import logger
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.db.session import init_db, close_db
+from db.session import init_db, close_db
 
 
 async def create_banners_table(session: AsyncSession) -> None:
@@ -137,7 +137,7 @@ async def main():
         logger.info("Database connection initialized")
         
         # 重新导入 async_session_maker（在 init_db() 之后）
-        from app.db.session import async_session_maker
+        from db.session import async_session_maker
         if async_session_maker is None:
             raise RuntimeError("async_session_maker 未初始化")
         

@@ -13,9 +13,9 @@ from loguru import logger
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.db.session import init_db, close_db
-from app.models.agent import Agent
-from app.schemas.agent import AgentConfig
+from db.session import init_db, close_db
+from models.agent import Agent
+from schemas.agent import AgentConfig
 
 # SQLite 数据库路径
 SQLITE_DB_PATH = Path("E:/project/sfire-ai/database/prompts.db")
@@ -128,11 +128,11 @@ async def main():
         await init_db()
         
         # 创建数据库表（如果不存在）
-        from app.db.session import create_tables
+        from db.session import create_tables
         await create_tables()
         
         # 导入 async_session_maker（在 init_db 之后）
-        from app.db.session import async_session_maker
+        from db.session import async_session_maker
         
         # 获取数据库会话
         async with async_session_maker() as session:

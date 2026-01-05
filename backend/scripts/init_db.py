@@ -13,10 +13,10 @@ from loguru import logger
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.db.session import init_db, async_session_maker, close_db
-from app.models.menu import Menu
-from app.models.user import User, UserLevel
-from app.core.security import get_password_hash
+from db.session import init_db, async_session_maker, close_db
+from models.menu import Menu
+from models.user import User, UserLevel
+from core.security import get_password_hash
 
 
 # 初始菜单数据
@@ -288,7 +288,7 @@ async def main():
     await init_db()
     
     # 创建数据库表
-    from app.db.session import create_tables
+    from db.session import create_tables
     await create_tables()
     
     # 获取数据库会话

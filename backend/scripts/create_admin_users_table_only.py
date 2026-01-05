@@ -10,7 +10,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from loguru import logger
-from app.db.session import init_db, async_session_maker, close_db, create_tables
+from db.session import init_db, async_session_maker, close_db, create_tables
 
 
 async def main():
@@ -49,6 +49,7 @@ async def main():
 
 if __name__ == "__main__":
     asyncio.run(main())
+
 
 
 

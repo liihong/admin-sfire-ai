@@ -13,8 +13,8 @@ from loguru import logger
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.db.session import init_db, close_db
-from app.models.menu import Menu
+from db.session import init_db, close_db
+from models.menu import Menu
 
 
 async def add_user_manage_menu():
@@ -29,7 +29,7 @@ async def add_user_manage_menu():
         logger.info("数据库连接成功")
         
         # 重新导入 async_session_maker（在 init_db() 之后）
-        from app.db.session import async_session_maker
+        from db.session import async_session_maker
         if async_session_maker is None:
             raise RuntimeError("async_session_maker 未初始化")
         

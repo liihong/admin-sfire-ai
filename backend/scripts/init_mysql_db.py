@@ -16,12 +16,12 @@ from loguru import logger
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.db.session import init_db, async_session_maker, close_db, create_tables
-from app.models.user import User, UserLevel
-from app.models.menu import Menu
-from app.models.compute import ComputeLog, ComputeType
-from app.models.llm_model import LLMModel
-from app.core.security import hash_password
+from db.session import init_db, async_session_maker, close_db, create_tables
+from models.user import User, UserLevel
+from models.menu import Menu
+from models.compute import ComputeLog, ComputeType
+from models.llm_model import LLMModel
+from core.security import hash_password
 
 
 # ========== Mock 数据定义 ==========
@@ -603,7 +603,7 @@ async def main():
         logger.info("数据库表创建完成")
         
         # 获取数据库会话（重新导入以确保使用正确的会话工厂）
-        from app.db.session import async_session_maker
+        from db.session import async_session_maker
         if async_session_maker is None:
             raise RuntimeError("async_session_maker 未初始化")
         

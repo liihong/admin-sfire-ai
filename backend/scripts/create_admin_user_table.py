@@ -13,7 +13,7 @@ from loguru import logger
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.db.session import init_db, async_session_maker, close_db
+from db.session import init_db, async_session_maker, close_db
 
 
 async def create_admin_user_table():
@@ -99,8 +99,8 @@ async def create_default_admin_user():
         # 获取数据库会话
         async with async_session_maker() as session:
             try:
-                from app.models.admin_user import AdminUser
-                from app.core.security import hash_password
+                from models.admin_user import AdminUser
+                from core.security import hash_password
                 from sqlalchemy import select
                 
                 # 检查是否已存在 admin 用户
@@ -172,6 +172,7 @@ async def main():
 
 if __name__ == "__main__":
     asyncio.run(main())
+
 
 
 

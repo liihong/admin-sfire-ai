@@ -11,11 +11,11 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from loguru import logger
 from sqlalchemy import select
-from app.db.session import init_db, async_session_maker, close_db
-from app.models.user import User
-from app.models.menu import Menu
-from app.models.compute import ComputeLog
-from app.core.config import settings
+from db.session import init_db, async_session_maker, close_db
+from models.user import User
+from models.menu import Menu
+from models.compute import ComputeLog
+from core.config import settings
 
 
 async def check_database():
