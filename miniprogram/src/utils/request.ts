@@ -74,10 +74,41 @@ function requestInterceptor(config: RequestConfig): RequestConfig {
 }
 
 /**
+ * 处理401未授权错误：清除认证信息并跳转到登录页
+ */
+function handleUnauthorized() {
+  const authStore = useAuthStore()
+  authStore.clearAuth()
+  
+  console.warn('Token expired or invalid, redirecting to login')
+  
+  // 延迟跳转，避免在请求回调中直接跳转
+  setTimeout(() => {
+    uni.reLaunch({
+      url: '/pages/login/index'
+    })
+  }, 0)
+}
+
+/**
  * 响应拦截器 - 处理响应数据
  */
 function responseInterceptor<T>(response: UniApp.RequestSuccessCallbackResult): ResponseData<T> {
   const { statusCode, data } = response
+  
+  // 检查响应数据中的code字段（后端可能返回HTTP 200但code为401）
+  const responseData = data as any
+  const responseCode = responseData?.code
+  
+  // 处理401未授权（HTTP状态码401或响应数据code为401）
+  if (statusCode === 401 || responseCode === 401) {
+    handleUnauthorized()
+    return {
+      success: false,
+      message: responseData?.msg || responseData?.message || '登录已过期，请重新登录',
+      code: 401
+    }
+  }
   
   // HTTP 状态码处理
   if (statusCode >= 200 && statusCode < 300) {
@@ -86,22 +117,6 @@ function responseInterceptor<T>(response: UniApp.RequestSuccessCallbackResult): 
       success: true,
       data: data as T,
       code: statusCode
-    }
-  }
-  
-  // 处理特殊状态码
-  if (statusCode === 401) {
-    // Token 过期或无效，清除认证信息
-    const authStore = useAuthStore()
-    authStore.clearAuth()
-    
-    // 可以在这里触发重新登录
-    console.warn('Token expired, need re-login')
-    
-    return {
-      success: false,
-      message: '登录已过期，请重新登录',
-      code: 401
     }
   }
   
@@ -288,7 +303,49 @@ export function del<T = any>(url: string, data?: any, config?: Partial<RequestCo
   })
 }
 
-// ============== API 模块示例 ==============
+// ============== API 模块 ==============
+
+/**
+ * 用户信息 API
+ */
+export const userApi = {
+  /**
+   * 获取用户详细信息（我的页面使用）
+   */
+  getUserInfo: () => {
+    return get<{
+      phone: string
+      avatar: string
+      nickname: string
+      power: string
+      partnerBalance: string
+      partnerStatus: string
+      expireDate: string | null
+    }>('/api/v1/client/auth/user/info', undefined, { 
+      showLoading: false 
+    })
+  },
+  
+  /**
+   * 更新用户信息
+   */
+  updateUserInfo: (data: {
+    nickname?: string
+    avatar?: string
+  }) => {
+    return put<{
+      success: boolean
+      userInfo: {
+        openid: string
+        nickname: string
+        avatarUrl: string
+      }
+    }>('/api/v1/client/auth/user', data, { 
+      showLoading: true,
+      loadingText: '更新中...'
+    })
+  }
+}
 
 /**
  * 生成内容 API
@@ -353,6 +410,7 @@ export default {
   post,
   put,
   del,
+  userApi,
   generateApi
 }
 

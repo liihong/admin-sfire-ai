@@ -3,7 +3,7 @@
     <!-- 用户信息卡片 -->
     <view class="user-card">
       <view class="user-info">
-        <view class="avatar-wrapper">
+        <view class="avatar-wrapper" @tap="handleAvatarClick">
           <image 
             class="avatar" 
             :src="userInfo.avatar || '/static/default-avatar.png'" 
@@ -11,12 +11,12 @@
           />
         </view>
         <view class="user-details">
-          <text class="phone-number">{{ userInfo.phone }}</text>
+          <text class="phone-number">{{ displayPhone }}</text>
           <view class="tags-row">
-            <view class="vip-tag">
+            <view class="vip-tag" v-if="userInfo.partnerStatus === 'VIP会员'">
               <text class="vip-text">VIP会员</text>
             </view>
-            <view class="expire-tag">
+            <view class="expire-tag" v-if="userInfo.expireDate">
               <text class="expire-text">{{ userInfo.expireDate }}过期</text>
             </view>
           </view>
@@ -78,17 +78,32 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive } from 'vue'
+import { ref, reactive, computed } from 'vue'
+import { onShow } from '@dcloudio/uni-app'
+import { userApi } from '@/utils/request'
+import { useAuthStore } from '@/stores/auth'
 
-// 用户信息 Mock 数据
+// 用户信息
 const userInfo = reactive({
   avatar: '',
-  phone: '132****6633',
-  expireDate: '2026-01-24',
-  power: '3678',
+  phone: '',
+  expireDate: '',
+  power: '0',
   balance: '0.00',
-  partnerStatus: '待成为合伙人'
+  partnerStatus: '普通用户'
 })
+
+// 格式化手机号（隐藏中间4位）
+const formatPhone = (phone: string): string => {
+  if (!phone) return ''
+  // 如果手机号长度不是11位，直接返回
+  if (phone.length !== 11) return phone
+  // 将中间4位替换为****
+  return phone.replace(/(\d{3})\d{4}(\d{4})/, '$1****$2')
+}
+
+// 格式化后的手机号（计算属性）
+const displayPhone = computed(() => formatPhone(userInfo.phone))
 
 // 功能菜单 Mock 数据
 const menuList = ref([
@@ -114,6 +129,103 @@ const menuList = ref([
     path: '/pages/help/index'
   }
 ])
+
+// 获取用户信息
+const fetchUserInfo = async () => {
+  try {
+    const response = await userApi.getUserInfo()
+    if (response.success && response.data) {
+      // 后端使用success函数返回: {code: 200, data: {...}, msg: "..."}
+      // responseInterceptor将整个响应作为data返回
+      // 所以需要访问 response.data.data 获取实际数据
+      const backendResponse = response.data as any
+      const data = backendResponse.data || backendResponse
+      
+      userInfo.avatar = data.avatar || ''
+      userInfo.phone = data.phone || ''
+      userInfo.expireDate = data.expireDate || ''
+      userInfo.power = data.power || '0'
+      userInfo.balance = data.partnerBalance || '0.00'
+      userInfo.partnerStatus = data.partnerStatus || '普通用户'
+    } else {
+      console.error('获取用户信息失败:', response.message)
+      uni.showToast({
+        title: response.message || '获取用户信息失败',
+        icon: 'none'
+      })
+    }
+  } catch (error) {
+    console.error('获取用户信息异常:', error)
+    uni.showToast({
+      title: '获取用户信息失败',
+      icon: 'none'
+    })
+  }
+}
+
+// 头像点击 - 获取微信头像和昵称
+const handleAvatarClick = () => {
+  // #ifdef MP-WEIXIN
+  // 微信小程序环境，使用 getUserProfile 获取用户信息
+  uni.getUserProfile({
+    desc: '用于完善用户资料',
+    success: async (res) => {
+      console.log('获取用户信息成功:', res.userInfo)
+      const { avatarUrl, nickName } = res.userInfo
+      
+      // 调用接口更新用户信息
+      try {
+        const updateResponse = await userApi.updateUserInfo({
+          avatar: avatarUrl,
+          nickname: nickName
+        })
+        
+        if (updateResponse.success) {
+          uni.showToast({
+            title: '更新成功',
+            icon: 'success'
+          })
+          // 刷新用户信息
+          await fetchUserInfo()
+        } else {
+          uni.showToast({
+            title: updateResponse.message || '更新失败',
+            icon: 'none'
+          })
+        }
+      } catch (error) {
+        console.error('更新用户信息异常:', error)
+        uni.showToast({
+          title: '更新失败',
+          icon: 'none'
+        })
+      }
+    },
+    fail: (err) => {
+      console.error('获取用户信息失败:', err)
+      if (err.errMsg && err.errMsg.includes('deny')) {
+        uni.showToast({
+          title: '需要授权才能使用此功能',
+          icon: 'none'
+        })
+      } else {
+        uni.showToast({
+          title: '获取用户信息失败',
+          icon: 'none'
+        })
+      }
+    }
+  })
+  // #endif
+  
+  // #ifndef MP-WEIXIN
+  // 非微信小程序环境，提示用户手动输入
+  uni.showToast({
+    title: '请在小程序中打开',
+    icon: 'none'
+  })
+  // #endif
+}
 
 // 跳转到明细页面
 const goToDetail = (type: string) => {
@@ -146,6 +258,11 @@ const handleMenuClick = (item: any) => {
     icon: 'none'
   })
 }
+
+// 页面显示时获取用户信息
+onShow(() => {
+  fetchUserInfo()
+})
 </script>
 
 <style scoped>

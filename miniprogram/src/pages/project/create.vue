@@ -126,13 +126,13 @@
         <view class="form-item">
           <view class="form-label-row">
             <text class="form-label">IP 简介</text>
-            <text class="form-hint">{{ formData.introduction.length }}/200</text>
+            <text class="form-hint">{{ formData.introduction.length }}/500</text>
           </view>
           <textarea 
             class="form-textarea"
             v-model="formData.introduction"
             placeholder="介绍一下你的 IP 定位和特色..."
-            :maxlength="200"
+            :maxlength="500"
           />
         </view>
 

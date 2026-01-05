@@ -5,6 +5,7 @@
 """
 import enum
 from decimal import Decimal
+from datetime import datetime
 from typing import Optional, List, TYPE_CHECKING
 from sqlalchemy import (
     String,
@@ -15,6 +16,7 @@ from sqlalchemy import (
     ForeignKey,
     Index,
     Text,
+    DateTime,
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -54,6 +56,8 @@ class User(BaseModel):
         - phone: 手机号
         - avatar: 头像URL
         - nickname: 昵称
+        - partner_balance: 合伙人资产余额
+        - vip_expire_date: 会员到期时间
     """
     __tablename__ = "users"
     __table_args__ = (
@@ -103,6 +107,20 @@ class User(BaseModel):
         server_default="0.0000",
         nullable=False,
         comment="冻结中的算力（处理中的任务占用）",
+    )
+    
+    partner_balance: Mapped[Decimal] = mapped_column(
+        DECIMAL(16, 4),
+        default=Decimal("0.0000"),
+        server_default="0.0000",
+        nullable=False,
+        comment="合伙人资产余额",
+    )
+    
+    vip_expire_date: Mapped[Optional[datetime]] = mapped_column(
+        DateTime,
+        nullable=True,
+        comment="会员到期时间",
     )
     
     # === 分销关联 ===

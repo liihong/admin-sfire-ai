@@ -360,7 +360,7 @@ function formatDate(dateStr: string): string {
   
   .header-content {
     flex: 1;
-    padding-top: 8rpx;
+    padding-top: 40rpx;
   }
   
   .header-title {

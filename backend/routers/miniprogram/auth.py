@@ -9,6 +9,7 @@ from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from pydantic import BaseModel, Field
+from loguru import logger
 
 from db import get_db
 from models.user import User
@@ -27,6 +28,7 @@ router = APIRouter()
 class LoginRequest(BaseModel):
     """微信小程序登录请求"""
     code: str = Field(..., description="微信登录 code，从 uni.login() 获取")
+    phone_code: Optional[str] = Field(default=None, description="手机号授权 code，从 getPhoneNumber 获取")
 
 
 class UserInfo(BaseModel):
@@ -64,6 +66,7 @@ async def get_wechat_openid(code: str) -> tuple[str, Optional[str]]:
     """
     if not settings.WECHAT_APP_ID or not settings.WECHAT_APP_SECRET:
         # 开发环境：使用 Mock 数据
+        logger.warning("WECHAT_APP_ID or WECHAT_APP_SECRET not configured, using mock openid")
         import hashlib
         code_hash = hashlib.md5(code.encode()).hexdigest()[:16]
         mock_openid = f"o_mock_{code_hash}"
@@ -106,6 +109,75 @@ async def get_wechat_openid(code: str) -> tuple[str, Optional[str]]:
         raise ServerErrorException(f"微信登录失败: {str(e)}")
 
 
+async def get_wechat_phone_number(phone_code: str) -> Optional[str]:
+    """
+    调用微信 API 获取手机号
+    
+    Args:
+        phone_code: 手机号授权 code，从 getPhoneNumber 获取
+    
+    Returns:
+        手机号字符串，如果获取失败返回 None
+    
+    Note:
+        需要先获取 access_token，然后调用 getuserphonenumber API
+        在开发环境中，如果没有配置微信APP信息，返回None
+    """
+    if not settings.WECHAT_APP_ID or not settings.WECHAT_APP_SECRET:
+        # 开发环境：不处理手机号
+        logger.warning("WECHAT_APP_ID or WECHAT_APP_SECRET not configured, cannot get phone number")
+        return None
+    
+    try:
+        # 1. 获取 access_token
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            # 获取 access_token
+            token_response = await client.get(
+                "https://api.weixin.qq.com/cgi-bin/token",
+                params={
+                    "grant_type": "client_credential",
+                    "appid": settings.WECHAT_APP_ID,
+                    "secret": settings.WECHAT_APP_SECRET
+                }
+            )
+            token_data = token_response.json()
+            
+            if "errcode" in token_data:
+                # 获取 access_token 失败
+                return None
+            
+            access_token = token_data.get("access_token")
+            if not access_token:
+                return None
+            
+            # 2. 使用 access_token 和 phone_code 获取手机号
+            phone_response = await client.post(
+                "https://api.weixin.qq.com/wxa/business/getuserphonenumber",
+                params={"access_token": access_token},
+                json={"code": phone_code}
+            )
+            
+            phone_data = phone_response.json()
+            logger.info(f"WeChat phone API response: {phone_data}")
+            
+            if phone_data.get("errcode") == 0:
+                phone_info = phone_data.get("phone_info", {})
+                phone_number = phone_info.get("phoneNumber")
+                logger.info(f"Successfully got phone number: {phone_number}")
+                return phone_number
+            else:
+                errcode = phone_data.get("errcode")
+                errmsg = phone_data.get("errmsg", "未知错误")
+                logger.error(f"Failed to get phone number: errcode={errcode}, errmsg={errmsg}")
+            
+            return None
+            
+    except Exception as e:
+        # 获取手机号失败，不影响登录流程
+        logger.error(f"Exception while getting phone number: {str(e)}", exc_info=True)
+        return None
+
+
 def generate_username() -> str:
     """生成随机用户名"""
     random_str = ''.join(secrets.choice(string.ascii_lowercase + string.digits) for _ in range(8))
@@ -130,7 +202,14 @@ async def miniprogram_login(
         # 1. 调用微信 API 获取 openid
         openid, unionid = await get_wechat_openid(request.code)
         
-        # 2. 查找或创建用户
+        # 2. 如果提供了 phone_code，获取手机号
+        phone_number = None
+        if request.phone_code:
+            logger.info(f"Received phone_code, attempting to get phone number")
+            phone_number = await get_wechat_phone_number(request.phone_code)
+            logger.info(f"Phone number result: {phone_number if phone_number else 'None'}")
+        
+        # 3. 查找或创建用户
         user_service = UserService(db)
         
         # 先通过 openid 查找用户
@@ -149,12 +228,28 @@ async def miniprogram_login(
                 "openid": openid,
                 "unionid": unionid,
                 "nickname": "微信用户",
+                "phone": phone_number,  # 保存手机号
                 "is_active": True,
             }
+            logger.info(f"Creating new user with phone: {phone_number}, openid: {openid}")
             
             user = await user_service.create_user_from_dict(user_data)
+            logger.info(f"User created: id={user.id}, phone={user.phone}, openid={user.openid}")
+        else:
+            # 用户已存在，如果获取到手机号且用户没有手机号，则更新
+            logger.info(f"User exists: id={user.id}, current phone={user.phone}, new phone={phone_number}")
+            if phone_number and not user.phone:
+                logger.info(f"Updating user phone from {user.phone} to {phone_number}")
+                user.phone = phone_number
+                await db.commit()
+                await db.refresh(user)
+                logger.info(f"User phone updated successfully: {user.phone}")
+            elif phone_number and user.phone:
+                logger.info(f"User already has phone number, skipping update")
+            elif not phone_number:
+                logger.warning(f"No phone number obtained, cannot update")
         
-        # 3. 生成 JWT token
+        # 4. 生成 JWT token
         token = create_access_token(data={"sub": str(user.id)})
         
         # 4. 构建用户信息
@@ -208,6 +303,66 @@ async def get_current_user_info(
     )
 
 
+class UserDetailInfo(BaseModel):
+    """用户详细信息模型（我的页面使用）"""
+    phone: Optional[str] = Field(default="", description="手机号")
+    avatar: Optional[str] = Field(default="", description="头像URL")
+    nickname: Optional[str] = Field(default="", description="昵称")
+    power: str = Field(default="0", description="算力余额")
+    partnerBalance: str = Field(default="0.00", description="合伙人资产余额")
+    partnerStatus: str = Field(default="普通用户", description="合伙人状态")
+    expireDate: Optional[str] = Field(default=None, description="会员到期时间 YYYY-MM-DD")
+
+
+@router.get("/user/info")
+async def get_user_detail_info(
+    current_user: User = Depends(get_current_miniprogram_user)
+):
+    """
+    获取用户详细信息（我的页面使用）
+    
+    需要 Authorization header 携带 Bearer token
+    返回字段：phone、avatar、nickname、power（算力余额）、partnerBalance（合伙人资产余额）、partnerStatus（合伙人状态）、expireDate（会员到期时间）
+    """
+    from models.user import UserLevel
+    from decimal import Decimal
+    
+    # 合伙人状态映射
+    level_status_map = {
+        UserLevel.NORMAL: "普通用户",
+        UserLevel.MEMBER: "VIP会员",
+        UserLevel.PARTNER: "合伙人",
+    }
+    partner_status = level_status_map.get(current_user.level, "普通用户")
+    
+    # 格式化算力余额
+    power = str(int(current_user.balance)) if current_user.balance else "0"
+    
+    # 格式化合伙人资产余额
+    partner_balance = current_user.partner_balance if current_user.partner_balance else Decimal("0.0000")
+    partner_balance_str = f"{float(partner_balance):.2f}"
+    
+    # 格式化会员到期时间
+    expire_date = None
+    if current_user.vip_expire_date:
+        expire_date = current_user.vip_expire_date.strftime("%Y-%m-%d")
+    
+    user_detail = UserDetailInfo(
+        phone=current_user.phone or "",
+        avatar=current_user.avatar or "",
+        nickname=current_user.nickname or "微信用户",
+        power=power,
+        partnerBalance=partner_balance_str,
+        partnerStatus=partner_status,
+        expireDate=expire_date,
+    )
+    
+    return success(
+        data=user_detail.model_dump(),
+        msg="获取成功"
+    )
+
+
 class UserUpdateRequest(BaseModel):
     """用户信息更新请求"""
     nickname: Optional[str] = Field(default=None, description="用户昵称")
@@ -226,29 +381,35 @@ async def update_user_info(
     
     需要 Authorization header 携带 Bearer token
     """
-    user_service = UserService(db)
-    
-    # 构建更新数据
-    update_data = {}
+    # 直接更新用户对象属性
     if request.nickname is not None:
-        update_data["nickname"] = request.nickname
+        current_user.nickname = request.nickname
     if request.avatar is not None:
-        update_data["avatar"] = request.avatar
+        current_user.avatar = request.avatar
     if request.gender is not None:
-        update_data["gender"] = request.gender
+        # 注意：User模型可能没有gender字段，这里先不处理
+        pass
     
-    if not update_data:
+    # 如果没有要更新的字段，返回错误
+    update_fields = []
+    if request.nickname is not None:
+        update_fields.append("nickname")
+    if request.avatar is not None:
+        update_fields.append("avatar")
+    
+    if not update_fields:
         raise BadRequestException("请提供要更新的字段")
     
-    # 更新用户信息
-    updated_user = await user_service.update_user(current_user.id, update_data)
+    # 提交更改
+    await db.commit()
+    await db.refresh(current_user)
     
     # 构建响应
     user_info = UserInfo(
-        openid=updated_user.openid or "",
-        nickname=updated_user.nickname or "微信用户",
-        avatarUrl=updated_user.avatar or "",
-        gender=getattr(updated_user, 'gender', 0) or 0,
+        openid=current_user.openid or "",
+        nickname=current_user.nickname or "微信用户",
+        avatarUrl=current_user.avatar or "",
+        gender=0,
         city="",
         province="",
         country="",
@@ -257,7 +418,7 @@ async def update_user_info(
     return success(
         data={
             "success": True,
-            "user_info": user_info.model_dump()
+            "userInfo": user_info.model_dump()
         },
         msg="更新成功"
     )
