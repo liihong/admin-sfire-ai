@@ -207,3 +207,57 @@ async def get_current_user_info(
         msg="获取成功"
     )
 
+
+class UserUpdateRequest(BaseModel):
+    """用户信息更新请求"""
+    nickname: Optional[str] = Field(default=None, description="用户昵称")
+    avatar: Optional[str] = Field(default=None, description="头像（Base64 或 URL）")
+    gender: Optional[int] = Field(default=None, description="性别: 0-未知, 1-男, 2-女")
+
+
+@router.put("/user")
+async def update_user_info(
+    request: UserUpdateRequest,
+    current_user: User = Depends(get_current_miniprogram_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    更新当前用户信息
+    
+    需要 Authorization header 携带 Bearer token
+    """
+    user_service = UserService(db)
+    
+    # 构建更新数据
+    update_data = {}
+    if request.nickname is not None:
+        update_data["nickname"] = request.nickname
+    if request.avatar is not None:
+        update_data["avatar"] = request.avatar
+    if request.gender is not None:
+        update_data["gender"] = request.gender
+    
+    if not update_data:
+        raise BadRequestException("请提供要更新的字段")
+    
+    # 更新用户信息
+    updated_user = await user_service.update_user(current_user.id, update_data)
+    
+    # 构建响应
+    user_info = UserInfo(
+        openid=updated_user.openid or "",
+        nickname=updated_user.nickname or "微信用户",
+        avatarUrl=updated_user.avatar or "",
+        gender=getattr(updated_user, 'gender', 0) or 0,
+        city="",
+        province="",
+        country="",
+    )
+    
+    return success(
+        data={
+            "success": True,
+            "user_info": user_info.model_dump()
+        },
+        msg="更新成功"
+    )
