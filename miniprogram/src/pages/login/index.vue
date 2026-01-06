@@ -147,15 +147,7 @@ const handleGetPhoneNumber = async (e: any) => {
     }
     
     // 调用后端登录接口
-    const response = await post<{
-      token: string
-      is_new_user: boolean
-      user_info?: {
-        openid: string
-        nickname: string
-        avatarUrl: string
-      }
-    }>('/api/v1/client/auth/login', {
+    const response = await post<any>('/api/v1/client/auth/login', {
       code: loginResult.code,
       phone_code: phoneCode
     })
@@ -163,16 +155,35 @@ const handleGetPhoneNumber = async (e: any) => {
     uni.hideLoading()
     
     if (response.success && response.data) {
-      // 保存 Token
-      authStore.setToken(response.data.token)
+      // 保存 Token（使用 uni.setStorageSync 长期存储，数据会一直保存直到用户清除小程序数据）
+      // 后端返回格式: {code: 200, data: {token: "...", ...}, msg: "..."}
+      // responseInterceptor 返回: {success: true, data: <entire backend response>, code: 200}
+      // 所以 token 在 response.data.data.token
+      const tokenValue = response.data.data?.token || response.data.token
       
-      // 保存用户信息
-      if (response.data.user_info) {
+      if (tokenValue) {
+        authStore.setToken(tokenValue)
+        
+        // 安全地调用 substring，添加类型检查
+        if (typeof tokenValue === 'string' && tokenValue.length > 0) {
+          console.log('[Login] Token saved to storage:', tokenValue.substring(0, 20) + '...')
+        } else {
+          console.log('[Login] Token saved to storage (non-string type):', tokenValue)
+        }
+      } else {
+        console.warn('[Login] Token is missing from response')
+      }
+      
+      // 保存用户信息（长期存储）
+      // 用户信息可能在 response.data.data.userInfo 或 response.data.userInfo
+      const userInfo = response.data.data?.userInfo || response.data.data?.user_info || response.data.userInfo || response.data.user_info
+      if (userInfo) {
         authStore.setUserInfo({
-          openid: response.data.user_info.openid,
-          nickname: response.data.user_info.nickname || '',
-          avatarUrl: response.data.user_info.avatarUrl || '/static/default-avatar.png'
+          openid: userInfo.openid,
+          nickname: userInfo.nickname || '',
+          avatarUrl: userInfo.avatarUrl || userInfo.avatar_url || '/static/default-avatar.png'
         })
+        console.log('[Login] User info saved to storage')
       }
       
       uni.showToast({
@@ -181,17 +192,19 @@ const handleGetPhoneNumber = async (e: any) => {
         duration: 1500
       })
       
-      // 根据是否新用户决定跳转
+      // 登录成功后统一跳转到IP工作台
+      // is_new_user 可能在 response.data.data.is_new_user 或 response.data.is_new_user
+      const isNewUser = response.data.data?.is_new_user ?? response.data?.is_new_user ?? false
       setTimeout(() => {
-        if (response.data?.is_new_user) {
-          // 新用户，跳转到完善资料页
+        if (isNewUser) {
+          // 新用户，先跳转到完善资料页，完善后再跳转到IP工作台
           uni.redirectTo({
             url: '/pages/login/profile'
           })
         } else {
-          // 老用户，跳转到首页
+          // 老用户，直接跳转到IP工作台
           uni.switchTab({
-            url: '/pages/index/index'
+            url: '/pages/project/list'
           })
         }
       }, 1500)
@@ -271,10 +284,10 @@ const mockLogin = () => {
     duration: 1500
   })
   
-  // 跳转到完善资料页（模拟新用户）
+  // 跳转到IP工作台
   setTimeout(() => {
-    uni.redirectTo({
-      url: '/pages/login/profile'
+    uni.switchTab({
+      url: '/pages/project/list'
     })
   }, 1500)
 }

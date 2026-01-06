@@ -211,10 +211,10 @@ const handleSubmit = async () => {
         duration: 1500
       })
       
-      // 跳转到首页
+      // 跳转到IP工作台
       setTimeout(() => {
         uni.switchTab({
-          url: '/pages/index/index'
+          url: '/pages/project/list'
         })
       }, 1500)
     } else {
@@ -259,7 +259,7 @@ const mockUpdateProfile = () => {
   
   setTimeout(() => {
     uni.switchTab({
-      url: '/pages/index/index'
+      url: '/pages/project/list'
     })
   }, 1500)
 }
@@ -276,7 +276,7 @@ const handleSkip = () => {
     success: (res) => {
       if (res.confirm) {
         uni.switchTab({
-          url: '/pages/index/index'
+          url: '/pages/project/list'
         })
       }
     }
