@@ -1,6 +1,7 @@
 """
-MiniProgram Tikhub Endpoints
-小程序抖音分析接口
+Client Tikhub Endpoints
+C端抖音分析接口（小程序 & PC官网）
+支持抖音账号分析、IP画像提取等功能
 """
 import re
 import httpx

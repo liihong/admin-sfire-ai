@@ -1,6 +1,7 @@
 """
-MiniProgram Generation Endpoints
-小程序内容生成接口
+Client Content Generation Endpoints
+C端内容生成接口（小程序 & PC官网）
+支持智能体列表查询、对话式内容生成、快速生成等功能
 """
 import json
 from typing import List, Optional
@@ -16,7 +17,7 @@ from services.project import ProjectService
 from services.llm_service import LLMFactory
 from services.llm_model import LLMModelService
 from services.agent import AgentService
-from constants.agent import get_agent_config, get_all_agents, AgentType
+from constants.agent import get_agent_config, get_all_agents, AgentType, AGENT_CONFIGS
 from utils.response import success
 from utils.exceptions import BadRequestException, ServerErrorException
 
@@ -36,7 +37,7 @@ class ChatRequest(BaseModel):
     project_id: Optional[int] = Field(default=None, description="项目ID，用于获取IP人设信息")
     agent_type: str = Field(default=AgentType.EFFICIENT_ORAL, description="智能体类型")
     messages: List[ChatMessage] = Field(..., description="对话历史消息列表")
-    model_type: str = Field(default="deepseek", description="LLM模型类型: 'deepseek', 'claude', 'doubao'")
+    model_type: str = Field(default="doubao", description="LLM模型类型: 'doubao', 'claude', 'doubao'")
     temperature: Optional[float] = Field(default=None, ge=0.0, le=2.0, description="生成温度")
     max_tokens: int = Field(default=2048, ge=1, le=8192, description="最大生成tokens")
     stream: bool = Field(default=True, description="是否启用流式输出")
@@ -206,10 +207,47 @@ async def generate_chat(
             raise BadRequestException(f"不支持的模型类型: '{request.model_type}'。支持的类型: {supported_models}")
         
         # 2. 获取智能体配置
+        # 首先尝试从预设配置中获取（如果 agent_type 是预设枚举值）
+        agent_config = None
+        agent_type_source = "preset"
+        
         try:
             agent_config = get_agent_config(request.agent_type)
-        except ValueError as e:
-            raise BadRequestException(str(e))
+        except ValueError:
+            # 如果预设配置中找不到，尝试从数据库查询（可能是数据库ID）
+            # 尝试将 agent_type 作为数据库ID查询
+            try:
+                agent_id = int(request.agent_type)
+                from sqlalchemy import select
+                from models.agent import Agent
+                
+                result = await db.execute(
+                    select(Agent).where(
+                        Agent.id == agent_id,
+                        Agent.status == 1  # 只查询上架的智能体
+                    )
+                )
+                db_agent = result.scalar_one_or_none()
+                
+                if db_agent:
+                    # 从数据库智能体构建配置
+                    agent_config = {
+                        "system_prompt": db_agent.system_prompt,
+                        "temperature": db_agent.config.get("temperature", 0.7) if db_agent.config else 0.7,
+                        "max_tokens": db_agent.config.get("max_tokens", 2048) if db_agent.config else 2048,
+                    }
+                    agent_type_source = "database"
+                else:
+                    available = ", ".join(AGENT_CONFIGS.keys())
+                    raise BadRequestException(f"智能体 ID '{agent_id}' 不存在或已下架。可用类型: {available}")
+            except ValueError:
+                # agent_type 不是数字，也不是预设枚举值
+                available = ", ".join(AGENT_CONFIGS.keys())
+                raise BadRequestException(f"未知的智能体类型: '{request.agent_type}'。可用类型: {available}")
+        
+        if not agent_config:
+            available = ", ".join(AGENT_CONFIGS.keys())
+            raise BadRequestException(f"无法获取智能体配置: '{request.agent_type}'。可用类型: {available}")
         
         # 3. 获取项目IP画像（如果提供了project_id）
         ip_persona_prompt = ""
@@ -275,6 +313,27 @@ async def generate_chat(
             base_url=llm_model.base_url,
             model=llm_model.model_id
         )
+        # region agent log
+        try:
+            import json, time
+            with open(r"e:\project\admin-sfire-ai\.cursor\debug.log", "a", encoding="utf-8") as _f:
+                _f.write(json.dumps({
+                    "sessionId": "debug-session",
+                    "runId": "pre-fix",
+                    "hypothesisId": "H3",
+                    "location": "routers/client/creation.py:generate_chat(model)",
+                    "message": "llm model resolved",
+                    "data": {
+                        "provider": provider,
+                        "model_id": llm_model.model_id,
+                        "has_base_url": bool(llm_model.base_url),
+                        "api_key_configured": bool(llm_model.api_key)
+                    },
+                    "timestamp": int(time.time() * 1000)
+                }) + "\n")
+        except Exception:
+            pass
+        # endregion
         
         # 9. 生成响应
         if request.stream:

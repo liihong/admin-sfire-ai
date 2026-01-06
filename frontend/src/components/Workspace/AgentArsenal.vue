@@ -155,8 +155,8 @@ onMounted(() => {
   
   &.is-active {
     border-color: var(--ip-os-accent-primary);
-    background: rgba(255, 107, 53, 0.1);
-    box-shadow: 0 0 10px var(--ip-os-accent-glow);
+    background: rgba(255, 107, 53, 0.08);
+    box-shadow: 0 2px 8px rgba(255, 107, 53, 0.15);
   }
   
   .arsenal-item-icon {
@@ -166,7 +166,7 @@ onMounted(() => {
     display: flex;
     align-items: center;
     justify-content: center;
-    background: var(--ip-os-bg-tertiary);
+    background: var(--ip-os-bg-primary);
     border-radius: 8px;
     color: var(--ip-os-accent-primary);
     

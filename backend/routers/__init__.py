@@ -4,10 +4,10 @@ Routers Package
 """
 from fastapi import APIRouter
 
-from .miniprogram import miniprogram_router
+from .client import client_router
 from .admin import admin_router
 
-__all__ = ["miniprogram_router", "admin_router"]
+__all__ = ["client_router", "admin_router"]
 
 
 

@@ -1,6 +1,7 @@
 """
-MiniProgram Project Endpoints
-小程序项目管理接口
+Client Project Endpoints
+C端项目管理接口（小程序 & PC官网）
+支持项目的创建、查询、更新、删除、切换等功能
 """
 from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException

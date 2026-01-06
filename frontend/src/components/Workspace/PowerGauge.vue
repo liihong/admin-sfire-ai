@@ -46,9 +46,10 @@ const formatPower = (power: number) => {
 
 .power-gauge {
   padding: 16px;
-  background: var(--ip-os-bg-secondary);
+  background: var(--ip-os-bg-primary);
   border-radius: 8px;
   border: 1px solid var(--ip-os-border-primary);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
 }
 
 .power-gauge-header {
@@ -74,7 +75,7 @@ const formatPower = (power: number) => {
   position: relative;
   width: 100%;
   height: 8px;
-  background: var(--ip-os-bg-tertiary);
+  background: #e4e7ed;
   border-radius: 4px;
   overflow: hidden;
   

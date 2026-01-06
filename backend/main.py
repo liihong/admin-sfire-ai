@@ -7,7 +7,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 
 from core.config import settings
-from routers import miniprogram_router, admin_router
+from routers import client_router, admin_router
 from utils.exceptions import register_exception_handlers
 from db.session import init_db, close_db
 from db.redis import init_redis, close_redis
@@ -54,9 +54,9 @@ def create_app() -> FastAPI:
     register_exception_handlers(app)
 
     # 注册 API 路由
-    # C端接口（小程序 & PC官网）
-    app.include_router(miniprogram_router, prefix="/api/v1/client", tags=["C端接口"])
-    # B端接口（管理后台）
+    # C端接口（小程序 & PC官网）：包括认证、项目管理、内容生成、抖音分析等功能
+    app.include_router(client_router, prefix="/api/v1/client", tags=["C端接口"])
+    # B端接口（管理后台）：包括管理员认证、用户管理、系统配置等功能
     app.include_router(admin_router, prefix="/api/v1/admin", tags=["B端接口"])
 
     return app

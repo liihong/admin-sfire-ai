@@ -35,21 +35,10 @@
       </div>
     </div>
     
-    <!-- 内容显示区 -->
+    <!-- 内容显示区：右侧不再使用打字机光标效果，直接展示当前内容 -->
     <div class="deck-content">
       <div
-        v-if="isGenerating"
-        class="content-generating"
-      >
-        <div class="generating-text" ref="generatingTextRef">
-          {{ currentContent }}
-          <span class="typing-cursor">|</span>
-        </div>
-        <div class="generating-particles"></div>
-      </div>
-      
-      <div
-        v-else-if="currentContent"
+        v-if="currentContent"
         class="content-display"
         ref="contentDisplayRef"
         @mouseup="handleTextSelection"
@@ -85,7 +74,6 @@ import { gsap } from "gsap";
 
 const ipCreationStore = useIPCreationStore();
 
-const generatingTextRef = ref<HTMLElement>();
 const contentDisplayRef = ref<HTMLElement>();
 const selectedText = ref("");
 const toolbarStyle = ref({ top: "0px", left: "0px" });
@@ -96,18 +84,15 @@ const contentVersions = computed(() => ipCreationStore.contentVersions);
 const currentVersionId = computed(() => ipCreationStore.currentVersionId);
 const hasVersions = computed(() => ipCreationStore.hasVersions);
 
-// 监听内容变化，添加打字机效果
+// 监听内容变化，右侧内容滚动到底部（不再展示打字机光标）
 watch(
   () => currentContent.value,
   () => {
-    if (isGenerating.value && generatingTextRef.value) {
-      // 滚动到底部
-      nextTick(() => {
-        if (generatingTextRef.value) {
-          generatingTextRef.value.scrollTop = generatingTextRef.value.scrollHeight;
-        }
-      });
-    }
+    nextTick(() => {
+      if (contentDisplayRef.value) {
+        contentDisplayRef.value.scrollTop = contentDisplayRef.value.scrollHeight;
+      }
+    });
   }
 );
 
@@ -230,7 +215,7 @@ const handleToScript = () => {
     
     &.is-active {
       border-color: var(--ip-os-accent-primary);
-      background: rgba(255, 107, 53, 0.1);
+      background: rgba(255, 107, 53, 0.08);
       color: var(--ip-os-accent-primary);
     }
     
@@ -297,8 +282,10 @@ const handleToScript = () => {
   
   .content-text {
     padding: 16px;
-    background: var(--ip-os-bg-tertiary);
+    background: var(--ip-os-bg-primary);
     border-radius: 8px;
+    border: 1px solid var(--ip-os-border-primary);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
   }
 }
 
@@ -326,10 +313,10 @@ const handleToScript = () => {
   display: flex;
   gap: 8px;
   padding: 8px;
-  background: var(--ip-os-bg-tertiary);
+  background: var(--ip-os-bg-primary);
   border: 1px solid var(--ip-os-border-primary);
   border-radius: 8px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
   z-index: 100;
   backdrop-filter: blur(10px);
 }

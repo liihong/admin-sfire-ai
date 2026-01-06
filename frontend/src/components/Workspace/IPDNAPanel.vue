@@ -74,7 +74,7 @@ const handleAgentSelect = (agent: MPAgentInfo) => {
   .dna-avatar {
     margin-bottom: 16px;
     border: 2px solid var(--ip-os-accent-primary);
-    box-shadow: 0 0 20px var(--ip-os-accent-glow);
+    box-shadow: 0 2px 12px rgba(255, 107, 53, 0.2);
   }
   
   .dna-name {

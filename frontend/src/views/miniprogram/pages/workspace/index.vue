@@ -1,5 +1,31 @@
 <template>
   <div class="workspace-cockpit">
+    <!-- 顶部工具栏：右上角模型切换 -->
+    <div class="cockpit-header">
+      <div class="header-right">
+        <el-dropdown @command="handleModelChange">
+          <span class="model-switcher">
+            <span class="model-icon">{{ currentModel.icon }}</span>
+            <span class="model-name">{{ currentModel.name }}</span>
+          </span>
+          <template #dropdown>
+            <el-dropdown-menu>
+              <el-dropdown-item
+                v-for="model in availableModels"
+                :key="model.type"
+                :command="model.type"
+                :disabled="!model.available"
+              >
+                <span class="dropdown-item-icon">{{ model.icon }}</span>
+                <span class="dropdown-item-name">{{ model.name }}</span>
+                <span class="dropdown-item-desc">{{ model.description }}</span>
+              </el-dropdown-item>
+            </el-dropdown-menu>
+          </template>
+        </el-dropdown>
+      </div>
+    </div>
+
     <div class="cockpit-container">
       <!-- 左侧栏：IP DNA + 智能体军械库 -->
       <div class="cockpit-sidebar">
@@ -31,6 +57,7 @@ import CreationReactor from "@/components/Workspace/CreationReactor.vue";
 import RefineryDeck from "@/components/Workspace/RefineryDeck.vue";
 import { useIPCreationStore } from "@/stores/modules/ipCreation";
 import { getMPProjectApi } from "@/api/modules/miniprogram";
+import { useMPSettingsStore } from "@/stores/modules/mpSettings";
 import {
   generateMPContentApi,
   type MPChatMessage,
@@ -40,9 +67,14 @@ import {
 const route = useRoute();
 const router = useRouter();
 const ipCreationStore = useIPCreationStore();
+const mpSettingsStore = useMPSettingsStore();
 
 const selectedAgent = computed(() => ipCreationStore.selectedAgent);
 const activeProject = computed(() => ipCreationStore.activeProject);
+
+// 当前模型与可用模型列表（与小程序端保持一致）
+const currentModel = computed(() => mpSettingsStore.currentModel);
+const availableModels = computed(() => mpSettingsStore.availableModels);
 
 // 加载项目信息
 const loadProject = async () => {
@@ -98,7 +130,8 @@ const handleGenerate = async (
       project_id: Number(activeProject.value.id),
       agent_type: currentAgent.type,
       messages: messages as MPChatMessage[],
-      model_type: "deepseek",
+      // 使用当前选择的模型类型，默认与小程序保持一致
+      model_type: mpSettingsStore.modelType,
       stream: true
     };
 
@@ -130,6 +163,13 @@ const handleGenerate = async (
     ElMessage.error(error?.msg || "生成失败");
     ipCreationStore.setGenerating(false);
   }
+};
+
+// 切换大模型
+const handleModelChange = (command: string) => {
+  // 使用小程序同款模型配置，仅支持列表中已启用的模型
+  mpSettingsStore.setModelType(command as any);
+  ElMessage.success(`已切换到模型：${currentModel.value.name}`);
 };
 
 // 防止重复加载的标记
@@ -170,6 +210,60 @@ onMounted(async () => {
   height: 100vh;
   background: var(--ip-os-bg-primary);
   overflow: hidden;
+}
+
+.cockpit-header {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  padding: 12px 24px 0;
+}
+
+.header-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.model-switcher {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  border-radius: 999px;
+  background: var(--ip-os-bg-secondary);
+  border: 1px solid var(--ip-os-border-secondary);
+  cursor: pointer;
+  font-size: 13px;
+  color: var(--ip-os-text-primary);
+  transition: all 0.2s ease;
+
+  &:hover {
+    background: var(--ip-os-bg-tertiary);
+    border-color: var(--ip-os-accent-primary);
+  }
+
+  .model-icon {
+    font-size: 16px;
+  }
+
+  .model-name {
+    font-weight: 500;
+  }
+}
+
+.dropdown-item-icon {
+  margin-right: 6px;
+}
+
+.dropdown-item-name {
+  font-weight: 500;
+  margin-right: 4px;
+}
+
+.dropdown-item-desc {
+  font-size: 12px;
+  color: var(--ip-os-text-secondary);
 }
 
 .cockpit-container {

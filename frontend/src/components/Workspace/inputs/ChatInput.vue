@@ -9,6 +9,17 @@
       >
         <div class="message-content">{{ msg.content }}</div>
       </div>
+
+      <!-- 中间栏对话区：生成中时使用打字机效果展示当前 AI 回复 -->
+      <div
+        v-if="isGenerating && currentContent"
+        class="chat-message assistant typing"
+      >
+        <p class="message-content">
+          {{ currentContent }}
+          <span class="typing-cursor">|</span>
+        </p>
+      </div>
     </div>
     
     <div class="chat-input-area">
@@ -56,6 +67,7 @@ const ipCreationStore = useIPCreationStore();
 const inputText = ref("");
 const messagesRef = ref<HTMLElement>();
 const isGenerating = computed(() => ipCreationStore.isGenerating);
+const currentContent = computed(() => ipCreationStore.currentContent);
 
 const messages = computed(() => props.conversationHistory);
 
@@ -100,8 +112,9 @@ const handleShiftEnter = () => {
   overflow-y: auto;
   padding: 16px;
   margin-bottom: 16px;
-  background: var(--ip-os-bg-tertiary);
+  background: var(--ip-os-bg-secondary);
   border-radius: 8px;
+  border: 1px solid var(--ip-os-border-primary);
   @extend .ip-os-scrollbar;
   
   .chat-message {
@@ -125,7 +138,7 @@ const handleShiftEnter = () => {
       
       .message-content {
         background: var(--ip-os-accent-primary);
-        color: var(--ip-os-text-primary);
+        color: #ffffff;
       }
     }
     
@@ -134,11 +147,34 @@ const handleShiftEnter = () => {
       justify-content: flex-start;
       
       .message-content {
-        background: var(--ip-os-bg-secondary);
+        background: var(--ip-os-bg-primary);
         color: var(--ip-os-text-primary);
         border: 1px solid var(--ip-os-border-secondary);
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
       }
     }
+
+    &.typing {
+      .message-content {
+        position: relative;
+      }
+
+      .typing-cursor {
+        display: inline-block;
+        margin-left: 2px;
+        animation: blink 1s infinite;
+        color: var(--ip-os-accent-primary);
+      }
+    }
+  }
+}
+
+@keyframes blink {
+  0%, 50% {
+    opacity: 1;
+  }
+  51%, 100% {
+    opacity: 0;
   }
 }
 
