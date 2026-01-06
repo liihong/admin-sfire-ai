@@ -151,7 +151,7 @@
   
     // 构建消息列表（包含系统提示词和上下文）
     const requestMessages: Array<{ role: "user" | "assistant" | "system"; content: string }> = [];
-  
+
     // 添加系统提示词
     if (props.systemPrompt || props.agentConfig.systemPrompt) {
       requestMessages.push({
@@ -159,7 +159,7 @@
         content: props.systemPrompt || props.agentConfig.systemPrompt
       });
     }
-  
+
     // 添加上下文示例
     if (props.agentConfig.contextMessages.length > 0) {
       props.agentConfig.contextMessages.forEach(ctx => {
@@ -171,7 +171,18 @@
         }
       });
     }
-  
+
+    // 添加历史对话消息（排除当前正在流式输出的助手消息占位符）
+    const historyMessages = messages.value.slice(0, -1); // 排除最后一条（助手消息占位符）
+    historyMessages.forEach(msg => {
+      if (msg.role !== "system") { // 系统消息已经在上面添加了
+        requestMessages.push({
+          role: msg.role,
+          content: msg.content
+        });
+      }
+    });
+
     // 添加用户消息
     requestMessages.push({
       role: "user",

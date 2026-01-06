@@ -14,6 +14,8 @@ from models.user import User
 from core.deps import get_current_miniprogram_user
 from services.project import ProjectService
 from services.llm_service import LLMFactory
+from services.llm_model import LLMModelService
+from services.agent import AgentService
 from constants.agent import get_agent_config, get_all_agents, AgentType
 from utils.response import success
 from utils.exceptions import BadRequestException, ServerErrorException
@@ -50,7 +52,8 @@ class ChatResponse(BaseModel):
 
 class AgentInfo(BaseModel):
     """智能体信息模型"""
-    type: str
+    type: str  # 智能体类型标识，用于映射到后端的 agent_type
+    id: str  # 智能体ID（字符串格式）
     name: str
     icon: str
     description: str
@@ -148,12 +151,44 @@ def build_conversation_context(messages: List[ChatMessage]) -> str:
 # ============== API Endpoints ==============
 
 @router.get("/agents", response_model=AgentListResponse)
-async def list_agents():
-    """获取所有可用的智能体列表"""
-    agents = get_all_agents()
+async def list_agents(
+    db: AsyncSession = Depends(get_db)
+):
+    """获取所有可用的智能体列表（从数据库读取）"""
+    # 从数据库查询启用的智能体
+    from sqlalchemy import select, and_
+    from models.agent import Agent
+    
+    result = await db.execute(
+        select(Agent).where(
+            Agent.status == 1  # 只返回上架的智能体
+        ).order_by(Agent.sort_order, Agent.created_at)
+    )
+    db_agents = result.scalars().all()
+    
+    # 转换为前端需要的格式
+    agents = []
+    for agent in db_agents:
+        # 如果数据库中有 type 字段，使用 agent.type；否则使用 agent.id
+        # 这里我们使用 agent.id 作为 type，前端可以通过这个 id 来识别智能体
+        # 注意：前端需要调整映射逻辑，或者数据库需要添加 type 字段
+        agent_type = str(agent.id)  # 暂时使用 ID 作为 type
+        
+        # 尝试从 config 中获取 type（如果之前有存储）
+        if agent.config and isinstance(agent.config, dict) and "type" in agent.config:
+            agent_type = agent.config["type"]
+        
+        agents.append(AgentInfo(
+            type=agent_type,
+            id=str(agent.id),
+            name=agent.name,
+            icon=agent.icon,
+            description=agent.description or ""
+        ))
+    
     return AgentListResponse(
         success=True,
-        agents=[AgentInfo(**agent) for agent in agents]
+        agents=agents
     )
 
 
@@ -203,10 +238,45 @@ async def generate_chat(
         temperature = request.temperature if request.temperature is not None else agent_config.get("temperature", 0.7)
         max_tokens = request.max_tokens or agent_config.get("max_tokens", 2048)
         
-        # 7. 创建LLM实例
-        llm = LLMFactory.create(request.model_type)
+        # 7. 从数据库获取模型配置
+        # model_type 到 provider 的映射
+        model_type_to_provider = {
+            "deepseek": "deepseek",
+            "doubao": "doubao",
+            "claude": "anthropic"
+        }
+        provider = model_type_to_provider.get(request.model_type.lower(), request.model_type.lower())
         
-        # 8. 生成响应
+        # 查询数据库中的模型配置
+        llm_model_service = LLMModelService(db)
+        # 根据 provider 查询启用的模型（取第一个）
+        from sqlalchemy import select, and_
+        from models.llm_model import LLMModel
+        result = await db.execute(
+            select(LLMModel).where(
+                and_(
+                    LLMModel.provider == provider,
+                    LLMModel.is_enabled == True
+                )
+            ).order_by(LLMModel.sort_order).limit(1)
+        )
+        llm_model = result.scalar_one_or_none()
+        
+        if not llm_model:
+            raise BadRequestException(f"未找到启用的 {request.model_type} 模型配置，请在管理后台配置模型")
+        
+        if not llm_model.api_key:
+            raise BadRequestException(f"模型 {llm_model.name} 未配置 API Key，请在管理后台配置")
+        
+        # 8. 创建LLM实例（使用数据库配置）
+        llm = LLMFactory.create(
+            request.model_type,
+            api_key=llm_model.api_key,
+            base_url=llm_model.base_url,
+            model=llm_model.model_id
+        )
+        
+        # 9. 生成响应
         if request.stream:
             # 流式响应
             async def generate_stream():

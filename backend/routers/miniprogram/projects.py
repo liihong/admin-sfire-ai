@@ -26,7 +26,7 @@ from utils.exceptions import NotFoundException
 router = APIRouter()
 
 
-@router.get("", response_model=ProjectListResponse)
+@router.get("")
 async def list_projects(
     current_user: User = Depends(get_current_miniprogram_user),
     db: AsyncSession = Depends(get_db)
@@ -37,18 +37,42 @@ async def list_projects(
     projects = await project_service.get_projects_by_user(current_user.id)
     active_project_id = await project_service.get_active_project(current_user.id)
     
-    # 转换为响应格式
-    project_responses = []
+    # 转换为响应格式（兼容前端字段名）
+    project_list = []
     for project in projects:
         is_active = (active_project_id is not None and project.id == active_project_id)
-        project_responses.append(
-            ProjectResponse.from_orm_with_active(project, is_active=is_active)
-        )
+        project_response = ProjectResponse.from_orm_with_active(project, is_active=is_active)
+        project_dict = project_response.model_dump()
+        
+        # 转换为前端期望的字段格式
+        persona_settings = project_dict.get("persona_settings", {})
+        # 处理 ID：如果是 UUID，保持字符串；如果是数字，转换为数字
+        project_id = project_dict.get("id", "")
+        try:
+            # 尝试转换为数字（如果后端返回的是数字ID）
+            project_id_num = int(project_id) if str(project_id).isdigit() else project_id
+        except (ValueError, TypeError):
+            project_id_num = project_id
+        
+        frontend_project = {
+            "id": project_id_num,
+            "name": project_dict.get("name", ""),
+            "industry": project_dict.get("industry", ""),
+            "tone": persona_settings.get("tone", "") if isinstance(persona_settings, dict) else "",
+            "ipPersona": persona_settings.get("introduction", "") if isinstance(persona_settings, dict) else "",
+            "isActive": project_dict.get("is_active", False),
+            "createdAt": project_dict.get("created_at", "").isoformat() if project_dict.get("created_at") else "",
+            "updatedAt": project_dict.get("updated_at", "").isoformat() if project_dict.get("updated_at") else ""
+        }
+        project_list.append(frontend_project)
     
-    return ProjectListResponse(
-        success=True,
-        projects=project_responses,
-        active_project_id=str(active_project_id) if active_project_id else None
+    return success(
+        data={
+            "success": True,
+            "projects": project_list,
+            "active_project_id": str(active_project_id) if active_project_id else None
+        },
+        msg="获取成功"
     )
 
 

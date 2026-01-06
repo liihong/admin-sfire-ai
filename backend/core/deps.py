@@ -125,3 +125,5 @@ async def get_current_miniprogram_user(
     
     return user
 
+
+

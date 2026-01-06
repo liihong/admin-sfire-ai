@@ -6,7 +6,7 @@
         <text class="back-icon">‹</text>
       </view>
       <view class="nav-center">
-        <text class="nav-title">{{ currentAgent.name }}</text>
+        <text class="nav-title">{{ currentAgent?.name || '智能体' }}</text>
         <view class="agent-tag">
           <text class="tag-dot"></text>
           <text class="tag-text">AI 创作助手</text>
@@ -46,7 +46,7 @@
         <view class="card-body">
           <view class="info-row">
             <text class="info-label">🤖 当前智能体</text>
-            <text class="info-value agent-value">{{ currentAgent.name }}</text>
+            <text class="info-value agent-value">{{ currentAgent?.name || '未选择' }}</text>
           </view>
           <view class="info-row" v-if="activeProject.industry">
             <text class="info-label">🏷️ 行业领域</text>
@@ -91,7 +91,7 @@
         <!-- AI 消息 -->
         <view v-else-if="msg.role === 'assistant'" class="message-row assistant-row">
           <view class="ai-avatar">
-            <text class="ai-avatar-icon">{{ currentAgent.icon }}</text>
+            <text class="ai-avatar-icon">{{ currentAgent?.icon || '🤖' }}</text>
           </view>
           <view class="message-bubble assistant-bubble">
             <text class="bubble-text">{{ msg.content }}</text>
@@ -117,7 +117,7 @@
       <view v-if="isGenerating" class="message-wrapper assistant">
         <view class="message-row assistant-row">
           <view class="ai-avatar">
-            <text class="ai-avatar-icon">{{ currentAgent.icon }}</text>
+            <text class="ai-avatar-icon">{{ currentAgent?.icon || '🤖' }}</text>
           </view>
           <view class="message-bubble assistant-bubble loading-bubble">
             <view class="typing-indicator">
@@ -136,7 +136,7 @@
 
     <!-- 智能体切换悬浮球 -->
     <view class="agent-fab" @tap="showAgentPicker">
-      <text class="fab-icon">{{ currentAgent.icon }}</text>
+      <text class="fab-icon">{{ currentAgent?.icon || '🤖' }}</text>
     </view>
 
     <!-- 底部输入栏 -->
@@ -243,6 +243,7 @@ import { ref, reactive, computed, watch, onMounted, nextTick } from 'vue'
 import { useSettingsStore, type ModelConfig } from '@/stores/settings'
 import { useAuthStore } from '@/stores/auth'
 import { useProjectStore } from '@/stores/project'
+import { generateApi, agentApi } from '@/utils/request'
 
 // ============== Store ==============
 const settingsStore = useSettingsStore()
@@ -257,77 +258,55 @@ const currentPersonaSettings = computed(() => projectStore.currentPersonaSetting
 // ============== 智能体配置 ==============
 interface Agent {
   id: string
+  type: string  // 智能体类型，用于映射到后端的 agent_type
   name: string
   icon: string
   description: string
-  systemPrompt: string
+  systemPrompt?: string  // 可选，从数据库获取时可能没有
 }
 
-const agentList = reactive<Agent[]>([
-  {
-    id: 'copywriter',
-    name: '高效口播文案智能体',
-    icon: '🎙️',
-    description: '专注于短视频口播文案，节奏感强，适合 TikTok/抖音',
-    systemPrompt: `你是一位专业的短视频口播文案创作专家。你的文案特点：
-1. 开头必须有强烈的钩子，3秒抓住注意力
-2. 节奏感强，适合朗读，句子简短有力
-3. 善用反问、设问增强互动感
-4. 结尾有明确的行动号召（CTA）
-5. 控制在300字以内，适合60秒以内的短视频`
-  },
-  {
-    id: 'xiaohongshu',
-    name: '小红书种草笔记智能体',
-    icon: '📕',
-    description: '小红书爆款笔记风格，真实感强，emoji丰富',
-    systemPrompt: `你是一位小红书头部博主，擅长写种草笔记。你的文案特点：
-1. 标题必须有emoji，吸引点击
-2. 开头用个人真实体验切入，增强可信度
-3. 内容分点清晰，善用emoji分隔
-4. 语气亲和真实，像朋友分享
-5. 适当使用网络热词和流行梗
-6. 结尾设置互动话题，引导评论`
-  },
-  {
-    id: 'marketing',
-    name: '营销转化文案智能体',
-    icon: '💰',
-    description: '高转化营销文案，AIDA模型，刺激购买欲',
-    systemPrompt: `你是一位资深营销文案专家，精通消费心理学。你的文案遵循AIDA模型：
-1. Attention - 用痛点或利益点抓住注意力
-2. Interest - 展示产品独特卖点，引发兴趣
-3. Desire - 描绘使用场景，激发购买欲望
-4. Action - 限时优惠、稀缺性，促使立即行动
-善用数字、对比、社会认同等说服技巧`
-  },
-  {
-    id: 'story',
-    name: '故事叙述智能体',
-    icon: '📖',
-    description: '沉浸式故事内容，情感共鸣，引人入胜',
-    systemPrompt: `你是一位出色的故事讲述者，擅长创作引人入胜的叙事内容。你的特点：
-1. 善于设置悬念和冲突
-2. 人物刻画生动，细节丰富
-3. 情节发展有起伏，节奏把控精准
-4. 善于调动读者情绪，引发共鸣
-5. 结尾富有力量感或启发性`
-  },
-  {
-    id: 'knowledge',
-    name: '知识科普智能体',
-    icon: '🎓',
-    description: '专业知识通俗化，深入浅出，权威可信',
-    systemPrompt: `你是一位知识科普达人，能将复杂专业知识转化为通俗易懂的内容。你的特点：
-1. 用生活化的比喻解释抽象概念
-2. 逻辑清晰，层层递进
-3. 引用权威数据增强可信度
-4. 设置疑问引导思考
-5. 知识点适度，不贪多求全`
-  }
-])
+const agentList = reactive<Agent[]>([])
+const currentAgent = ref<Agent | null>(null)
 
-const currentAgent = ref<Agent>(agentList[0])
+// 加载智能体列表
+async function loadAgentList() {
+  try {
+    const response = await agentApi.getAgentList()
+    if (response.success && response.data?.agents) {
+      // 清空现有列表
+      agentList.length = 0
+      
+      // 将接口返回的数据转换为前端需要的格式
+      response.data.agents.forEach((agent) => {
+        agentList.push({
+          id: agent.id,  // 使用数据库返回的 id
+          type: agent.type,  // 使用数据库返回的 type（可能是 id 的字符串形式）
+          name: agent.name,
+          icon: agent.icon,
+          description: agent.description,
+          systemPrompt: ''  // 数据库返回的数据中没有 systemPrompt，如果需要可以从其他地方获取
+        })
+      })
+      
+      // 设置默认选中的智能体（第一个）
+      if (agentList.length > 0 && !currentAgent.value) {
+        currentAgent.value = agentList[0]
+      }
+    } else {
+      console.error('获取智能体列表失败:', response.message)
+      uni.showToast({
+        title: '获取智能体列表失败',
+        icon: 'none'
+      })
+    }
+  } catch (error: any) {
+    console.error('加载智能体列表错误:', error)
+    uni.showToast({
+      title: error.message || '加载智能体列表失败',
+      icon: 'none'
+    })
+  }
+}
 
 // ============== 状态定义 ==============
 interface ChatMessage {
@@ -348,7 +327,7 @@ const ipCardMessage = ref<ChatMessage | null>(null)
 const canSend = computed(() => inputText.value.trim().length > 0)
 
 const inputPlaceholder = computed(() => {
-  return `向${currentAgent.value.name}发送创作指令...`
+  return `向${currentAgent.value?.name || '智能体'}发送创作指令...`
 })
 
 // ============== API 配置 ==============
@@ -398,7 +377,7 @@ function initIPCard() {
   if (activeProject.value) {
     ipCardMessage.value = {
       role: 'system_card',
-      content: `🤖 当前智能体：${currentAgent.value.name}\n👤 绑定 IP：${activeProject.value.name}\n🏷️ 风格标签：${formatStyleTags(currentPersonaSettings.value?.tone || '默认')}\n🎯 准备就绪，请告诉我你想拍什么？`,
+      content: `🤖 当前智能体：${currentAgent.value?.name || '未选择'}\n👤 绑定 IP：${activeProject.value?.name || '未选择'}\n🏷️ 风格标签：${formatStyleTags(currentPersonaSettings.value?.tone || '默认')}\n🎯 准备就绪，请告诉我你想拍什么？`,
       timestamp: Date.now()
     }
   }
@@ -415,7 +394,7 @@ function showAgentPicker() {
  * 选择智能体 (Task 2)
  */
 function selectAgent(agent: Agent) {
-  if (currentAgent.value.id === agent.id) {
+  if (currentAgent.value && currentAgent.value.id === agent.id) {
     showAgentModal.value = false
     return
   }
@@ -539,7 +518,9 @@ async function sendMessage() {
 
   try {
     // 构建系统提示词
-    let systemPrompt = currentAgent.value.systemPrompt
+    // 注意：数据库返回的数据中可能没有 systemPrompt，这里使用空字符串作为默认值
+    // 实际的 systemPrompt 应该由后端根据 agent_type 生成
+    let systemPrompt = currentAgent.value?.systemPrompt || ''
     
     // 注入项目人设上下文
     const personaContext = projectStore.getPersonaSystemPrompt()
@@ -563,17 +544,21 @@ async function sendMessage() {
         content: msg.content
       }))
 
-    // 智能体ID到后端类型的映射
-    const agentTypeMap: Record<string, string> = {
-      'copywriter': 'efficient_oral',
-      'xiaohongshu': 'sales',
-      'marketing': 'sales',
-      'story': 'story_telling',
-      'knowledge': 'knowledge'
+    // 使用智能体的 type 作为后端的 agent_type
+    // 如果 agent.type 是数据库的 id，可能需要映射；如果是后端的 agent_type，直接使用
+    // 这里假设 agent.type 就是后端的 agent_type（如 'efficient_oral', 'sales' 等）
+    // 如果不是，可能需要根据 agent.id 或 agent.name 进行映射
+    let agentType = currentAgent.value?.type || 'efficient_oral'
+    
+    // 如果 agent.type 是数字字符串（数据库 id），可能需要映射
+    // 这里可以根据实际情况调整映射逻辑
+    if (/^\d+$/.test(agentType)) {
+      // 如果 type 是纯数字，说明是数据库 id，使用默认值或根据 id 映射
+      agentType = 'efficient_oral'  // 默认值，或者可以根据 agent.id 映射
     }
-    const agentType = agentTypeMap[currentAgent.value.id] || 'efficient_oral'
 
-    const requestData = {
+    // 使用封装的请求方法，自动添加 Authorization header
+    const response = await generateApi.generate({
       project_id: projectId,
       agent_type: agentType,
       messages: messages,
@@ -581,36 +566,17 @@ async function sendMessage() {
       temperature: 0.7,
       max_tokens: 2048,
       stream: false
-    }
-
-    const response = await new Promise<UniApp.RequestSuccessCallbackResult>((resolve, reject) => {
-      uni.request({
-        url: `${API_BASE_URL}/api/v1/client/creation/chat`,
-        method: 'POST',
-        header: { 'Content-Type': 'application/json' },
-        timeout: 60000,
-        data: requestData,
-        success: resolve,
-        fail: (err: any) => reject(new Error(err?.errMsg || 'Network request failed'))
-      })
     })
 
-    const result = response.data as any
-
-    if (response.statusCode !== 200) {
-      const errorMsg = result?.detail || result?.error || `HTTP ${response.statusCode}`
-      throw new Error(typeof errorMsg === 'string' ? errorMsg : JSON.stringify(errorMsg))
-    }
-
-    if (result.success && result.content) {
+    if (response.success && response.data?.content) {
       chatHistory.push({
         role: 'assistant',
-        content: result.content,
+        content: response.data.content,
         timestamp: Date.now()
       })
       scrollToBottom()
     } else {
-      throw new Error(result.error || result.detail || '生成失败')
+      throw new Error(response.message || '生成失败')
     }
 
   } catch (error: any) {
@@ -648,7 +614,9 @@ function copyMessage(content: string) {
 }
 
 // ============== 生命周期 ==============
-onMounted(() => {
+onMounted(async () => {
+  // 加载智能体列表
+  await loadAgentList()
   // Task 1: 初始化 IP 卡片
   initIPCard()
   // 初始化时滚动到底部

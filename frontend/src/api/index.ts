@@ -1,12 +1,13 @@
 import axios, { AxiosInstance, AxiosError, AxiosRequestConfig, InternalAxiosRequestConfig, AxiosResponse } from "axios";
 import { showFullScreenLoading, tryHideFullScreenLoading } from "@/components/Loading/fullScreen";
-import { LOGIN_URL } from "@/config";
+import { LOGIN_URL, MP_LOGIN_URL } from "@/config";
 import { ElMessage } from "element-plus";
 import { ResultData } from "@/api/interface";
 import { ResultEnum } from "@/enums/httpEnum";
 import { checkStatus } from "./helper/checkStatus";
 import { AxiosCanceler } from "./helper/axiosCancel";
 import { useUserStore } from "@/stores/modules/user";
+import { useMPUserStore } from "@/stores/modules/miniprogramUser";
 import router from "@/routers";
 
 export interface CustomAxiosRequestConfig extends InternalAxiosRequestConfig {
@@ -39,15 +40,30 @@ class RequestHttp {
     this.service.interceptors.request.use(
       (config: CustomAxiosRequestConfig) => {
         const userStore = useUserStore();
+        const mpUserStore = useMPUserStore();
+
         // 重复请求不需要取消，在 api 服务中通过指定的第三个参数: { cancel: false } 来控制
         if (config.cancel === undefined) config.cancel = true;
         config.cancel && axiosCanceler.addPending(config);
         // 当前请求不需要显示 loading，在 api 服务中通过指定的第三个参数: { loading: false } 来控制
         if (config.loading === undefined) config.loading = true;
         config.loading && showFullScreenLoading();
+
+        // 根据请求 URL 判断使用哪个 store 的 token
+        // 如果请求的是小程序接口（/v1/client），使用小程序用户 token
+        // 否则使用 admin 用户 token
+        let token = "";
+        if (config.url && config.url.includes("/v1/client")) {
+          // 小程序接口，使用小程序用户 token
+          token = mpUserStore?.token || "";
+        } else {
+          // Admin 接口，使用 admin 用户 token
+          token = userStore.token;
+        }
+
         // 设置 Authorization header（Bearer Token）
-        if (userStore.token && config.headers) {
-          config.headers.Authorization = `Bearer ${userStore.token}`;
+        if (token && config.headers) {
+          config.headers.Authorization = `Bearer ${token}`;
         }
         return config;
       },
@@ -65,12 +81,24 @@ class RequestHttp {
         const { data, config } = response;
 
         const userStore = useUserStore();
+        const mpUserStore = useMPUserStore();
+
         axiosCanceler.removePending(config);
         config.loading && tryHideFullScreenLoading();
         // 登录失效
         if (data.code == ResultEnum.OVERDUE) {
-          userStore.setToken("");
-          router.replace(LOGIN_URL);
+          // 根据请求 URL 判断是哪个模块的 token 失效
+          if (config.url && config.url.includes("/v1/client")) {
+            // 小程序用户 token 失效
+            if (mpUserStore) {
+              mpUserStore.resetUser();
+            }
+            router.replace(MP_LOGIN_URL);
+          } else {
+          // Admin 用户 token 失效
+            userStore.setToken("");
+            router.replace(LOGIN_URL);
+          }
           ElMessage.error(data.msg);
           return Promise.reject(data);
         }

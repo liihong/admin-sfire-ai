@@ -343,6 +343,24 @@ class UserService(BaseService):
         )
         return result.scalar_one_or_none()
     
+    async def get_user_by_unionid(self, unionid: str) -> Optional[User]:
+        """
+        通过 unionid 查找用户
+        
+        Args:
+            unionid: 微信 unionid（跨平台用户识别）
+        
+        Returns:
+            用户对象，如果不存在则返回 None
+        """
+        result = await self.db.execute(
+            select(User).where(
+                User.unionid == unionid,
+                User.is_deleted == False
+            )
+        )
+        return result.scalar_one_or_none()
+    
     async def get_user_by_username(self, username: str) -> Optional[User]:
         """
         通过用户名查找用户
@@ -356,6 +374,24 @@ class UserService(BaseService):
         result = await self.db.execute(
             select(User).where(
                 User.username == username,
+                User.is_deleted == False
+            )
+        )
+        return result.scalar_one_or_none()
+    
+    async def get_user_by_phone(self, phone: str) -> Optional[User]:
+        """
+        通过手机号查找用户
+        
+        Args:
+            phone: 手机号
+        
+        Returns:
+            用户对象，如果不存在则返回 None
+        """
+        result = await self.db.execute(
+            select(User).where(
+                User.phone == phone,
                 User.is_deleted == False
             )
         )

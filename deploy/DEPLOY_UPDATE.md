@@ -109,3 +109,5 @@ tail -f /var/log/nginx/sfire-admin-error.log
 
 首次部署完成后，日常更新请使用 `deploy.sh`。
 
+
+

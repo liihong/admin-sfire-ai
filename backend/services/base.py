@@ -377,3 +377,5 @@ class BaseService:
         # 默认实现：返回对象的所有属性
         return {col.name: getattr(obj, col.name) for col in obj.__table__.columns}
 
+
+

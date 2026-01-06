@@ -348,6 +348,29 @@ export const userApi = {
 }
 
 /**
+ * 智能体 API
+ */
+export const agentApi = {
+  /**
+   * 获取智能体列表
+   */
+  getAgentList: () => {
+    return get<{
+      success: boolean
+      agents: Array<{
+        type: string
+        id: string
+        name: string
+        icon: string
+        description: string
+      }>
+    }>('/api/v1/client/creation/agents', undefined, { 
+      showLoading: false 
+    })
+  }
+}
+
+/**
  * 生成内容 API
  */
 export const generateApi = {
@@ -411,6 +434,7 @@ export default {
   put,
   del,
   userApi,
-  generateApi
+  generateApi,
+  agentApi
 }
 

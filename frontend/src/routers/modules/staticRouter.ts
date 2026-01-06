@@ -1,5 +1,6 @@
 import { RouteRecordRaw } from "vue-router";
 import { HOME_URL, LOGIN_URL } from "@/config";
+import { miniprogramRouter } from "./miniprogramRouter";
 
 /**
  * staticRouter (静态路由)
@@ -24,7 +25,9 @@ export const staticRouter: RouteRecordRaw[] = [
     // component: () => import("@/layouts/indexAsync.vue"),
     redirect: HOME_URL,
     children: []
-  }
+  },
+  // 小程序用户路由
+  ...miniprogramRouter
 ];
 
 /**

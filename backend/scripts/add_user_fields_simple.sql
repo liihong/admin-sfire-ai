@@ -18,3 +18,5 @@ ADD COLUMN vip_expire_date DATETIME NULL
 COMMENT '会员到期时间' 
 AFTER partner_balance;
 
+
+
