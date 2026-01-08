@@ -79,7 +79,7 @@ import {
 import { useMPUserStore } from "@/stores/modules/miniprogramUser";
 import { MP_LOGIN_URL } from "@/config";
 
-const title = import.meta.env.VITE_GLOB_APP_TITLE;
+const title = '火源AI工作台';
 const route = useRoute();
 const router = useRouter();
 const mpUserStore = useMPUserStore();
@@ -163,7 +163,7 @@ const handleCommand = async (command: string) => {
     .mp-menu {
       border-bottom: none;
       background: transparent;
-
+      width: 500px;
       :deep(.el-menu-item) {
         border-bottom: 2px solid transparent;
         transition: all 0.3s;
