@@ -128,13 +128,10 @@ onMounted(async () => {
 </script>
 
 <style scoped lang="scss">
-@use "@/styles/ip-os-theme.scss" as *;
-
 .ip-activation-hall {
   position: relative;
   width: 100%;
   min-height: 100vh;
-  background: var(--ip-os-bg-primary);
   overflow: hidden;
   
   .hall-background {
@@ -144,9 +141,9 @@ onMounted(async () => {
     width: 100%;
     height: 100%;
     background: 
-      radial-gradient(circle at 20% 50%, rgba(255, 107, 53, 0.1) 0%, transparent 50%),
-      radial-gradient(circle at 80% 50%, rgba(255, 140, 66, 0.1) 0%, transparent 50%),
-      var(--ip-os-bg-primary);
+      radial-gradient(circle at 20% 30%, rgba(99, 102, 241, 0.08) 0%, transparent 50%),
+      radial-gradient(circle at 80% 70%, rgba(236, 72, 153, 0.06) 0%, transparent 50%),
+      linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
     z-index: 0;
   }
   
@@ -164,27 +161,26 @@ onMounted(async () => {
   
   .hall-header {
     text-align: center;
-    margin-bottom: 60px;
+    margin-bottom: 48px;
     
     .hall-title {
-      font-size: 48px;
+      font-size: 40px;
       font-weight: 700;
-      color: var(--ip-os-text-primary);
-      margin: 0 0 16px;
-      text-shadow: 0 0 20px var(--ip-os-accent-glow);
+      color: #1f2937;
+      margin: 0 0 12px;
       
       @media (max-width: 768px) {
-        font-size: 32px;
+        font-size: 28px;
       }
     }
     
     .hall-subtitle {
-      font-size: 18px;
-      color: var(--ip-os-text-secondary);
+      font-size: 16px;
+      color: #6b7280;
       margin: 0;
       
       @media (max-width: 768px) {
-        font-size: 16px;
+        font-size: 14px;
       }
     }
   }
@@ -196,11 +192,12 @@ onMounted(async () => {
     align-items: center;
     justify-content: center;
     padding: 60px 0;
-    color: var(--ip-os-text-secondary);
+    color: #6b7280;
     
     .el-icon {
       font-size: 48px;
       margin-bottom: 16px;
+      color: #9ca3af;
     }
   }
   
@@ -211,25 +208,35 @@ onMounted(async () => {
     
     .ip-swiper {
       width: 100%;
-      padding: 40px 0 80px;
+      padding: 40px 0 70px;
       
       :deep(.swiper-slide) {
-        width: 350px;
-        height: 400px;
+        width: 320px;
+        height: 380px;
         
         @media (max-width: 768px) {
           width: 280px;
-          height: 350px;
+          height: 340px;
         }
       }
       
       :deep(.swiper-button-next),
       :deep(.swiper-button-prev) {
-        color: var(--ip-os-accent-primary);
+        color: #6366f1;
+        
+        &::after {
+          font-size: 24px;
+          font-weight: 700;
+        }
       }
       
       :deep(.swiper-pagination-bullet) {
-        background: var(--ip-os-accent-primary);
+        background: #cbd5e1;
+        opacity: 1;
+      }
+      
+      :deep(.swiper-pagination-bullet-active) {
+        background: #6366f1;
       }
     }
   }
@@ -237,6 +244,14 @@ onMounted(async () => {
   .hall-footer {
     display: flex;
     gap: 16px;
+    
+    .el-button {
+      height: 44px;
+      padding: 0 24px;
+      font-size: 14px;
+      font-weight: 600;
+      border-radius: 10px;
+    }
     
     @media (max-width: 768px) {
       flex-direction: column;

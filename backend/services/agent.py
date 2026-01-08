@@ -70,61 +70,71 @@ class AgentService(BaseService):
     
     async def create_agent(self, agent_data: AgentCreate) -> Agent:
         """创建智能体"""
-        unique_fields = {
-            "name": {"error_msg": f"智能体名称 '{agent_data.name}' 已存在"},
-        }
-        
-        def before_create(agent: Agent, data: AgentCreate):
-            """创建前的钩子函数"""
-            # 处理特殊字段映射
-            if hasattr(data, "systemPrompt"):
-                agent.system_prompt = data.systemPrompt
-            if hasattr(data, "sortOrder"):
-                agent.sort_order = data.sortOrder
-            if hasattr(data, "config") and data.config:
-                agent.config = data.config.model_dump()
-        
-        agent = await super().create(
-            data=agent_data,
-            unique_fields=unique_fields,
-            before_create=before_create,
+        # 检查名称唯一性
+        from utils.query import check_unique
+        await check_unique(
+            db=self.db,
+            model=Agent,
+            field_name="name",
+            value=agent_data.name,
+            error_msg=f"智能体名称 '{agent_data.name}' 已存在",
         )
         
+        # 手动创建 Agent 对象，处理字段名映射（驼峰 -> 下划线）
+        agent = Agent(
+            name=agent_data.name,
+            icon=agent_data.icon,
+            description=agent_data.description,
+            system_prompt=agent_data.systemPrompt,  # 驼峰 -> 下划线
+            model=agent_data.model,
+            config=agent_data.config.model_dump() if agent_data.config else None,
+            sort_order=agent_data.sortOrder,  # 驼峰 -> 下划线
+            status=agent_data.status,
+        )
+        
+        self.db.add(agent)
         await self.db.flush()
         await self.db.refresh(agent)
         return agent
     
     async def update_agent(self, agent_id: int, agent_data: AgentUpdate) -> Agent:
         """更新智能体"""
+        from utils.query import check_unique
+        
+        # 获取现有智能体
+        agent = await self.get_agent_by_id(agent_id)
+        
         # 检查名称唯一性（如果名称有变化）
-        if agent_data.name:
-            agent = await self.get_agent_by_id(agent_id)
-            if agent_data.name != agent.name:
-                unique_fields = {
-                    "name": {"error_msg": f"智能体名称 '{agent_data.name}' 已存在"},
-                }
-            else:
-                unique_fields = None
-        else:
-            unique_fields = None
+        if agent_data.name and agent_data.name != agent.name:
+            await check_unique(
+                db=self.db,
+                model=Agent,
+                field_name="name",
+                value=agent_data.name,
+                exclude_id=agent_id,
+                error_msg=f"智能体名称 '{agent_data.name}' 已存在",
+            )
         
-        def before_update(agent: Agent, data: AgentUpdate):
-            """更新前的钩子函数"""
-            # 处理特殊字段映射
-            update_data = data.model_dump(exclude_unset=True)
-            if "systemPrompt" in update_data:
-                agent.system_prompt = update_data["systemPrompt"]
-            if "sortOrder" in update_data:
-                agent.sort_order = update_data["sortOrder"]
-            if "config" in update_data and update_data["config"]:
-                agent.config = update_data["config"]
+        # 获取需要更新的字段
+        update_data = agent_data.model_dump(exclude_unset=True)
         
-        agent = await super().update(
-            obj_id=agent_id,
-            data=agent_data,
-            unique_fields=unique_fields,
-            before_update=before_update,
-        )
+        # 更新字段（处理驼峰 -> 下划线字段名映射）
+        if "name" in update_data:
+            agent.name = update_data["name"]
+        if "icon" in update_data:
+            agent.icon = update_data["icon"]
+        if "description" in update_data:
+            agent.description = update_data["description"]
+        if "systemPrompt" in update_data:
+            agent.system_prompt = update_data["systemPrompt"]
+        if "model" in update_data:
+            agent.model = update_data["model"]
+        if "config" in update_data and update_data["config"]:
+            agent.config = update_data["config"]
+        if "sortOrder" in update_data:
+            agent.sort_order = update_data["sortOrder"]
+        if "status" in update_data:
+            agent.status = update_data["status"]
         
         await self.db.flush()
         await self.db.refresh(agent)

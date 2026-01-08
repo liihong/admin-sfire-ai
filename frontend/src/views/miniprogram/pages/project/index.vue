@@ -1,59 +1,101 @@
 <template>
   <div class="mp-project">
-    <el-card>
-      <template #header>
-        <div class="card-header">
-          <span>我的项目</span>
-          <el-button type="primary" :icon="Plus" @click="handleCreate">创建项目</el-button>
+    <!-- 页面头部 -->
+    <div class="page-header">
+      <div class="header-content">
+        <div class="header-title">
+          <div class="title-icon">
+            <el-icon><Folder /></el-icon>
+          </div>
+          <div class="title-text">
+            <h1>我的项目</h1>
+            <p>管理您的所有项目，轻松切换工作空间</p>
+          </div>
         </div>
-      </template>
+        <el-button type="primary" class="create-btn" @click="handleCreate">
+          <el-icon><Plus /></el-icon>
+          <span>创建项目</span>
+        </el-button>
+      </div>
+    </div>
 
+    <!-- 主内容区 -->
+    <div class="main-content">
       <div v-if="loading" class="loading-container">
-        <el-icon class="is-loading"><Loading /></el-icon>
+        <div class="loading-spinner">
+          <el-icon class="is-loading"><Loading /></el-icon>
+        </div>
         <p>加载中...</p>
       </div>
 
       <div v-else-if="projects.length === 0" class="empty-container">
-        <el-empty description="暂无项目">
-          <el-button type="primary" @click="handleCreate">创建第一个项目</el-button>
-        </el-empty>
+        <div class="empty-icon">
+          <el-icon><FolderOpened /></el-icon>
+        </div>
+        <h3>暂无项目</h3>
+        <p>创建您的第一个项目，开始精彩旅程</p>
+        <el-button type="primary" class="create-btn" @click="handleCreate">
+          <el-icon><Plus /></el-icon>
+          <span>创建第一个项目</span>
+        </el-button>
       </div>
 
-      <el-row :gutter="20" v-else>
-        <el-col :xs="24" :sm="12" :md="8" :lg="6" v-for="project in projects" :key="project.id">
-          <el-card class="project-card" shadow="hover">
-            <div class="project-header">
-              <h4 class="project-name">{{ project.name }}</h4>
-              <el-tag v-if="project.isActive" type="success" size="small">当前项目</el-tag>
+      <div class="project-grid" v-else>
+        <div
+          v-for="(project, index) in projects"
+          :key="project.id"
+          class="project-card"
+          :class="{ 'is-active': project.isActive }"
+          :style="{ '--delay': index * 0.08 + 's', '--gradient': getAvatarGradient(index) }"
+        >
+          <!-- 卡片顶部渐变区域 -->
+          <div class="card-header">
+            <!-- 左上角装饰线 -->
+            <div class="header-line"></div>
+            <!-- 激活状态角标 -->
+            <div v-if="project.isActive" class="active-corner">
+              <el-icon><Check /></el-icon>
             </div>
-            <div class="project-info">
-              <p class="project-item">
-                <el-icon><Briefcase /></el-icon>
-                <span>行业：{{ project.industry }}</span>
-              </p>
-              <p class="project-item">
-                <el-icon><ChatDotRound /></el-icon>
-                <span>风格：{{ project.tone }}</span>
-              </p>
-              <p v-if="project.ipPersona" class="project-item">
-                <el-icon><User /></el-icon>
-                <span>IP人设：{{ project.ipPersona }}</span>
-              </p>
+            <!-- 项目首字母 -->
+            <div class="project-initial">{{ project.name.charAt(0) }}</div>
+            <!-- 项目名称 -->
+            <h2 class="project-name">{{ project.name }}</h2>
+          </div>
+
+          <!-- 卡片内容区域 -->
+          <div class="card-body">
+            <!-- 项目信息标题 -->
+            <h4 class="section-title">项目信息</h4>
+            
+            <!-- 项目详情 -->
+            <div class="info-text">
+              <p><strong>行业赛道</strong> {{ project.industry }}</p>
+              <p><strong>语气风格</strong> {{ project.tone }}</p>
+              <p v-if="project.ipPersona" class="persona-text"><strong>IP人设</strong> {{ project.ipPersona }}</p>
             </div>
-            <div class="project-footer">
-              <span class="project-time">{{ formatTime(project.updatedAt) }}</span>
-              <div class="project-actions">
-                <el-button type="primary" link size="small" @click="handleSwitch(project)">
-                  切换
-                </el-button>
-                <el-button type="primary" link size="small" @click="handleEdit(project)">编辑</el-button>
-                <el-button type="danger" link size="small" @click="handleDelete(project)">删除</el-button>
-              </div>
+
+            <!-- 主操作按钮 -->
+            <button class="primary-action" @click="handleSwitch(project)">
+              切换项目
+            </button>
+
+            <!-- 底部操作图标 -->
+            <div class="action-icons">
+              <button class="icon-btn edit" @click="handleEdit(project)" title="编辑">
+                <el-icon><Edit /></el-icon>
+              </button>
+              <button class="icon-btn delete" @click="handleDelete(project)" title="删除">
+                <el-icon><Delete /></el-icon>
+              </button>
+              <span class="update-time">
+                <el-icon><Clock /></el-icon>
+                {{ formatTime(project.updatedAt) }}
+              </span>
             </div>
-          </el-card>
-        </el-col>
-      </el-row>
-    </el-card>
+          </div>
+        </div>
+      </div>
+    </div>
 
     <!-- 创建/编辑项目对话框 -->
     <el-dialog
@@ -106,7 +148,20 @@
 <script setup lang="ts" name="MPProject">
 import { ref, reactive, onMounted } from "vue";
 import { ElMessage, ElMessageBox, ElForm } from "element-plus";
-import { Plus, Loading, Briefcase, ChatDotRound, User } from "@element-plus/icons-vue";
+import {
+  Plus,
+  Loading,
+  Briefcase,
+  ChatDotRound,
+  User,
+  Folder,
+  FolderOpened,
+  Check,
+  Clock,
+  Switch,
+  Edit,
+  Delete
+} from "@element-plus/icons-vue";
 import { useMPUserStore } from "@/stores/modules/miniprogramUser";
 import {
   getMPProjectListApi,
@@ -118,6 +173,23 @@ import {
 } from "@/api/modules/miniprogram";
 import type { MPProject, CreateMPProjectRequest, UpdateMPProjectRequest } from "@/api/modules/miniprogram";
 import dayjs from "dayjs";
+
+// 头像渐变色配置
+const avatarGradients = [
+  "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+  "linear-gradient(135deg, #f093fb 0%, #f5576c 100%)",
+  "linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)",
+  "linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)",
+  "linear-gradient(135deg, #fa709a 0%, #fee140 100%)",
+  "linear-gradient(135deg, #a18cd1 0%, #fbc2eb 100%)",
+  "linear-gradient(135deg, #ff9a9e 0%, #fecfef 100%)",
+  "linear-gradient(135deg, #667eea 0%, #764ba2 100%)"
+];
+
+// 获取头像渐变色
+const getAvatarGradient = (index: number) => {
+  return avatarGradients[index % avatarGradients.length];
+};
 
 const mpUserStore = useMPUserStore();
 
@@ -287,75 +359,429 @@ onMounted(async () => {
 
 <style scoped lang="scss">
 .mp-project {
-  .card-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
+  min-height: 100vh;
+  padding-bottom: 40px;
+
+  // 页面头部 - 简化版
+  .page-header {
+    padding: 32px 40px;
+    margin-bottom: 32px;
+
+    .header-content {
+      max-width: 1400px;
+      margin: 0 auto;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .header-title {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+
+      .title-icon {
+        width: 48px;
+        height: 48px;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        border-radius: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 22px;
+        color: #fff;
+      }
+
+      .title-text {
+        h1 {
+          margin: 0 0 4px 0;
+          font-size: 22px;
+          font-weight: 700;
+          color: #1f2937;
+        }
+
+        p {
+          margin: 0;
+          font-size: 13px;
+          color: #6b7280;
+        }
+      }
+    }
+
+    .create-btn {
+      height: 42px;
+      padding: 0 24px;
+      font-size: 14px;
+      font-weight: 600;
+      border-radius: 8px;
+      background: #3b82f6;
+      border: none;
+      transition: all 0.2s ease;
+
+      &:hover {
+        background: #2563eb;
+      }
+
+      .el-icon {
+        margin-right: 6px;
+      }
+    }
   }
 
-  .loading-container,
+  // 主内容区
+  .main-content {
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 0 40px;
+  }
+
+  // 加载状态
+  .loading-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 100px 0;
+
+    .loading-spinner {
+      width: 60px;
+      height: 60px;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      border-radius: 16px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 16px;
+
+      .el-icon {
+        font-size: 28px;
+        color: #fff;
+      }
+    }
+
+    p {
+      font-size: 14px;
+      color: #6b7280;
+      margin: 0;
+    }
+  }
+
+  // 空状态
   .empty-container {
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    padding: 60px 0;
-    color: var(--el-text-color-regular);
+    padding: 80px 0;
+
+    .empty-icon {
+      width: 100px;
+      height: 100px;
+      background: linear-gradient(135deg, #f3f4f6 0%, #e5e7eb 100%);
+      border-radius: 24px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 20px;
+
+      .el-icon {
+        font-size: 44px;
+        color: #9ca3af;
+      }
+    }
+
+    h3 {
+      margin: 0 0 8px 0;
+      font-size: 18px;
+      font-weight: 600;
+      color: #374151;
+    }
+
+    p {
+      margin: 0 0 24px 0;
+      font-size: 14px;
+      color: #9ca3af;
+    }
+
+    .create-btn {
+      height: 42px;
+      padding: 0 28px;
+      font-size: 14px;
+      font-weight: 600;
+      border-radius: 8px;
+      background: #3b82f6;
+      border: none;
+
+      .el-icon {
+        margin-right: 6px;
+      }
+    }
   }
 
+  // 项目网格
+  .project-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+    gap: 24px;
+  }
+
+  // 项目卡片 - 参考设计风格
   .project-card {
-    margin-bottom: 20px;
-    transition: all 0.3s;
+    border-radius: 16px;
+    overflow: hidden;
+    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
+    transition: all 0.3s ease;
+    animation: cardSlideIn 0.4s ease-out backwards;
+    animation-delay: var(--delay);
 
     &:hover {
       transform: translateY(-4px);
+      box-shadow: 0 12px 32px rgba(0, 0, 0, 0.12);
     }
 
-    .project-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-bottom: 15px;
+    // 激活状态边框
+    &.is-active {
+      box-shadow: 0 2px 12px rgba(59, 130, 246, 0.2), 0 0 0 2px #3b82f6;
+    }
 
+    // 卡片顶部渐变区域
+    .card-header {
+      background: var(--gradient);
+      padding: 28px 24px 32px;
+      position: relative;
+      min-height: 180px;
+      display: flex;
+      flex-direction: column;
+      justify-content: flex-end;
+
+      // 左上角装饰线
+      .header-line {
+        position: absolute;
+        top: 20px;
+        left: 20px;
+        width: 32px;
+        height: 3px;
+        background: rgba(255, 255, 255, 0.6);
+        border-radius: 2px;
+      }
+
+      // 激活角标
+      .active-corner {
+        position: absolute;
+        top: 16px;
+        right: 16px;
+        width: 28px;
+        height: 28px;
+        background: rgba(255, 255, 255, 0.95);
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+
+        .el-icon {
+          font-size: 14px;
+          color: #10b981;
+        }
+      }
+
+      // 项目首字母
+      .project-initial {
+        font-size: 72px;
+        font-weight: 300;
+        color: rgba(0, 0, 0, 0.25);
+        line-height: 1;
+        position: absolute;
+        right: 24px;
+        bottom: 20px;
+        font-family: "Georgia", serif;
+      }
+
+      // 项目名称
       .project-name {
         margin: 0;
-        font-size: 16px;
-        font-weight: 600;
-        color: var(--el-text-color-primary);
-        flex: 1;
+        font-size: 24px;
+        font-weight: 700;
+        color: #1f2937;
+        line-height: 1.3;
+        position: relative;
+        z-index: 1;
+        max-width: 70%;
         overflow: hidden;
         text-overflow: ellipsis;
         white-space: nowrap;
       }
     }
 
-    .project-info {
-      .project-item {
+    // 卡片内容区域
+    .card-body {
+      background: #fff;
+      padding: 24px;
+
+      // 标题
+      .section-title {
+        margin: 0 0 12px 0;
+        font-size: 15px;
+        font-weight: 700;
+        color: #1f2937;
+      }
+
+      // 信息文本
+      .info-text {
+        margin: 0 0 20px 0;
+
+        p {
+          margin: 0 0 6px 0;
+          font-size: 14px;
+          color: #4b5563;
+          line-height: 1.6;
+
+          strong {
+            color: #6b7280;
+            font-weight: 500;
+            margin-right: 8px;
+          }
+
+          &:last-child {
+            margin-bottom: 0;
+          }
+        }
+
+        .persona-text {
+          display: -webkit-box;
+          -webkit-line-clamp: 2;
+          line-clamp: 2;
+          -webkit-box-orient: vertical;
+          overflow: hidden;
+        }
+      }
+
+      // 主操作按钮
+      .primary-action {
+        display: inline-block;
+        padding: 10px 24px;
+        background: #3b82f6;
+        color: #fff;
+        font-size: 14px;
+        font-weight: 600;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        margin-bottom: 20px;
+
+        &:hover {
+          background: #2563eb;
+        }
+      }
+
+      // 底部操作图标
+      .action-icons {
         display: flex;
         align-items: center;
         gap: 8px;
-        margin: 8px 0;
-        color: var(--el-text-color-regular);
-        font-size: 14px;
+        padding-top: 16px;
+        border-top: 1px solid #f3f4f6;
+
+        .icon-btn {
+          width: 36px;
+          height: 36px;
+          border: none;
+          background: #f9fafb;
+          border-radius: 8px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          cursor: pointer;
+          transition: all 0.2s ease;
+          color: #6b7280;
+
+          .el-icon {
+            font-size: 16px;
+          }
+
+          &.edit:hover {
+            background: #fef3c7;
+            color: #d97706;
+          }
+
+          &.delete:hover {
+            background: #fee2e2;
+            color: #dc2626;
+          }
+        }
+
+        .update-time {
+          margin-left: auto;
+          display: flex;
+          align-items: center;
+          gap: 4px;
+          font-size: 12px;
+          color: #9ca3af;
+
+          .el-icon {
+            font-size: 12px;
+          }
+        }
+      }
+    }
+  }
+}
+
+// 卡片入场动画
+@keyframes cardSlideIn {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+// 响应式适配
+@media (max-width: 768px) {
+  .mp-project {
+    .page-header {
+      padding: 24px 20px;
+
+      .header-content {
+        flex-direction: column;
+        gap: 16px;
+        text-align: center;
+      }
+
+      .header-title {
+        flex-direction: column;
+        gap: 12px;
       }
     }
 
-    .project-footer {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-top: 15px;
-      padding-top: 15px;
-      border-top: 1px solid var(--el-border-color-lighter);
+    .main-content {
+      padding: 0 16px;
+    }
 
-      .project-time {
-        color: var(--el-text-color-secondary);
-        font-size: 12px;
+    .project-grid {
+      grid-template-columns: 1fr;
+      gap: 16px;
+    }
+
+    .project-card {
+      .card-header {
+        min-height: 160px;
+        padding: 24px 20px 28px;
+
+        .project-initial {
+          font-size: 56px;
+        }
+
+        .project-name {
+          font-size: 20px;
+        }
       }
 
-      .project-actions {
-        display: flex;
-        gap: 8px;
+      .card-body {
+        padding: 20px;
       }
     }
   }

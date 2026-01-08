@@ -11,6 +11,7 @@ from db import get_db
 from models.user import User
 from core.deps import get_current_miniprogram_user
 from services.project import ProjectService
+from services.dictionary import DictionaryService
 from schemas.project import (
     ProjectCreate,
     ProjectUpdate,
@@ -144,13 +145,37 @@ async def switch_project(
 
 
 @router.get("/options")
-async def get_project_options():
-    """获取项目配置选项（行业赛道和语气风格）"""
+async def get_project_options(
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    获取项目配置选项（行业赛道和语气风格）
+    
+    优先从数据库读取，如果数据库中没有数据则使用默认值
+    """
+    dict_service = DictionaryService(db)
+    
+    # 从数据库获取行业赛道选项
+    industries = await dict_service.get_items_by_code("industry", enabled_only=True)
+    # 从数据库获取语气风格选项
+    tones = await dict_service.get_items_by_code("tone", enabled_only=True)
+    
+    # 如果数据库中没有数据，使用默认值
+    if not industries:
+        industries = [{"label": item, "value": item} for item in INDUSTRY_OPTIONS]
+    else:
+        industries = [item.model_dump() for item in industries]
+    
+    if not tones:
+        tones = [{"label": item, "value": item} for item in TONE_OPTIONS]
+    else:
+        tones = [item.model_dump() for item in tones]
+    
     return success(
         data={
             "success": True,
-            "industries": INDUSTRY_OPTIONS,
-            "tones": TONE_OPTIONS
+            "industries": industries,
+            "tones": tones
         },
         msg="获取成功"
     )

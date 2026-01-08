@@ -1,7 +1,13 @@
 <template>
   <div class="workspace-cockpit">
-    <!-- 顶部工具栏：右上角模型切换 -->
+    <!-- 顶部工具栏：左侧返回按钮 + 右上角模型切换 -->
     <div class="cockpit-header">
+      <div class="header-left">
+        <el-button class="back-btn" @click="handleBack" text>
+          <el-icon><ArrowLeft /></el-icon>
+          <span>返回</span>
+        </el-button>
+      </div>
       <div class="header-right">
         <el-dropdown @command="handleModelChange">
           <span class="model-switcher">
@@ -58,6 +64,7 @@
 import { computed, onMounted, watch, nextTick } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { ElMessage } from "element-plus";
+import { ArrowLeft } from "@element-plus/icons-vue";
 import IPDNAPanel from "@/components/Workspace/IPDNAPanel.vue";
 import CreationReactor from "@/components/Workspace/CreationReactor.vue";
 import RefineryDeck from "@/components/Workspace/RefineryDeck.vue";
@@ -186,6 +193,11 @@ const handleGenerate = async (
   }
 };
 
+// 返回上一页
+const handleBack = () => {
+  router.back();
+};
+
 // 切换大模型
 const handleModelChange = (command: string) => {
   // 使用小程序同款模型配置，仅支持列表中已启用的模型
@@ -199,35 +211,23 @@ const handleConversationSelect = async (conversation: any) => {
   try {
     const { getMPConversationDetailApi } = await import("@/api/modules/miniprogram");
     const response = await getMPConversationDetailApi(conversation.id);
-
-    // 统一处理 code 类型（可能是字符串或数字）
+    
+    // 将 response.code 转换为字符串进行比较，与其他地方保持一致
     const code = String(response.code);
     if (code === "200" && response.data) {
       const detail: any = response.data;
-
-      // 更新当前会话ID
-      ipCreationStore.setCurrentConversationId(conversation.id);
-
       // 恢复对话历史
       const history = (detail.messages || []).map((msg: any) => ({
         role: msg.role,
         content: msg.content
       }));
-
-      // 清空当前内容和生成状态
-      ipCreationStore.setGenerating(false);
-      ipCreationStore.updateCurrentContent("");
-
-      // 设置对话历史（会在中间对话框中展示）
       ipCreationStore.conversationHistory = history;
-
-      // 如果有最后一条assistant消息，同时设置为右侧当前内容
+      
+      // 如果有最后一条assistant消息，设置为当前内容
       const lastAssistantMsg = history.filter((m: any) => m.role === "assistant").pop();
       if (lastAssistantMsg) {
         ipCreationStore.updateCurrentContent(lastAssistantMsg.content);
       }
-
-      ElMessage.success(`已切换到会话：${conversation.title}`);
     }
   } catch (error: any) {
     ElMessage.error(error?.msg || "加载会话详情失败");
@@ -285,10 +285,34 @@ onMounted(async () => {
 
 .cockpit-header {
   display: flex;
-  justify-content: flex-end;
+  justify-content: space-between;
   align-items: center;
-  padding: 12px 24px;
-  flex-shrink: 0;
+  padding: 12px 24px 0;
+}
+
+.header-left {
+  display: flex;
+  align-items: center;
+}
+
+.back-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 12px;
+  border-radius: 8px;
+  font-size: 14px;
+  color: var(--ip-os-text-primary);
+  transition: all 0.2s ease;
+
+  &:hover {
+    background: var(--ip-os-bg-tertiary);
+    color: var(--ip-os-accent-primary);
+  }
+
+  .el-icon {
+    font-size: 16px;
+  }
 }
 
 .header-right {
@@ -341,23 +365,17 @@ onMounted(async () => {
 .cockpit-container {
   display: flex;
   width: 100%;
-  flex: 1;
-  min-height: 0;
-  overflow: hidden;
+  flex: 1; // 使用 flex 占据剩余空间，自动减去 header 高度
+  min-height: 0; // 防止 flex 子元素溢出
 }
 
 .cockpit-sidebar {
   width: 20%;
   min-width: 280px;
-  height: 100%;
+  height: 100%; // 在 flex 容器中，100% 会正确计算
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  
-  // IP DNA 面板固定高度
-  :deep(.ip-dna-panel) {
-    flex-shrink: 0;
-  }
 }
 
 .sidebar-conversation {

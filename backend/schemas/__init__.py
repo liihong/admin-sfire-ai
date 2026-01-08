@@ -42,6 +42,20 @@ from .conversation import (
     ConversationMessageResponse,
     ConversationChunkResponse,
 )
+from .dictionary import (
+    DictBase,
+    DictCreate,
+    DictUpdate,
+    DictResponse,
+    DictWithItemsResponse,
+    DictQueryParams,
+    DictItemBase,
+    DictItemCreate,
+    DictItemUpdate,
+    DictItemResponse,
+    DictItemSimple,
+    DictItemQueryParams,
+)
 
 __all__ = [
     # Common
@@ -80,6 +94,19 @@ __all__ = [
     "ConversationMessageCreate",
     "ConversationMessageResponse",
     "ConversationChunkResponse",
+    # Dictionary
+    "DictBase",
+    "DictCreate",
+    "DictUpdate",
+    "DictResponse",
+    "DictWithItemsResponse",
+    "DictQueryParams",
+    "DictItemBase",
+    "DictItemCreate",
+    "DictItemUpdate",
+    "DictItemResponse",
+    "DictItemSimple",
+    "DictItemQueryParams",
 ]
 
 

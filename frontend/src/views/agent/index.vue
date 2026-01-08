@@ -39,7 +39,14 @@
           <div class="card-header">
             <div class="agent-info">
               <div class="agent-icon">
-                <el-icon :size="40">
+                <!-- 如果是图片URL，显示图片；否则显示图标组件 -->
+                <img
+                  v-if="isImageUrl(agent.icon)"
+                  :src="agent.icon"
+                  class="icon-img"
+                  alt="agent icon"
+                />
+                <el-icon v-else :size="40">
                   <component :is="getIconComponent(agent.icon)" />
                 </el-icon>
               </div>
@@ -167,29 +174,55 @@
   const currentAgent = ref<Partial<Agent.ResAgentItem>>({});
   const formRef = ref<InstanceType<typeof AgentForm> | null>(null);
   
-  // 获取图标组件
-  const getIconComponent = (iconName: string) => {
-    // 如果没有图标名称，使用默认图标
-    if (!iconName) {
-      return ChatDotRound;
-    }
-    
-    // 根据key映射到不同的图标
-    const iconMap: Record<string, any> = {
-      viral_copy_default: Document,       // 文案类（已更换为 Document 图标）
-      script_default: ChatDotRound,       // 脚本类
-      marketing_default: ChatDotRound,     // 营销类
-      ChatDotRound,                       // Element Plus图标名
-    };
-    
-    // 如果是Element Plus图标名称，直接返回
-    if (iconMap[iconName]) {
-      return iconMap[iconName];
-    }
-    
-    // 默认返回ChatDotRound
+/**
+ * 判断是否为图片URL
+ * 支持 http/https 链接和相对路径
+ */
+const isImageUrl = (icon: string): boolean => {
+  if (!icon) return false;
+  // 检查是否为 URL（http/https/相对路径）或图片格式
+  return (
+    icon.startsWith("http://") ||
+    icon.startsWith("https://") ||
+    icon.startsWith("/") ||
+    icon.startsWith("data:image/") ||
+    /\.(png|jpg|jpeg|gif|svg|webp|ico)$/i.test(icon)
+  );
+};
+
+/**
+ * 获取图标组件
+ * 根据图标标识返回对应的 Element Plus 图标组件
+ */
+const getIconComponent = (iconName: string) => {
+  // 如果没有图标名称，使用默认图标
+  if (!iconName) {
     return ChatDotRound;
+  }
+  
+  // Element Plus 图标映射表
+  const iconMap: Record<string, any> = {
+    // 常用图标
+    ChatDotRound,
+    Document,
+    Cpu,
+    // 自定义标识映射
+    viral_copy_default: Document,       // 文案类
+    script_default: ChatDotRound,       // 脚本类
+    marketing_default: ChatDotRound,    // 营销类
+    chat: ChatDotRound,                 // 聊天类
+    document: Document,                 // 文档类
+    cpu: Cpu,                           // 计算类
   };
+  
+  // 如果在映射表中找到，返回对应图标
+  if (iconMap[iconName]) {
+    return iconMap[iconName];
+  }
+  
+  // 默认返回 ChatDotRound
+  return ChatDotRound;
+};
   
   // 获取智能体列表
   const fetchAgentList = async () => {

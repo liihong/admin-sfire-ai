@@ -19,6 +19,7 @@ from .conversation import (
     ConversationStatus,
     EmbeddingStatus,
 )
+from .dictionary import Dictionary, DictionaryItem
 
 __all__ = [
     "BaseModel",
@@ -42,4 +43,6 @@ __all__ = [
     "ConversationChunk",
     "ConversationStatus",
     "EmbeddingStatus",
+    "Dictionary",
+    "DictionaryItem",
 ]

@@ -21,11 +21,43 @@ from services.conversation import ConversationService
 from constants.agent import get_agent_config, get_all_agents, AgentType, AGENT_CONFIGS
 from utils.response import success
 from utils.exceptions import BadRequestException, ServerErrorException, NotFoundException
+from loguru import logger
+from core.config import settings
 
 router = APIRouter()
 
 
 # ============== 后台任务函数 ==============
+
+async def embed_conversation_background_task(
+    conversation_id: int,
+    user_message_id: int,
+    assistant_message_id: int
+):
+    """
+    后台任务：向量化对话片段
+
+    Args:
+        conversation_id: 会话ID
+        user_message_id: 用户消息ID
+        assistant_message_id: AI回复消息ID
+    """
+    from db.session import async_session_maker
+    from services.conversation import ConversationService
+
+    try:
+        async with async_session_maker() as db:
+            service = ConversationService(db)
+            await service.embed_conversation_async(
+                conversation_id=conversation_id,
+                user_message_id=user_message_id,
+                assistant_message_id=assistant_message_id
+            )
+            logger.info(f"向量化完成: 会话{conversation_id}, 消息{user_message_id}-{assistant_message_id}")
+    except Exception as e:
+        logger.error(f"向量化失败: 会话{conversation_id}, 错误: {e}")
+        # 不抛出异常，避免影响主流程
+
 
 async def save_conversation_background_task(
     conversation_id: int,
@@ -35,8 +67,8 @@ async def save_conversation_background_task(
     assistant_tokens: int = 0
 ):
     """
-    后台任务：保存对话消息到数据库
-    
+    后台任务：保存对话消息到数据库并触发向量化
+
     Args:
         conversation_id: 会话ID
         user_message: 用户消息内容
@@ -44,30 +76,13 @@ async def save_conversation_background_task(
         user_tokens: 用户消息token数
         assistant_tokens: AI回复token数
     """
-    # region agent log
-    try:
-        import json, time, threading
-        with open(r"e:\project\admin-sfire-ai\.cursor\debug.log", "a", encoding="utf-8") as _f:
-            _f.write(json.dumps({
-                "sessionId": "debug-session",
-                "runId": "bg-task",
-                "hypothesisId": "H1,H2",
-                "location": "routers/client/creation.py:save_conversation_background_task(entry)",
-                "message": "后台任务开始",
-                "data": {
-                    "conversation_id": conversation_id,
-                    "thread_id": threading.current_thread().ident
-                },
-                "timestamp": int(time.time() * 1000)
-            }) + "\n")
-    except Exception:
-        pass
-    # endregion
-    
     from db.session import async_session_maker
     from services.conversation import ConversationService
-    
+    from sqlalchemy import select, desc
+    from models.conversation import ConversationMessage
+
     try:
+        # 1. 保存对话消息
         async with async_session_maker() as db:
             service = ConversationService(db)
             await service.save_conversation_async(
@@ -77,28 +92,34 @@ async def save_conversation_background_task(
                 user_tokens=user_tokens,
                 assistant_tokens=assistant_tokens
             )
+
+        # 2. 获取刚保存的消息ID并触发向量化
+        async with async_session_maker() as db:
+            # 查询最新的两条消息（user + assistant）
+            query = select(ConversationMessage).where(
+                ConversationMessage.conversation_id == conversation_id
+            ).order_by(desc(ConversationMessage.sequence)).limit(2)
+
+            result = await db.execute(query)
+            messages = list(result.scalars().all())
+
+            if len(messages) == 2:
+                # messages[0]是assistant, messages[1]是user（降序）
+                assistant_msg = messages[0]
+                user_msg = messages[1]
+
+                # 触发向量化任务
+                await embed_conversation_background_task(
+                    conversation_id=conversation_id,
+                    user_message_id=user_msg.id,
+                    assistant_message_id=assistant_msg.id
+                )
+            else:
+                logger.warning(f"无法找到消息进行向量化: 会话{conversation_id}")
+
     except Exception as e:
-        # region agent log
-        try:
-            import json, time, traceback
-            with open(r"e:\project\admin-sfire-ai\.cursor\debug.log", "a", encoding="utf-8") as _f:
-                _f.write(json.dumps({
-                    "sessionId": "debug-session",
-                    "runId": "bg-task",
-                    "hypothesisId": "H1,H2",
-                    "location": "routers/client/creation.py:save_conversation_background_task(error)",
-                    "message": "后台任务失败",
-                    "data": {
-                        "conversation_id": conversation_id,
-                        "error": str(e),
-                        "traceback": traceback.format_exc()
-                    },
-                    "timestamp": int(time.time() * 1000)
-                }) + "\n")
-        except Exception:
-            pass
-        # endregion
-        raise
+        logger.error(f"后台任务失败: 会话{conversation_id}, 错误: {e}")
+        # 不抛出异常，避免影响主流程
 
 
 # ============== Request/Response Models ==============
@@ -285,28 +306,6 @@ async def generate_chat(
         
         # 0.1. 处理会话ID（如果不存在则创建新会话）
         conversation_id = request.conversation_id
-        
-        # region agent log
-        try:
-            import json, time
-            with open(r"e:\project\admin-sfire-ai\.cursor\debug.log", "a", encoding="utf-8") as _f:
-                _f.write(json.dumps({
-                    "sessionId": "debug-session",
-                    "runId": "conversation-check",
-                    "hypothesisId": "H1",
-                    "location": "routers/client/creation.py:generate_chat(conversation_check)",
-                    "message": "检查会话ID",
-                    "data": {
-                        "conversation_id": conversation_id,
-                        "user_id": current_user.id,
-                        "has_conversation_id": conversation_id is not None
-                    },
-                    "timestamp": int(time.time() * 1000)
-                }) + "\n")
-        except Exception:
-            pass
-        # endregion
-        
         if not conversation_id:
             from schemas.conversation import ConversationCreate
             conversation_data = ConversationCreate(
@@ -319,99 +318,19 @@ async def generate_chat(
                 conversation_data=conversation_data
             )
             conversation_id = conversation.id
-            
-            # region agent log
-            try:
-                import json, time
-                with open(r"e:\project\admin-sfire-ai\.cursor\debug.log", "a", encoding="utf-8") as _f:
-                    _f.write(json.dumps({
-                        "sessionId": "debug-session",
-                        "runId": "conversation-check",
-                        "hypothesisId": "H1",
-                        "location": "routers/client/creation.py:generate_chat(conversation_created)",
-                        "message": "创建新会话",
-                        "data": {
-                            "conversation_id": conversation_id,
-                            "user_id": current_user.id
-                        },
-                        "timestamp": int(time.time() * 1000)
-                    }) + "\n")
-            except Exception:
-                pass
-            # endregion
         else:
             # 验证会话是否属于当前用户
-            # region agent log
-            try:
-                import json, time
-                with open(r"e:\project\admin-sfire-ai\.cursor\debug.log", "a", encoding="utf-8") as _f:
-                    _f.write(json.dumps({
-                        "sessionId": "debug-session",
-                        "runId": "conversation-check",
-                        "hypothesisId": "H1",
-                        "location": "routers/client/creation.py:generate_chat(before_verify)",
-                        "message": "验证会话前",
-                        "data": {
-                            "conversation_id": conversation_id,
-                            "user_id": current_user.id
-                        },
-                        "timestamp": int(time.time() * 1000)
-                    }) + "\n")
-            except Exception:
-                pass
-            # endregion
-            
             try:
                 await conversation_service.get_conversation_by_id(
                     conversation_id=conversation_id,
                     user_id=current_user.id
                 )
-                # region agent log
-                try:
-                    import json, time
-                    with open(r"e:\project\admin-sfire-ai\.cursor\debug.log", "a", encoding="utf-8") as _f:
-                        _f.write(json.dumps({
-                            "sessionId": "debug-session",
-                            "runId": "conversation-check",
-                            "hypothesisId": "H1",
-                            "location": "routers/client/creation.py:generate_chat(conversation_verified)",
-                            "message": "会话验证成功",
-                            "data": {
-                                "conversation_id": conversation_id,
-                                "user_id": current_user.id
-                            },
-                            "timestamp": int(time.time() * 1000)
-                        }) + "\n")
-                except Exception:
-                    pass
-                # endregion
             except NotFoundException:
                 # 如果会话不存在，创建新会话（可能是前端存储了已删除的会话ID）
                 from loguru import logger
                 from schemas.conversation import ConversationCreate
-                
+
                 logger.warning(f"会话 {conversation_id} 不存在，自动创建新会话（用户ID: {current_user.id}）")
-                
-                # region agent log
-                try:
-                    import json, time
-                    with open(r"e:\project\admin-sfire-ai\.cursor\debug.log", "a", encoding="utf-8") as _f:
-                        _f.write(json.dumps({
-                            "sessionId": "debug-session",
-                            "runId": "conversation-check",
-                            "hypothesisId": "H1",
-                            "location": "routers/client/creation.py:generate_chat(auto_create_conversation)",
-                            "message": "会话不存在，自动创建新会话",
-                            "data": {
-                                "old_conversation_id": conversation_id,
-                                "user_id": current_user.id
-                            },
-                            "timestamp": int(time.time() * 1000)
-                        }) + "\n")
-                except Exception:
-                    pass
-                # endregion
-                
                 conversation_data = ConversationCreate(
                     agent_id=int(request.agent_type) if request.agent_type.isdigit() else None,
                     project_id=request.project_id,
@@ -422,50 +341,8 @@ async def generate_chat(
                     conversation_data=conversation_data
                 )
                 conversation_id = conversation.id
-                
-                # region agent log
-                try:
-                    import json, time
-                    with open(r"e:\project\admin-sfire-ai\.cursor\debug.log", "a", encoding="utf-8") as _f:
-                        _f.write(json.dumps({
-                            "sessionId": "debug-session",
-                            "runId": "conversation-check",
-                            "hypothesisId": "H1",
-                            "location": "routers/client/creation.py:generate_chat(new_conversation_created)",
-                            "message": "新会话已创建",
-                            "data": {
-                                "new_conversation_id": conversation_id,
-                                "old_conversation_id": request.conversation_id,
-                                "user_id": current_user.id
-                            },
-                            "timestamp": int(time.time() * 1000)
-                        }) + "\n")
-                except Exception:
-                    pass
-                # endregion
             except Exception as e:
                 # 其他错误正常抛出
-                # region agent log
-                try:
-                    import json, time, traceback
-                    with open(r"e:\project\admin-sfire-ai\.cursor\debug.log", "a", encoding="utf-8") as _f:
-                        _f.write(json.dumps({
-                            "sessionId": "debug-session",
-                            "runId": "conversation-check",
-                            "hypothesisId": "H1",
-                            "location": "routers/client/creation.py:generate_chat(conversation_verify_error)",
-                            "message": "会话验证失败",
-                            "data": {
-                                "conversation_id": conversation_id,
-                                "user_id": current_user.id,
-                                "error": str(e),
-                                "traceback": traceback.format_exc()
-                            },
-                            "timestamp": int(time.time() * 1000)
-                        }) + "\n")
-                except Exception:
-                    pass
-                # endregion
                 raise
         
         # 1. 验证模型类型
@@ -531,30 +408,33 @@ async def generate_chat(
             raise BadRequestException("消息列表不能为空")
         
         # 5. 向量检索：搜索相关历史片段
+        # ⚠️ 临时禁用向量检索以提升性能（待后端向量化功能修复后重新启用）
+        # TODO: 修复向量化后台任务后重新启用此功能
         relevant_chunks = []
         optimized_messages = request.messages  # 默认使用原始消息
-        
-        try:
-            # 对用户新消息进行向量化并搜索相关片段
-            relevant_chunks = await conversation_service.search_relevant_chunks(
-                conversation_id=conversation_id,
-                query_text=user_prompt,
-                top_k=5,
-                threshold=0.7
-            )
-            
-            # 如果找到了相关片段，使用优化的消息上下文
-            if relevant_chunks:
-                optimized_messages = await conversation_service.build_context_from_search(
-                    conversation_id=conversation_id,
-                    query_text=user_prompt,
-                    relevant_chunks=relevant_chunks,
-                    include_recent=2  # 包含最近2轮对话
-                )
-        except Exception as e:
-            # 向量检索失败，回退到原始消息
-            from loguru import logger
-            logger.warning(f"向量检索失败，使用原始消息: {e}")
+
+        # 禁用向量检索代码 - 节省200-500ms响应时间
+        # try:
+        #     # 对用户新消息进行向量化并搜索相关片段
+        #     relevant_chunks = await conversation_service.search_relevant_chunks(
+        #         conversation_id=conversation_id,
+        #         query_text=user_prompt,
+        #         top_k=5,
+        #         threshold=0.7
+        #     )
+        #
+        #     # 如果找到了相关片段，使用优化的消息上下文
+        #     if relevant_chunks:
+        #         optimized_messages = await conversation_service.build_context_from_search(
+        #             conversation_id=conversation_id,
+        #             query_text=user_prompt,
+        #             relevant_chunks=relevant_chunks,
+        #             include_recent=2  # 包含最近2轮对话
+        #         )
+        # except Exception as e:
+        #     # 向量检索失败，回退到原始消息
+        #     from loguru import logger
+        #     logger.warning(f"向量检索失败，使用原始消息: {e}")
         
         # 6. 构建最终System Prompt（使用优化后的消息或原始消息构建上下文）
         base_system_prompt = agent_config["system_prompt"]
@@ -617,30 +497,7 @@ async def generate_chat(
             api_key=llm_model.api_key,
             base_url=llm_model.base_url,
             model=llm_model.model_id
-        )
-        # region agent log
-        try:
-            import json, time
-            with open(r"e:\project\admin-sfire-ai\.cursor\debug.log", "a", encoding="utf-8") as _f:
-                _f.write(json.dumps({
-                    "sessionId": "debug-session",
-                    "runId": "pre-fix",
-                    "hypothesisId": "H3",
-                    "location": "routers/client/creation.py:generate_chat(model)",
-                    "message": "llm model resolved",
-                    "data": {
-                        "provider": provider,
-                        "model_id": llm_model.model_id,
-                        "has_base_url": bool(llm_model.base_url),
-                        "api_key_configured": bool(llm_model.api_key)
-                    },
-                    "timestamp": int(time.time() * 1000)
-                }) + "\n")
-        except Exception:
-            pass
-        # endregion
-        
-        # 10. 生成响应
+        )        # 10. 生成响应
         assistant_content = ""  # 用于后台任务保存
         
         if request.stream:

@@ -403,6 +403,22 @@ class ConversationService:
                 threshold=threshold
             )
             
+            # ✅ 优化：批量查询所有消息ID（修复N+1查询问题）
+            message_ids = set()
+            for chunk in chunks:
+                message_ids.add(chunk.user_message_id)
+                message_ids.add(chunk.assistant_message_id)
+
+            # 一次性查询所有消息
+            if message_ids:
+                messages_query = select(ConversationMessage).where(
+                    ConversationMessage.id.in_(message_ids)
+                )
+                messages_result = await self.db.execute(messages_query)
+                messages_dict = {msg.id: msg for msg in messages_result.scalars().all()}
+            else:
+                messages_dict = {}
+
             # 将结果转换为消息格式
             relevant_chunks = []
             for vector_id, similarity, metadata in results:
@@ -410,21 +426,11 @@ class ConversationService:
                 chunk = next((c for c in chunks if c.vector_id == vector_id), None)
                 if not chunk:
                     continue
-                
-                # 获取chunk对应的消息
-                user_msg_query = select(ConversationMessage).where(
-                    ConversationMessage.id == chunk.user_message_id
-                )
-                assistant_msg_query = select(ConversationMessage).where(
-                    ConversationMessage.id == chunk.assistant_message_id
-                )
-                
-                user_msg_result = await self.db.execute(user_msg_query)
-                assistant_msg_result = await self.db.execute(assistant_msg_query)
-                
-                user_msg = user_msg_result.scalar_one_or_none()
-                assistant_msg = assistant_msg_result.scalar_one_or_none()
-                
+
+                # ✅ 从字典中快速查找消息（O(1)复杂度）
+                user_msg = messages_dict.get(chunk.user_message_id)
+                assistant_msg = messages_dict.get(chunk.assistant_message_id)
+
                 if user_msg and assistant_msg:
                     relevant_chunks.append({
                         "chunk_id": chunk.id,
@@ -435,7 +441,7 @@ class ConversationService:
                             {"role": "assistant", "content": assistant_msg.content},
                         ]
                     })
-            
+
             return relevant_chunks
             
         except Exception as e:
@@ -566,25 +572,17 @@ class ConversationService:
                     await db.refresh(user_msg)
                     await db.refresh(assistant_msg)
                     
-                    # 更新会话统计
+                    # ✅ 优化：使用增量更新而不是重新统计（提升性能）
                     conversation_query = select(Conversation).where(Conversation.id == conversation_id)
                     conversation_result = await db.execute(conversation_query)
                     conversation = conversation_result.scalar_one_or_none()
-                    
+
                     if not conversation:
                         raise NotFoundException(f"会话 {conversation_id} 不存在")
-                    
-                    # 统计消息数量和token总数
-                    stats_query = select(
-                        func.count(ConversationMessage.id),
-                        func.sum(ConversationMessage.tokens)
-                    ).where(ConversationMessage.conversation_id == conversation_id)
-                    
-                    stats_result = await db.execute(stats_query)
-                    count, total_tokens = stats_result.one()
-                    
-                    conversation.message_count = count or 0
-                    conversation.total_tokens = int(total_tokens or 0)
+
+                    # 增量更新统计信息
+                    conversation.message_count += 2  # user + assistant
+                    conversation.total_tokens += user_tokens + assistant_tokens
                     
                     await db.flush()
                     await db.commit()

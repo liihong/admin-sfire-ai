@@ -114,6 +114,7 @@ class BaseService:
         unique_fields: Optional[Dict[str, Dict[str, Any]]] = None,
         before_create: Optional[Callable[[T, CreateSchema], None]] = None,
         after_create: Optional[Callable[[T], None]] = None,
+        exclude_fields: Optional[List[str]] = None,
     ) -> T:
         """
         创建对象
@@ -125,6 +126,7 @@ class BaseService:
             }
             before_create: 创建前的钩子函数，可以修改对象
             after_create: 创建后的钩子函数
+            exclude_fields: 排除的字段列表（不会传递给模型）
         
         Returns:
             创建的对象
@@ -147,6 +149,14 @@ class BaseService:
         
         # 创建对象
         obj_data = data.model_dump(exclude_unset=True)
+        # #region agent log
+        import json; open(r'e:\project\admin-sfire-ai\.cursor\debug.log', 'a', encoding='utf-8').write(json.dumps({"location": "base.py:create", "message": "obj_data before exclude", "data": {"obj_data_keys": list(obj_data.keys()), "exclude_fields": exclude_fields}, "hypothesisId": "A", "timestamp": __import__('time').time()}, ensure_ascii=False) + '\n')
+        # #endregion
+        if exclude_fields:
+            obj_data = {k: v for k, v in obj_data.items() if k not in exclude_fields}
+        # #region agent log
+        import json; open(r'e:\project\admin-sfire-ai\.cursor\debug.log', 'a', encoding='utf-8').write(json.dumps({"location": "base.py:create", "message": "obj_data after exclude", "data": {"obj_data_keys": list(obj_data.keys())}, "hypothesisId": "A", "timestamp": __import__('time').time()}, ensure_ascii=False) + '\n')
+        # #endregion
         obj = self.model(**obj_data)
         
         # 调用创建前钩子
@@ -376,6 +386,8 @@ class BaseService:
         """
         # 默认实现：返回对象的所有属性
         return {col.name: getattr(obj, col.name) for col in obj.__table__.columns}
+
+
 
 
 

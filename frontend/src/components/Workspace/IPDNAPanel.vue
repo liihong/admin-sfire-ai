@@ -45,12 +45,13 @@ const projectPosition = computed(() => {
 @use "@/styles/ip-os-theme.scss" as *;
 
 .ip-dna-panel {
+  // 移除 height: 100%，让面板只占据所需的空间
   display: flex;
   flex-direction: column;
   padding: 24px;
   background: var(--ip-os-bg-secondary);
   border-right: 1px solid var(--ip-os-border-primary);
-  flex-shrink: 0;
+  flex-shrink: 0; // 不被压缩
 }
 
 .dna-totem {

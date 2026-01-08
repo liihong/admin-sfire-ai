@@ -72,7 +72,8 @@ async def create_tables() -> None:
     # 导入所有模型确保它们被注册
     from models import (
         User, ComputeLog, Menu, Agent, Role, AdminUser, LLMModel, Project,
-        Conversation, ConversationMessage, ConversationChunk  # noqa: F401
+        Conversation, ConversationMessage, ConversationChunk,
+        Dictionary, DictionaryItem  # noqa: F401
     )
     
     logger.info("Creating database tables...")

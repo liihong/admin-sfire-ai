@@ -143,11 +143,15 @@ class AdminUserService(BaseService):
             # 重新加载角色关系
             pass  # 在外部处理
         
+        # #region agent log
+        import json; open(r'e:\project\admin-sfire-ai\.cursor\debug.log', 'a', encoding='utf-8').write(json.dumps({"location": "admin_user.py:create_user", "message": "calling super().create", "data": {"user_data_fields": list(user_data.model_dump().keys())}, "hypothesisId": "A", "timestamp": __import__('time').time()}, ensure_ascii=False) + '\n')
+        # #endregion
         user = await super().create(
             data=user_data,
             unique_fields=unique_fields,
             before_create=before_create,
             after_create=after_create,
+            exclude_fields=["password"],  # 密码字段需要在钩子中处理为 password_hash
         )
         
         await self.db.commit()
