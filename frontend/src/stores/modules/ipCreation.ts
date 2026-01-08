@@ -7,7 +7,7 @@ import type { MPProject } from "@/api/modules/miniprogram";
  */
 export interface AgentInfo {
   type: string;
-  id: string;
+  id: number; // 统一为 number 类型
   name: string;
   icon: string;
   description: string;
@@ -20,7 +20,7 @@ export interface ContentVersion {
   id: string;
   content: string;
   createdAt: number;
-  agentId: string;
+  agentId: number; // 统一为 number 类型
   agentName: string;
 }
 
@@ -84,7 +84,7 @@ export const useIPCreationStore = defineStore({
       this.isGenerating = false;
     },
     // 添加内容版本
-    addContentVersion(content: string, agentId: string, agentName: string) {
+    addContentVersion(content: string, agentId: number, agentName: string) {
       const version: ContentVersion = {
         id: `v${Date.now()}`,
         content,

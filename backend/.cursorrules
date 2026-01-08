@@ -1,0 +1,42 @@
+# Backend API 开发规范
+
+## 统一响应格式要求
+
+**所有后端接口必须返回统一格式：`{code, data, msg}`**
+
+### 响应格式规范：
+- 成功响应：使用 `from utils.response import success`，返回 `success(data=..., msg=...)`
+- 失败响应：使用 `from utils.response import fail`，返回 `fail(msg=..., code=...)`
+- 分页响应：使用 `from utils.response import page_response`，返回 `page_response(items=..., total=...)`
+
+### 禁止行为：
+- ❌ 直接返回原始数据（如 `return {"id": 1}`）
+- ❌ 使用 FastAPI 的默认响应格式
+- ❌ 返回不包含 `code`、`data`、`msg` 字段的响应
+
+### 示例：
+from utils.response import success, fail, ResponseCode
+
+# ✅ 正确
+@router.get("/users")
+async def get_users():
+    users = await get_all_users()
+    return success(data=users, msg="获取成功")
+
+# ❌ 错误
+@router.get("/users")
+async def get_users():
+    users = await get_all_users()
+    return users  # 缺少统一格式### 异常处理：
+- 使用自定义异常类（如 `APIException`, `BadRequestException` 等）
+- 全局异常处理器会自动转换为统一格式
+- 无需手动包装异常响应
+
+## 技术栈
+- FastAPI + SQLAlchemy 2.0 (异步)
+- 所有数据库操作必须使用异步方式
+- 使用 Pydantic v2 进行数据验证
+
+- 要求能复用的代码不要重复写
+- 写代码时要求有注释，注释要清晰，注释要使用中文
+- 修改时不要影响现有功能，保证现有功能代码的健壮性

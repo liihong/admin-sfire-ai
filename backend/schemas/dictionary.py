@@ -116,3 +116,4 @@ class DictItemQueryParams(BaseModel):
     pageNum: int = Field(default=1, ge=1, description="页码")
     pageSize: int = Field(default=10, ge=1, le=100, description="每页数量")
 
+

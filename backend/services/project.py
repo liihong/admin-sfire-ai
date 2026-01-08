@@ -9,6 +9,7 @@ from typing import Optional, List
 from sqlalchemy import select, desc
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
+from sqlalchemy.orm.attributes import flag_modified
 from loguru import logger
 
 from models.project import Project
@@ -96,6 +97,10 @@ class ProjectService:
         """
         创建新项目
         
+        支持两种传参方式：
+        1. 嵌套方式: persona_settings: { tone: "xxx", introduction: "xxx" }
+        2. 扁平方式: 直接传递人设字段（与 persona_settings 字段一一对应）
+        
         Args:
             user_id: 用户ID
             data: 项目创建数据
@@ -110,10 +115,15 @@ class ProjectService:
         colors = ['#3B82F6', '#6366F1', '#8B5CF6', '#0EA5E9', '#14B8A6', '#F97316']
         avatar_color = data.avatar_color or random.choice(colors)
         
-        # 处理人设配置
+        # 处理人设配置（支持嵌套和扁平两种方式）
         persona_settings = {}
+        
+        # 方式1: 如果传入了嵌套的 persona_settings，直接使用
         if data.persona_settings:
             persona_settings = data.persona_settings.model_dump()
+        
+        # 方式2: 处理扁平化字段（与 persona_settings 字段一一对应）
+        persona_settings, _ = self._merge_persona_fields(persona_settings, data)
         
         project = Project(
             user_id=user_id,
@@ -132,6 +142,41 @@ class ProjectService:
         
         return project
     
+    def _merge_persona_fields(self, current_persona: dict, data) -> tuple[dict, bool]:
+        """
+        合并扁平化的人设字段到 persona_settings
+        
+        Args:
+            current_persona: 当前的 persona_settings 字典
+            data: 包含扁平化人设字段的数据对象
+        
+        Returns:
+            (更新后的 persona_settings, 是否有更新)
+        """
+        persona_updated = False
+        
+        # 定义扁平化字段到 persona_settings 的映射
+        persona_fields = [
+            "introduction",      # IP简介
+            "tone",              # 语气风格
+            "target_audience",   # 目标受众
+            "content_style",     # 内容风格
+            "catchphrase",       # 常用口头禅
+            "keywords",          # 常用关键词
+            "taboos",            # 内容禁忌
+            "benchmark_accounts" # 对标账号
+        ]
+        
+        for field in persona_fields:
+            value = getattr(data, field, None)
+            if value is not None:
+                current_persona[field] = value
+                persona_updated = True
+                logger.debug(f"Merging persona field: {field} = {value}")
+        
+        logger.info(f"Persona merge result: updated={persona_updated}, fields={list(current_persona.keys())}")
+        return current_persona, persona_updated
+
     async def update_project(
         self,
         project_id: int,
@@ -140,6 +185,10 @@ class ProjectService:
     ) -> Project:
         """
         更新项目
+        
+        支持两种传参方式：
+        1. 嵌套方式: persona_settings: { tone: "xxx", introduction: "xxx" }
+        2. 扁平方式: 直接传递人设字段（与 persona_settings 字段一一对应）
         
         Args:
             project_id: 项目ID
@@ -156,7 +205,7 @@ class ProjectService:
         if not project:
             raise NotFoundException("项目不存在或无权访问")
         
-        # 更新字段
+        # 更新基础字段
         if data.name is not None:
             project.name = data.name
             project.avatar_letter = data.name[0].upper() if data.name else 'P'
@@ -164,8 +213,25 @@ class ProjectService:
         if data.industry is not None:
             project.industry = data.industry
         
+        # 处理人设配置（支持嵌套和扁平两种方式）
+        current_persona = project.get_persona_settings_dict()
+        persona_updated = False
+        
+        # 方式1: 如果传入了嵌套的 persona_settings，直接使用
         if data.persona_settings is not None:
-            project.persona_settings = data.persona_settings.model_dump()
+            current_persona = data.persona_settings.model_dump()
+            persona_updated = True
+        
+        # 方式2: 处理扁平化字段（与 persona_settings 字段一一对应）
+        current_persona, flat_updated = self._merge_persona_fields(current_persona, data)
+        persona_updated = persona_updated or flat_updated
+        
+        # 如果有任何人设配置更新，保存到数据库
+        if persona_updated:
+            project.persona_settings = current_persona
+            # 显式标记 JSON 字段已修改，确保 SQLAlchemy 检测到变化
+            flag_modified(project, "persona_settings")
+            logger.info(f"Updated persona_settings for project {project_id}: {current_persona}")
         
         await self.db.flush()
         await self.db.refresh(project)

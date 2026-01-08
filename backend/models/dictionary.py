@@ -152,3 +152,4 @@ class DictionaryItem(BaseModel):
     def __repr__(self) -> str:
         return f"<DictionaryItem(id={self.id}, value='{self.item_value}', label='{self.item_label}')>"
 
+

@@ -105,9 +105,10 @@ const fetchAgents = async () => {
   loading.value = true;
   try {
     const resp = await getMPAgentsApi();
-    const data = (resp as any)?.data || resp;
-    if (data?.agents) {
-      agents.value = data.agents;
+    // 统一响应格式：{code, data: {agents: []}, msg}
+    const code = String(resp.code);
+    if (code === "200" && resp.data?.agents) {
+      agents.value = resp.data.agents;
       // 如果当前还没有选中的智能体，默认选中第一个
       if (!props.selectedAgent && agents.value.length > 0) {
         emit("update:selectedAgent", agents.value[0]);

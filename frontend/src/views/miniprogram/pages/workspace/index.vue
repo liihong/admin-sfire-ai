@@ -102,10 +102,13 @@ const loadProject = async () => {
   try {
     const numericProjectId = Number(projectId);
     const response = await getMPProjectApi(numericProjectId);
-    // HTTP 拦截器返回的 response 直接就是 {success: true, project: {...}}
-    // 所以直接访问 response.project 或 response.data.project（如果被包装）
-    const project = (response as any)?.project || (response as any)?.data?.project;
-    if (project) {
+    // 统一响应格式：{code, data, msg}
+    const code = String(response.code);
+    if (code === "200" && response.data) {
+      const project = response.data;
+      // #region agent log
+      fetch('http://127.0.0.1:7243/ingest/53b38dcf-6225-4ab9-a06a-816278989907',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'workspace/index.vue:loadProject',message:'setting activeProject',data:{projectId:project.id,currentActiveId:ipCreationStore.activeProject?.id},timestamp:Date.now(),sessionId:'debug-session',runId:'post-fix',hypothesisId:'H2'})}).catch(()=>{});
+      // #endregion
       ipCreationStore.setActiveProject(project);
     } else {
       ElMessage.error("项目不存在");
@@ -235,10 +238,18 @@ const handleConversationSelect = async (conversation: any) => {
 };
 
 // 创建新会话
+// 注意：这里只是打开对话框并显示欢迎语，真正的会话会在用户发送第一条消息时创建
 const handleConversationCreate = () => {
   // 清空当前对话历史
   ipCreationStore.clearConversation();
   ipCreationStore.updateCurrentContent("");
+  
+  // 生成 AI 欢迎语
+  const agentName = selectedAgent.value?.name || "AI助手";
+  const welcomeMessage = `你好！我是${agentName}，很高兴为你服务。请告诉我你想创作什么内容吧~`;
+  
+  // 添加欢迎语到对话历史
+  ipCreationStore.addMessage("assistant", welcomeMessage);
 };
 
 // 防止重复加载的标记

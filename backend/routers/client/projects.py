@@ -16,8 +16,6 @@ from schemas.project import (
     ProjectCreate,
     ProjectUpdate,
     ProjectSwitchRequest,
-    ProjectListResponse,
-    ProjectSingleResponse,
     ProjectResponse,
     INDUSTRY_OPTIONS,
     TONE_OPTIONS,
@@ -26,6 +24,43 @@ from utils.response import success
 from utils.exceptions import NotFoundException
 
 router = APIRouter()
+
+
+def _build_frontend_project(project_dict: dict) -> dict:
+    """
+    将项目数据转换为前端期望的扁平化格式
+    
+    persona_settings 字段会被展开为独立字段
+    """
+    persona_settings = project_dict.get("persona_settings", {})
+    if not isinstance(persona_settings, dict):
+        persona_settings = {}
+    
+    # 处理 ID：如果是 UUID，保持字符串；如果是数字，转换为数字
+    project_id = project_dict.get("id", "")
+    try:
+        project_id_num = int(project_id) if str(project_id).isdigit() else project_id
+    except (ValueError, TypeError):
+        project_id_num = project_id
+    
+    return {
+        "id": project_id_num,
+        "name": project_dict.get("name", ""),
+        "industry": project_dict.get("industry", ""),
+        # 人设字段（扁平化，与 persona_settings 一一对应）
+        "introduction": persona_settings.get("introduction", ""),
+        "tone": persona_settings.get("tone", ""),
+        "target_audience": persona_settings.get("target_audience", ""),
+        "content_style": persona_settings.get("content_style", ""),
+        "catchphrase": persona_settings.get("catchphrase", ""),
+        "keywords": persona_settings.get("keywords", []),
+        "taboos": persona_settings.get("taboos", []),
+        "benchmark_accounts": persona_settings.get("benchmark_accounts", []),
+        # 其他字段
+        "isActive": project_dict.get("is_active", False),
+        "createdAt": project_dict.get("created_at", "").isoformat() if project_dict.get("created_at") else "",
+        "updatedAt": project_dict.get("updated_at", "").isoformat() if project_dict.get("updated_at") else ""
+    }
 
 
 @router.get("")
@@ -39,33 +74,13 @@ async def list_projects(
     projects = await project_service.get_projects_by_user(current_user.id)
     active_project_id = await project_service.get_active_project(current_user.id)
     
-    # 转换为响应格式（兼容前端字段名）
+    # 转换为响应格式（扁平化人设字段）
     project_list = []
     for project in projects:
         is_active = (active_project_id is not None and project.id == active_project_id)
         project_response = ProjectResponse.from_orm_with_active(project, is_active=is_active)
         project_dict = project_response.model_dump()
-        
-        # 转换为前端期望的字段格式
-        persona_settings = project_dict.get("persona_settings", {})
-        # 处理 ID：如果是 UUID，保持字符串；如果是数字，转换为数字
-        project_id = project_dict.get("id", "")
-        try:
-            # 尝试转换为数字（如果后端返回的是数字ID）
-            project_id_num = int(project_id) if str(project_id).isdigit() else project_id
-        except (ValueError, TypeError):
-            project_id_num = project_id
-        
-        frontend_project = {
-            "id": project_id_num,
-            "name": project_dict.get("name", ""),
-            "industry": project_dict.get("industry", ""),
-            "tone": persona_settings.get("tone", "") if isinstance(persona_settings, dict) else "",
-            "ipPersona": persona_settings.get("introduction", "") if isinstance(persona_settings, dict) else "",
-            "isActive": project_dict.get("is_active", False),
-            "createdAt": project_dict.get("created_at", "").isoformat() if project_dict.get("created_at") else "",
-            "updatedAt": project_dict.get("updated_at", "").isoformat() if project_dict.get("updated_at") else ""
-        }
+        frontend_project = _build_frontend_project(project_dict)
         project_list.append(frontend_project)
     
     return success(
@@ -78,7 +93,7 @@ async def list_projects(
     )
 
 
-@router.post("", response_model=ProjectSingleResponse)
+@router.post("")
 async def create_project(
     data: ProjectCreate,
     current_user: User = Depends(get_current_miniprogram_user),
@@ -89,11 +104,13 @@ async def create_project(
     
     project = await project_service.create_project(current_user.id, data)
     project_response = ProjectResponse.from_orm_with_active(project, is_active=False)
+    project_dict = project_response.model_dump()
+    frontend_project = _build_frontend_project(project_dict)
     
-    return ProjectSingleResponse(success=True, project=project_response)
+    return success(data=frontend_project, msg="创建成功")
 
 
-@router.get("/active", response_model=ProjectSingleResponse)
+@router.get("/active")
 async def get_active_project_info(
     current_user: User = Depends(get_current_miniprogram_user),
     db: AsyncSession = Depends(get_db)
@@ -110,7 +127,10 @@ async def get_active_project_info(
         raise NotFoundException("激活的项目不存在")
     
     project_response = ProjectResponse.from_orm_with_active(project, is_active=True)
-    return ProjectSingleResponse(success=True, project=project_response)
+    project_dict = project_response.model_dump()
+    frontend_project = _build_frontend_project(project_dict)
+    
+    return success(data=frontend_project, msg="获取成功")
 
 
 @router.post("/switch")
@@ -181,7 +201,7 @@ async def get_project_options(
     )
 
 
-@router.get("/{project_id}", response_model=ProjectSingleResponse)
+@router.get("/{project_id}")
 async def get_project(
     project_id: int,
     current_user: User = Depends(get_current_miniprogram_user),
@@ -198,10 +218,14 @@ async def get_project(
     is_active = (active_id == project_id)
     
     project_response = ProjectResponse.from_orm_with_active(project, is_active=is_active)
-    return ProjectSingleResponse(success=True, project=project_response)
+    project_dict = project_response.model_dump()
+    # 转换为前端期望的扁平化格式，确保 id 为 number 类型
+    frontend_project = _build_frontend_project(project_dict)
+    
+    return success(data=frontend_project, msg="获取成功")
 
 
-@router.put("/{project_id}", response_model=ProjectSingleResponse)
+@router.put("/{project_id}")
 async def update_project_info(
     project_id: int,
     data: ProjectUpdate,
@@ -213,8 +237,10 @@ async def update_project_info(
     
     project = await project_service.update_project(project_id, current_user.id, data)
     project_response = ProjectResponse.from_orm_with_active(project, is_active=False)
+    project_dict = project_response.model_dump()
+    frontend_project = _build_frontend_project(project_dict)
     
-    return ProjectSingleResponse(success=True, project=project_response)
+    return success(data=frontend_project, msg="更新成功")
 
 
 @router.delete("/{project_id}")

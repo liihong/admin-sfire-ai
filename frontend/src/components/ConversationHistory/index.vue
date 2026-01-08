@@ -102,7 +102,6 @@ import {
   deleteMPConversationApi,
   archiveMPConversationApi,
   updateMPConversationTitleApi,
-  createMPConversationApi,
   type MPConversation,
 } from "@/api/modules/miniprogram";
 import { useIPCreationStore } from "@/stores/modules/ipCreation";
@@ -125,6 +124,9 @@ const total = ref(0);
 // 当前选中的会话ID
 const currentConversationId = computed(() => ipCreationStore.currentConversationId);
 
+// 当前激活的项目（用于过滤会话）
+const activeProject = computed(() => ipCreationStore.activeProject);
+
 // 过滤后的会话列表
 const filteredConversations = computed(() => {
   if (!searchKeyword.value) {
@@ -136,15 +138,29 @@ const filteredConversations = computed(() => {
   );
 });
 
-// 加载会话列表
+// 加载会话列表（根据当前项目过滤）
 const loadConversations = async () => {
+  // #region agent log
+  fetch('http://127.0.0.1:7243/ingest/53b38dcf-6225-4ab9-a06a-816278989907',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'ConversationHistory.vue:loadConversations:entry',message:'loadConversations called',data:{activeProjectId:activeProject.value?.id,stack:new Error().stack?.split('\n').slice(1,4).join(' <- ')},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'H1-H4'})}).catch(()=>{});
+  // #endregion
   loading.value = true;
   try {
-    const response = await getMPConversationListApi({
+    // 构建查询参数，根据当前项目过滤
+    const params: any = {
       pageNum: currentPage.value,
       pageSize: pageSize.value,
       status: "active", // 只显示活跃会话
-    });
+    };
+    
+    // 如果有激活的项目，则按项目过滤
+    if (activeProject.value?.id) {
+      params.project_id = Number(activeProject.value.id);
+    }
+    
+    // #region agent log
+    fetch('http://127.0.0.1:7243/ingest/53b38dcf-6225-4ab9-a06a-816278989907',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'ConversationHistory.vue:loadConversations:beforeApi',message:'calling API',data:{params},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'H1-H4'})}).catch(()=>{});
+    // #endregion
+    const response = await getMPConversationListApi(params);
 
     // API 返回的结构处理
     const code = String(response.code);
@@ -166,28 +182,13 @@ const handleSelectConversation = (conversation: MPConversation) => {
 };
 
 // 创建新会话
-const handleCreateNew = async () => {
-  try {
-    const activeProject = ipCreationStore.activeProject;
-    const selectedAgent = ipCreationStore.selectedAgent;
-
-    const response = await createMPConversationApi({
-      project_id: activeProject ? Number(activeProject.id) : undefined,
-      agent_id: selectedAgent ? Number(selectedAgent.id) : undefined,
-    });
-
-    // API 返回的结构处理
-    const code = String(response.code);
-    if (code === "200" && response.data) {
-      const newConversation = response.data;
-      ipCreationStore.setCurrentConversationId(newConversation.id);
-      emit("create");
-      await loadConversations();
-      ElMessage.success("创建成功");
-    }
-  } catch (error: any) {
-    ElMessage.error(error?.msg || "创建会话失败");
-  }
+// 注意：点击新建时不立即创建会话，只是打开对话框显示欢迎语
+// 会话会在用户发送第一条消息时由后端自动创建
+const handleCreateNew = () => {
+  // 清空当前会话ID，表示这是一个新对话（尚未创建）
+  ipCreationStore.setCurrentConversationId(null);
+  // 触发 create 事件，让父组件处理欢迎语显示等逻辑
+  emit("create");
 };
 
 // 处理下拉菜单命令
@@ -323,7 +324,26 @@ watch(
   }
 );
 
+// 监听项目变化，重新加载会话列表
+watch(
+  () => activeProject.value?.id,
+  (newProjectId, oldProjectId) => {
+    // #region agent log
+    fetch('http://127.0.0.1:7243/ingest/53b38dcf-6225-4ab9-a06a-816278989907',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'ConversationHistory.vue:watch',message:'watch triggered',data:{newProjectId,oldProjectId,willLoad:String(newProjectId)!==String(oldProjectId)},timestamp:Date.now(),sessionId:'debug-session',runId:'post-fix',hypothesisId:'H2-fix'})}).catch(()=>{});
+    // #endregion
+    // 使用 String() 统一类型比较，避免 number/string 类型差异导致误判
+    if (String(newProjectId) !== String(oldProjectId)) {
+      // 项目变化时，重置分页并重新加载
+      currentPage.value = 1;
+      loadConversations();
+    }
+  }
+);
+
 onMounted(() => {
+  // #region agent log
+  fetch('http://127.0.0.1:7243/ingest/53b38dcf-6225-4ab9-a06a-816278989907',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'ConversationHistory.vue:onMounted',message:'onMounted triggered',data:{activeProjectId:activeProject.value?.id},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'H1-H3'})}).catch(()=>{});
+  // #endregion
   loadConversations();
 });
 </script>

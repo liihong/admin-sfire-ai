@@ -187,3 +187,4 @@ export const deleteDictItem = (id: number) => {
   return http.delete(PORT1 + `/dictionary/items/${id}`);
 };
 
+

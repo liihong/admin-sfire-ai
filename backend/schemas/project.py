@@ -35,19 +35,49 @@ class ProjectBase(BaseModel):
     industry: str = Field(default="通用", description="赛道")
     avatar_letter: Optional[str] = Field(default=None, description="项目首字母")
     avatar_color: Optional[str] = Field(default=None, description="头像背景色")
-    persona_settings: Optional[PersonaSettings] = Field(default=None, description="人设配置")
+    persona_settings: Optional[PersonaSettings] = Field(default=None, description="人设配置（嵌套方式）")
 
 
 class ProjectCreate(ProjectBase):
-    """创建项目请求模型"""
-    pass
+    """
+    创建项目请求模型
+    
+    支持两种传参方式：
+    1. 嵌套方式: persona_settings: { tone: "xxx", introduction: "xxx" }
+    2. 扁平方式: 直接传递人设字段（与 persona_settings 字段一一对应）
+    """
+    # === 扁平化人设字段（与 persona_settings 字段一一对应） ===
+    introduction: Optional[str] = Field(None, description="IP简介")
+    tone: Optional[str] = Field(None, description="语气风格")
+    target_audience: Optional[str] = Field(None, description="目标受众")
+    content_style: Optional[str] = Field(None, description="内容风格")
+    catchphrase: Optional[str] = Field(None, description="常用口头禅")
+    keywords: Optional[List[str]] = Field(None, description="常用关键词")
+    taboos: Optional[List[str]] = Field(None, description="内容禁忌")
+    benchmark_accounts: Optional[List[str]] = Field(None, description="对标账号")
 
 
 class ProjectUpdate(BaseModel):
-    """更新项目请求模型"""
+    """
+    更新项目请求模型
+    
+    支持两种传参方式：
+    1. 嵌套方式: persona_settings: { tone: "xxx", introduction: "xxx" }
+    2. 扁平方式: 直接传递人设字段（与 persona_settings 字段一一对应）
+    """
     name: Optional[str] = Field(None, min_length=1, max_length=50, description="项目名称")
     industry: Optional[str] = Field(None, description="赛道")
-    persona_settings: Optional[PersonaSettings] = Field(None, description="人设配置")
+    persona_settings: Optional[PersonaSettings] = Field(None, description="人设配置（嵌套方式）")
+    
+    # === 扁平化人设字段（与 persona_settings 字段一一对应） ===
+    introduction: Optional[str] = Field(None, description="IP简介")
+    tone: Optional[str] = Field(None, description="语气风格")
+    target_audience: Optional[str] = Field(None, description="目标受众")
+    content_style: Optional[str] = Field(None, description="内容风格")
+    catchphrase: Optional[str] = Field(None, description="常用口头禅")
+    keywords: Optional[List[str]] = Field(None, description="常用关键词")
+    taboos: Optional[List[str]] = Field(None, description="内容禁忌")
+    benchmark_accounts: Optional[List[str]] = Field(None, description="对标账号")
 
 
 class ProjectResponse(BaseModel):

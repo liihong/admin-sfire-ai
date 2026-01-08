@@ -65,11 +65,12 @@ const fetchAgents = async () => {
   try {
     const resp = await getMPAgentsApi();
     // #region agent log
-    fetch('http://127.0.0.1:7243/ingest/53b38dcf-6225-4ab9-a06a-816278989907',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'AgentArsenal.vue:fetchAgents',message:'fetch response',data:{hasResp:!!resp,respKeys:resp?Object.keys(resp as any):[],hasData:!!(resp as any)?.data,hasAgents:!!(resp as any)?.data?.agents,agentsCount:(resp as any)?.data?.agents?.length ?? null},timestamp:Date.now(),sessionId:'debug-session',runId:'run-agents',hypothesisId:'H2'})}).catch(()=>{});
+    fetch('http://127.0.0.1:7243/ingest/53b38dcf-6225-4ab9-a06a-816278989907',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'AgentArsenal.vue:fetchAgents',message:'fetch response',data:{code:resp.code,hasData:!!resp.data,hasAgents:!!resp.data?.agents,agentsCount:resp.data?.agents?.length ?? null},timestamp:Date.now(),sessionId:'debug-session',runId:'run-agents',hypothesisId:'H2'})}).catch(()=>{});
     // #endregion
-    const data = (resp as any)?.data || resp;
-    if (data?.agents) {
-      agents.value = data.agents;
+    // 统一响应格式：{code, data: {agents: []}, msg}
+    const code = String(resp.code);
+    if (code === "200" && resp.data?.agents) {
+      agents.value = resp.data.agents;
       // #region agent log
       fetch('http://127.0.0.1:7243/ingest/53b38dcf-6225-4ab9-a06a-816278989907',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'AgentArsenal.vue:fetchAgents',message:'set agents',data:{count:agents.value.length,first:agents.value[0] ?? null},timestamp:Date.now(),sessionId:'debug-session',runId:'run-agents',hypothesisId:'H3'})}).catch(()=>{});
       // #endregion
@@ -79,7 +80,7 @@ const fetchAgents = async () => {
       }
     } else {
       // #region agent log
-      fetch('http://127.0.0.1:7243/ingest/53b38dcf-6225-4ab9-a06a-816278989907',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'AgentArsenal.vue:fetchAgents',message:'no agents in response',data:{dataKeys:data?Object.keys(data):[]},timestamp:Date.now(),sessionId:'debug-session',runId:'run-agents',hypothesisId:'H4'})}).catch(()=>{});
+      fetch('http://127.0.0.1:7243/ingest/53b38dcf-6225-4ab9-a06a-816278989907',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'AgentArsenal.vue:fetchAgents',message:'no agents in response',data:{code:resp.code,msg:resp.msg},timestamp:Date.now(),sessionId:'debug-session',runId:'run-agents',hypothesisId:'H4'})}).catch(()=>{});
       // #endregion
     }
   } catch (error: any) {

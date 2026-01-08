@@ -70,8 +70,9 @@
             <!-- 项目详情 -->
             <div class="info-text">
               <p><strong>行业赛道</strong> {{ project.industry }}</p>
-              <p><strong>语气风格</strong> {{ project.tone }}</p>
-              <p v-if="project.ipPersona" class="persona-text"><strong>IP人设</strong> {{ project.ipPersona }}</p>
+              <p v-if="project.tone"><strong>语气风格</strong> {{ project.tone }}</p>
+              <p v-if="project.introduction" class="persona-text"><strong>IP简介</strong> {{ project.introduction }}</p>
+              <p v-if="project.target_audience"><strong>目标受众</strong> {{ project.target_audience }}</p>
             </div>
 
             <!-- 主操作按钮 -->
@@ -101,10 +102,12 @@
     <el-dialog
       v-model="dialogVisible"
       :title="dialogTitle"
-      width="600px"
+      width="700px"
       @close="handleDialogClose"
     >
       <el-form ref="formRef" :model="formData" :rules="formRules" label-width="100px">
+        <!-- 基础信息 -->
+        <el-divider content-position="left">基础信息</el-divider>
         <el-form-item label="项目名称" prop="name">
           <el-input v-model="formData.name" placeholder="请输入项目名称" />
         </el-form-item>
@@ -118,6 +121,17 @@
             />
           </el-select>
         </el-form-item>
+
+        <!-- 人设配置 -->
+        <el-divider content-position="left">人设配置</el-divider>
+        <el-form-item label="IP简介" prop="introduction">
+          <el-input
+            v-model="formData.introduction"
+            type="textarea"
+            :rows="4"
+            placeholder="请输入IP简介，详细描述您的人设背景、经历、理念等"
+          />
+        </el-form-item>
         <el-form-item label="语气风格" prop="tone">
           <el-select v-model="formData.tone" placeholder="请选择语气风格" style="width: 100%">
             <el-option
@@ -128,13 +142,66 @@
             />
           </el-select>
         </el-form-item>
-        <el-form-item label="IP人设" prop="ipPersona">
+        <el-form-item label="目标受众" prop="target_audience">
           <el-input
-            v-model="formData.ipPersona"
+            v-model="formData.target_audience"
             type="textarea"
-            :rows="3"
-            placeholder="请输入IP人设描述（可选）"
+            :rows="2"
+            placeholder="请描述您的目标受众群体"
           />
+        </el-form-item>
+        <el-form-item label="内容风格" prop="content_style">
+          <el-input
+            v-model="formData.content_style"
+            type="textarea"
+            :rows="2"
+            placeholder="请描述您期望的内容风格"
+          />
+        </el-form-item>
+        <el-form-item label="常用口头禅" prop="catchphrase">
+          <el-input
+            v-model="formData.catchphrase"
+            placeholder="如：说实话、我跟你讲、真的等"
+          />
+        </el-form-item>
+        <el-form-item label="常用关键词" prop="keywords">
+          <el-select
+            v-model="formData.keywords"
+            multiple
+            filterable
+            allow-create
+            default-first-option
+            placeholder="输入关键词后按回车添加"
+            style="width: 100%"
+          >
+            <el-option v-for="kw in formData.keywords" :key="kw" :label="kw" :value="kw" />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="内容禁忌" prop="taboos">
+          <el-select
+            v-model="formData.taboos"
+            multiple
+            filterable
+            allow-create
+            default-first-option
+            placeholder="输入禁忌内容后按回车添加"
+            style="width: 100%"
+          >
+            <el-option v-for="t in formData.taboos" :key="t" :label="t" :value="t" />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="对标账号" prop="benchmark_accounts">
+          <el-select
+            v-model="formData.benchmark_accounts"
+            multiple
+            filterable
+            allow-create
+            default-first-option
+            placeholder="输入对标账号后按回车添加"
+            style="width: 100%"
+          >
+            <el-option v-for="acc in formData.benchmark_accounts" :key="acc" :label="acc" :value="acc" />
+          </el-select>
         </el-form-item>
       </el-form>
       <template #footer>
@@ -205,14 +272,20 @@ const currentProject = ref<MPProject | null>(null);
 const formData = reactive<CreateMPProjectRequest>({
   name: "",
   industry: "",
+  // 人设字段
+  introduction: "",
   tone: "",
-  ipPersona: ""
+  target_audience: "",
+  content_style: "",
+  catchphrase: "",
+  keywords: [],
+  taboos: [],
+  benchmark_accounts: []
 });
 
 const formRules = {
   name: [{ required: true, message: "请输入项目名称", trigger: "blur" }],
-  industry: [{ required: true, message: "请选择行业赛道", trigger: "change" }],
-  tone: [{ required: true, message: "请选择语气风格", trigger: "change" }]
+  industry: [{ required: true, message: "请选择行业赛道", trigger: "change" }]
 };
 
 const industryOptions = ref<Array<{ label: string; value: string }>>([]);
@@ -253,8 +326,14 @@ const handleCreate = () => {
   Object.assign(formData, {
     name: "",
     industry: "",
+    introduction: "",
     tone: "",
-    ipPersona: ""
+    target_audience: "",
+    content_style: "",
+    catchphrase: "",
+    keywords: [],
+    taboos: [],
+    benchmark_accounts: []
   });
   dialogVisible.value = true;
 };
@@ -266,8 +345,14 @@ const handleEdit = (project: MPProject) => {
   Object.assign(formData, {
     name: project.name,
     industry: project.industry,
-    tone: project.tone,
-    ipPersona: project.ipPersona || ""
+    introduction: project.introduction || "",
+    tone: project.tone || "",
+    target_audience: project.target_audience || "",
+    content_style: project.content_style || "",
+    catchphrase: project.catchphrase || "",
+    keywords: project.keywords || [],
+    taboos: project.taboos || [],
+    benchmark_accounts: project.benchmark_accounts || []
   });
   dialogVisible.value = true;
 };
@@ -302,7 +387,7 @@ const handleDelete = async (project: MPProject) => {
       type: "warning"
     });
 
-    await deleteMPProjectApi(project.id);
+    await deleteMPProjectApi(Number(project.id));
     ElMessage.success("删除成功");
     await fetchProjects();
   } catch (error: any) {
@@ -323,7 +408,7 @@ const handleSubmit = async () => {
     try {
       if (currentProject.value) {
         // 更新项目
-        await updateMPProjectApi(currentProject.value.id, formData as UpdateMPProjectRequest);
+        await updateMPProjectApi(Number(currentProject.value.id), formData as UpdateMPProjectRequest);
         ElMessage.success("更新成功");
       } else {
         // 创建项目

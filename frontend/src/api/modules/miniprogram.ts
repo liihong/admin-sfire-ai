@@ -109,14 +109,35 @@ export const updateMPUserInfoApi = (params: UpdateMPUserRequest) => {
 // ============== 项目管理相关 ==============
 
 /**
+ * 人设配置（对应后端 persona_settings JSON 字段）
+ */
+export interface PersonaSettings {
+  introduction: string; // IP简介
+  tone: string; // 语气风格
+  target_audience: string; // 目标受众
+  content_style: string; // 内容风格
+  catchphrase: string; // 常用口头禅
+  keywords: string[]; // 常用关键词
+  taboos: string[]; // 内容禁忌
+  benchmark_accounts: string[]; // 对标账号
+}
+
+/**
  * 项目信息
  */
 export interface MPProject {
-  id: number | string; // 支持数字ID或UUID字符串
+  id: number; // 统一为 number 类型
   name: string;
   industry: string;
-  tone: string;
-  ipPersona?: string;
+  // 人设字段（扁平化，与 persona_settings 对应）
+  introduction: string; // IP简介
+  tone: string; // 语气风格
+  target_audience: string; // 目标受众
+  content_style: string; // 内容风格
+  catchphrase: string; // 常用口头禅
+  keywords: string[]; // 常用关键词
+  taboos: string[]; // 内容禁忌
+  benchmark_accounts: string[]; // 对标账号
   isActive: boolean;
   createdAt: string;
   updatedAt: string;
@@ -140,23 +161,37 @@ export interface MPProjectSingleResponse {
 }
 
 /**
- * 创建项目请求
+ * 创建项目请求（包含完整人设字段）
  */
 export interface CreateMPProjectRequest {
   name: string;
   industry: string;
-  tone: string;
-  ipPersona?: string;
+  // 人设字段（与 persona_settings 对应）
+  introduction?: string; // IP简介
+  tone?: string; // 语气风格
+  target_audience?: string; // 目标受众
+  content_style?: string; // 内容风格
+  catchphrase?: string; // 常用口头禅
+  keywords?: string[]; // 常用关键词
+  taboos?: string[]; // 内容禁忌
+  benchmark_accounts?: string[]; // 对标账号
 }
 
 /**
- * 更新项目请求
+ * 更新项目请求（包含完整人设字段）
  */
 export interface UpdateMPProjectRequest {
   name?: string;
   industry?: string;
-  tone?: string;
-  ipPersona?: string;
+  // 人设字段（与 persona_settings 对应）
+  introduction?: string; // IP简介
+  tone?: string; // 语气风格
+  target_audience?: string; // 目标受众
+  content_style?: string; // 内容风格
+  catchphrase?: string; // 常用口头禅
+  keywords?: string[]; // 常用关键词
+  taboos?: string[]; // 内容禁忌
+  benchmark_accounts?: string[]; // 对标账号
 }
 
 /**
@@ -175,16 +210,18 @@ export const getMPProjectListApi = () => {
 
 /**
  * 获取项目详情
+ * 返回格式：{code: number, data: MPProject, msg: string}
  */
 export const getMPProjectApi = (projectId: number) => {
-  return http.get<MPProjectSingleResponse>(MP_API_PREFIX + `/projects/${projectId}`, {}, { loading: false });
+  return http.get<{ code: number; data: MPProject; msg: string }>(MP_API_PREFIX + `/projects/${projectId}`, {}, { loading: false });
 };
 
 /**
  * 获取当前激活的项目
+ * 返回格式：{code: number, data: MPProject, msg: string}
  */
 export const getMPActiveProjectApi = () => {
-  return http.get<MPProjectSingleResponse>(MP_API_PREFIX + `/projects/active`, {}, { loading: false });
+  return http.get<{ code: number; data: MPProject; msg: string }>(MP_API_PREFIX + `/projects/active`, {}, { loading: false });
 };
 
 /**
@@ -279,18 +316,21 @@ export const checkQrcodeStatusApi = (scene_str: string) => {
  */
 export interface MPAgentInfo {
   type: string;
-  id: string;
+  id: number; // 统一为 number 类型
   name: string;
   icon: string;
   description: string;
 }
 
 /**
- * 智能体列表响应
+ * 智能体列表响应（统一格式）
  */
 export interface MPAgentListResponse {
-  success: boolean;
-  agents: MPAgentInfo[];
+  code: number;
+  data: {
+    agents: MPAgentInfo[];
+  };
+  msg: string;
 }
 
 /**
@@ -327,6 +367,7 @@ export interface MPChatResponse {
 
 /**
  * 获取智能体列表
+ * 返回格式：{code: number, data: {agents: MPAgentInfo[]}, msg: string}
  */
 export const getMPAgentsApi = () => {
   return http.get<MPAgentListResponse>(MP_API_PREFIX + `/agents`, {}, { loading: false });

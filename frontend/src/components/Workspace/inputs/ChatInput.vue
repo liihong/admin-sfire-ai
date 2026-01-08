@@ -202,9 +202,10 @@ const handleShiftEnter = () => {
       padding: 12px 16px;
       border-radius: 12px;
       max-width: 70%;
-      word-wrap: break-word;
       line-height: 1.6;
       font-size: 14px;
+      white-space: pre-wrap;
+      word-wrap: break-word;
     }
 
     &.user {

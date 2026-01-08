@@ -250,7 +250,7 @@ def build_conversation_context(messages: List[ChatMessage]) -> str:
 
 # ============== API Endpoints ==============
 
-@router.get("/agents", response_model=AgentListResponse)
+@router.get("/agents")
 async def list_agents(
     db: AsyncSession = Depends(get_db)
 ):
@@ -266,30 +266,25 @@ async def list_agents(
     )
     db_agents = result.scalars().all()
     
-    # 转换为前端需要的格式
+    # 转换为前端需要的格式，确保 id 为 number 类型
     agents = []
     for agent in db_agents:
         # 如果数据库中有 type 字段，使用 agent.type；否则使用 agent.id
-        # 这里我们使用 agent.id 作为 type，前端可以通过这个 id 来识别智能体
-        # 注意：前端需要调整映射逻辑，或者数据库需要添加 type 字段
         agent_type = str(agent.id)  # 暂时使用 ID 作为 type
         
         # 尝试从 config 中获取 type（如果之前有存储）
         if agent.config and isinstance(agent.config, dict) and "type" in agent.config:
             agent_type = agent.config["type"]
         
-        agents.append(AgentInfo(
-            type=agent_type,
-            id=str(agent.id),
-            name=agent.name,
-            icon=agent.icon,
-            description=agent.description or ""
-        ))
+        agents.append({
+            "type": agent_type,
+            "id": agent.id,  # 统一为 number 类型
+            "name": agent.name,
+            "icon": agent.icon,
+            "description": agent.description or ""
+        })
     
-    return AgentListResponse(
-        success=True,
-        agents=agents
-    )
+    return success(data={"agents": agents}, msg="获取成功")
 
 
 @router.post("/chat")
@@ -308,10 +303,38 @@ async def generate_chat(
         conversation_id = request.conversation_id
         if not conversation_id:
             from schemas.conversation import ConversationCreate
+            from sqlalchemy import select
+            from models.agent import Agent
+            
+            # 获取智能体名称用于生成会话标题
+            agent_name = "新对话"
+            agent_id = None
+            if request.agent_type.isdigit():
+                agent_id = int(request.agent_type)
+                result = await db.execute(
+                    select(Agent).where(Agent.id == agent_id)
+                )
+                db_agent = result.scalar_one_or_none()
+                if db_agent:
+                    agent_name = db_agent.name
+            
+            # 获取用户的第一句话（截取前30个字符）
+            first_message = ""
+            for msg in request.messages:
+                if msg.role == "user" and msg.content:
+                    first_message = msg.content[:30]
+                    if len(msg.content) > 30:
+                        first_message += "..."
+                    break
+            
+            # 生成会话标题：智能体名称 + 用户第一句话
+            title = f"{agent_name}: {first_message}" if first_message else agent_name
+            
             conversation_data = ConversationCreate(
-                agent_id=int(request.agent_type) if request.agent_type.isdigit() else None,
+                agent_id=agent_id,
                 project_id=request.project_id,
                 model_type=request.model_type,
+                title=title,
             )
             conversation = await conversation_service.create_conversation(
                 user_id=current_user.id,
@@ -329,12 +352,40 @@ async def generate_chat(
                 # 如果会话不存在，创建新会话（可能是前端存储了已删除的会话ID）
                 from loguru import logger
                 from schemas.conversation import ConversationCreate
+                from sqlalchemy import select
+                from models.agent import Agent
 
                 logger.warning(f"会话 {conversation_id} 不存在，自动创建新会话（用户ID: {current_user.id}）")
+                
+                # 获取智能体名称用于生成会话标题
+                agent_name = "新对话"
+                agent_id = None
+                if request.agent_type.isdigit():
+                    agent_id = int(request.agent_type)
+                    result = await db.execute(
+                        select(Agent).where(Agent.id == agent_id)
+                    )
+                    db_agent = result.scalar_one_or_none()
+                    if db_agent:
+                        agent_name = db_agent.name
+                
+                # 获取用户的第一句话（截取前30个字符）
+                first_message = ""
+                for msg in request.messages:
+                    if msg.role == "user" and msg.content:
+                        first_message = msg.content[:30]
+                        if len(msg.content) > 30:
+                            first_message += "..."
+                        break
+                
+                # 生成会话标题：智能体名称 + 用户第一句话
+                title = f"{agent_name}: {first_message}" if first_message else agent_name
+                
                 conversation_data = ConversationCreate(
-                    agent_id=int(request.agent_type) if request.agent_type.isdigit() else None,
+                    agent_id=agent_id,
                     project_id=request.project_id,
                     model_type=request.model_type,
+                    title=title,
                 )
                 conversation = await conversation_service.create_conversation(
                     user_id=current_user.id,
