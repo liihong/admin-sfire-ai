@@ -51,7 +51,9 @@
               <el-input v-model="formData.nickname" placeholder="请输入昵称" />
             </el-form-item>
             <el-form-item label="手机号">
-              <el-input v-model="userDetail?.phone" disabled />
+              <div v-if="userDetail">
+                <el-input v-model="userDetail.phone" disabled />
+              </div>
             </el-form-item>
             <el-form-item label="性别" prop="gender">
               <el-radio-group v-model="formData.gender">
