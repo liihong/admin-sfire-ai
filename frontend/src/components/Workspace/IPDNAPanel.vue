@@ -11,13 +11,6 @@
     
     <!-- 动态能量条 -->
     <PowerGauge :power="computePower" />
-    
-    <!-- 智能体军械库 -->
-    <AgentArsenal
-      :selected-agent="selectedAgent"
-      @update:selected-agent="handleAgentSelect"
-      @select="handleAgentSelect"
-    />
   </div>
 </template>
 
@@ -25,16 +18,13 @@
 import { computed } from "vue";
 import { UserFilled } from "@element-plus/icons-vue";
 import PowerGauge from "./PowerGauge.vue";
-import AgentArsenal from "./AgentArsenal.vue";
 import { useIPCreationStore } from "@/stores/modules/ipCreation";
 import { useMPUserStore } from "@/stores/modules/miniprogramUser";
-import type { MPAgentInfo } from "@/api/modules/miniprogram";
 
 const ipCreationStore = useIPCreationStore();
 const mpUserStore = useMPUserStore();
 
 const project = computed(() => ipCreationStore.activeProject);
-const selectedAgent = computed(() => ipCreationStore.selectedAgent);
 const computePower = computed(() => mpUserStore.computePower);
 
 const projectAvatar = computed(() => {
@@ -49,22 +39,18 @@ const projectPosition = computed(() => {
   if (project.value.tone) parts.push(project.value.tone);
   return parts.join(" · ") || "IP 定位";
 });
-
-const handleAgentSelect = (agent: MPAgentInfo) => {
-  ipCreationStore.setSelectedAgent(agent);
-};
 </script>
 
 <style scoped lang="scss">
 @use "@/styles/ip-os-theme.scss" as *;
 
 .ip-dna-panel {
-  height: 100%;
   display: flex;
   flex-direction: column;
   padding: 24px;
   background: var(--ip-os-bg-secondary);
   border-right: 1px solid var(--ip-os-border-primary);
+  flex-shrink: 0;
 }
 
 .dna-totem {

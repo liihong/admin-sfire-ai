@@ -7,7 +7,9 @@ from fastapi import Depends, Header
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from db import get_db
+# 延迟导入 get_db 以避免循环导入
+# db 模块在初始化时会导入 core.config，而 core/__init__.py 会导入 core.deps
+# 如果在模块级别导入 get_db，会形成循环依赖
 from core.security import decode_token
 from utils.exceptions import UnauthorizedException, ForbiddenException
 from models.admin_user import AdminUser
@@ -15,9 +17,27 @@ from models.role import Role
 from models.user import User
 
 
+def _get_db_dependency():
+    """
+    延迟导入 get_db 以避免循环导入
+    这个函数在运行时才会导入 db 模块
+    返回 get_db 函数本身，供 Depends 使用
+    """
+    from db import get_db
+    return get_db
+
+
+# 创建一个异步生成器函数来延迟导入 get_db
+async def _get_db():
+    """延迟导入 get_db 的包装函数"""
+    from db import get_db
+    async for session in get_db():
+        yield session
+
+
 async def get_current_user(
     authorization: Optional[str] = Header(None, description="Bearer Token"),
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(_get_db),
 ) -> AdminUser:
     """
     获取当前登录的管理员用户
@@ -82,7 +102,7 @@ async def get_current_admin(
 
 async def get_current_miniprogram_user(
     authorization: Optional[str] = Header(None, description="Bearer Token"),
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(_get_db),
 ) -> User:
     """
     获取当前登录的小程序用户
@@ -124,6 +144,7 @@ async def get_current_miniprogram_user(
         raise UnauthorizedException(msg="用户已被封禁")
     
     return user
+
 
 
 

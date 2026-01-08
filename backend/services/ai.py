@@ -22,7 +22,7 @@ class AIService:
         self.llm_model_service = LLMModelService(db)
         # 兼容旧代码：如果没有配置模型，使用环境变量
         self.openai_api_key = settings.OPENAI_API_KEY
-        self.openai_base_url = "https://api.openai.com/v1"
+        self.openai_base_url = "https://api.deepseek.com"
     
     async def _get_model_config(self, model_id: str) -> tuple[Optional[str], Optional[str]]:
         """

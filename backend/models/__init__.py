@@ -12,6 +12,13 @@ from .llm_model import LLMModel
 from .banner import Banner, LinkType, BannerPosition
 from .home_config import HomeConfig
 from .project import Project
+from .conversation import (
+    Conversation,
+    ConversationMessage,
+    ConversationChunk,
+    ConversationStatus,
+    EmbeddingStatus,
+)
 
 __all__ = [
     "BaseModel",
@@ -30,4 +37,9 @@ __all__ = [
     "BannerPosition",
     "HomeConfig",
     "Project",
+    "Conversation",
+    "ConversationMessage",
+    "ConversationChunk",
+    "ConversationStatus",
+    "EmbeddingStatus",
 ]

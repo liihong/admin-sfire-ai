@@ -20,6 +20,16 @@ async def lifespan(app: FastAPI):
     # 启动时初始化
     await init_db()
     await init_redis()
+    
+    # 开发环境：自动创建缺失的表
+    if settings.DEBUG:
+        try:
+            from db.session import create_tables
+            await create_tables()
+        except Exception as e:
+            from loguru import logger
+            logger.warning(f"自动创建表失败（可能表已存在）: {e}")
+    
     yield
     # 关闭时清理
     await close_redis()

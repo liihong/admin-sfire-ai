@@ -1,0 +1,756 @@
+"""
+对话会话管理服务
+提供会话和消息的CRUD操作，以及语义搜索功能
+"""
+from typing import List, Optional, Tuple, Dict
+from sqlalchemy import select, func, and_, desc, asc
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
+import numpy as np
+from loguru import logger
+
+from models.conversation import (
+    Conversation,
+    ConversationMessage,
+    ConversationChunk,
+    ConversationStatus,
+    EmbeddingStatus,
+)
+from schemas.conversation import (
+    ConversationCreate,
+    ConversationUpdate,
+    ConversationListParams,
+    ConversationMessageCreate,
+)
+from utils.exceptions import NotFoundException, BadRequestException
+from utils.pagination import paginate_query, PageResult
+from services.vector_db import get_vector_db_service
+from services.embedding import get_embedding_service
+
+
+class ConversationService:
+    """对话会话管理服务类"""
+    
+    def __init__(self, db: AsyncSession):
+        self.db = db
+        self.vector_db = get_vector_db_service()
+        self.embedding_service = get_embedding_service()
+    
+    # ============== 会话CRUD ==============
+    
+    async def create_conversation(
+        self,
+        user_id: int,
+        conversation_data: ConversationCreate
+    ) -> Conversation:
+        """
+        创建新会话
+        
+        Args:
+            user_id: 用户ID
+            conversation_data: 会话创建数据
+        
+        Returns:
+            Conversation: 创建的会话对象
+        """
+        title = conversation_data.title or "新对话"
+        
+        conversation = Conversation(
+            user_id=user_id,
+            agent_id=conversation_data.agent_id,
+            project_id=conversation_data.project_id,
+            title=title,
+            model_type=conversation_data.model_type or "deepseek",
+            status=ConversationStatus.ACTIVE.value,
+        )
+        
+        self.db.add(conversation)
+        await self.db.flush()
+        await self.db.refresh(conversation)
+        
+        logger.info(f"创建新会话: {conversation.id}, 用户: {user_id}")
+        return conversation
+    
+    async def get_conversation_by_id(
+        self,
+        conversation_id: int,
+        user_id: Optional[int] = None
+    ) -> Conversation:
+        """
+        根据ID获取会话
+        
+        Args:
+            conversation_id: 会话ID
+            user_id: 用户ID（可选，用于权限验证）
+        
+        Returns:
+            Conversation: 会话对象
+        """
+        # region agent log
+        try:
+            import json, time
+            with open(r"e:\project\admin-sfire-ai\.cursor\debug.log", "a", encoding="utf-8") as _f:
+                _f.write(json.dumps({
+                    "sessionId": "debug-session",
+                    "runId": "get-conversation",
+                    "hypothesisId": "H2",
+                    "location": "services/conversation.py:get_conversation_by_id(entry)",
+                    "message": "查询会话",
+                    "data": {
+                        "conversation_id": conversation_id,
+                        "user_id": user_id
+                    },
+                    "timestamp": int(time.time() * 1000)
+                }) + "\n")
+        except Exception:
+            pass
+        # endregion
+        
+        query = select(Conversation).where(Conversation.id == conversation_id)
+        
+        if user_id:
+            query = query.where(Conversation.user_id == user_id)
+        
+        result = await self.db.execute(query)
+        conversation = result.scalar_one_or_none()
+        
+        # region agent log
+        try:
+            import json, time
+            with open(r"e:\project\admin-sfire-ai\.cursor\debug.log", "a", encoding="utf-8") as _f:
+                _f.write(json.dumps({
+                    "sessionId": "debug-session",
+                    "runId": "get-conversation",
+                    "hypothesisId": "H2",
+                    "location": "services/conversation.py:get_conversation_by_id(query_result)",
+                    "message": "查询结果",
+                    "data": {
+                        "conversation_id": conversation_id,
+                        "user_id": user_id,
+                        "found": conversation is not None,
+                        "conversation_user_id": conversation.user_id if conversation else None
+                    },
+                    "timestamp": int(time.time() * 1000)
+                }) + "\n")
+        except Exception:
+            pass
+        # endregion
+        
+        if not conversation:
+            raise NotFoundException(f"会话 {conversation_id} 不存在")
+        
+        return conversation
+    
+    async def list_conversations(
+        self,
+        user_id: int,
+        params: ConversationListParams
+    ) -> PageResult[Conversation]:
+        """
+        获取会话列表（分页）
+        
+        Args:
+            user_id: 用户ID
+            params: 查询参数
+        
+        Returns:
+            PageResult[Conversation]: 分页结果
+        """
+        query = select(Conversation).where(Conversation.user_id == user_id)
+        conditions = [Conversation.user_id == user_id]
+        
+        # 状态筛选
+        if params.status:
+            conditions.append(Conversation.status == params.status)
+        
+        # 智能体筛选
+        if params.agent_id:
+            conditions.append(Conversation.agent_id == params.agent_id)
+        
+        # 项目筛选
+        if params.project_id:
+            conditions.append(Conversation.project_id == params.project_id)
+        
+        # 关键词搜索（标题）
+        if params.keyword:
+            conditions.append(Conversation.title.like(f"%{params.keyword}%"))
+        
+        query = query.where(and_(*conditions))
+        query = query.order_by(desc(Conversation.updated_at))
+        
+        count_query = select(func.count(Conversation.id)).where(and_(*conditions))
+        
+        return await paginate_query(
+            self.db,
+            query,
+            count_query,
+            page_num=params.pageNum,
+            page_size=params.pageSize,
+        )
+    
+    async def update_conversation_title(
+        self,
+        conversation_id: int,
+        title: str,
+        user_id: Optional[int] = None
+    ) -> Conversation:
+        """
+        更新会话标题
+        
+        Args:
+            conversation_id: 会话ID
+            title: 新标题
+            user_id: 用户ID（可选，用于权限验证）
+        
+        Returns:
+            Conversation: 更新后的会话对象
+        """
+        conversation = await self.get_conversation_by_id(conversation_id, user_id)
+        conversation.title = title
+        await self.db.flush()
+        await self.db.refresh(conversation)
+        
+        logger.info(f"更新会话标题: {conversation_id}, 新标题: {title}")
+        return conversation
+    
+    async def archive_conversation(
+        self,
+        conversation_id: int,
+        user_id: Optional[int] = None
+    ) -> Conversation:
+        """
+        归档会话
+        
+        Args:
+            conversation_id: 会话ID
+            user_id: 用户ID（可选）
+        
+        Returns:
+            Conversation: 更新后的会话对象
+        """
+        conversation = await self.get_conversation_by_id(conversation_id, user_id)
+        conversation.status = ConversationStatus.ARCHIVED.value
+        await self.db.flush()
+        await self.db.refresh(conversation)
+        
+        logger.info(f"归档会话: {conversation_id}")
+        return conversation
+    
+    async def delete_conversation(
+        self,
+        conversation_id: int,
+        user_id: Optional[int] = None
+    ) -> None:
+        """
+        删除会话（软删除，实际标记为已删除状态）
+        
+        Args:
+            conversation_id: 会话ID
+            user_id: 用户ID（可选）
+        """
+        conversation = await self.get_conversation_by_id(conversation_id, user_id)
+        
+        # 删除向量数据库中的相关向量
+        # 查询该会话的所有chunks
+        chunks_query = select(ConversationChunk).where(
+            ConversationChunk.conversation_id == conversation_id
+        )
+        chunks_result = await self.db.execute(chunks_query)
+        chunks = chunks_result.scalars().all()
+        
+        for chunk in chunks:
+            if chunk.vector_id:
+                self.vector_db.delete_embedding(chunk.vector_id)
+        
+        # 删除数据库记录（级联删除消息和chunks）
+        await self.db.delete(conversation)
+        await self.db.flush()
+        
+        logger.info(f"删除会话: {conversation_id}")
+    
+    # ============== 消息管理 ==============
+    
+    async def get_conversation_messages(
+        self,
+        conversation_id: int,
+        limit: Optional[int] = None
+    ) -> List[ConversationMessage]:
+        """
+        获取会话消息列表
+        
+        Args:
+            conversation_id: 会话ID
+            limit: 限制返回数量（可选）
+        
+        Returns:
+            List[ConversationMessage]: 消息列表
+        """
+        query = select(ConversationMessage).where(
+            ConversationMessage.conversation_id == conversation_id
+        ).order_by(asc(ConversationMessage.sequence))
+        
+        if limit:
+            query = query.limit(limit)
+        
+        result = await self.db.execute(query)
+        return list(result.scalars().all())
+    
+    async def add_message(
+        self,
+        conversation_id: int,
+        message_data: ConversationMessageCreate
+    ) -> ConversationMessage:
+        """
+        添加消息到会话
+        
+        Args:
+            conversation_id: 会话ID
+            message_data: 消息数据
+        
+        Returns:
+            ConversationMessage: 创建的消息对象
+        """
+        # 如果未指定sequence，自动计算下一个序号
+        if message_data.sequence is None:
+            max_sequence_query = select(func.max(ConversationMessage.sequence)).where(
+                ConversationMessage.conversation_id == conversation_id
+            )
+            max_sequence_result = await self.db.execute(max_sequence_query)
+            max_sequence = max_sequence_result.scalar() or 0
+            sequence = max_sequence + 1
+        else:
+            sequence = message_data.sequence
+        
+        message = ConversationMessage(
+            conversation_id=conversation_id,
+            role=message_data.role,
+            content=message_data.content,
+            tokens=message_data.tokens or 0,
+            sequence=sequence,
+            embedding_status=EmbeddingStatus.PENDING.value,
+        )
+        
+        self.db.add(message)
+        await self.db.flush()
+        await self.db.refresh(message)
+        
+        # 更新会话统计
+        await self._update_conversation_stats(conversation_id)
+        
+        return message
+    
+    async def _update_conversation_stats(self, conversation_id: int):
+        """更新会话统计信息"""
+        conversation = await self.get_conversation_by_id(conversation_id)
+        
+        # 统计消息数量和token总数
+        stats_query = select(
+            func.count(ConversationMessage.id),
+            func.sum(ConversationMessage.tokens)
+        ).where(ConversationMessage.conversation_id == conversation_id)
+        
+        stats_result = await self.db.execute(stats_query)
+        count, total_tokens = stats_result.one()
+        
+        conversation.message_count = count or 0
+        conversation.total_tokens = int(total_tokens or 0)
+        
+        await self.db.flush()
+    
+    # ============== 语义搜索相关方法 ==============
+    
+    async def search_relevant_chunks(
+        self,
+        conversation_id: int,
+        query_text: str,
+        top_k: int = 5,
+        threshold: float = 0.7
+    ) -> List[Dict]:
+        """
+        从向量库搜索相关历史片段
+        
+        Args:
+            conversation_id: 会话ID
+            query_text: 查询文本（用户新消息）
+            top_k: 返回最相关的k个片段
+            threshold: 相似度阈值
+        
+        Returns:
+            List[Dict]: 相关片段列表，每个元素包含 {chunk_id, similarity, chunk_text, messages}
+        """
+        try:
+            # 对查询文本进行向量化
+            query_embedding = await self.embedding_service.generate_embedding(query_text)
+            if query_embedding is None:
+                logger.warning("查询文本向量化失败")
+                return []
+            
+            # 从向量库搜索相似片段
+            # 注意：这里需要先查询该会话的所有chunks的vector_id
+            chunks_query = select(ConversationChunk).where(
+                ConversationChunk.conversation_id == conversation_id
+            )
+            chunks_result = await self.db.execute(chunks_query)
+            chunks = chunks_result.scalars().all()
+            
+            if not chunks:
+                return []
+            
+            # 搜索相似向量
+            results = self.vector_db.search_similar(
+                query_embedding,
+                top_k=top_k,
+                threshold=threshold
+            )
+            
+            # 将结果转换为消息格式
+            relevant_chunks = []
+            for vector_id, similarity, metadata in results:
+                # 查找对应的chunk
+                chunk = next((c for c in chunks if c.vector_id == vector_id), None)
+                if not chunk:
+                    continue
+                
+                # 获取chunk对应的消息
+                user_msg_query = select(ConversationMessage).where(
+                    ConversationMessage.id == chunk.user_message_id
+                )
+                assistant_msg_query = select(ConversationMessage).where(
+                    ConversationMessage.id == chunk.assistant_message_id
+                )
+                
+                user_msg_result = await self.db.execute(user_msg_query)
+                assistant_msg_result = await self.db.execute(assistant_msg_query)
+                
+                user_msg = user_msg_result.scalar_one_or_none()
+                assistant_msg = assistant_msg_result.scalar_one_or_none()
+                
+                if user_msg and assistant_msg:
+                    relevant_chunks.append({
+                        "chunk_id": chunk.id,
+                        "similarity": similarity,
+                        "chunk_text": chunk.chunk_text,
+                        "messages": [
+                            {"role": "user", "content": user_msg.content},
+                            {"role": "assistant", "content": assistant_msg.content},
+                        ]
+                    })
+            
+            return relevant_chunks
+            
+        except Exception as e:
+            logger.error(f"搜索相关片段失败: {e}")
+            return []
+    
+    async def build_context_from_search(
+        self,
+        conversation_id: int,
+        query_text: str,
+        relevant_chunks: List[Dict],
+        include_recent: int = 2
+    ) -> List[Dict]:
+        """
+        基于搜索结果构建消息上下文
+        
+        Args:
+            conversation_id: 会话ID
+            query_text: 当前查询文本
+            relevant_chunks: 相关片段列表
+            include_recent: 包含最近N条消息（保证连续性）
+        
+        Returns:
+            List[Dict]: 消息列表，格式为 [{"role": "user", "content": "..."}, ...]
+        """
+        messages = []
+        
+        # 1. 添加相关片段的消息
+        for chunk in relevant_chunks:
+            messages.extend(chunk["messages"])
+        
+        # 2. 添加最近的消息（保证连续性）
+        recent_messages = await self.get_conversation_messages(
+            conversation_id,
+            limit=include_recent * 2  # 包含最近N轮对话（每轮2条消息）
+        )
+        
+        # 避免重复添加
+        recent_message_ids = {msg.id for msg in recent_messages}
+        for chunk in relevant_chunks:
+            # 从recent_messages中移除已在relevant_chunks中的消息
+            recent_messages = [
+                msg for msg in recent_messages
+                if msg.id not in [chunk.get("user_msg_id"), chunk.get("assistant_msg_id")]
+            ]
+        
+        # 添加最近消息
+        for msg in recent_messages:
+            messages.append({
+                "role": msg.role,
+                "content": msg.content
+            })
+        
+        # 3. 添加当前用户消息
+        messages.append({
+            "role": "user",
+            "content": query_text
+        })
+        
+        return messages
+    
+    # ============== 异步任务方法 ==============
+    
+    async def save_conversation_async(
+        self,
+        conversation_id: int,
+        user_message: str,
+        assistant_message: str,
+        user_tokens: int = 0,
+        assistant_tokens: int = 0
+    ):
+        """
+        异步保存对话消息（后台任务）
+        注意：此方法在后台任务中调用，需要创建新的数据库会话
+        
+        Args:
+            conversation_id: 会话ID
+            user_message: 用户消息内容
+            assistant_message: AI回复内容
+            user_tokens: 用户消息token数
+            assistant_tokens: AI回复token数
+        """
+        # 在后台任务中创建新的数据库会话
+        from db.session import async_session_maker
+        
+        # 使用重试机制处理锁等待超时
+        import asyncio
+        from sqlalchemy.exc import OperationalError
+        from pymysql.err import OperationalError as PyMySQLOperationalError
+        
+        max_retries = 3
+        retry_delay = 0.2  # 200ms
+        
+        last_error = None
+        for attempt in range(max_retries):
+            try:
+                async with async_session_maker() as db:
+                    # 获取当前最大sequence
+                    max_sequence_query = select(func.max(ConversationMessage.sequence)).where(
+                        ConversationMessage.conversation_id == conversation_id
+                    )
+                    max_sequence_result = await db.execute(max_sequence_query)
+                    max_sequence = max_sequence_result.scalar() or 0
+                    
+                    # 保存用户消息
+                    user_msg = ConversationMessage(
+                        conversation_id=conversation_id,
+                        role="user",
+                        content=user_message,
+                        tokens=user_tokens,
+                        sequence=max_sequence + 1,
+                        embedding_status=EmbeddingStatus.PENDING.value,
+                    )
+                    
+                    # 保存AI回复
+                    assistant_msg = ConversationMessage(
+                        conversation_id=conversation_id,
+                        role="assistant",
+                        content=assistant_message,
+                        tokens=assistant_tokens,
+                        sequence=max_sequence + 2,
+                        embedding_status=EmbeddingStatus.PENDING.value,
+                    )
+                    
+                    db.add(user_msg)
+                    db.add(assistant_msg)
+                    await db.flush()
+                    await db.refresh(user_msg)
+                    await db.refresh(assistant_msg)
+                    
+                    # 更新会话统计
+                    conversation_query = select(Conversation).where(Conversation.id == conversation_id)
+                    conversation_result = await db.execute(conversation_query)
+                    conversation = conversation_result.scalar_one_or_none()
+                    
+                    if not conversation:
+                        raise NotFoundException(f"会话 {conversation_id} 不存在")
+                    
+                    # 统计消息数量和token总数
+                    stats_query = select(
+                        func.count(ConversationMessage.id),
+                        func.sum(ConversationMessage.tokens)
+                    ).where(ConversationMessage.conversation_id == conversation_id)
+                    
+                    stats_result = await db.execute(stats_query)
+                    count, total_tokens = stats_result.one()
+                    
+                    conversation.message_count = count or 0
+                    conversation.total_tokens = int(total_tokens or 0)
+                    
+                    await db.flush()
+                    await db.commit()
+                    
+                    # 向量化操作应该在事务提交后进行，使用新的会话
+                    # 注意：embed_conversation_async 需要在自己的事务中运行
+                    # 暂时注释掉，因为方法不存在且应该在单独的会话中运行
+                    # await self.embed_conversation_async_with_db(
+                    #     conversation_id, user_msg.id, assistant_msg.id, db
+                    # )
+                    
+                    logger.info(f"已保存对话消息: 会话{conversation_id}, 消息{user_msg.id}-{assistant_msg.id}")
+                    
+                    # 成功，跳出重试循环
+                    break
+                    
+            except (OperationalError, PyMySQLOperationalError) as e:
+                # 检查是否是锁等待超时错误
+                error_code = getattr(e.orig, 'args', [None])[0] if hasattr(e, 'orig') else None
+                if error_code == 1205:  # Lock wait timeout exceeded
+                    last_error = e
+                    if attempt < max_retries - 1:
+                        await asyncio.sleep(retry_delay * (attempt + 1))  # 指数退避
+                        continue
+                    else:
+                        # 最后一次重试失败，抛出异常
+                        raise
+                else:
+                    # 其他数据库错误，直接抛出
+                    raise
+            except Exception as e:
+                # 其他异常，直接抛出
+                raise
+                
+        if last_error and isinstance(last_error, (OperationalError, PyMySQLOperationalError)):
+            # 所有重试都失败，抛出最后一个错误
+            raise last_error
+    
+    async def embed_conversation_async(
+        self,
+        conversation_id: int,
+        user_message_id: int,
+        assistant_message_id: int
+    ):
+        """
+        异步向量化对话片段（后台任务）
+        
+        Args:
+            conversation_id: 会话ID
+            user_message_id: 用户消息ID
+            assistant_message_id: AI回复消息ID
+        """
+        try:
+            # 获取消息内容
+            user_msg_query = select(ConversationMessage).where(
+                ConversationMessage.id == user_message_id
+            )
+            assistant_msg_query = select(ConversationMessage).where(
+                ConversationMessage.id == assistant_message_id
+            )
+            
+            user_msg_result = await self.db.execute(user_msg_query)
+            assistant_msg_result = await self.db.execute(assistant_msg_query)
+            
+            user_msg = user_msg_result.scalar_one_or_none()
+            assistant_msg = assistant_msg_result.scalar_one_or_none()
+            
+            if not user_msg or not assistant_msg:
+                logger.error(f"消息不存在: user_msg={user_message_id}, assistant_msg={assistant_message_id}")
+                return
+            
+            # 组合对话片段文本
+            chunk_text = f"用户: {user_msg.content}\n\n助手: {assistant_msg.content}"
+            
+            # 更新状态为处理中
+            user_msg.embedding_status = EmbeddingStatus.PROCESSING.value
+            assistant_msg.embedding_status = EmbeddingStatus.PROCESSING.value
+            await self.db.flush()
+            
+            # 生成向量
+            embedding = await self.embedding_service.generate_embedding(chunk_text)
+            
+            if embedding is None:
+                # 向量化失败
+                user_msg.embedding_status = EmbeddingStatus.FAILED.value
+                assistant_msg.embedding_status = EmbeddingStatus.FAILED.value
+                await self.db.flush()
+                logger.error(f"向量化失败: 会话{conversation_id}")
+                return
+            
+            # 生成向量ID
+            vector_id = f"conv_{conversation_id}_chunk_{user_message_id}_{assistant_message_id}"
+            
+            # 保存到向量数据库
+            success = self.vector_db.add_embedding(
+                vector_id=vector_id,
+                embedding=embedding,
+                metadata={
+                    "conversation_id": conversation_id,
+                    "user_message_id": user_message_id,
+                    "assistant_message_id": assistant_message_id,
+                    "chunk_text": chunk_text,
+                }
+            )
+            
+            if success:
+                # 创建或更新ConversationChunk记录
+                chunk_query = select(ConversationChunk).where(
+                    and_(
+                        ConversationChunk.conversation_id == conversation_id,
+                        ConversationChunk.user_message_id == user_message_id,
+                        ConversationChunk.assistant_message_id == assistant_message_id,
+                    )
+                )
+                chunk_result = await self.db.execute(chunk_query)
+                chunk = chunk_result.scalar_one_or_none()
+                
+                if not chunk:
+                    chunk = ConversationChunk(
+                        conversation_id=conversation_id,
+                        user_message_id=user_message_id,
+                        assistant_message_id=assistant_message_id,
+                        chunk_text=chunk_text,
+                        vector_id=vector_id,
+                    )
+                    self.db.add(chunk)
+                else:
+                    chunk.vector_id = vector_id
+                    chunk.chunk_text = chunk_text
+                
+                # 更新消息状态
+                user_msg.embedding_status = EmbeddingStatus.COMPLETED.value
+                assistant_msg.embedding_status = EmbeddingStatus.COMPLETED.value
+                
+                await self.db.flush()
+                logger.info(f"向量化完成: 会话{conversation_id}, vector_id={vector_id}")
+            else:
+                # 向量数据库保存失败
+                user_msg.embedding_status = EmbeddingStatus.FAILED.value
+                assistant_msg.embedding_status = EmbeddingStatus.FAILED.value
+                await self.db.flush()
+                logger.error(f"向量数据库保存失败: 会话{conversation_id}")
+                
+        except Exception as e:
+            logger.error(f"异步向量化失败: {e}")
+            # 更新状态为失败
+            try:
+                user_msg_query = select(ConversationMessage).where(
+                    ConversationMessage.id == user_message_id
+                )
+                assistant_msg_query = select(ConversationMessage).where(
+                    ConversationMessage.id == assistant_message_id
+                )
+                
+                user_msg_result = await self.db.execute(user_msg_query)
+                assistant_msg_result = await self.db.execute(assistant_msg_query)
+                
+                user_msg = user_msg_result.scalar_one_or_none()
+                assistant_msg = assistant_msg_result.scalar_one_or_none()
+                
+                if user_msg:
+                    user_msg.embedding_status = EmbeddingStatus.FAILED.value
+                if assistant_msg:
+                    assistant_msg.embedding_status = EmbeddingStatus.FAILED.value
+                
+                await self.db.flush()
+            except Exception as e2:
+                logger.error(f"更新失败状态时出错: {e2}")
+

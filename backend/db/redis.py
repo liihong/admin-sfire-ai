@@ -17,23 +17,39 @@ async def init_redis() -> None:
     """
     初始化 Redis 连接
     在应用启动时调用
+    
+    注意：Redis 是可选的，连接失败不会阻止应用启动
     """
     global redis_client
     
     logger.info("Initializing Redis connection...")
     
-    redis_client = aioredis.from_url(
-        settings.REDIS_URL,
-        encoding="utf-8",
-        decode_responses=True,
-    )
-    
-    # 测试连接
     try:
+        redis_client = aioredis.from_url(
+            settings.REDIS_URL,
+            encoding="utf-8",
+            decode_responses=True,
+            socket_connect_timeout=2,  # 连接超时 2 秒
+            socket_timeout=2,  # 操作超时 2 秒
+        )
+        
+        # 测试连接
         await redis_client.ping()
         logger.info("Redis connection initialized successfully")
     except Exception as e:
-        logger.warning(f"Redis connection failed: {e}")
+        logger.warning(
+            f"Redis connection failed: {e}. "
+            "Application will continue without Redis. "
+            "Rate limiting and caching features will be disabled."
+        )
+        redis_client = None
+        
+        # 如果创建了连接但测试失败，关闭它
+        try:
+            if redis_client:
+                await redis_client.close()
+        except:
+            pass
         redis_client = None
 
 

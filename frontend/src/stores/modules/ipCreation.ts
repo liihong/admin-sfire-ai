@@ -42,6 +42,8 @@ interface IPCreationState {
   currentContent: string;
   // 对话历史（用于多轮对话）
   conversationHistory: Array<{ role: "user" | "assistant"; content: string }>;
+  // 当前会话ID
+  currentConversationId: number | null;
 }
 
 export const useIPCreationStore = defineStore({
@@ -53,7 +55,8 @@ export const useIPCreationStore = defineStore({
     currentVersionId: null,
     isGenerating: false,
     currentContent: "",
-    conversationHistory: []
+    conversationHistory: [],
+    currentConversationId: null
   }),
   getters: {
     // 当前版本内容
@@ -146,13 +149,18 @@ export const useIPCreationStore = defineStore({
       this.isGenerating = false;
       this.conversationHistory = [];
     },
+    // 设置当前会话ID
+    setCurrentConversationId(conversationId: number | null) {
+      this.currentConversationId = conversationId;
+    },
     // 重置状态（切换IP时使用）
     reset() {
       this.selectedAgent = null;
       this.clearContent();
+      this.currentConversationId = null;
     }
   },
-  persist: piniaPersistConfig("sfire-ip-creation", ["activeProject", "contentVersions", "currentVersionId"])
+  persist: piniaPersistConfig("sfire-ip-creation", ["activeProject", "contentVersions", "currentVersionId", "currentConversationId"])
 });
 
 

@@ -305,6 +305,7 @@ export interface MPChatMessage {
  * 对话请求
  */
 export interface MPChatRequest {
+  conversation_id?: number; // 会话ID（可选）
   project_id?: number;
   agent_type: string;
   messages: MPChatMessage[];
@@ -339,7 +340,8 @@ export const generateMPContentApi = async (
   params: MPChatRequest,
   onChunk: (chunk: string) => void,
   onError?: (error: string) => void,
-  onDone?: () => void
+  onDone?: () => void,
+  onConversationId?: (conversationId: number) => void
 ): Promise<void> => {
   const { useMPUserStore } = await import("@/stores/modules/miniprogramUser");
   const mpUserStore = useMPUserStore();
@@ -383,13 +385,20 @@ export const generateMPContentApi = async (
         if (line.startsWith("data: ")) {
           try {
             const data = JSON.parse(line.slice(6));
+            // 处理 conversation_id
+            if (data.conversation_id !== undefined && onConversationId) {
+              onConversationId(data.conversation_id);
+            }
+            // 处理内容块
             if (data.content) {
               onChunk(data.content);
             }
+            // 处理完成标志
             if (data.done) {
               if (onDone) onDone();
               return;
             }
+            // 处理错误
             if (data.error) {
               if (onError) onError(data.error);
               return;
@@ -431,6 +440,141 @@ export const quickGenerateMPContentApi = (params: {
       params,
       loading: false
     }
+  );
+};
+
+// ============== 对话会话相关 ==============
+
+/**
+ * 会话信息
+ */
+export interface MPConversation {
+  id: number;
+  user_id: number;
+  agent_id?: number;
+  project_id?: number;
+  title: string;
+  model_type: string;
+  total_tokens: number;
+  message_count: number;
+  status: string;
+  created_at: string;
+  updated_at?: string;
+}
+
+/**
+ * 会话消息
+ */
+export interface MPConversationMessage {
+  id: number;
+  conversation_id: number;
+  role: "user" | "assistant" | "system";
+  content: string;
+  tokens: number;
+  sequence: number;
+  embedding_status: string;
+  created_at: string;
+}
+
+/**
+ * 会话详情（包含消息列表）
+ */
+export interface MPConversationDetail extends MPConversation {
+  messages: MPConversationMessage[];
+  agent_name?: string;
+  project_name?: string;
+}
+
+/**
+ * 创建会话请求
+ */
+export interface MPCreateConversationRequest {
+  agent_id?: number;
+  project_id?: number;
+  title?: string;
+  model_type?: string;
+}
+
+/**
+ * 会话列表查询参数
+ */
+export interface MPConversationListParams {
+  pageNum?: number;
+  pageSize?: number;
+  status?: string;
+  agent_id?: number;
+  project_id?: number;
+  keyword?: string;
+}
+
+/**
+ * 会话列表响应
+ */
+export interface MPConversationListResponse {
+  list: MPConversation[];
+  total: number;
+  pageNum: number;
+  pageSize: number;
+}
+
+/**
+ * 创建新会话
+ */
+export const createMPConversationApi = (params: MPCreateConversationRequest) => {
+  return http.post<{ code: number; data: MPConversation; msg: string }>(
+    MP_API_PREFIX + `/conversations`,
+    params
+  );
+};
+
+/**
+ * 获取会话列表
+ */
+export const getMPConversationListApi = (params?: MPConversationListParams) => {
+  return http.get<{ code: number; data: MPConversationListResponse; msg: string }>(
+    MP_API_PREFIX + `/conversations`,
+    params || {}
+  );
+};
+
+/**
+ * 获取会话详情
+ */
+export const getMPConversationDetailApi = (conversationId: number) => {
+  return http.get<{ code: number; data: MPConversationDetail; msg: string }>(
+    MP_API_PREFIX + `/conversations/${conversationId}`,
+    {}
+  );
+};
+
+/**
+ * 更新会话标题
+ */
+export const updateMPConversationTitleApi = (conversationId: number, title: string) => {
+  return http.put<{ code: number; data: MPConversation; msg: string }>(
+    MP_API_PREFIX + `/conversations/${conversationId}/title`,
+    {},
+    { params: { title } }
+  );
+};
+
+/**
+ * 删除会话
+ */
+export const deleteMPConversationApi = (conversationId: number) => {
+  return http.delete<{ code: number; msg: string }>(
+    MP_API_PREFIX + `/conversations/${conversationId}`,
+    {}
+  );
+};
+
+/**
+ * 归档会话
+ */
+export const archiveMPConversationApi = (conversationId: number) => {
+  return http.post<{ code: number; data: MPConversation; msg: string }>(
+    MP_API_PREFIX + `/conversations/${conversationId}/archive`,
+    {}
   );
 };
 

@@ -5,7 +5,7 @@ C端路由聚合（小程序 & PC官网）
 """
 from fastapi import APIRouter
 
-from . import auth, creation, projects, tikhub, web_auth
+from . import auth, creation, projects, tikhub, web_auth, conversations
 
 # 创建C端路由聚合器
 client_router = APIRouter()
@@ -25,3 +25,6 @@ client_router.include_router(creation.router, prefix="", tags=["C端-内容生�
 
 # 抖音分析模块：小程序和PC官网共用
 client_router.include_router(tikhub.router, prefix="/tikhub", tags=["C端-抖音分析"])
+
+# 对话会话管理模块
+client_router.include_router(conversations.router, prefix="", tags=["C端-对话会话"])

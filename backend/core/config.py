@@ -62,6 +62,12 @@ class Settings(BaseSettings):
     DEEPSEEK_API_KEY: str = ""  # DeepSeek API Key
     DOUBAO_API_KEY: str = ""  # 火山引擎（Doubao）API Key
     ANTHROPIC_API_KEY: str = ""  # Anthropic (Claude) API Key
+    
+    # Embedding 配置
+    EMBEDDING_PROVIDER: str = "openai"  # Embedding服务提供商: openai, deepseek (注意：DeepSeek不提供embedding API)
+    EMBEDDING_BASE_URL: str = ""  # Embedding API基础URL（可选，默认根据provider自动设置）
+    EMBEDDING_MODEL: str = ""  # Embedding模型名称（可选，默认根据provider自动设置）
+    EMBEDDING_API_KEY: str = ""  # Embedding API Key（可选，默认使用对应provider的API Key）
 
     @field_validator("CORS_ORIGINS", mode="before")
     @classmethod

@@ -32,6 +32,16 @@ from .menu import (
     MenuUpdate,
     MenuListItem,
 )
+from .conversation import (
+    ConversationCreate,
+    ConversationUpdate,
+    ConversationResponse,
+    ConversationDetailResponse,
+    ConversationListParams,
+    ConversationMessageCreate,
+    ConversationMessageResponse,
+    ConversationChunkResponse,
+)
 
 __all__ = [
     # Common
@@ -61,6 +71,15 @@ __all__ = [
     "MenuCreate",
     "MenuUpdate",
     "MenuListItem",
+    # Conversation
+    "ConversationCreate",
+    "ConversationUpdate",
+    "ConversationResponse",
+    "ConversationDetailResponse",
+    "ConversationListParams",
+    "ConversationMessageCreate",
+    "ConversationMessageResponse",
+    "ConversationChunkResponse",
 ]
 
 

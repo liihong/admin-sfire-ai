@@ -1,8 +1,18 @@
 <template>
   <div class="creation-reactor">
     <div class="reactor-header">
-      <h3 class="reactor-title">{{ selectedAgent?.name || "选择智能体开始创作" }}</h3>
-      <p v-if="selectedAgent" class="reactor-subtitle">{{ selectedAgent.description }}</p>
+      <div class="header-left">
+        <h3 class="reactor-title">{{ selectedAgent?.name || "选择智能体开始创作" }}</h3>
+        <p v-if="selectedAgent" class="reactor-subtitle">{{ selectedAgent.description }}</p>
+      </div>
+      <div class="header-right">
+        <!-- 智能体选择器 -->
+        <AgentSelectorPopup
+          :selected-agent="selectedAgent"
+          @update:selected-agent="handleAgentSelect"
+          @select="handleAgentSelect"
+        />
+      </div>
     </div>
     
     <div class="reactor-canvas">
@@ -19,7 +29,7 @@
       
       <div v-else class="reactor-empty">
         <el-icon :size="64"><Tools /></el-icon>
-        <p>请从左侧选择智能体</p>
+        <p>请从右上角选择智能体开始创作</p>
       </div>
     </div>
     
@@ -44,6 +54,7 @@ import { ElMessage } from "element-plus";
 import { Tools, Promotion } from "@element-plus/icons-vue";
 import ChatInput from "./inputs/ChatInput.vue";
 import FormInput from "./inputs/FormInput.vue";
+import AgentSelectorPopup from "./AgentSelectorPopup.vue";
 import type { MPAgentInfo } from "@/api/modules/miniprogram";
 import { useIPCreationStore } from "@/stores/modules/ipCreation";
 
@@ -85,15 +96,18 @@ const inputComponentRef = ref<InstanceType<typeof ChatInput> | InstanceType<type
 const handleSubmit = (content: string) => {
   if (!content.trim() || isGenerating.value) return;
   
-  // 添加用户消息到对话历史
-  ipCreationStore.addMessage("user", content);
-  
-  emit("generate", content, [...conversationHistory.value, { role: "user", content }]);
+  // 注意：用户消息会在 handleGenerate 中添加，避免重复添加
+  emit("generate", content, conversationHistory.value);
 };
 
 const handleConversationUpdate = (messages: Array<{ role: "user" | "assistant"; content: string }>) => {
   // 更新对话历史
   ipCreationStore.conversationHistory = messages;
+};
+
+// 选择智能体
+const handleAgentSelect = (agent: MPAgentInfo | null) => {
+  ipCreationStore.setSelectedAgent(agent);
 };
 
 const handleIgnite = async () => {
@@ -132,7 +146,20 @@ const handleIgnite = async () => {
 }
 
 .reactor-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
   margin-bottom: 24px;
+  
+  .header-left {
+    flex: 1;
+    min-width: 0;
+  }
+  
+  .header-right {
+    flex-shrink: 0;
+    margin-left: 16px;
+  }
   
   .reactor-title {
     font-size: 20px;

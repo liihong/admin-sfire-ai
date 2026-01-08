@@ -73,6 +73,10 @@ const fetchAgents = async () => {
       // #region agent log
       fetch('http://127.0.0.1:7243/ingest/53b38dcf-6225-4ab9-a06a-816278989907',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'AgentArsenal.vue:fetchAgents',message:'set agents',data:{count:agents.value.length,first:agents.value[0] ?? null},timestamp:Date.now(),sessionId:'debug-session',runId:'run-agents',hypothesisId:'H3'})}).catch(()=>{});
       // #endregion
+      // 如果当前还没有选中的智能体，则默认选中第一个，进入页面即可开始创作
+      if (!props.selectedAgent && agents.value.length > 0) {
+        handleSelectAgent(agents.value[0]);
+      }
     } else {
       // #region agent log
       fetch('http://127.0.0.1:7243/ingest/53b38dcf-6225-4ab9-a06a-816278989907',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'AgentArsenal.vue:fetchAgents',message:'no agents in response',data:{dataKeys:data?Object.keys(data):[]},timestamp:Date.now(),sessionId:'debug-session',runId:'run-agents',hypothesisId:'H4'})}).catch(()=>{});

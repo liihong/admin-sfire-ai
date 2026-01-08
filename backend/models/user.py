@@ -25,6 +25,7 @@ from models.base import BaseModel
 if TYPE_CHECKING:
     from models.compute import ComputeLog
     from models.project import Project
+    from models.conversation import Conversation
 
 
 class UserLevel(enum.Enum):
@@ -212,6 +213,14 @@ class User(BaseModel):
     # 项目关系
     projects: Mapped[List["Project"]] = relationship(
         "Project",
+        back_populates="user",
+        cascade="all, delete-orphan",
+        lazy="dynamic",
+    )
+    
+    # 对话会话关系
+    conversations: Mapped[List["Conversation"]] = relationship(
+        "Conversation",
         back_populates="user",
         cascade="all, delete-orphan",
         lazy="dynamic",

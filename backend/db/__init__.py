@@ -10,14 +10,11 @@ from .session import (
     Base,
 )
 
-# 导入所有模型以便 Alembic 能够检测到
-# 这也确保了在 init_db() 时所有表都会被创建
-from models import (  # noqa: F401
-    User,
-    UserLevel,
-    ComputeLog,
-    ComputeType,
-)
+# 注意：不在这里导入 models，以避免循环导入
+# models 模块在初始化时会导入 db.session.Base
+# 如果在 db/__init__.py 中导入 models，会形成循环依赖
+# Alembic 可以通过其他方式检测模型（通过 env.py 中的导入）
+# 如果需要导入模型，请在函数内部进行延迟导入
 
 __all__ = [
     "get_db",
@@ -26,9 +23,5 @@ __all__ = [
     "create_tables",
     "async_session_maker",
     "Base",
-    "User",
-    "UserLevel",
-    "ComputeLog",
-    "ComputeType",
 ]
 

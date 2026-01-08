@@ -47,8 +47,10 @@
 
 <script setup lang="ts">
 import { ref, computed, watch, nextTick } from "vue";
+import { ElMessage } from "element-plus";
 import type { MPAgentInfo } from "@/api/modules/miniprogram";
 import { useIPCreationStore } from "@/stores/modules/ipCreation";
+import { getMPConversationDetailApi } from "@/api/modules/miniprogram";
 
 interface Props {
   agent: MPAgentInfo;
@@ -77,6 +79,19 @@ watch(
   () => {
     nextTick(() => {
       if (messagesRef.value) {
+        messagesRef.value.scrollTop = messagesRef.value.scrollHeight;
+      }
+    });
+  },
+  { immediate: true }
+);
+
+// 监听当前生成内容的变化，自动滚动
+watch(
+  () => currentContent.value,
+  () => {
+    nextTick(() => {
+      if (messagesRef.value && isGenerating.value) {
         messagesRef.value.scrollTop = messagesRef.value.scrollHeight;
       }
     });

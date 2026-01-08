@@ -16,3 +16,5 @@ pydantic[email]
 sqlalchemy
 loguru
 cryptography
+faiss-cpu
+numpy
