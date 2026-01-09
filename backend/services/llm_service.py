@@ -75,7 +75,8 @@ class DeepSeekLLM(BaseLLM):
         """Generate text using DeepSeek API (OpenAI compatible format)."""
         headers = {
             "Authorization": f"Bearer {self.api_key}",
-            "Content-Type": "application/json"
+            "Content-Type": "application/json",
+            "X-My-Gate-Key": "Huoyuan2026",  # 网关认证密钥
         }
         
         payload = {
@@ -108,7 +109,8 @@ class DeepSeekLLM(BaseLLM):
         """Generate text in streaming mode using DeepSeek API."""
         headers = {
             "Authorization": f"Bearer {self.api_key}",
-            "Content-Type": "application/json"
+            "Content-Type": "application/json",
+            "X-My-Gate-Key": "Huoyuan2026",  # 网关认证密钥
         }
         
         payload = {
@@ -127,14 +129,28 @@ class DeepSeekLLM(BaseLLM):
                 "content": kwargs["system_prompt"]
             })
         
+        # 规范化 base_url 并构建完整 URL
+        normalized_base_url = self.base_url.rstrip('/')
+        if '/v1' not in normalized_base_url and not normalized_base_url.endswith('/v1'):
+            request_url = f"{normalized_base_url}/v1/chat/completions"
+        else:
+            request_url = f"{normalized_base_url}/chat/completions"
+        
         async with httpx.AsyncClient(timeout=120.0) as client:
             async with client.stream(
                 "POST",
-                f"{self.base_url}/v1/chat/completions",
+                request_url,
                 headers=headers,
                 json=payload
             ) as response:
-                response.raise_for_status()
+                try:
+                    response.raise_for_status()
+                except httpx.HTTPStatusError as e:
+                    # 先读取响应体到内存，然后才能访问 .text
+                    await e.response.aread()
+                    error_msg = e.response.text
+                    print(f"DeepSeek服务器报错内容: {error_msg}")
+                    raise
                 async for line in response.aiter_lines():
                     if line.startswith("data: "):
                         data = line[6:]
@@ -177,27 +193,49 @@ class ClaudeLLM(BaseLLM):
         """Generate text using Claude API."""
         is_official_api = "api.anthropic.com" in self.base_url
         use_openai_format = self.use_openai_format or (not is_official_api)
-        
+
         headers = {
             "Authorization": f"Bearer {self.api_key}",
-            "Content-Type": "application/json"
+            "Content-Type": "application/json",
+            "X-My-Gate-Key": "Huoyuan2026",  # 网关认证密钥
         }
-        
+
         if is_official_api and not use_openai_format:
             headers = {
                 "x-api-key": self.api_key,
                 "anthropic-version": self.API_VERSION,
-                "Content-Type": "application/json"
+                "Content-Type": "application/json",
+                "X-My-Gate-Key": "Huoyuan2026",  # 网关认证密钥
             }
-        
+
         base_url = self.base_url.rstrip("/")
-        
+
         if use_openai_format:
+            # 构建 messages，为 Claude 模型启用缓存
             messages = []
+            is_claude_model = kwargs.get("model", self.model).startswith("claude")
+
             if "system_prompt" in kwargs and kwargs["system_prompt"]:
-                messages.append({"role": "system", "content": kwargs["system_prompt"]})
+                system_prompt = kwargs["system_prompt"]
+                if is_claude_model:
+                    # Claude 模型使用列表结构并启用缓存
+                    messages.append({
+                        "role": "system",
+                        "content": [
+                            {
+                                "type": "text",
+                                "text": system_prompt,
+                                "cache_control": {"type": "ephemeral"}
+                            }
+                        ]
+                    })
+                else:
+                    # 其他模型使用普通字符串
+                    messages.append({"role": "system", "content": system_prompt})
+
+            # user 消息不需要缓存
             messages.append({"role": "user", "content": prompt})
-            
+
             payload = {
                 "model": kwargs.get("model", self.model),
                 "messages": messages,
@@ -207,22 +245,30 @@ class ClaudeLLM(BaseLLM):
             }
             url = f"{base_url}/v1/chat/completions"
         else:
+            # Anthropic 原生 API 格式
+            is_claude_model = kwargs.get("model", self.model).startswith("claude")
+
+            # 构建用户消息，为 Claude 启用缓存
+            user_content = [{"type": "text", "text": prompt}]
+            if is_claude_model:
+                user_content[0]["cache_control"] = {"type": "ephemeral"}
+
             payload = {
                 "model": kwargs.get("model", self.model),
                 "max_tokens": kwargs.get("max_tokens", 2048),
-                "messages": [{"role": "user", "content": prompt}]
+                "messages": [{"role": "user", "content": user_content}]
             }
             if "temperature" in kwargs:
                 payload["temperature"] = kwargs["temperature"]
             if "system_prompt" in kwargs and kwargs["system_prompt"]:
                 payload["system"] = kwargs["system_prompt"]
             url = f"{base_url}/v1/messages"
-        
+
         async with httpx.AsyncClient(timeout=120.0) as client:
             response = await client.post(url, headers=headers, json=payload)
             response.raise_for_status()
             data = response.json()
-            
+
             if use_openai_format:
                 return data["choices"][0]["message"]["content"]
             else:
@@ -232,28 +278,50 @@ class ClaudeLLM(BaseLLM):
     async def generate_stream(self, prompt: str, **kwargs) -> AsyncGenerator[str, None]:
         """Generate text in streaming mode using Claude API."""
         import json
-        
+
         is_official_api = "api.anthropic.com" in self.base_url
         use_openai_format = self.use_openai_format or (not is_official_api)
-        
+
         headers = {
             "Authorization": f"Bearer {self.api_key}",
-            "Content-Type": "application/json"
+            "Content-Type": "application/json",
+            "X-My-Gate-Key": "Huoyuan2026",  # 网关认证密钥
         }
-        
+
         if is_official_api and not use_openai_format:
             headers = {
                 "x-api-key": self.api_key,
                 "anthropic-version": self.API_VERSION,
-                "Content-Type": "application/json"
+                "Content-Type": "application/json",
+                "X-My-Gate-Key": "Huoyuan2026",  # 网关认证密钥
             }
-        
+
         if use_openai_format:
+            # 构建 messages，为 Claude 模型启用缓存
             messages = []
+            is_claude_model = kwargs.get("model", self.model).startswith("claude")
+
             if "system_prompt" in kwargs and kwargs["system_prompt"]:
-                messages.append({"role": "system", "content": kwargs["system_prompt"]})
+                system_prompt = kwargs["system_prompt"]
+                if is_claude_model:
+                    # Claude 模型使用列表结构并启用缓存
+                    messages.append({
+                        "role": "system",
+                        "content": [
+                            {
+                                "type": "text",
+                                "text": system_prompt,
+                                "cache_control": {"type": "ephemeral"}
+                            }
+                        ]
+                    })
+                else:
+                    # 其他模型使用普通字符串
+                    messages.append({"role": "system", "content": system_prompt})
+
+            # user 消息不需要缓存
             messages.append({"role": "user", "content": prompt})
-            
+
             payload = {
                 "model": kwargs.get("model", self.model),
                 "messages": messages,
@@ -261,12 +329,36 @@ class ClaudeLLM(BaseLLM):
                 "max_tokens": kwargs.get("max_tokens", 2048),
                 "stream": True
             }
-            url = f"{self.base_url}/v1/chat/completions"
+            # 添加可选参数（与 AIService 保持一致）
+            if "top_p" in kwargs:
+                payload["top_p"] = kwargs["top_p"]
+            if "frequency_penalty" in kwargs:
+                payload["frequency_penalty"] = kwargs["frequency_penalty"]
+            if "presence_penalty" in kwargs:
+                payload["presence_penalty"] = kwargs["presence_penalty"]
+
+            # 记录 system_prompt 长度（可能很大）
+            system_prompt_length = len(kwargs.get("system_prompt", "")) if "system_prompt" in kwargs else 0
+
+            # 规范化 base_url 并构建完整 URL
+            normalized_base_url = self.base_url.rstrip('/')
+            if '/v1' not in normalized_base_url and not normalized_base_url.endswith('/v1'):
+                url = f"{normalized_base_url}/v1/chat/completions"
+            else:
+                url = f"{normalized_base_url}/chat/completions"
         else:
+            # Anthropic 原生 API 格式
+            is_claude_model = kwargs.get("model", self.model).startswith("claude")
+
+            # 构建用户消息，为 Claude 启用缓存
+            user_content = [{"type": "text", "text": prompt}]
+            if is_claude_model:
+                user_content[0]["cache_control"] = {"type": "ephemeral"}
+
             payload = {
                 "model": kwargs.get("model", self.model),
                 "max_tokens": kwargs.get("max_tokens", 2048),
-                "messages": [{"role": "user", "content": prompt}],
+                "messages": [{"role": "user", "content": user_content}],
                 "stream": True
             }
             if "temperature" in kwargs:
@@ -275,9 +367,17 @@ class ClaudeLLM(BaseLLM):
                 payload["system"] = kwargs["system_prompt"]
             url = f"{self.base_url}/v1/messages"
         
-        async with httpx.AsyncClient(timeout=120.0) as client:
+        async with httpx.AsyncClient(timeout=120.0, follow_redirects=True) as client:
             async with client.stream("POST", url, headers=headers, json=payload) as response:
-                response.raise_for_status()
+                try:
+                    response.raise_for_status()
+                except httpx.HTTPStatusError as e:
+                    # 先读取响应体到内存，然后才能访问 .text（必须在 async with 块内）
+                    await e.response.aread()
+                    error_msg = e.response.text
+                    print(f"Claude服务器报错内容: {error_msg}")
+                    raise
+                # 如果状态码是 200，直接流式返回，不要调用 .aread()
                 async for line in response.aiter_lines():
                     if line.startswith("data: "):
                         data = line[6:]
@@ -323,7 +423,8 @@ class DoubaoLLM(BaseLLM):
         """Generate text using Volcengine Doubao API."""
         headers = {
             "Authorization": f"Bearer {self.api_key}",
-            "Content-Type": "application/json"
+            "Content-Type": "application/json",
+            "X-My-Gate-Key": "Huoyuan2026",  # 网关认证密钥
         }
         
         payload = {
@@ -342,9 +443,25 @@ class DoubaoLLM(BaseLLM):
                 "content": kwargs["system_prompt"]
             })
         
+        # 规范化 base_url 并构建完整 URL（Doubao 可能不需要 /v1）
+        normalized_base_url = self.base_url.rstrip('/')
+        # Doubao API 路径通常是 /api/v3/chat/completions
+        # 但如果 base_url 已经包含路径，直接使用
+        if '/chat/completions' in normalized_base_url:
+            request_url = normalized_base_url
+        elif '/v3' in normalized_base_url or normalized_base_url.endswith('/v3'):
+            request_url = f"{normalized_base_url}/chat/completions"
+        else:
+            # 默认情况下，如果 base_url 是 /api，可能需要 /v1 或 /v3
+            # 这里假设如果 base_url 不包含版本号，则使用 /v1
+            if '/v1' not in normalized_base_url and '/v3' not in normalized_base_url:
+                request_url = f"{normalized_base_url}/v1/chat/completions"
+            else:
+                request_url = f"{normalized_base_url}/chat/completions"
+        
         async with httpx.AsyncClient(timeout=60.0) as client:
             response = await client.post(
-                f"{self.base_url}/chat/completions",
+                request_url,
                 headers=headers,
                 json=payload
             )
@@ -356,7 +473,8 @@ class DoubaoLLM(BaseLLM):
         """Generate text in streaming mode using Volcengine Doubao API."""
         headers = {
             "Authorization": f"Bearer {self.api_key}",
-            "Content-Type": "application/json"
+            "Content-Type": "application/json",
+            "X-My-Gate-Key": "Huoyuan2026",  # 网关认证密钥
         }
         
         payload = {
@@ -375,14 +493,32 @@ class DoubaoLLM(BaseLLM):
                 "content": kwargs["system_prompt"]
             })
         
+        # 规范化 base_url 并构建完整 URL（Doubao 流式）
+        normalized_base_url = self.base_url.rstrip('/')
+        if '/chat/completions' in normalized_base_url:
+            request_url = normalized_base_url
+        elif '/v3' in normalized_base_url or normalized_base_url.endswith('/v3'):
+            request_url = f"{normalized_base_url}/chat/completions"
+        else:
+            if '/v1' not in normalized_base_url and '/v3' not in normalized_base_url:
+                request_url = f"{normalized_base_url}/v1/chat/completions"
+            else:
+                request_url = f"{normalized_base_url}/chat/completions"
+        
         async with httpx.AsyncClient(timeout=120.0) as client:
             async with client.stream(
                 "POST",
-                f"{self.base_url}/chat/completions",
+                request_url,
                 headers=headers,
                 json=payload
             ) as response:
-                response.raise_for_status()
+                try:
+                    response.raise_for_status()
+                except httpx.HTTPStatusError as e:
+                    await e.response.aread()
+                    error_msg = e.response.text
+                    print(f"Doubao服务器报错内容: {error_msg}")
+                    raise
                 async for line in response.aiter_lines():
                     if line.startswith("data: "):
                         data = line[6:]

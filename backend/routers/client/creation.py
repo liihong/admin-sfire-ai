@@ -18,6 +18,7 @@ from services.llm_service import LLMFactory
 from services.llm_model import LLMModelService
 from services.agent import AgentService
 from services.conversation import ConversationService
+from services.ai import AIService
 from constants.agent import get_agent_config, get_all_agents, AgentType, AGENT_CONFIGS
 from utils.response import success
 from utils.exceptions import BadRequestException, ServerErrorException, NotFoundException
@@ -350,7 +351,6 @@ async def generate_chat(
                 )
             except NotFoundException:
                 # 如果会话不存在，创建新会话（可能是前端存储了已删除的会话ID）
-                from loguru import logger
                 from schemas.conversation import ConversationCreate
                 from sqlalchemy import select
                 from models.agent import Agent
@@ -502,7 +502,42 @@ async def generate_chat(
             agent_system_prompt=base_system_prompt + conversation_context,
             ip_persona_prompt=ip_persona_prompt,
         )
-        
+
+        # 🔍 检查并限制 system prompt 长度
+        MAX_SYSTEM_PROMPT_LENGTH = 8000  # 根据模型限制调整
+        original_length = len(final_system_prompt)
+        if original_length > MAX_SYSTEM_PROMPT_LENGTH:
+            logger.warning(f"⚠️ [DEBUG] System prompt too long ({original_length} chars), truncating to {MAX_SYSTEM_PROMPT_LENGTH} chars")
+            logger.warning(f"  - Base agent prompt length: {len(base_system_prompt)} chars")
+            logger.warning(f"  - Conversation context length: {len(conversation_context)} chars")
+            logger.warning(f"  - IP persona prompt length: {len(ip_persona_prompt)} chars")
+
+            # 智能截断策略: 保留智能体核心prompt,精简历史和IP信息
+            # 1. 先保留完整的智能体prompt
+            truncated_prompt = base_system_prompt
+
+            # 2. 如果还有空间,添加IP人设的关键部分
+            remaining_space = MAX_SYSTEM_PROMPT_LENGTH - len(truncated_prompt) - 100  # 留100字符buffer
+            if remaining_space > 0 and ip_persona_prompt:
+                # 只保留IP人设的前N个字符
+                ip_persona_truncated = ip_persona_prompt[:remaining_space]
+                truncated_prompt = build_final_system_prompt(
+                    agent_system_prompt=truncated_prompt,
+                    ip_persona_prompt=ip_persona_truncated
+                )
+
+            # 3. 如果还没到限制,添加对话历史(最多2轮)
+            if len(truncated_prompt) < MAX_SYSTEM_PROMPT_LENGTH * 0.8 and conversation_context:
+                # 简化对话历史:只保留最近2轮
+                simplified_context = "\n【最近对话】" + "\n".join(conversation_context.split("\n")[-6:])
+                final_system_prompt = truncated_prompt + "\n\n" + simplified_context
+            else:
+                final_system_prompt = truncated_prompt
+
+            logger.warning(f"  - After truncation: {len(final_system_prompt)} chars")
+        else:
+            logger.info(f"✅ [DEBUG] System prompt length OK: {original_length} chars")
+
         # 如果使用优化后的消息，需要重新格式化user_prompt
         if relevant_chunks:
             # 从优化的消息中提取用户消息（最后一条user消息）
@@ -520,9 +555,12 @@ async def generate_chat(
             "claude": "anthropic"
         }
         provider = model_type_to_provider.get(request.model_type.lower(), request.model_type.lower())
-        
+
+        logger.info(f"🔍 [DEBUG] Querying model configuration:")
+        logger.info(f"  - Requested model_type: {request.model_type}")
+        logger.info(f"  - Mapped provider: {provider}")
+
         # 查询数据库中的模型配置
-        llm_model_service = LLMModelService(db)
         # 根据 provider 查询启用的模型（取第一个）
         from sqlalchemy import select, and_
         from models.llm_model import LLMModel
@@ -535,20 +573,114 @@ async def generate_chat(
             ).order_by(LLMModel.sort_order).limit(1)
         )
         llm_model = result.scalar_one_or_none()
-        
+
         if not llm_model:
-            raise BadRequestException(f"未找到启用的 {request.model_type} 模型配置，请在管理后台配置模型")
+            # 🔍 详细错误日志: 查询失败的原因
+            logger.error(f"❌ [DEBUG] Model not found in database:")
+            logger.error(f"  - Requested model_type: {request.model_type}")
+            logger.error(f"  - Mapped provider: {provider}")
+            logger.error(f"  - Provider mapping: {model_type_to_provider}")
+
+            # 查询所有启用的模型,帮助调试
+            all_enabled = await db.execute(
+                select(LLMModel).where(LLMModel.is_enabled == True)
+            )
+            enabled_models = all_enabled.scalars().all()
+            logger.error(f"  - All enabled models in database:")
+            for m in enabled_models:
+                logger.error(f"    * {m.name} (id={m.id}, provider={m.provider}, model_id={m.model_id}, enabled={m.is_enabled})")
+
+            raise BadRequestException(
+                f"未找到启用的 {request.model_type} 模型配置 (provider={provider})，请在管理后台配置模型"
+            )
+
+        logger.info(f"✅ [DEBUG] Model found: {llm_model.name} (id={llm_model.id}, provider={llm_model.provider})")
         
         if not llm_model.api_key:
             raise BadRequestException(f"模型 {llm_model.name} 未配置 API Key，请在管理后台配置")
         
-        # 9. 创建LLM实例（使用数据库配置）
-        llm = LLMFactory.create(
-            request.model_type,
-            api_key=llm_model.api_key,
-            base_url=llm_model.base_url,
-            model=llm_model.model_id
-        )        # 10. 生成响应
+        # 9. 构建 messages 列表（与 AIService 兼容的格式）
+        # 将 final_system_prompt 和 user_prompt 转换为 messages 格式
+        messages_for_ai = []
+
+        # 🔍 智能处理长system prompt: 确保完整prompt始终发送,避免网关503错误
+        # 策略: 将完整system prompt融入user消息,避免system字段过长导致网关503
+
+        if len(final_system_prompt) > 1500:
+            # System prompt较长,使用user消息策略(避免system字段过长)
+            logger.info(f"📊 [DEBUG] System prompt较长({len(final_system_prompt)} chars),使用user消息策略:")
+            logger.info(f"  - 完整system prompt将作为user消息��送")
+            logger.info(f"  - 这样可以避免网关对长system prompt的限制")
+
+            # 判断是否首次对话
+            is_first_message = len(request.messages) <= 2
+
+            if is_first_message:
+                # 首次对话: 将完整system prompt + 用户问题作为user消息
+                logger.info(f"  - 首次对话: 完整prompt({len(final_system_prompt)} chars) + 用户问题")
+                combined_message = f"{final_system_prompt}\n\n【用户问题】\n{user_prompt}"
+
+                messages_for_ai = [
+                    {
+                        "role": "user",
+                        "content": combined_message
+                    }
+                ]
+            else:
+                # 后续对话: 完整system prompt + 历史对话 + 当前问题
+                logger.info(f"  - 后续对话: 完整prompt({len(final_system_prompt)} chars) + 历史消息({len(request.messages)}条)")
+
+                # 构建消息列表: system prompt + 历史对话
+                messages_for_ai = [
+                    {
+                        "role": "user",
+                        "content": final_system_prompt  # 第一条user消息: 完整system prompt
+                    }
+                ]
+
+                # 添加历史对话
+                for msg in request.messages:
+                    messages_for_ai.append({
+                        "role": msg.role,
+                        "content": msg.content
+                    })
+        else:
+            # System prompt长度适中,使用标准格式(带缓存)
+            logger.info(f"✅ [DEBUG] System prompt长度适中({len(final_system_prompt)} chars),使用标准格式(带缓存)")
+
+            if final_system_prompt:
+                messages_for_ai.append({
+                    "role": "system",
+                    "content": final_system_prompt
+                })
+            messages_for_ai.append({
+                "role": "user",
+                "content": user_prompt
+            })
+        
+        # 10. 使用 AIService（与 admin/ai 保持一致，避免差异）
+        ai_service = AIService(db)
+
+        # 查找模型 ID（使用数据库中的模型 ID）
+        model_id_for_ai = str(llm_model.id)  # 使用数据库 ID 作为模型标识
+
+        # 🔍 调试日志: 打印关键信息
+        logger.info(f"📊 [DEBUG] Chat Request Info:")
+        logger.info(f"  - Conversation ID: {conversation_id}")
+        logger.info(f"  - User ID: {current_user.id}")
+        logger.info(f"  - Agent Type: {request.agent_type}")
+        logger.info(f"  - Model Type: {request.model_type}")
+        logger.info(f"  - Provider: {provider}")
+        logger.info(f"  - Model ID for AI: {model_id_for_ai}")
+        logger.info(f"  - DB Model: {llm_model.name} (model_id={llm_model.model_id})")
+        logger.info(f"  - Base URL: {llm_model.base_url}")
+        logger.info(f"  - System Prompt Length: {len(final_system_prompt)} chars")
+        logger.info(f"  - User Prompt Length: {len(user_prompt)} chars")
+        logger.info(f"  - Messages Count: {len(messages_for_ai)}")
+        logger.info(f"  - Temperature: {temperature}, Max Tokens: {max_tokens}")
+        logger.info(f"  - Stream: {request.stream}")
+        
+        # 11. 生成响应
         assistant_content = ""  # 用于后台任务保存
         
         if request.stream:
@@ -559,19 +691,38 @@ async def generate_chat(
                     # 首先发送 conversation_id（让前端能够更新会话ID）
                     yield f"data: {json.dumps({'conversation_id': conversation_id}, ensure_ascii=False)}\n\n"
                     
-                    async for chunk in llm.generate_stream(
-                        prompt=user_prompt,
-                        system_prompt=final_system_prompt,
+                    # 使用 AIService.stream_chat（与 admin/ai 保持一致）
+                    async for chunk_json in ai_service.stream_chat(
+                        messages=messages_for_ai,
+                        model=model_id_for_ai,
                         temperature=temperature,
-                        max_tokens=max_tokens
+                        max_tokens=max_tokens,
+                        top_p=1.0,
+                        frequency_penalty=0.0,
+                        presence_penalty=0.0
                     ):
-                        assistant_content += chunk
-                        yield f"data: {json.dumps({'content': chunk}, ensure_ascii=False)}\n\n"
+                        # AIService.stream_chat 返回的是 JSON 字符串，需要解析
+                        try:
+                            chunk_data = json.loads(chunk_json)
+                            # 检查是否有错误
+                            if "error" in chunk_data:
+                                # 如果是错误，直接传递
+                                yield f"data: {chunk_json}\n\n"
+                                return
+                            # 提取 content（AIService 返回的格式）
+                            delta = chunk_data.get("delta", {})
+                            content = delta.get("content", "")
+                            if content:
+                                assistant_content += content
+                                yield f"data: {json.dumps({'content': content}, ensure_ascii=False)}\n\n"
+                        except json.JSONDecodeError:
+                            # 如果不是 JSON（不应该发生，但为了安全），直接作为内容处理
+                            assistant_content += chunk_json
+                            yield f"data: {json.dumps({'content': chunk_json}, ensure_ascii=False)}\n\n"
                     
                     yield f"data: {json.dumps({'done': True}, ensure_ascii=False)}\n\n"
                     
                     # 流式完成后，触发后台任务保存
-                    # 使用独立函数而不是服务方法，避免数据库会话问题
                     background_tasks.add_task(
                         save_conversation_background_task,
                         conversation_id=conversation_id,
@@ -582,6 +733,20 @@ async def generate_chat(
                     )
                     
                 except Exception as e:
+                    # 🔍 详细错误日志
+                    import traceback
+                    logger.error(f"❌ [DEBUG] Stream generation failed:")
+                    logger.error(f"  - Error Type: {type(e).__name__}")
+                    logger.error(f"  - Error Message: {str(e)}")
+                    logger.error(f"  - Conversation ID: {conversation_id}")
+                    logger.error(f"  - User ID: {current_user.id}")
+                    logger.error(f"  - Model ID: {model_id_for_ai}")
+                    logger.error(f"  - Agent Type: {request.agent_type}")
+                    logger.error(f"  - System Prompt Length: {len(final_system_prompt)} chars")
+                    logger.error(f"  - User Prompt Length: {len(user_prompt)} chars")
+                    logger.error(f"  - Temperature: {temperature}, Max Tokens: {max_tokens}")
+                    logger.error(f"  - Traceback:\n{traceback.format_exc()}")
+
                     error_msg = f"生成错误: {str(e)}"
                     yield f"data: {json.dumps({'error': error_msg}, ensure_ascii=False)}\n\n"
             
@@ -596,16 +761,18 @@ async def generate_chat(
             )
         else:
             # 非流式响应
-            assistant_content = await llm.generate_text(
-                prompt=user_prompt,
-                system_prompt=final_system_prompt,
+            result = await ai_service.chat(
+                messages=messages_for_ai,
+                model=model_id_for_ai,
                 temperature=temperature,
-                max_tokens=max_tokens
+                max_tokens=max_tokens,
+                top_p=1.0,
+                frequency_penalty=0.0,
+                presence_penalty=0.0
             )
+            assistant_content = result.get("message", {}).get("content", "")
             
             # 立即触发后台任务保存（不阻塞响应）
-            # 修复：使用独立的后台任务函数，而不是直接调用服务方法
-            # 这样可以确保使用新的数据库会话
             background_tasks.add_task(
                 save_conversation_background_task,
                 conversation_id=conversation_id,
@@ -625,7 +792,185 @@ async def generate_chat(
     except (BadRequestException, ServerErrorException):
         raise
     except Exception as e:
+        # 🔍 捕获所有未处理的异常,记录详细日志
+        import traceback
+        logger.error(f"❌ [DEBUG] Chat endpoint unexpected error:")
+        logger.error(f"  - Error Type: {type(e).__name__}")
+        logger.error(f"  - Error Message: {str(e)}")
+        logger.error(f"  - User ID: {current_user.id if 'current_user' in locals() else 'N/A'}")
+        logger.error(f"  - Model Type: {request.model_type if 'request' in locals() else 'N/A'}")
+        logger.error(f"  - Agent Type: {request.agent_type if 'request' in locals() else 'N/A'}")
+        logger.error(f"  - Project ID: {request.project_id if 'request' in locals() else 'N/A'}")
+        logger.error(f"  - Traceback:\n{traceback.format_exc()}")
         raise ServerErrorException(f"生成失败: {str(e)}")
+
+
+@router.post("/chat/debug")
+async def debug_chat(
+    request: ChatRequest,
+    current_user: User = Depends(get_current_miniprogram_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    调试版chat接口 - 返回详细信息但不调用AI
+
+    用于排查503错误,展示:
+    1. 模型配置查询结果
+    2. 提示词构建过程和长度
+    3. 消息格式
+    4. 不会实际调用AI API
+    """
+    try:
+        debug_info = {
+            "request_params": {
+                "model_type": request.model_type,
+                "agent_type": request.agent_type,
+                "project_id": request.project_id,
+                "stream": request.stream,
+                "temperature": request.temperature,
+                "max_tokens": request.max_tokens,
+                "messages_count": len(request.messages),
+            },
+            "step_results": {}
+        }
+
+        # 1. 验证模型类型
+        supported_models = LLMFactory.get_supported_models()
+        debug_info["step_results"]["model_type_check"] = {
+            "is_supported": request.model_type.lower() in supported_models,
+            "supported_models": supported_models
+        }
+
+        # 2. 获取智能体配置
+        try:
+            agent_config = get_agent_config(request.agent_type)
+            debug_info["step_results"]["agent_config"] = {
+                "found": True,
+                "system_prompt_length": len(agent_config.get("system_prompt", "")),
+                "temperature": agent_config.get("temperature"),
+                "max_tokens": agent_config.get("max_tokens"),
+            }
+        except Exception as e:
+            debug_info["step_results"]["agent_config"] = {
+                "found": False,
+                "error": str(e)
+            }
+            # 尝试从数据库查询
+            try:
+                agent_id = int(request.agent_type)
+                from sqlalchemy import select
+                from models.agent import Agent
+                result = await db.execute(
+                    select(Agent).where(Agent.id == agent_id)
+                )
+                db_agent = result.scalar_one_or_none()
+                if db_agent:
+                    debug_info["step_results"]["agent_config"] = {
+                        "found": True,
+                        "source": "database",
+                        "agent_name": db_agent.name,
+                        "system_prompt_length": len(db_agent.system_prompt),
+                    }
+            except:
+                pass
+
+        # 3. 查询模型配置
+        model_type_to_provider = {
+            "deepseek": "deepseek",
+            "doubao": "doubao",
+            "claude": "anthropic"
+        }
+        provider = model_type_to_provider.get(request.model_type.lower(), request.model_type.lower())
+        debug_info["step_results"]["model_query"] = {
+            "provider": provider,
+            "provider_mapping": model_type_to_provider
+        }
+
+        from sqlalchemy import select, and_
+        from models.llm_model import LLMModel
+        result = await db.execute(
+            select(LLMModel).where(
+                and_(
+                    LLMModel.provider == provider,
+                    LLMModel.is_enabled == True
+                )
+            ).order_by(LLMModel.sort_order).limit(1)
+        )
+        llm_model = result.scalar_one_or_none()
+
+        if llm_model:
+            debug_info["step_results"]["model_query"]["found_model"] = {
+                "id": llm_model.id,
+                "name": llm_model.name,
+                "model_id": llm_model.model_id,
+                "provider": llm_model.provider,
+                "base_url": llm_model.base_url,
+                "has_api_key": bool(llm_model.api_key),
+                "api_key_prefix": llm_model.api_key[:10] + "..." if llm_model.api_key else None,
+                "is_enabled": llm_model.is_enabled,
+            }
+        else:
+            debug_info["step_results"]["model_query"]["found_model"] = None
+            # 查询所有启用的模型
+            all_enabled = await db.execute(
+                select(LLMModel).where(LLMModel.is_enabled == True)
+            )
+            enabled_models = all_enabled.scalars().all()
+            debug_info["step_results"]["model_query"]["all_enabled_models"] = [
+                {
+                    "id": m.id,
+                    "name": m.name,
+                    "provider": m.provider,
+                    "model_id": m.model_id,
+                }
+                for m in enabled_models
+            ]
+
+        # 4. 构建提示词(模拟真实流程但不调用AI)
+        user_prompt = format_messages_for_llm(request.messages)
+        debug_info["step_results"]["prompt_building"] = {
+            "user_prompt_length": len(user_prompt),
+            "user_prompt_preview": user_prompt[:200] + "..." if len(user_prompt) > 200 else user_prompt,
+        }
+
+        # 如果有项目ID,构建IP人设
+        if request.project_id:
+            try:
+                project_service = ProjectService(db)
+                project = await project_service.get_project_by_id(request.project_id, user_id=current_user.id)
+                if project:
+                    ip_persona_prompt = build_ip_persona_prompt(project)
+                    debug_info["step_results"]["prompt_building"]["ip_persona_length"] = len(ip_persona_prompt)
+                    debug_info["step_results"]["prompt_building"]["ip_persona_preview"] = ip_persona_prompt[:200] + "..." if len(ip_persona_prompt) > 200 else ip_persona_prompt
+            except Exception as e:
+                debug_info["step_results"]["prompt_building"]["ip_persona_error"] = str(e)
+
+        # 构建对话上下文
+        conversation_context = build_conversation_context(request.messages)
+        debug_info["step_results"]["prompt_building"]["conversation_context_length"] = len(conversation_context)
+
+        # 构建最终system prompt
+        if "agent_config" in debug_info["step_results"] and debug_info["step_results"]["agent_config"].get("found"):
+            base_system_prompt = debug_info["step_results"]["agent_config"].get("system_prompt", "")
+            # 这里简化处理,只计算长度
+            debug_info["step_results"]["prompt_building"]["estimated_system_prompt_length"] = (
+                                len(base_system_prompt) +
+                                len(conversation_context) +
+                                debug_info["step_results"]["prompt_building"].get("ip_persona_length", 0)
+            )
+
+        return success(data=debug_info, msg="调试信息获取成功")
+
+    except Exception as e:
+        import traceback
+        return success(
+            data={
+                "error": str(e),
+                "traceback": traceback.format_exc(),
+                "debug_info": debug_info if 'debug_info' in locals() else None
+            },
+            msg="调试接口发生错误"
+        )
 
 
 @router.post("/chat/quick")

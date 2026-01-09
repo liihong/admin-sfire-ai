@@ -123,7 +123,11 @@ class AIService:
         normalized_base_url = base_url.rstrip('/')
         if '/chat/completions' in normalized_base_url:
             normalized_base_url = normalized_base_url.split('/chat/completions')[0]
-        api_url = f"{normalized_base_url}/chat/completions"
+        # 检查 base_url 是否已经包含 /v1，如果没有则添加
+        if '/v1' not in normalized_base_url and not normalized_base_url.endswith('/v1'):
+            api_url = f"{normalized_base_url}/v1/chat/completions"
+        else:
+            api_url = f"{normalized_base_url}/chat/completions"
         
         # 调用 API
         async with httpx.AsyncClient(timeout=60.0) as client:
@@ -132,6 +136,7 @@ class AIService:
                 headers={
                     "Authorization": f"Bearer {api_key}",
                     "Content-Type": "application/json",
+                    "X-My-Gate-Key": "Huoyuan2026",  # 网关认证密钥
                 },
                 json={
                     "model": actual_model_id,
@@ -147,8 +152,28 @@ class AIService:
             
             if response.status_code != 200:
                 error_text = response.text
-                logger.error(f"API error: {response.status_code} - {error_text}")
-                raise Exception(f"API 请求失败: {error_text}")
+
+                # 🔍 详细错误日志
+                logger.error(f"❌ [API] LLM API请求失败 (非流式):")
+                logger.error(f"  - HTTP Status: {response.status_code}")
+                logger.error(f"  - API URL: {api_url}")
+                logger.error(f"  - Model ID: {actual_model_id}")
+                logger.error(f"  - Model Type: {model}")
+                logger.error(f"  - Response Headers: {dict(response.headers)}")
+                logger.error(f"  - Error Response: {error_text[:1000]}")  # 限制长度
+                logger.error(f"  - Request Messages Count: {len(formatted_messages)}")
+                logger.error(f"  - System Prompt Length: {len(formatted_messages[0].get('content', '')) if formatted_messages and formatted_messages[0].get('role') == 'system' else 'N/A'}")
+
+                # 如果是503,提供特别提示
+                if response.status_code == 503:
+                    logger.error(f"  ⚠️ 503错误可能原因:")
+                    logger.error(f"    1. API网关过载或不可用")
+                    logger.error(f"    2. Base URL配置错误: {api_url}")
+                    logger.error(f"    3. 网关认证密钥(X-My-Gate-Key)无效")
+                    logger.error(f"    4. 外部API服务暂时不可用")
+                    logger.error(f"    💡 建议: 检查数据库中的base_url和api_key配置")
+
+                raise Exception(f"API 请求失败 (HTTP {response.status_code}): {error_text[:200]}")
             
             data = response.json()
             
@@ -242,15 +267,20 @@ class AIService:
         request_headers = {
             "Authorization": f"Bearer {api_key}",
             "Content-Type": "application/json",
+            "X-My-Gate-Key": "Huoyuan2026",  # 网关认证密钥
         }
         
         # 规范化 base_url 并构建完整 URL
         normalized_base_url = base_url.rstrip('/')
         if '/chat/completions' in normalized_base_url:
             normalized_base_url = normalized_base_url.split('/chat/completions')[0]
-        api_url = f"{normalized_base_url}/chat/completions"
+        # 检查 base_url 是否已经包含 /v1，如果没有则添加
+        if '/v1' not in normalized_base_url and not normalized_base_url.endswith('/v1'):
+            api_url = f"{normalized_base_url}/v1/chat/completions"
+        else:
+            api_url = f"{normalized_base_url}/chat/completions"
         
-        async with httpx.AsyncClient(timeout=120.0) as client:
+        async with httpx.AsyncClient(timeout=120.0, follow_redirects=True) as client:
             async with client.stream(
                 "POST",
                 api_url,
@@ -268,11 +298,52 @@ class AIService:
             ) as response:
                 if response.status_code != 200:
                     error_text = await response.aread()
-                    logger.error(f"API error: {response.status_code} - {error_text.decode()}")
+                    error_text_str = error_text.decode('utf-8', errors='ignore') if error_text else ""
+
+                    # 🔍 详细错误日志
+                    logger.error(f"❌ [API] LLM API请求失败:")
+                    logger.error(f"  - HTTP Status: {response.status_code}")
+                    logger.error(f"  - API URL: {api_url}")
+                    logger.error(f"  - Model ID: {actual_model_id}")
+                    logger.error(f"  - Model Type: {model}")
+                    logger.error(f"  - Response Headers: {dict(response.headers)}")
+                    logger.error(f"  - Error Response: {error_text_str[:1000]}")  # 限制长度
+                    logger.error(f"  - Request Messages Count: {len(formatted_messages)}")
+                    logger.error(f"  - System Prompt Length: {len(formatted_messages[0].get('content', '')) if formatted_messages and formatted_messages[0].get('role') == 'system' else 'N/A'}")
+
+                    # 如果是503,提供特别提示
+                    if response.status_code == 503:
+                        logger.error(f"  ⚠️ 503错误可能原因:")
+                        logger.error(f"    1. API网关过载或不可用")
+                        logger.error(f"    2. Base URL配置错误: {api_url}")
+                        logger.error(f"    3. 网关认证密钥(X-My-Gate-Key)无效")
+                        logger.error(f"    4. 外部API服务暂时不可用")
+                        logger.error(f"    💡 建议: 检查数据库中的base_url和api_key配置")
+
                     error_chunk = {
                         "error": {
-                            "message": f"API 请求失败: {error_text.decode()}",
-                            "type": "APIError"
+                            "message": f"API 请求失败 (HTTP {response.status_code}): {error_text_str[:200]}",
+                            "type": "APIError",
+                            "status_code": response.status_code,
+                            "api_url": api_url,
+                            "model_id": actual_model_id
+                        }
+                    }
+                    yield json.dumps(error_chunk)
+                    return
+                
+                # 检查响应内容类型，如果不是 SSE 格式，返回错误
+                content_type = response.headers.get("content-type", "").lower()
+                if "text/event-stream" not in content_type and "text/plain" not in content_type and "application/json" not in content_type:
+                    # 可能是 HTML 或其他格式的错误响应
+                    error_text = await response.aread()
+                    error_msg = error_text.decode('utf-8', errors='ignore')[:500]  # 限制长度
+                    logger.error(f"API returned non-SSE response: {content_type} - {error_msg[:200]}")
+                    error_chunk = {
+                        "error": {
+                            "message": f"API 返回了非 SSE 格式的响应 (content-type: {content_type})，可能是认证失败或 URL 错误",
+                            "type": "InvalidResponseError",
+                            "details": error_msg[:200] if len(error_msg) > 0 else "无错误详情"
                         }
                     }
                     yield json.dumps(error_chunk)
@@ -281,6 +352,19 @@ class AIService:
                 # 解析 SSE 流
                 buffer = ""
                 async for chunk in response.aiter_text():
+                    # 检查第一个 chunk 是否是 HTML 响应
+                    if chunk.strip().startswith("<!DOCTYPE") or chunk.strip().startswith("<html"):
+                        logger.error(f"API returned HTML response instead of SSE stream")
+                        error_chunk = {
+                            "error": {
+                                "message": "API 返回了 HTML 响应而不是 SSE 流，可能是认证失败或 URL 错误",
+                                "type": "InvalidResponseError",
+                                "details": chunk[:200] if len(chunk) > 0 else "无错误详情"
+                            }
+                        }
+                        yield json.dumps(error_chunk)
+                        return
+                    
                     buffer += chunk
                     
                     # 处理完整的 SSE 消息（以 \n\n 分隔）

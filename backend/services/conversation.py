@@ -86,26 +86,6 @@ class ConversationService:
         Returns:
             Conversation: 会话对象
         """
-        # region agent log
-        try:
-            import json, time
-            with open(r"e:\project\admin-sfire-ai\.cursor\debug.log", "a", encoding="utf-8") as _f:
-                _f.write(json.dumps({
-                    "sessionId": "debug-session",
-                    "runId": "get-conversation",
-                    "hypothesisId": "H2",
-                    "location": "services/conversation.py:get_conversation_by_id(entry)",
-                    "message": "查询会话",
-                    "data": {
-                        "conversation_id": conversation_id,
-                        "user_id": user_id
-                    },
-                    "timestamp": int(time.time() * 1000)
-                }) + "\n")
-        except Exception:
-            pass
-        # endregion
-        
         query = select(Conversation).where(Conversation.id == conversation_id)
         
         if user_id:
@@ -113,28 +93,6 @@ class ConversationService:
         
         result = await self.db.execute(query)
         conversation = result.scalar_one_or_none()
-        
-        # region agent log
-        try:
-            import json, time
-            with open(r"e:\project\admin-sfire-ai\.cursor\debug.log", "a", encoding="utf-8") as _f:
-                _f.write(json.dumps({
-                    "sessionId": "debug-session",
-                    "runId": "get-conversation",
-                    "hypothesisId": "H2",
-                    "location": "services/conversation.py:get_conversation_by_id(query_result)",
-                    "message": "查询结果",
-                    "data": {
-                        "conversation_id": conversation_id,
-                        "user_id": user_id,
-                        "found": conversation is not None,
-                        "conversation_user_id": conversation.user_id if conversation else None
-                    },
-                    "timestamp": int(time.time() * 1000)
-                }) + "\n")
-        except Exception:
-            pass
-        # endregion
         
         if not conversation:
             raise NotFoundException(f"会话 {conversation_id} 不存在")
