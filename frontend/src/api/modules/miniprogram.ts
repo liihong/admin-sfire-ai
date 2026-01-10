@@ -619,3 +619,96 @@ export const archiveMPConversationApi = (conversationId: number) => {
   );
 };
 
+// ============== 算力相关 ==============
+
+/**
+ * 算力流水记录
+ */
+export interface MPComputeRecord {
+  id: string;
+  userId: string;
+  username?: string;
+  type: string; // recharge, consume, refund, reward, freeze, unfreeze, etc.
+  typeName: string; // 充值、消耗、退款等
+  amount: number;
+  beforeBalance: number;
+  afterBalance: number;
+  remark?: string;
+  orderId?: string;
+  taskId?: string;
+  operatorId?: string;
+  operatorName?: string;
+  source: string;
+  createTime: string;
+}
+
+/**
+ * 算力流水列表查询参数
+ */
+export interface MPComputeRecordsParams {
+  pageNum?: number;
+  pageSize?: number;
+  logType?: string; // 流水类型过滤
+}
+
+/**
+ * 算力流水列表响应
+ */
+export interface MPComputeRecordsResponse {
+  list: MPComputeRecord[];
+  total: number;
+  pageNum: number;
+  pageSize: number;
+}
+
+/**
+ * 获取算力流水列表
+ */
+export const getMPComputeRecordsApi = (params?: MPComputeRecordsParams) => {
+  return http.get<MPComputeRecordsResponse>(
+    MP_API_PREFIX + `/coin/transactions`,
+    params || {}
+  );
+};
+
+/**
+ * 算力余额信息
+ */
+export interface MPCoinBalance {
+  balance: number;
+  frozenBalance: number;
+  availableBalance: number;
+}
+
+/**
+ * 获取算力余额
+ */
+export const getMPCoinBalanceApi = () => {
+  return http.get<MPCoinBalance>(
+    MP_API_PREFIX + `/coin/balance`,
+    {}
+  );
+};
+
+/**
+ * 算力统计信息
+ */
+export interface MPCoinStatistics {
+  totalRecharge: number;
+  totalConsume: number;
+  totalRefund: number;
+  totalReward: number;
+  totalCommission: number;
+  totalAdjustment: number;
+}
+
+/**
+ * 获取算力统计信息
+ */
+export const getMPCoinStatisticsApi = () => {
+  return http.get<MPCoinStatistics>(
+    MP_API_PREFIX + `/coin/statistics`,
+    {}
+  );
+};
+

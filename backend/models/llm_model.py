@@ -119,7 +119,48 @@ class LLMModel(BaseModel):
         nullable=True,
         comment="备注信息",
     )
-    
+
+    # === 算力计算配置字段 ===
+    rate_multiplier: Mapped[float] = mapped_column(
+        DECIMAL(4, 2),
+        default=1.00,
+        server_default="1.00",
+        nullable=False,
+        comment="模型倍率系数 (用于算力计算)",
+    )
+
+    base_fee: Mapped[float] = mapped_column(
+        DECIMAL(16, 4),
+        default=10.0000,
+        server_default="10.0000",
+        nullable=False,
+        comment="基础调度费(火源币),无论请求是否成功,只要通过内容审查就扣除",
+    )
+
+    input_weight: Mapped[float] = mapped_column(
+        DECIMAL(4, 2),
+        default=1.00,
+        server_default="1.00",
+        nullable=False,
+        comment="输入Token权重,相对便宜",
+    )
+
+    output_weight: Mapped[float] = mapped_column(
+        DECIMAL(4, 2),
+        default=3.00,
+        server_default="3.00",
+        nullable=False,
+        comment="输出Token权重,较贵,是价值核心",
+    )
+
+    max_tokens_per_request: Mapped[int] = mapped_column(
+        Integer,
+        default=4096,
+        server_default="4096",
+        nullable=False,
+        comment="单次请求最大Token数,用于预冻结估算",
+    )
+
     def __repr__(self) -> str:
         return f"<LLMModel(id={self.id}, name={self.name}, provider={self.provider})>"
     

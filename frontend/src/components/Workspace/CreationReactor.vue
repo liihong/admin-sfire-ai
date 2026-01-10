@@ -34,7 +34,7 @@
     </div>
     
     <!-- 点火按钮 -->
-    <div class="reactor-footer" v-if="selectedAgent">
+    <!-- <div class="reactor-footer" v-if="selectedAgent">
       <button
         class="ip-os-button-primary reactor-ignite-btn"
         :disabled="isGenerating || !canSubmit"
@@ -44,7 +44,7 @@
         <span v-else>生成中...</span>
         <el-icon v-if="!isGenerating"><Promotion /></el-icon>
       </button>
-    </div>
+    </div> -->
   </div>
 </template>
 

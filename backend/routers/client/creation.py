@@ -4,6 +4,7 @@ C端内容生成接口（小程序 & PC官网）
 支持智能体列表查询、对话式内容生成、快速生成等功能
 """
 import json
+import uuid
 from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException, Query, BackgroundTasks
 from fastapi.responses import StreamingResponse
@@ -19,6 +20,9 @@ from services.llm_model import LLMModelService
 from services.agent import AgentService
 from services.conversation import ConversationService
 from services.ai import AIService
+from services.coin_account import CoinAccountService
+from services.coin_calculator import CoinCalculatorService
+from middleware.balance_checker import BalanceCheckerMiddleware
 from constants.agent import get_agent_config, get_all_agents, AgentType, AGENT_CONFIGS
 from utils.response import success
 from utils.exceptions import BadRequestException, ServerErrorException, NotFoundException
@@ -137,7 +141,7 @@ class ChatRequest(BaseModel):
     project_id: Optional[int] = Field(default=None, description="项目ID，用于获取IP人设信息")
     agent_type: str = Field(default=AgentType.EFFICIENT_ORAL, description="智能体类型")
     messages: List[ChatMessage] = Field(..., description="对话历史消息列表")
-    model_type: str = Field(default="doubao", description="LLM模型类型: 'doubao', 'claude', 'doubao'")
+    model_type: Optional[str] = Field(default=None, description="LLM模型类型（可选，不传则使用智能体配置的模型）")
     temperature: Optional[float] = Field(default=None, ge=0.0, le=2.0, description="生成温度")
     max_tokens: int = Field(default=2048, ge=1, le=8192, description="最大生成tokens")
     stream: bool = Field(default=True, description="是否启用流式输出")
@@ -299,7 +303,62 @@ async def generate_chat(
     try:
         # 0. 初始化会话服务
         conversation_service = ConversationService(db)
-        
+
+        # 0.1. 获取智能体配置和模型类型（提前获取，避免重复查询）
+        agent_config = None
+        agent_type_source = "preset"
+        db_agent = None
+        agent_model_type = request.model_type or "doubao"  # 默认值
+
+        try:
+            agent_config = get_agent_config(request.agent_type)
+        except ValueError:
+            # 如果预设配置中找不到，尝试从数据库查询（可能是数据库ID）
+            try:
+                agent_id = int(request.agent_type)
+                from sqlalchemy import select
+                from models.agent import Agent
+
+                result = await db.execute(
+                    select(Agent).where(
+                        Agent.id == agent_id,
+                        Agent.status == 1  # 只查询上架的智能体
+                    )
+                )
+                db_agent = result.scalar_one_or_none()
+
+                if db_agent:
+                    # 从数据库智能体构建配置
+                    agent_config = {
+                        "system_prompt": db_agent.system_prompt,
+                        "temperature": db_agent.config.get("temperature", 0.7) if db_agent.config else 0.7,
+                        "max_tokens": db_agent.config.get("max_tokens", 2048) if db_agent.config else 2048,
+                    }
+                    agent_type_source = "database"
+                    # 使用数据库智能体配置的模型
+                    agent_model_type = db_agent.model
+                    logger.info(f"📊 [DEBUG] 使用数据库智能体配置的模型: {agent_model_type}")
+                else:
+                    available = ", ".join(AGENT_CONFIGS.keys())
+                    raise BadRequestException(f"智能体 ID '{agent_id}' 不存在或已下架。可用类型: {available}")
+            except ValueError:
+                # agent_type 不是数字，也不是预设枚举值
+                available = ", ".join(AGENT_CONFIGS.keys())
+                raise BadRequestException(f"未知的智能体类型: '{request.agent_type}'。可用类型: {available}")
+
+        if not agent_config:
+            available = ", ".join(AGENT_CONFIGS.keys())
+            raise BadRequestException(f"无法获取智能体配置: '{request.agent_type}'。可用类型: {available}")
+
+        # 如果是预设智能体且没有提供model_type，使用默认值
+        if agent_type_source == "preset" and not request.model_type:
+            agent_model_type = "doubao"
+            logger.info(f"📊 [DEBUG] 使用默认模型: {agent_model_type}")
+
+        # 0.2. 不再验证模型类型，所有模型信息从数据库读取
+        # 这样可以支持动态添加新模型，无需修改代码
+        logger.info(f"📊 [DEBUG] 使用模型类型: {agent_model_type} (来源: {agent_type_source})")
+
         # 0.1. 处理会话ID（如果不存在则创建新会话）
         conversation_id = request.conversation_id
         if not conversation_id:
@@ -334,7 +393,7 @@ async def generate_chat(
             conversation_data = ConversationCreate(
                 agent_id=agent_id,
                 project_id=request.project_id,
-                model_type=request.model_type,
+                model_type=agent_model_type,
                 title=title,
             )
             conversation = await conversation_service.create_conversation(
@@ -380,11 +439,11 @@ async def generate_chat(
                 
                 # 生成会话标题：智能体名称 + 用户第一句话
                 title = f"{agent_name}: {first_message}" if first_message else agent_name
-                
+
                 conversation_data = ConversationCreate(
                     agent_id=agent_id,
                     project_id=request.project_id,
-                    model_type=request.model_type,
+                    model_type=agent_model_type,
                     title=title,
                 )
                 conversation = await conversation_service.create_conversation(
@@ -395,64 +454,16 @@ async def generate_chat(
             except Exception as e:
                 # 其他错误正常抛出
                 raise
-        
-        # 1. 验证模型类型
-        supported_models = LLMFactory.get_supported_models()
-        if request.model_type.lower() not in supported_models:
-            raise BadRequestException(f"不支持的模型类型: '{request.model_type}'。支持的类型: {supported_models}")
-        
-        # 2. 获取智能体配置
-        # 首先尝试从预设配置中获取（如果 agent_type 是预设枚举值）
-        agent_config = None
-        agent_type_source = "preset"
-        
-        try:
-            agent_config = get_agent_config(request.agent_type)
-        except ValueError:
-            # 如果预设配置中找不到，尝试从数据库查询（可能是数据库ID）
-            # 尝试将 agent_type 作为数据库ID查询
-            try:
-                agent_id = int(request.agent_type)
-                from sqlalchemy import select
-                from models.agent import Agent
-                
-                result = await db.execute(
-                    select(Agent).where(
-                        Agent.id == agent_id,
-                        Agent.status == 1  # 只查询上架的智能体
-                    )
-                )
-                db_agent = result.scalar_one_or_none()
-                
-                if db_agent:
-                    # 从数据库智能体构建配置
-                    agent_config = {
-                        "system_prompt": db_agent.system_prompt,
-                        "temperature": db_agent.config.get("temperature", 0.7) if db_agent.config else 0.7,
-                        "max_tokens": db_agent.config.get("max_tokens", 2048) if db_agent.config else 2048,
-                    }
-                    agent_type_source = "database"
-                else:
-                    available = ", ".join(AGENT_CONFIGS.keys())
-                    raise BadRequestException(f"智能体 ID '{agent_id}' 不存在或已下架。可用类型: {available}")
-            except ValueError:
-                # agent_type 不是数字，也不是预设枚举值
-                available = ", ".join(AGENT_CONFIGS.keys())
-                raise BadRequestException(f"未知的智能体类型: '{request.agent_type}'。可用类型: {available}")
-        
-        if not agent_config:
-            available = ", ".join(AGENT_CONFIGS.keys())
-            raise BadRequestException(f"无法获取智能体配置: '{request.agent_type}'。可用类型: {available}")
-        
-        # 3. 获取项目IP画像（如果提供了project_id）
+
+        # 1. 获取项目IP画像（如果提供了project_id）
         ip_persona_prompt = ""
         if request.project_id:
             project_service = ProjectService(db)
             project = await project_service.get_project_by_id(request.project_id, user_id=current_user.id)
             if project:
                 ip_persona_prompt = build_ip_persona_prompt(project)
-        
-        # 4. 获取用户最新消息作为prompt
+
+        # 2. 获取用户最新消息作为prompt
         user_prompt = format_messages_for_llm(request.messages)
         
         if not user_prompt:
@@ -547,27 +558,26 @@ async def generate_chat(
         temperature = request.temperature if request.temperature is not None else agent_config.get("temperature", 0.7)
         max_tokens = request.max_tokens or agent_config.get("max_tokens", 2048)
         
-        # 8. 从数据库获取模型配置
-        # model_type 到 provider 的映射
-        model_type_to_provider = {
-            "deepseek": "deepseek",
-            "doubao": "doubao",
-            "claude": "anthropic"
-        }
-        provider = model_type_to_provider.get(request.model_type.lower(), request.model_type.lower())
+        # 8. 从��据库获取模型配置
+        # 直接通过 model_type (或 model_id) 查询数据库中的模型配置
+        # 支持两种查询方式:
+        # 1. 通过 provider 字段查询 (兼容旧的 model_type 如 "deepseek", "doubao")
+        # 2. 通过 model_id 字段查询 (支持数据库中存储的模型ID)
+        from sqlalchemy import select, and_, or_
+        from models.llm_model import LLMModel
 
         logger.info(f"🔍 [DEBUG] Querying model configuration:")
-        logger.info(f"  - Requested model_type: {request.model_type}")
-        logger.info(f"  - Mapped provider: {provider}")
+        logger.info(f"  - Requested model_type: {agent_model_type}")
 
-        # 查询数据库中的模型配置
-        # 根据 provider 查询启用的模型（取第一个）
-        from sqlalchemy import select, and_
-        from models.llm_model import LLMModel
+        # 尝试通过 provider 或 model_id 查询
         result = await db.execute(
             select(LLMModel).where(
                 and_(
-                    LLMModel.provider == provider,
+                    or_(
+                        LLMModel.provider == agent_model_type.lower(),
+                        LLMModel.model_id == agent_model_type,
+                        LLMModel.id == int(agent_model_type) if agent_model_type.isdigit() else False
+                    ),
                     LLMModel.is_enabled == True
                 )
             ).order_by(LLMModel.sort_order).limit(1)
@@ -577,9 +587,7 @@ async def generate_chat(
         if not llm_model:
             # 🔍 详细错误日志: 查询失败的原因
             logger.error(f"❌ [DEBUG] Model not found in database:")
-            logger.error(f"  - Requested model_type: {request.model_type}")
-            logger.error(f"  - Mapped provider: {provider}")
-            logger.error(f"  - Provider mapping: {model_type_to_provider}")
+            logger.error(f"  - Requested model_type: {agent_model_type}")
 
             # 查询所有启用的模型,帮助调试
             all_enabled = await db.execute(
@@ -591,14 +599,40 @@ async def generate_chat(
                 logger.error(f"    * {m.name} (id={m.id}, provider={m.provider}, model_id={m.model_id}, enabled={m.is_enabled})")
 
             raise BadRequestException(
-                f"未找到启用的 {request.model_type} 模型配置 (provider={provider})，请在管理后台配置模型"
+                f"未找到启用的模型 '{agent_model_type}'，请在管理后台配置模型"
             )
 
         logger.info(f"✅ [DEBUG] Model found: {llm_model.name} (id={llm_model.id}, provider={llm_model.provider})")
-        
+
         if not llm_model.api_key:
             raise BadRequestException(f"模型 {llm_model.name} 未配置 API Key，请在管理后台配置")
-        
+
+        # 8.5 算力预冻结（在AI调用前）
+        task_id = str(uuid.uuid4())
+        balance_checker = BalanceCheckerMiddleware(db)
+        estimated_output_tokens = request.max_tokens or 2048
+
+        try:
+            # 获取用户输入文本用于估算
+            user_input_text = user_prompt  # 使用用户提示词
+
+            freeze_info = await balance_checker.check_and_freeze(
+                user_id=current_user.id,
+                model_id=llm_model.id,
+                input_text=user_input_text,
+                task_id=task_id,
+                estimated_output_tokens=estimated_output_tokens
+            )
+            logger.info(f"💰 [DEBUG] 算力预冻结成功: 用户ID={current_user.id}, 金额={freeze_info['frozen_amount']}, 任务ID={task_id}")
+        except BadRequestException as e:
+            # 余额不足，直接返回错误
+            logger.warning(f"❌ [DEBUG] 用户余额不足: {str(e)}")
+            raise
+        except Exception as e:
+            # 预冻结失败，记录警告但不阻止请求（降级处理）
+            logger.warning(f"⚠️ [DEBUG] 算力预冻结失败（降级处理）: {str(e)}")
+            task_id = None  # 标记为未预冻结，跳过结算
+
         # 9. 构建 messages 列表（与 AIService 兼容的格式）
         # 将 final_system_prompt 和 user_prompt 转换为 messages 格式
         messages_for_ai = []
@@ -609,8 +643,8 @@ async def generate_chat(
         if len(final_system_prompt) > 1500:
             # System prompt较长,使用user消息策略(避免system字段过长)
             logger.info(f"📊 [DEBUG] System prompt较长({len(final_system_prompt)} chars),使用user消息策略:")
-            logger.info(f"  - 完整system prompt将作为user消息��送")
-            logger.info(f"  - 这样可以避免网关对长system prompt的限制")
+            logger.info(f"  - 将system prompt融入user消息中")
+            logger.info(f"  - 保持user-assistant交替的格式规范")
 
             # 判断是否首次对话
             is_first_message = len(request.messages) <= 2
@@ -627,23 +661,39 @@ async def generate_chat(
                     }
                 ]
             else:
-                # 后续对话: 完整system prompt + 历史对话 + 当前问题
-                logger.info(f"  - 后续对话: 完整prompt({len(final_system_prompt)} chars) + 历史消息({len(request.messages)}条)")
+                # 后续对话: 将system prompt融入当前user消息,保持user-assistant交替格式
+                logger.info(f"  - 后续对话: 融合prompt({len(final_system_prompt)} chars) + 当前问题")
+                logger.info(f"  - 保持user-assistant交替的格式规范,避免网关503错误")
 
-                # 构建消息列表: system prompt + 历史对话
-                messages_for_ai = [
-                    {
-                        "role": "user",
-                        "content": final_system_prompt  # 第一条user消息: 完整system prompt
-                    }
-                ]
+                # 按照user-assistant交替的规则构建消息列表
+                for i, msg in enumerate(request.messages):
+                    if msg.role == "user":
+                        # 判断是否是最后一条user消息(当前问题)
+                        is_last_user = True
+                        for j in range(i + 1, len(request.messages)):
+                            if request.messages[j].role == "user":
+                                is_last_user = False
+                                break
 
-                # 添加历史对话
-                for msg in request.messages:
-                    messages_for_ai.append({
-                        "role": msg.role,
-                        "content": msg.content
-                    })
+                        if is_last_user:
+                            # 最后一条user消息: 融合system prompt
+                            enhanced_content = f"{final_system_prompt}\n\n【用户问题】\n{msg.content}"
+                            messages_for_ai.append({
+                                "role": "user",
+                                "content": enhanced_content
+                            })
+                        else:
+                            # 历史user消息: 保持原样
+                            messages_for_ai.append({
+                                "role": msg.role,
+                                "content": msg.content
+                            })
+                    else:
+                        # assistant消息: 保持原样
+                        messages_for_ai.append({
+                            "role": msg.role,
+                            "content": msg.content
+                        })
         else:
             # System prompt长度适中,使用标准格式(带缓存)
             logger.info(f"✅ [DEBUG] System prompt长度适中({len(final_system_prompt)} chars),使用标准格式(带缓存)")
@@ -665,24 +715,52 @@ async def generate_chat(
         model_id_for_ai = str(llm_model.id)  # 使用数据库 ID 作为模型标识
 
         # 🔍 调试日志: 打印关键信息
+        # 计算请求体大小(估算)
+        import json
+        request_body_size = len(json.dumps({"model": model_id_for_ai, "messages": messages_for_ai}).encode('utf-8'))
+
         logger.info(f"📊 [DEBUG] Chat Request Info:")
         logger.info(f"  - Conversation ID: {conversation_id}")
         logger.info(f"  - User ID: {current_user.id}")
         logger.info(f"  - Agent Type: {request.agent_type}")
-        logger.info(f"  - Model Type: {request.model_type}")
-        logger.info(f"  - Provider: {provider}")
+        logger.info(f"  - Model Type: {agent_model_type}")
+        logger.info(f"  - Provider: {llm_model.provider}")
         logger.info(f"  - Model ID for AI: {model_id_for_ai}")
         logger.info(f"  - DB Model: {llm_model.name} (model_id={llm_model.model_id})")
         logger.info(f"  - Base URL: {llm_model.base_url}")
         logger.info(f"  - System Prompt Length: {len(final_system_prompt)} chars")
         logger.info(f"  - User Prompt Length: {len(user_prompt)} chars")
         logger.info(f"  - Messages Count: {len(messages_for_ai)}")
+        logger.info(f"  - Estimated Request Body Size: {request_body_size} bytes")
         logger.info(f"  - Temperature: {temperature}, Max Tokens: {max_tokens}")
         logger.info(f"  - Stream: {request.stream}")
+
+        # 打印实际发送的消息结构(用于调试503问题)
+        logger.info(f"📋 [DEBUG] Messages Structure:")
+        for i, msg in enumerate(messages_for_ai):
+            role = msg.get('role', 'unknown')
+            content = msg.get('content', '')
+            content_preview = content[:100] + '...' if len(content) > 100 else content
+            # 检查是否有特殊字符
+            has_special_chars = any(ord(c) > 127 for c in content)
+            logger.info(f"  - Message {i+1}: role={role}, length={len(content)}, has_special_chars={has_special_chars}")
+            logger.info(f"    Preview: {content_preview}")
+
+            # 如果有特殊字符,打印一些示例
+            if has_special_chars:
+                special_chars = [c for c in content if ord(c) > 127][:10]
+                logger.warning(f"    ⚠️ Special chars found: {special_chars}")
+
+        # 检查请求体大小是否超过安全阈值
+        MAX_REQUEST_SIZE = 100000  # 100KB (大多数API网关的限制是1-10MB)
+        if request_body_size > MAX_REQUEST_SIZE:
+            logger.warning(f"⚠️ [WARNING] Request body size ({request_body_size} bytes) exceeds safe threshold ({MAX_REQUEST_SIZE} bytes)")
+            logger.warning(f"  This may cause API gateway 503 errors or timeouts")
+            logger.warning(f"  Consider: 1) Reducing system prompt length, 2) Limiting conversation history")
         
         # 11. 生成响应
         assistant_content = ""  # 用于后台任务保存
-        
+
         if request.stream:
             # 流式响应
             async def generate_stream():
@@ -690,8 +768,10 @@ async def generate_chat(
                 try:
                     # 首先发送 conversation_id（让前端能够更新会话ID）
                     yield f"data: {json.dumps({'conversation_id': conversation_id}, ensure_ascii=False)}\n\n"
-                    
+                    logger.info(f"📤 [DEBUG] Starting stream generation for conversation {conversation_id}")
+
                     # 使用 AIService.stream_chat（与 admin/ai 保持一致）
+                    chunk_count = 0
                     async for chunk_json in ai_service.stream_chat(
                         messages=messages_for_ai,
                         model=model_id_for_ai,
@@ -701,12 +781,17 @@ async def generate_chat(
                         frequency_penalty=0.0,
                         presence_penalty=0.0
                     ):
+                        chunk_count += 1
+                        if chunk_count == 1:
+                            logger.info(f"✅ [DEBUG] Received first chunk from AI service")
+
                         # AIService.stream_chat 返回的是 JSON 字符串，需要解析
                         try:
                             chunk_data = json.loads(chunk_json)
                             # 检查是否有错误
                             if "error" in chunk_data:
                                 # 如果是错误，直接传递
+                                logger.error(f"❌ [DEBUG] Received error from AI service: {chunk_data['error']}")
                                 yield f"data: {chunk_json}\n\n"
                                 return
                             # 提取 content（AIService 返回的格式）
@@ -719,9 +804,48 @@ async def generate_chat(
                             # 如果不是 JSON（不应该发生，但为了安全），直接作为内容处理
                             assistant_content += chunk_json
                             yield f"data: {json.dumps({'content': chunk_json}, ensure_ascii=False)}\n\n"
-                    
+
+                    logger.info(f"✅ [DEBUG] Stream generation completed. Total chunks: {chunk_count}, Content length: {len(assistant_content)}")
                     yield f"data: {json.dumps({'done': True}, ensure_ascii=False)}\n\n"
-                    
+
+                    # 8.6 算力结算（在AI调用后）
+                    if task_id:
+                        logger.info(f"💰 [DEBUG] 开始算力结算流程，task_id={task_id}")
+                        try:
+                            # 估算实际token使用
+                            calculator = CoinCalculatorService(db)
+                            input_tokens = calculator.estimate_tokens_from_text(user_prompt)
+                            output_tokens = calculator.estimate_tokens_from_text(assistant_content)
+
+                            logger.info(f"💰 [DEBUG] Token估算完成: 输入={input_tokens}, 输出={output_tokens}")
+
+                            # 计算实际消耗金额（注意参数顺序：input_tokens, output_tokens, model_id）
+                            actual_cost = await calculator.calculate_cost(
+                                input_tokens=input_tokens,
+                                output_tokens=output_tokens,
+                                model_id=llm_model.id
+                            )
+
+                            logger.info(f"💰 [DEBUG] 成本计算完成: {actual_cost} (类型: {type(actual_cost)})")
+
+                            # 执行结算
+                            await balance_checker.settle(
+                                user_id=current_user.id,
+                                task_id=task_id,
+                                actual_cost=actual_cost,
+                                input_tokens=input_tokens,
+                                output_tokens=output_tokens,
+                                model_id=llm_model.id,
+                                is_error=False,
+                                error_code=None
+                            )
+                            logger.info(f"💰 [DEBUG] 算力结算成功: 用户ID={current_user.id}, 输入Token={input_tokens}, 输出Token={output_tokens}, 结算金额={actual_cost}")
+                        except Exception as e:
+                            logger.error(f"❌ [DEBUG] 算力结算失败: {str(e)}")
+                            import traceback
+                            logger.error(f"❌ [DEBUG] 结算错误详情: {traceback.format_exc()}")
+                            # 结算失败不影响对话，只记录错误
+
                     # 流式完成后，触发后台任务保存
                     background_tasks.add_task(
                         save_conversation_background_task,
@@ -731,7 +855,7 @@ async def generate_chat(
                         user_tokens=len(user_prompt) // 4,  # 粗略估算token数
                         assistant_tokens=len(assistant_content) // 4,
                     )
-                    
+
                 except Exception as e:
                     # 🔍 详细错误日志
                     import traceback
@@ -746,6 +870,23 @@ async def generate_chat(
                     logger.error(f"  - User Prompt Length: {len(user_prompt)} chars")
                     logger.error(f"  - Temperature: {temperature}, Max Tokens: {max_tokens}")
                     logger.error(f"  - Traceback:\n{traceback.format_exc()}")
+
+                    # 8.7 错误时退款预冻结的算力
+                    if task_id:
+                        try:
+                            await balance_checker.settle(
+                                user_id=current_user.id,
+                                task_id=task_id,
+                                actual_cost=0,  # 错误时实际消耗为0
+                                input_tokens=0,
+                                output_tokens=0,
+                                model_id=llm_model.id,
+                                is_error=True,
+                                error_code="generation_error"
+                            )
+                            logger.info(f"💰 [DEBUG] 错误退款成功: 用户ID={current_user.id}, 任务ID={task_id}")
+                        except Exception as refund_error:
+                            logger.error(f"❌ [DEBUG] 错误退款失败: {str(refund_error)}")
 
                     error_msg = f"生成错误: {str(e)}"
                     yield f"data: {json.dumps({'error': error_msg}, ensure_ascii=False)}\n\n"
@@ -786,7 +927,7 @@ async def generate_chat(
                 success=True,
                 content=assistant_content,
                 agent_type=request.agent_type,
-                model_type=request.model_type
+                model_type=agent_model_type
             )
     
     except (BadRequestException, ServerErrorException):
@@ -798,7 +939,7 @@ async def generate_chat(
         logger.error(f"  - Error Type: {type(e).__name__}")
         logger.error(f"  - Error Message: {str(e)}")
         logger.error(f"  - User ID: {current_user.id if 'current_user' in locals() else 'N/A'}")
-        logger.error(f"  - Model Type: {request.model_type if 'request' in locals() else 'N/A'}")
+        logger.error(f"  - Model Type: {agent_model_type if 'agent_model_type' in locals() else 'N/A'}")
         logger.error(f"  - Agent Type: {request.agent_type if 'request' in locals() else 'N/A'}")
         logger.error(f"  - Project ID: {request.project_id if 'request' in locals() else 'N/A'}")
         logger.error(f"  - Traceback:\n{traceback.format_exc()}")

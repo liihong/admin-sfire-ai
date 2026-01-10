@@ -25,7 +25,7 @@ async def lifespan(app: FastAPI):
     if settings.DEBUG:
         try:
             from db.session import create_tables
-            await create_tables()
+            # await create_tables()
         except Exception as e:
             from loguru import logger
             logger.warning(f"自动创建表失败（可能表已存在）: {e}")

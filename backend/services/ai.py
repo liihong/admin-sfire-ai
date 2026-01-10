@@ -123,37 +123,55 @@ class AIService:
         normalized_base_url = base_url.rstrip('/')
         if '/chat/completions' in normalized_base_url:
             normalized_base_url = normalized_base_url.split('/chat/completions')[0]
-        # 检查 base_url 是否已经包含 /v1，如果没有则添加
-        if '/v1' not in normalized_base_url and not normalized_base_url.endswith('/v1'):
-            api_url = f"{normalized_base_url}/v1/chat/completions"
+        # # 检查 base_url 是否已经包含 /v1，如果没有则添加
+        # if '/v1' not in normalized_base_url and not normalized_base_url.endswith('/v1'):
+        #     api_url = f"{normalized_base_url}/v1/chat/completions"
         else:
             api_url = f"{normalized_base_url}/chat/completions"
-        
+
+        # 构建请求体
+        request_body = {
+            "model": actual_model_id,
+            "messages": formatted_messages,
+            "temperature": temperature,
+            "max_tokens": max_tokens,
+            "top_p": top_p,
+            "frequency_penalty": frequency_penalty,
+            "presence_penalty": presence_penalty,
+            "stream": False,
+        }
+
+        # 手动序列化JSON,确保正确的编码
+        request_body_json = json.dumps(request_body, ensure_ascii=False)
+        request_body_size = len(request_body_json.encode('utf-8'))
+
+        # 构建请求头
+        request_headers = {
+            "Authorization": f"Bearer {api_key}",
+            "Content-Type": "application/json; charset=utf-8",
+            "X-My-Gate-Key": "Huoyuan2026",  # 网关认证密钥
+            "Content-Length": str(request_body_size),
+        }
+
         # 调用 API
         async with httpx.AsyncClient(timeout=60.0) as client:
             response = await client.post(
                 api_url,
-                headers={
-                    "Authorization": f"Bearer {api_key}",
-                    "Content-Type": "application/json",
-                    "X-My-Gate-Key": "Huoyuan2026",  # 网关认证密钥
-                },
-                json={
-                    "model": actual_model_id,
-                    "messages": formatted_messages,
-                    "temperature": temperature,
-                    "max_tokens": max_tokens,
-                    "top_p": top_p,
-                    "frequency_penalty": frequency_penalty,
-                    "presence_penalty": presence_penalty,
-                    "stream": False,
-                },
+                headers=request_headers,
+                content=request_body_json.encode('utf-8'),  # 手动编码,使用content而不是json
             )
             
             if response.status_code != 200:
                 error_text = response.text
 
                 # 🔍 详细错误日志
+                # 查找system prompt长度(可能在任何位置)
+                system_prompt_length = 'N/A'
+                for msg in formatted_messages:
+                    if msg.get('role') == 'system':
+                        system_prompt_length = len(msg.get('content', ''))
+                        break
+
                 logger.error(f"❌ [API] LLM API请求失败 (非流式):")
                 logger.error(f"  - HTTP Status: {response.status_code}")
                 logger.error(f"  - API URL: {api_url}")
@@ -162,7 +180,7 @@ class AIService:
                 logger.error(f"  - Response Headers: {dict(response.headers)}")
                 logger.error(f"  - Error Response: {error_text[:1000]}")  # 限制长度
                 logger.error(f"  - Request Messages Count: {len(formatted_messages)}")
-                logger.error(f"  - System Prompt Length: {len(formatted_messages[0].get('content', '')) if formatted_messages and formatted_messages[0].get('role') == 'system' else 'N/A'}")
+                logger.error(f"  - System Prompt Length: {system_prompt_length}")
 
                 # 如果是503,提供特别提示
                 if response.status_code == 503:
@@ -262,45 +280,82 @@ class AIService:
         
         # 调用 API（流式）
         usage_info = None
-        
+
         # 构建请求头
         request_headers = {
             "Authorization": f"Bearer {api_key}",
             "Content-Type": "application/json",
             "X-My-Gate-Key": "Huoyuan2026",  # 网关认证密钥
         }
-        
+
         # 规范化 base_url 并构建完整 URL
         normalized_base_url = base_url.rstrip('/')
         if '/chat/completions' in normalized_base_url:
             normalized_base_url = normalized_base_url.split('/chat/completions')[0]
         # 检查 base_url 是否已经包含 /v1，如果没有则添加
-        if '/v1' not in normalized_base_url and not normalized_base_url.endswith('/v1'):
-            api_url = f"{normalized_base_url}/v1/chat/completions"
+        # if '/v1' not in normalized_base_url and not normalized_base_url.endswith('/v1'):
+        #     api_url = f"{normalized_base_url}/v1/chat/completions"
         else:
             api_url = f"{normalized_base_url}/chat/completions"
-        
+
+        # 🔍 调试日志: 打印请求详情
+        logger.info(f"🔍 [DEBUG] API Request Details:")
+        logger.info(f"  - API URL: {api_url}")
+        logger.info(f"  - Model: {actual_model_id}")
+        logger.info(f"  - Messages count: {len(formatted_messages)}")
+        logger.info(f"  - Request headers keys: {list(request_headers.keys())}")
+
+        # 打印消息结构(但不打印完整内容,避免日志过长)
+        for i, msg in enumerate(formatted_messages):
+            role = msg.get('role', 'unknown')
+            content_len = len(msg.get('content', ''))
+            logger.info(f"  - Message {i+1}: role={role}, content_length={content_len}")
+
+        # 构建请求体
+        request_body = {
+            "model": actual_model_id,
+            "messages": formatted_messages,
+            "temperature": temperature,
+            "max_tokens": max_tokens,
+            "top_p": top_p,
+            "frequency_penalty": frequency_penalty,
+            "presence_penalty": presence_penalty,
+            "stream": True,
+        }
+
+        # 计算并打印请求体大小
+        # 手动序列化JSON,使用ensure_ascii=False支持中文
+        request_body_json = json.dumps(request_body, ensure_ascii=False)
+        request_body_size = len(request_body_json.encode('utf-8'))
+        logger.info(f"  - Request body size: {request_body_size} bytes ({request_body_size/1024:.2f} KB)")
+
+        # 检查是否有可能导致问题的特殊字符
+        if request_body_size > 50000:  # 50KB
+            logger.warning(f"  ⚠️ Large request body detected: {request_body_size} bytes")
+            logger.warning(f"  This may cause API gateway 503 errors")
+
+        # 使用content参数手动发送JSON,确保正确的编码
+        request_headers["Content-Length"] = str(request_body_size)
+
         async with httpx.AsyncClient(timeout=120.0, follow_redirects=True) as client:
             async with client.stream(
                 "POST",
                 api_url,
                 headers=request_headers,
-                json={
-                    "model": actual_model_id,
-                    "messages": formatted_messages,
-                    "temperature": temperature,
-                    "max_tokens": max_tokens,
-                    "top_p": top_p,
-                    "frequency_penalty": frequency_penalty,
-                    "presence_penalty": presence_penalty,
-                    "stream": True,
-                },
+                content=request_body_json.encode('utf-8'),  # 手动编码,使用content而不是json
             ) as response:
                 if response.status_code != 200:
                     error_text = await response.aread()
                     error_text_str = error_text.decode('utf-8', errors='ignore') if error_text else ""
 
                     # 🔍 详细错误日志
+                    # 查找system prompt长度(可能在任何位置)
+                    system_prompt_length = 'N/A'
+                    for msg in formatted_messages:
+                        if msg.get('role') == 'system':
+                            system_prompt_length = len(msg.get('content', ''))
+                            break
+
                     logger.error(f"❌ [API] LLM API请求失败:")
                     logger.error(f"  - HTTP Status: {response.status_code}")
                     logger.error(f"  - API URL: {api_url}")
@@ -309,7 +364,7 @@ class AIService:
                     logger.error(f"  - Response Headers: {dict(response.headers)}")
                     logger.error(f"  - Error Response: {error_text_str[:1000]}")  # 限制长度
                     logger.error(f"  - Request Messages Count: {len(formatted_messages)}")
-                    logger.error(f"  - System Prompt Length: {len(formatted_messages[0].get('content', '')) if formatted_messages and formatted_messages[0].get('role') == 'system' else 'N/A'}")
+                    logger.error(f"  - System Prompt Length: {system_prompt_length}")
 
                     # 如果是503,提供特别提示
                     if response.status_code == 503:

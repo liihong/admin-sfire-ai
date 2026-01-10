@@ -43,16 +43,25 @@
         <span>使用记录</span>
       </template>
       <el-table :data="records" v-loading="recordsLoading" stripe>
-        <el-table-column prop="type" label="类型" width="120" />
+        <el-table-column prop="typeName" label="类型" width="120" />
         <el-table-column prop="amount" label="消耗算力" width="120">
           <template #default="{ row }">
             <span :class="row.amount > 0 ? 'positive' : 'negative'">
-              {{ row.amount > 0 ? "+" : "" }}{{ row.amount }}
+              {{ row.amount > 0 ? "+" : "" }}{{ Math.abs(row.amount).toFixed(2) }}
             </span>
           </template>
         </el-table-column>
-        <el-table-column prop="beforeBalance" label="变动前" width="120" />
-        <el-table-column prop="afterBalance" label="变动后" width="120" />
+        <el-table-column prop="beforeBalance" label="变动前" width="120">
+          <template #default="{ row }">
+            {{ Number(row.beforeBalance).toFixed(2) }}
+          </template>
+        </el-table-column>
+        <el-table-column prop="afterBalance" label="变动后" width="120">
+          <template #default="{ row }">
+            {{ Number(row.afterBalance).toFixed(2) }}
+          </template>
+        </el-table-column>
+        <el-table-column prop="remark" label="备注" min-width="200" show-overflow-tooltip />
         <el-table-column prop="createTime" label="时间" width="180">
           <template #default="{ row }">
             {{ formatTime(row.createTime) }}
@@ -78,7 +87,8 @@
 import { ref, reactive, onMounted, onBeforeUnmount } from "vue";
 import { FolderOpened, DataAnalysis, Coin, TrendCharts } from "@element-plus/icons-vue";
 import { useMPUserStore } from "@/stores/modules/miniprogramUser";
-import { getMPProjectListApi } from "@/api/modules/miniprogram";
+import { getMPProjectListApi, getMPComputeRecordsApi, getMPCoinStatisticsApi } from "@/api/modules/miniprogram";
+import type { MPComputeRecord, MPCoinStatistics } from "@/api/modules/miniprogram";
 import * as echarts from "echarts";
 import dayjs from "dayjs";
 
@@ -119,11 +129,14 @@ let trendChart: echarts.ECharts | null = null;
 let powerChart: echarts.ECharts | null = null;
 
 // 使用记录
-const records = ref<any[]>([]);
+const records = ref<MPComputeRecord[]>([]);
 const recordsLoading = ref(false);
 const pageNum = ref(1);
 const pageSize = ref(10);
 const total = ref(0);
+
+// 算力统计数据
+const statistics = ref<MPCoinStatistics | null>(null);
 
 // 获取项目列表
 const fetchProjects = async () => {
@@ -137,20 +150,39 @@ const fetchProjects = async () => {
   }
 };
 
-// 获取使用记录（这里需要后端接口支持）
+// 获取算力统计数据
+const fetchStatistics = async () => {
+  try {
+    const response = await getMPCoinStatisticsApi();
+    if (response?.data) {
+      statistics.value = response.data;
+      // 更新统计卡片
+      stats[2].value = String(Math.abs(response.data.totalConsume || 0));
+    }
+  } catch (error: any) {
+    console.error("获取算力统计失败:", error);
+  }
+};
+
+// 获取使用记录
 const fetchRecords = async () => {
   recordsLoading.value = true;
   try {
-    // 模拟数据，实际应该调用后端接口
-    // const { data } = await getMPComputeRecordsApi({ pageNum: pageNum.value, pageSize: pageSize.value });
-    // records.value = data.list || [];
-    // total.value = data.total || 0;
-
-    // 临时模拟数据
-    records.value = [];
-    total.value = 0;
+    const response = await getMPComputeRecordsApi({
+      pageNum: pageNum.value,
+      pageSize: pageSize.value
+    });
+    if (response?.data) {
+      records.value = response.data.list || [];
+      total.value = response.data.total || 0;
+    } else {
+      records.value = [];
+      total.value = 0;
+    }
   } catch (error: any) {
     console.error("获取使用记录失败:", error);
+    records.value = [];
+    total.value = 0;
   } finally {
     recordsLoading.value = false;
   }
@@ -225,6 +257,9 @@ onMounted(async () => {
 
   // 获取项目列表
   await fetchProjects();
+
+  // 获取算力统计数据
+  await fetchStatistics();
 
   // 获取使用记录
   await fetchRecords();
