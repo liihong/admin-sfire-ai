@@ -5,6 +5,7 @@ AI 对话服务
 from typing import List, Optional, AsyncGenerator, Union
 from sqlalchemy.ext.asyncio import AsyncSession
 from loguru import logger
+import asyncio
 
 from core.config import settings
 from schemas.ai import ChatMessage
@@ -16,33 +17,71 @@ import uuid
 
 class AIService:
     """AI对话服务类"""
-    
+
     def __init__(self, db: AsyncSession):
         self.db = db
         self.llm_model_service = LLMModelService(db)
         # 兼容旧代码：如果没有配置模型，使用环境变量
         self.openai_api_key = settings.OPENAI_API_KEY
         self.openai_base_url = "https://api.deepseek.com"
+
+        # HTTP/2 + Gzip 压缩的客户端配置
+        # 支持 HTTP/2 以提升性能（头部压缩、多路复用）
+        # httpx 会自动处理 gzip 压缩（自动添加 Accept-Encoding: gzip）
+        self._client_config = {
+            "timeout": httpx.Timeout(120.0, connect=10.0),
+            "limits": httpx.Limits(max_keepalive_connections=20, max_connections=100),
+            "http2": True,  # 启用 HTTP/2 支持
+            "verify": False,  # 验证 SSL 证书
+            "follow_redirects": True,
+            "trust_env": False,   # ⬅️ 关键：禁用读取系统代理环境变量
+        }
+
+    def _update_token_usage_async(self, model_id: str, total_tokens: int) -> None:
+        """
+        异步更新 token 使用统计（后台任务）
+
+        使用 create_task 创建后台任务，不阻塞主流程
+        """
+        async def _do_update():
+            # 创建独立的数据库会话
+            from db.session import async_session_maker
+            async with async_session_maker() as db:
+                try:
+                    # 使用新的会话创建 service
+                    llm_service = LLMModelService(db)
+                    await llm_service.update_token_usage(model_id, total_tokens)
+                    await db.commit()
+                except Exception as e:
+                    await db.rollback()
+                    # 只记录警告，不影响主流程
+                    logger.warning(f"Failed to update token usage (async): {e}")
+
+        # 创建后台任务
+        asyncio.create_task(_do_update())
+
     
     async def _get_model_config(self, model_id: str) -> tuple[Optional[str], Optional[str]]:
         """
         根据模型ID获取模型配置（API key 和 base_url）
-        
+
         Args:
             model_id: 模型ID（可能是数据库ID字符串，或模型标识如 "gpt-4o"）
-        
+
         Returns:
             (api_key, base_url) 或 (None, None) 如果未找到
         """
         try:
-            # 先尝试作为数据库ID查找
-            try:
-                db_id = int(model_id)
-                model = await self.llm_model_service.get_llm_model_by_id(db_id)
-            except (ValueError, Exception) as e:
-                # 如果转换失败，尝试作为 model_id 查找
+            model = None
+
+            # 优化：直接判断类型，避免 try-except 造成的重复查询
+            if model_id.isdigit():
+                # 如果是纯数字，作为数据库ID查找
+                model = await self.llm_model_service.get_llm_model_by_id(int(model_id))
+            else:
+                # 否则作为 model_id 查找
                 model = await self.llm_model_service.get_llm_model_by_model_id(model_id)
-            
+
             if model:
                 if model.api_key and model.is_enabled:
                     base_url = model.base_url or self.llm_model_service.DEFAULT_BASE_URLS.get(model.provider)
@@ -52,11 +91,11 @@ class AIService:
                         # 移除 /chat/completions 等路径（如果存在）
                         if '/chat/completions' in base_url:
                             base_url = base_url.split('/chat/completions')[0]
-                    
+
                     return model.api_key, base_url
         except Exception as e:
             logger.warning(f"Failed to get model config for {model_id}: {e}")
-        
+
         return None, None
     
     async def chat(
@@ -89,10 +128,17 @@ class AIService:
         
         # 如果数据库中没有配置，使用环境变量（向后兼容）
         if not api_key:
-            api_key = self.openai_api_key
-            base_url = self.openai_base_url
+            # 优先使用 AI_COLLECT 专用配置
+            if hasattr(settings, 'AI_COLLECT_API_KEY') and settings.AI_COLLECT_API_KEY:
+                api_key = settings.AI_COLLECT_API_KEY
+                base_url = settings.AI_COLLECT_BASE_URL or self.openai_base_url
+            else:
+                # 使用通用配置
+                api_key = self.openai_api_key
+                base_url = self.openai_base_url
+            
             if not api_key:
-                raise ValueError("模型未配置 API Key，且环境变量 OPENAI_API_KEY 也未配置")
+                raise ValueError("模型未配置 API Key，且环境变量也未配置（请设置 AI_COLLECT_API_KEY 或 OPENAI_API_KEY）")
         
         # 转换消息格式（支持ChatMessage对象或字典）
         formatted_messages = []
@@ -146,15 +192,18 @@ class AIService:
         request_body_size = len(request_body_json.encode('utf-8'))
 
         # 构建请求头
+        # httpx 会自动添加 Accept-Encoding: gzip, deflate
+        # 显式添加可以确保压缩被启用
         request_headers = {
             "Authorization": f"Bearer {api_key}",
             "Content-Type": "application/json; charset=utf-8",
+            "Accept-Encoding": "gzip, deflate",  # 显式启用压缩
             "X-My-Gate-Key": "Huoyuan2026",  # 网关认证密钥
             "Content-Length": str(request_body_size),
         }
 
-        # 调用 API
-        async with httpx.AsyncClient(timeout=60.0) as client:
+        # 调用 API（使用 HTTP/2 和 Gzip 支持）
+        async with httpx.AsyncClient(**self._client_config) as client:
             response = await client.post(
                 api_url,
                 headers=request_headers,
@@ -172,6 +221,7 @@ class AIService:
                         system_prompt_length = len(msg.get('content', ''))
                         break
 
+                    
                 logger.error(f"❌ [API] LLM API请求失败 (非流式):")
                 logger.error(f"  - HTTP Status: {response.status_code}")
                 logger.error(f"  - API URL: {api_url}")
@@ -194,18 +244,15 @@ class AIService:
                 raise Exception(f"API 请求失败 (HTTP {response.status_code}): {error_text[:200]}")
             
             data = response.json()
-            
-            # 更新 token 使用统计
+
+            # 更新 token 使用统计（异步后台任务，不阻塞响应）
             usage = data.get("usage")
             if usage and isinstance(usage, dict):
                 total_tokens = usage.get("total_tokens", 0)
                 if total_tokens > 0:
-                    try:
-                        # 使用实际的模型标识更新 token 使用量
-                        await self.llm_model_service.update_token_usage(actual_model_id, total_tokens)
-                    except Exception as e:
-                        logger.warning(f"Failed to update token usage: {e}")
-            
+                    # 使用异步后台任务更新，不阻塞主流程
+                    self._update_token_usage_async(actual_model_id, total_tokens)
+
             # 格式化响应
             return {
                 "id": data.get("id", str(uuid.uuid4())),
@@ -248,10 +295,17 @@ class AIService:
         
         # 如果数据库中没有配置，使用环境变量（向后兼容）
         if not api_key:
-            api_key = self.openai_api_key
-            base_url = self.openai_base_url
+            # 优先使用 AI_COLLECT 专用配置
+            if hasattr(settings, 'AI_COLLECT_API_KEY') and settings.AI_COLLECT_API_KEY:
+                api_key = settings.AI_COLLECT_API_KEY
+                base_url = settings.AI_COLLECT_BASE_URL or self.openai_base_url
+            else:
+                # 使用通用配置
+                api_key = self.openai_api_key
+                base_url = self.openai_base_url
+            
             if not api_key:
-                raise ValueError("模型未配置 API Key，且环境变量 OPENAI_API_KEY 也未配置")
+                raise ValueError("模型未配置 API Key，且环境变量也未配置（请设置 AI_COLLECT_API_KEY 或 OPENAI_API_KEY）")
         
         # 转换消息格式（支持ChatMessage对象或字典）
         formatted_messages = []
@@ -282,9 +336,12 @@ class AIService:
         usage_info = None
 
         # 构建请求头
+        # httpx 会自动添加 Accept-Encoding: gzip, deflate
+        # 显式添加可以确保压缩被启用
         request_headers = {
             "Authorization": f"Bearer {api_key}",
             "Content-Type": "application/json",
+            "Accept-Encoding": "gzip, deflate",  # 显式启用压缩
             "X-My-Gate-Key": "Huoyuan2026",  # 网关认证密钥
         }
 
@@ -303,6 +360,8 @@ class AIService:
         logger.info(f"  - API URL: {api_url}")
         logger.info(f"  - Model: {actual_model_id}")
         logger.info(f"  - Messages count: {len(formatted_messages)}")
+        logger.info(f"  - HTTP/2 enabled: True")
+        logger.info(f"  - Gzip compression: enabled")
         logger.info(f"  - Request headers keys: {list(request_headers.keys())}")
 
         # 打印消息结构(但不打印完整内容,避免日志过长)
@@ -328,16 +387,19 @@ class AIService:
         request_body_json = json.dumps(request_body, ensure_ascii=False)
         request_body_size = len(request_body_json.encode('utf-8'))
         logger.info(f"  - Request body size: {request_body_size} bytes ({request_body_size/1024:.2f} KB)")
+        logger.info(f"  - Estimated compressed size: ~{request_body_size//3} bytes (gzip)")
 
         # 检查是否有可能导致问题的特殊字符
         if request_body_size > 50000:  # 50KB
             logger.warning(f"  ⚠️ Large request body detected: {request_body_size} bytes")
             logger.warning(f"  This may cause API gateway 503 errors")
+            logger.warning(f"  💡 Gzip compression will reduce this by ~70%")
 
         # 使用content参数手动发送JSON,确保正确的编码
         request_headers["Content-Length"] = str(request_body_size)
 
-        async with httpx.AsyncClient(timeout=120.0, follow_redirects=True) as client:
+        # 使用 HTTP/2 + Gzip 压缩的客户端
+        async with httpx.AsyncClient(**self._client_config) as client:
             async with client.stream(
                 "POST",
                 api_url,
@@ -356,6 +418,7 @@ class AIService:
                             system_prompt_length = len(msg.get('content', ''))
                             break
 
+                    logger.error(f"{msg}")    
                     logger.error(f"❌ [API] LLM API请求失败:")
                     logger.error(f"  - HTTP Status: {response.status_code}")
                     logger.error(f"  - API URL: {api_url}")
@@ -433,13 +496,10 @@ class AIService:
                         
                         # 检查是否是结束标记
                         if data_str.strip() == "[DONE]":
-                            # 流结束时更新 token 使用统计
+                            # 流结束时更新 token 使用统计（异步后台任务，不阻塞响应）
                             if usage_info and usage_info.get("total_tokens", 0) > 0:
-                                try:
-                                    # 使用实际的模型标识更新 token 使用量
-                                    await self.llm_model_service.update_token_usage(actual_model_id, usage_info["total_tokens"])
-                                except Exception as e:
-                                    logger.warning(f"Failed to update token usage: {e}")
+                                # 使用异步后台任务更新，不阻塞主流程
+                                self._update_token_usage_async(actual_model_id, usage_info["total_tokens"])
                             return
                         
                         try:

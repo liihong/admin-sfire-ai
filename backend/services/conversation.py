@@ -487,23 +487,23 @@ class ConversationService:
         
         # 使用重试机制处理锁等待超时
         import asyncio
-        from sqlalchemy.exc import OperationalError
+        from sqlalchemy.exc import OperationalError, DBAPIError
         from pymysql.err import OperationalError as PyMySQLOperationalError
-        
-        max_retries = 3
-        retry_delay = 0.2  # 200ms
-        
+
+        max_retries = 5  # 增加重试次数
+        base_delay = 0.3  # 300ms基础延迟
+
         last_error = None
         for attempt in range(max_retries):
             try:
                 async with async_session_maker() as db:
-                    # 获取当前最大sequence
+                    # 获取当前最大sequence (不使用锁,快速查询)
                     max_sequence_query = select(func.max(ConversationMessage.sequence)).where(
                         ConversationMessage.conversation_id == conversation_id
                     )
                     max_sequence_result = await db.execute(max_sequence_query)
                     max_sequence = max_sequence_result.scalar() or 0
-                    
+
                     # 保存用户消息
                     user_msg = ConversationMessage(
                         conversation_id=conversation_id,
@@ -513,7 +513,7 @@ class ConversationService:
                         sequence=max_sequence + 1,
                         embedding_status=EmbeddingStatus.PENDING.value,
                     )
-                    
+
                     # 保存AI回复
                     assistant_msg = ConversationMessage(
                         conversation_id=conversation_id,
@@ -523,15 +523,18 @@ class ConversationService:
                         sequence=max_sequence + 2,
                         embedding_status=EmbeddingStatus.PENDING.value,
                     )
-                    
+
                     db.add(user_msg)
                     db.add(assistant_msg)
                     await db.flush()
                     await db.refresh(user_msg)
                     await db.refresh(assistant_msg)
-                    
+
                     # ✅ 优化：使用增量更新而不是重新统计（提升性能）
-                    conversation_query = select(Conversation).where(Conversation.id == conversation_id)
+                    # 添加 NOWAIT 选项避免等待锁
+                    conversation_query = select(Conversation).where(
+                        Conversation.id == conversation_id
+                    ).with_for_update(nowait=False)
                     conversation_result = await db.execute(conversation_query)
                     conversation = conversation_result.scalar_one_or_none()
 
@@ -541,43 +544,51 @@ class ConversationService:
                     # 增量更新统计信息
                     conversation.message_count += 2  # user + assistant
                     conversation.total_tokens += user_tokens + assistant_tokens
-                    
+
                     await db.flush()
                     await db.commit()
-                    
-                    # 向量化操作应该在事务提交后进行，使用新的会话
-                    # 注意：embed_conversation_async 需要在自己的事务中运行
-                    # 暂时注释掉，因为方法不存在且应该在单独的会话中运行
-                    # await self.embed_conversation_async_with_db(
-                    #     conversation_id, user_msg.id, assistant_msg.id, db
-                    # )
-                    
-                    logger.info(f"已保存对话消息: 会话{conversation_id}, 消息{user_msg.id}-{assistant_msg.id}")
-                    
+
+                    logger.info(
+                        f"已保存对话消息: 会话{conversation_id}, "
+                        f"消息{user_msg.id}-{assistant_msg.id}, "
+                        f"尝试次数: {attempt + 1}"
+                    )
+
                     # 成功，跳出重试循环
-                    break
-                    
-            except (OperationalError, PyMySQLOperationalError) as e:
-                # 检查是否是锁等待超时错误
-                error_code = getattr(e.orig, 'args', [None])[0] if hasattr(e, 'orig') else None
-                if error_code == 1205:  # Lock wait timeout exceeded
+                    return
+
+            except (OperationalError, DBAPIError) as e:
+                # 检查是否是锁等待超时或死锁错误
+                error_code = None
+                if hasattr(e, 'orig') and hasattr(e.orig, 'args'):
+                    error_code = e.orig.args[0] if e.orig.args else None
+
+                # 1205: Lock wait timeout exceeded
+                # 1213: Deadlock found when trying to get lock
+                is_lock_error = error_code in (1205, 1213)
+
+                if is_lock_error and attempt < max_retries - 1:
                     last_error = e
-                    if attempt < max_retries - 1:
-                        await asyncio.sleep(retry_delay * (attempt + 1))  # 指数退避
-                        continue
-                    else:
-                        # 最后一次重试失败，抛出异常
-                        raise
+                    # 指数退避: 0.3s, 0.6s, 1.2s, 1.8s, 2.4s
+                    delay = base_delay * (attempt + 1)
+                    logger.warning(
+                        f"保存对话时遇到锁冲突(尝试 {attempt + 1}/{max_retries}): "
+                        f"错误码={error_code}, {delay}秒后重试..."
+                    )
+                    await asyncio.sleep(delay)
+                    continue
                 else:
-                    # 其他数据库错误，直接抛出
+                    # 最后一次重试失败或非锁错误，抛出异常
+                    logger.error(
+                        f"保存对话失败(尝试 {attempt + 1}/{max_retries}): "
+                        f"错误码={error_code}, {str(e)}"
+                    )
                     raise
+
             except Exception as e:
                 # 其他异常，直接抛出
+                logger.error(f"保存对话时发生未预期错误: {str(e)}")
                 raise
-                
-        if last_error and isinstance(last_error, (OperationalError, PyMySQLOperationalError)):
-            # 所有重试都失败，抛出最后一个错误
-            raise last_error
     
     async def embed_conversation_async(
         self,

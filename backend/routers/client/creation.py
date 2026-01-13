@@ -225,7 +225,7 @@ def build_final_system_prompt(agent_system_prompt: str, ip_persona_prompt: str) 
     return "".join(parts)
 
 
-def format_messages_for_llm(messages: List[ChatMessage]) -> str:
+def get_latest_user_message(messages: List[ChatMessage]) -> str:
     """将消息列表格式化为用于LLM的prompt"""
     for msg in reversed(messages):
         if msg.role == "user":
@@ -464,7 +464,7 @@ async def generate_chat(
                 ip_persona_prompt = build_ip_persona_prompt(project)
 
         # 2. 获取用户最新消息作为prompt
-        user_prompt = format_messages_for_llm(request.messages)
+        user_prompt = get_latest_user_message(request.messages)
         
         if not user_prompt:
             raise BadRequestException("消息列表不能为空")
@@ -637,63 +637,92 @@ async def generate_chat(
         # 将 final_system_prompt 和 user_prompt 转换为 messages 格式
         messages_for_ai = []
 
-        # 🔍 智能处理长system prompt: 确保完整prompt始终发送,避免网关503错误
-        # 策略: 将完整system prompt融入user消息,避免system字段过长导致网关503
+        # 🔍 智能处理长system prompt: 将长提示词拆分成多个message,避免网关503错误
+        # 策略:
+        # 1. 短提示词(<3000 chars): 使用单个 system message
+        # 2. 长提示词(>=3000 chars): 拆分成多个 system message,每个<2000 chars
+        # 3. 这样既保留完整信息,又避免单个message过长导致网关拒绝
 
-        if len(final_system_prompt) > 1500:
-            # System prompt较长,使用user消息策略(避免system字段过长)
-            logger.info(f"📊 [DEBUG] System prompt较长({len(final_system_prompt)} chars),使用user消息策略:")
-            logger.info(f"  - 将system prompt融入user消息中")
-            logger.info(f"  - 保持user-assistant交替的格式规范")
+        MAX_SINGLE_MESSAGE_LENGTH = 2000  # 单个message的最大长度
+        USE_SPLIT_STRATEGY = len(final_system_prompt) >= MAX_SINGLE_MESSAGE_LENGTH
 
-            # 判断是否首次对话
-            is_first_message = len(request.messages) <= 2
+        if USE_SPLIT_STRATEGY:
+            # 长提示词: 拆分成多个 system message
+            logger.info(f"📊 [DEBUG] System prompt较长({len(final_system_prompt)} chars),使用拆分策略:")
+            logger.info(f"  - 拆分成多个 system message,每个 < {MAX_SINGLE_MESSAGE_LENGTH} chars")
+            logger.info(f"  - 避免单个 message 过长导致网关 503 错误")
 
-            if is_first_message:
-                # 首次对话: 将完整system prompt + 用户问题作为user消息
-                logger.info(f"  - 首次对话: 完整prompt({len(final_system_prompt)} chars) + 用户问题")
-                combined_message = f"{final_system_prompt}\n\n【用户问题】\n{user_prompt}"
+            # 将 system prompt 按段落拆分
+            # 优先在分隔符处拆分: "========================================", "\n\n", "\n"
+            parts = []
+            current_part = ""
+            separators = ["========================================", "\n\n", "\n"]
 
-                messages_for_ai = [
-                    {
-                        "role": "user",
-                        "content": combined_message
-                    }
-                ]
-            else:
-                # 后续对话: 将system prompt融入当前user消息,保持user-assistant交替格式
-                logger.info(f"  - 后续对话: 融合prompt({len(final_system_prompt)} chars) + 当前问题")
-                logger.info(f"  - 保持user-assistant交替的格式规范,避免网关503错误")
+            # 按优先级尝试拆分
+            for separator in separators:
+                if len(final_system_prompt) < MAX_SINGLE_MESSAGE_LENGTH:
+                    break
 
-                # 按照user-assistant交替的规则构建消息列表
-                for i, msg in enumerate(request.messages):
-                    if msg.role == "user":
-                        # 判断是否是最后一条user消息(当前问题)
-                        is_last_user = True
-                        for j in range(i + 1, len(request.messages)):
-                            if request.messages[j].role == "user":
-                                is_last_user = False
-                                break
+                # 尝试按此分隔符拆分
+                segments = final_system_prompt.split(separator)
+                current_part = ""
 
-                        if is_last_user:
-                            # 最后一条user消息: 融合system prompt
-                            enhanced_content = f"{final_system_prompt}\n\n【用户问题】\n{msg.content}"
-                            messages_for_ai.append({
-                                "role": "user",
-                                "content": enhanced_content
-                            })
-                        else:
-                            # 历史user消息: 保持原样
-                            messages_for_ai.append({
-                                "role": msg.role,
-                                "content": msg.content
-                            })
+                for segment in segments:
+                    test_part = current_part + separator + segment if current_part else segment
+
+                    if len(test_part) <= MAX_SINGLE_MESSAGE_LENGTH:
+                        current_part = test_part
                     else:
-                        # assistant消息: 保持原样
-                        messages_for_ai.append({
-                            "role": msg.role,
-                            "content": msg.content
-                        })
+                        # 当前部分已满,保存并开始新部分
+                        if current_part:
+                            parts.append(current_part.strip())
+                        current_part = segment.strip()
+
+                # 保存最后的部分
+                if current_part:
+                    parts.append(current_part.strip())
+
+                # 如果拆分成功,退出循环
+                if len(parts) > 1 or all(len(p) < MAX_SINGLE_MESSAGE_LENGTH for p in parts):
+                    break
+                else:
+                    # 拆分失败,清空重试
+                    parts = []
+
+            # 如果拆分失败,强制按字符长度拆分
+            if not parts:
+                logger.warning(f"  - 按分隔符拆分失败,使用强制拆分")
+                for i in range(0, len(final_system_prompt), MAX_SINGLE_MESSAGE_LENGTH):
+                    parts.append(final_system_prompt[i:i + MAX_SINGLE_MESSAGE_LENGTH])
+
+            logger.info(f"  - 拆分结果: {len(parts)} 个 system message")
+            for i, part in enumerate(parts):
+                logger.info(f"    Part {i+1}: {len(part)} chars")
+
+            # 构建消息列表: 多个 system message + user message
+            messages_for_ai = []
+            for part in parts:
+                messages_for_ai.append({
+                    "role": "system",
+                    "content": part
+                })
+
+            # 添加对话历史(如果有)
+            # 注意: 如果有对话历史,需要保持 user-assistant 交替格式
+            if len(request.messages) > 1:
+                # 将历史消息添加到 system messages 之后
+                for msg in request.messages[:-1]:
+                    messages_for_ai.append({
+                        "role": msg.role,
+                        "content": msg.content
+                    })
+
+            # 添加当前用户问题
+            messages_for_ai.append({
+                "role": "user",
+                "content": user_prompt
+            })
+
         else:
             # System prompt长度适中,使用标准格式(带缓存)
             logger.info(f"✅ [DEBUG] System prompt长度适中({len(final_system_prompt)} chars),使用标准格式(带缓存)")
@@ -707,7 +736,7 @@ async def generate_chat(
                 "role": "user",
                 "content": user_prompt
             })
-        
+
         # 10. 使用 AIService（与 admin/ai 保持一致，避免差异）
         ai_service = AIService(db)
 
@@ -836,6 +865,8 @@ async def generate_chat(
                                 input_tokens=input_tokens,
                                 output_tokens=output_tokens,
                                 model_id=llm_model.id,
+                                model_name=llm_model.name,
+                                frozen_amount=freeze_info["frozen_amount"],
                                 is_error=False,
                                 error_code=None
                             )
@@ -881,6 +912,8 @@ async def generate_chat(
                                 input_tokens=0,
                                 output_tokens=0,
                                 model_id=llm_model.id,
+                                model_name=llm_model.name,
+                                frozen_amount=freeze_info["frozen_amount"],
                                 is_error=True,
                                 error_code="generation_error"
                             )
@@ -1068,7 +1101,7 @@ async def debug_chat(
             ]
 
         # 4. 构建提示词(模拟真实流程但不调用AI)
-        user_prompt = format_messages_for_llm(request.messages)
+        user_prompt = get_latest_user_message(request.messages)
         debug_info["step_results"]["prompt_building"] = {
             "user_prompt_length": len(user_prompt),
             "user_prompt_preview": user_prompt[:200] + "..." if len(user_prompt) > 200 else user_prompt,

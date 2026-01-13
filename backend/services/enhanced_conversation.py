@@ -6,12 +6,14 @@ import uuid
 from decimal import Decimal
 from typing import AsyncGenerator, Optional
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select
 from loguru import logger
 
 from middleware.balance_checker import BalanceCheckerMiddleware
 from services.content_moderation import ContentModerationService
 from services.coin_calculator import CoinCalculatorService
 from services.llm_service import BaseLLM
+from models.llm_model import LLMModel
 from utils.exceptions import BadRequestException
 
 
@@ -24,6 +26,14 @@ class EnhancedConversationService:
         self.balance_checker = BalanceCheckerMiddleware(db)
         self.moderation = ContentModerationService()
         self.calculator = CoinCalculatorService(db)
+
+    async def _get_model_name(self, model_id: int) -> str:
+        """获取模型名称"""
+        result = await self.db.execute(
+            select(LLMModel.name).where(LLMModel.id == model_id)
+        )
+        model_name = result.scalar_one_or_none()
+        return model_name or f"模型#{model_id}"
 
     async def chat(
         self,
@@ -65,6 +75,9 @@ class EnhancedConversationService:
         # 生成任务ID (用于关联预冻结和结算)
         task_id = str(uuid.uuid4())
 
+        # 获取模型名称
+        model_name = await self._get_model_name(model_id)
+
         # ========== 第1步: 前置内容审查 ==========
         moderation_result = await self.moderation.check_input(message)
         if not moderation_result["passed"]:
@@ -81,7 +94,6 @@ class EnhancedConversationService:
                 task_id=task_id,
                 estimated_output_tokens=max_tokens
             )
-            logger.info(f"任务 {task_id} 预冻结成功: {freeze_info['frozen_amount']}")
         except BadRequestException as e:
             # 余额不足
             logger.warning(f"用户 {user_id} 余额不足: {str(e)}")
@@ -127,6 +139,8 @@ class EnhancedConversationService:
                     input_tokens=input_tokens,
                     output_tokens=output_tokens,
                     model_id=model_id,
+                    model_name=model_name,
+                    frozen_amount=freeze_info["frozen_amount"],
                     is_violation=True
                 )
                 logger.warning(f"任务 {task_id} 因内容违规被处罚")
@@ -146,6 +160,8 @@ class EnhancedConversationService:
                     input_tokens=input_tokens,
                     output_tokens=output_tokens,
                     model_id=model_id,
+                    model_name=model_name,
+                    frozen_amount=freeze_info["frozen_amount"],
                     is_error=False
                 )
 
@@ -175,6 +191,8 @@ class EnhancedConversationService:
                 input_tokens=input_tokens,
                 output_tokens=output_tokens,
                 model_id=model_id,
+                model_name=model_name,
+                frozen_amount=freeze_info["frozen_amount"],
                 is_error=True,
                 error_code=error_code
             )
@@ -216,6 +234,9 @@ class EnhancedConversationService:
         # 生成任务ID
         task_id = str(uuid.uuid4())
 
+        # 获取模型名称
+        model_name = await self._get_model_name(model_id)
+
         # 前置内容审查
         moderation_result = await self.moderation.check_input(message)
         if not moderation_result["passed"]:
@@ -252,6 +273,8 @@ class EnhancedConversationService:
                     input_tokens=0,
                     output_tokens=0,
                     model_id=model_id,
+                    model_name=model_name,
+                    frozen_amount=freeze_info["frozen_amount"],
                     is_violation=True
                 )
                 raise BadRequestException(
@@ -275,6 +298,8 @@ class EnhancedConversationService:
                 input_tokens=input_tokens,
                 output_tokens=output_tokens,
                 model_id=model_id,
+                model_name=model_name,
+                frozen_amount=freeze_info["frozen_amount"],
                 is_error=False
             )
 
@@ -297,6 +322,8 @@ class EnhancedConversationService:
                 input_tokens=0,
                 output_tokens=0,
                 model_id=model_id,
+                model_name=model_name,
+                frozen_amount=freeze_info["frozen_amount"],
                 is_error=True,
                 error_code=error_code
             )

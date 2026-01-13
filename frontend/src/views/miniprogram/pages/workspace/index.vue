@@ -48,6 +48,7 @@ import CreationReactor from "@/components/Workspace/CreationReactor.vue";
 import RefineryDeck from "@/components/Workspace/RefineryDeck.vue";
 import ConversationHistory from "@/components/ConversationHistory/index.vue";
 import { useIPCreationStore } from "@/stores/modules/ipCreation";
+import { useMPUserStore } from "@/stores/modules/miniprogramUser";
 import { getMPProjectApi } from "@/api/modules/miniprogram";
 import {
   generateMPContentApi,
@@ -58,6 +59,7 @@ import {
 const route = useRoute();
 const router = useRouter();
 const ipCreationStore = useIPCreationStore();
+const mpUserStore = useMPUserStore();
 
 const selectedAgent = computed(() => ipCreationStore.selectedAgent);
 const activeProject = computed(() => ipCreationStore.activeProject);
@@ -142,7 +144,7 @@ const handleGenerate = async (
         ipCreationStore.setGenerating(false);
       },
       // onDone
-      () => {
+      async () => {
         // 生成完成，保存版本
         ipCreationStore.addContentVersion(
           ipCreationStore.currentContent,
@@ -151,6 +153,9 @@ const handleGenerate = async (
         );
         ipCreationStore.addMessage("assistant", ipCreationStore.currentContent);
         ipCreationStore.setGenerating(false);
+
+        // 刷新算力余额
+        await mpUserStore.fetchUserDetail();
       },
       // onConversationId
       (conversationId: number) => {

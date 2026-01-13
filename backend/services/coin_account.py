@@ -13,6 +13,7 @@ from models.user import User
 from models.compute import ComputeLog, ComputeType
 from services.coin_calculator import CoinCalculatorService
 from utils.exceptions import BadRequestException, NotFoundException
+from db.session import async_session_maker
 
 
 class CoinAccountService:
@@ -22,12 +23,13 @@ class CoinAccountService:
         self.db = db
         self.calculator = CoinCalculatorService(db)
 
-    async def get_user_with_lock(self, user_id: int) -> User:
+    async def get_user_with_lock(self, user_id: int, nowait: bool = False) -> User:
         """
         获取用户并加锁(防止并发问题)
 
         Args:
             user_id: 用户ID
+            nowait: 是否不等待锁(立即返回错误),用于避免死锁
 
         Returns:
             用户对象
@@ -35,7 +37,7 @@ class CoinAccountService:
         result = await self.db.execute(
             select(User)
             .where(User.id == user_id)
-            .with_for_update()  # 行级锁,防止并发修改
+            .with_for_update(nowait=nowait)  # 行级锁,防止并发修改
         )
         user = result.scalar_one_or_none()
 
@@ -70,19 +72,22 @@ class CoinAccountService:
         amount: Decimal,
         task_id: str,
         remark: Optional[str] = None
-    ) -> None:
+    ) -> Decimal:
         """
-        预冻结算力
+        预冻结算力（用户无感知操作，不记录日志）
 
         操作:
         - frozen_balance += amount
-        - 创建 FREEZE 类型的流水记录
+        - 不创建流水记录（用户无感知）
 
         Args:
             user_id: 用户ID
             amount: 冻结金额
             task_id: 关联任务ID
             remark: 备注
+
+        Returns:
+            实际冻结金额
         """
         # 获取用户并加锁
         user = await self.get_user_with_lock(user_id)
@@ -91,36 +96,16 @@ class CoinAccountService:
         available = user.balance - user.frozen_balance
         if available < amount:
             raise BadRequestException(
-                f"余额不足。可用余额: {available:.4f}, 需要: {amount:.4f}"
+                f"余额不足。可用余额: {available:.0f}, 需要: {amount:.0f}"
             )
 
-        # 记录变动前余额
-        before_balance = user.balance
-        before_frozen = user.frozen_balance
-
-        # 冻结金额
+        # 冻结金额（不记录日志，用户无感知）
         user.frozen_balance += amount
 
-        # 创建冻结流水记录
-        log = ComputeLog(
-            user_id=user_id,
-            type=ComputeType.FREEZE,
-            amount=amount,
-            before_balance=before_balance,
-            after_balance=user.balance,  # 总余额不变
-            remark=remark or f"预冻结算力,任务ID: {task_id}",
-            task_id=task_id,
-            source="api"
-        )
-        self.db.add(log)
-
-        # 立即刷新到数据库，确保后续查询能找到这条记录
+        # 立即刷新到数据��
         await self.db.flush()
 
-        logger.info(
-            f"用户 {user_id} 预冻结算力: {amount}, "
-            f"冻结前: {before_frozen}, 冻结后: {user.frozen_balance}"
-        )
+        return amount
 
     async def unfreeze_and_deduct(
         self,
@@ -129,16 +114,17 @@ class CoinAccountService:
         actual_cost: Decimal,
         input_tokens: int,
         output_tokens: int,
-        model_id: int
+        model_id: int,
+        model_name: str,
+        frozen_amount: Decimal
     ) -> None:
         """
         解冻并扣除实际消耗
 
         操作:
-        - 从 frozen_balance 中扣除预冻结金额
+        - 从 frozen_balance 中减少预冻结金额（解冻）
         - 从 balance 中扣除实际消耗
-        - 退还差额 (预冻结金额 - 实际消耗) 到 balance
-        - 创建 CONSUME 流水记录
+        - 创建 CONSUME 流水记录（负数）
 
         Args:
             user_id: 用户ID
@@ -147,50 +133,27 @@ class CoinAccountService:
             input_tokens: 输入Token数
             output_tokens: 输出Token数
             model_id: 模型ID
+            model_name: 模型名称
+            frozen_amount: 预冻结金额
         """
         # 获取用户并加锁
         user = await self.get_user_with_lock(user_id)
-
-        # 获取该任务的预冻结记录
-        freeze_logs_result = await self.db.execute(
-            select(ComputeLog)
-            .where(
-                ComputeLog.user_id == user_id,
-                ComputeLog.task_id == task_id,
-                ComputeLog.type == ComputeType.FREEZE
-            )
-            .order_by(ComputeLog.created_at.desc())
-            .limit(1)
-        )
-        freeze_log = freeze_logs_result.scalar_one_or_none()
-
-        if not freeze_log:
-            logger.error(f"任务 {task_id} 没有找到预冻结记录")
-            raise BadRequestException("任务状态异常,无法结算")
-
-        frozen_amount = freeze_log.amount
 
         # 记录变动前余额
         before_balance = user.balance
         before_frozen = user.frozen_balance
 
-        # 解冻
+        # 解冻：减少冻结余额
         user.frozen_balance -= frozen_amount
 
         # 扣除实际消耗
         user.balance -= actual_cost
 
-        # 计算退还金额
-        refund_amount = frozen_amount - actual_cost
-        if refund_amount > 0:
-            # 有剩余,退还到余额
-            user.balance += refund_amount
-
-        # 创建消耗流水
+        # 创建消耗流水（负数表示减少）
         remark = (
             f"AI对话消耗 - "
             f"输入Token: {input_tokens}, 输出Token: {output_tokens}, "
-            f"模型ID: {model_id}"
+            f"模型: {model_name}"
         )
 
         consume_log = ComputeLog(
@@ -208,7 +171,8 @@ class CoinAccountService:
         logger.info(
             f"用户 {user_id} 算力结算: "
             f"预冻结 {frozen_amount}, 实际消耗 {actual_cost}, "
-            f"退还 {refund_amount}, 当前余额 {user.balance}"
+            f"解冻前: {before_frozen}, 解冻后: {user.frozen_balance}, "
+            f"余额前: {before_balance}, 余额后: {user.balance}"
         )
 
     async def refund_full(
@@ -216,78 +180,38 @@ class CoinAccountService:
         user_id: int,
         task_id: str,
         reason: str,
+        frozen_amount: Decimal,
         error_code: Optional[int] = None
     ) -> None:
         """
         全额退还 (API错误时)
 
         操作:
-        - frozen_balance -= 预冻结金额
-        - balance += 预冻结金额 (全额退还)
-        - 创建 REFUND 流水记录
+        - frozen_balance -= 预冻结金额 (只是减少冻结余额)
+        - 不改变 balance (因为冻结时并未减少balance)
 
         Args:
             user_id: 用户ID
             task_id: 关联任务ID
             reason: 退款原因
+            frozen_amount: 预冻结金额
             error_code: 错误码(可选)
         """
         # 获取用户并加锁
         user = await self.get_user_with_lock(user_id)
 
-        # 获取预冻结记录
-        freeze_logs_result = await self.db.execute(
-            select(ComputeLog)
-            .where(
-                ComputeLog.user_id == user_id,
-                ComputeLog.task_id == task_id,
-                ComputeLog.type == ComputeType.FREEZE
-            )
-            .order_by(ComputeLog.created_at.desc())
-            .limit(1)
-        )
-        freeze_log = freeze_logs_result.scalar_one_or_none()
-
-        if not freeze_log:
-            logger.warning(f"任务 {task_id} 没有找到预冻结记录,跳过退款")
-            return
-
-        frozen_amount = freeze_log.amount
-
-        # 记录变动前余额
-        before_balance = user.balance
-        before_frozen = user.frozen_balance
-
-        # 解冻并退还
+        # 只解冻，不改变总余额（用户无感知，不记录日志）
+        # 因为冻结时：frozen_balance增加，balance不变
+        # 解冻时：frozen_balance减少，balance不变
         user.frozen_balance -= frozen_amount
-        user.balance += frozen_amount
-
-        # 创建退款流水
-        remark = f"全额退还 - {reason}"
-        if error_code:
-            remark += f" (错误码: {error_code})"
-
-        refund_log = ComputeLog(
-            user_id=user_id,
-            type=ComputeType.REFUND,
-            amount=frozen_amount,  # 正数表示增加
-            before_balance=before_balance,
-            after_balance=user.balance,
-            remark=remark,
-            task_id=task_id,
-            source="api"
-        )
-        self.db.add(refund_log)
-
-        logger.info(
-            f"用户 {user_id} 全额退款: {frozen_amount}, 原因: {reason}"
-        )
 
     async def deduct_violation_penalty(
         self,
         user_id: int,
         task_id: str,
-        model_id: int
+        model_id: int,
+        model_name: str,
+        frozen_amount: Decimal
     ) -> None:
         """
         扣除违规处罚费用
@@ -301,28 +225,11 @@ class CoinAccountService:
             user_id: 用户ID
             task_id: 关联任务ID
             model_id: 模型ID
+            model_name: 模型名称
+            frozen_amount: 预冻结金额
         """
         # 获取用户并加锁
         user = await self.get_user_with_lock(user_id)
-
-        # 获取预冻结记录
-        freeze_logs_result = await self.db.execute(
-            select(ComputeLog)
-            .where(
-                ComputeLog.user_id == user_id,
-                ComputeLog.task_id == task_id,
-                ComputeLog.type == ComputeType.FREEZE
-            )
-            .order_by(ComputeLog.created_at.desc())
-            .limit(1)
-        )
-        freeze_log = freeze_logs_result.scalar_one_or_none()
-
-        if not freeze_log:
-            logger.warning(f"任务 {task_id} 没有找到预冻结记录")
-            return
-
-        frozen_amount = freeze_log.amount
 
         # 计算处罚费用
         penalty = await self.calculator.calculate_violation_penalty(model_id)
@@ -343,7 +250,7 @@ class CoinAccountService:
             user.balance += refund_amount
 
         # 创建消耗流水
-        remark = f"内容违规处罚 - 模型ID: {model_id}"
+        remark = f"内容违规处罚 - 模型: {model_name}"
 
         consume_log = ComputeLog(
             user_id=user_id,
@@ -468,3 +375,177 @@ class CoinAccountService:
             "frozen_balance": user.frozen_balance,
             "available_balance": user.balance - user.frozen_balance,
         }
+
+    # ============== 快速事务方法(独立会话,快速释放锁) ==============
+
+    async def freeze_amount_quick(self, user_id: int, amount: Decimal) -> bool:
+        """
+        快速预冻结(独立事务,快速释放锁)
+
+        使用独立的数据库会话和事务,避免长时间持有锁
+        适用于需要快速冻结但不立即提交的场景
+
+        Args:
+            user_id: 用户ID
+            amount: 冻结金额
+
+        Returns:
+            是否成功
+        """
+        try:
+            async with async_session_maker() as db:
+                result = await db.execute(
+                    select(User)
+                    .where(User.id == user_id)
+                    .with_for_update(nowait=False)  # 等待锁,但设置超时
+                )
+                user = result.scalar_one_or_none()
+
+                if not user:
+                    logger.error(f"快速冻结失败: 用户 {user_id} 不存在")
+                    return False
+
+                # 检查可用余额
+                available = user.balance - user.frozen_balance
+                if available < amount:
+                    logger.warning(
+                        f"快速冻结失败: 用户 {user_id} 余额不足, "
+                        f"可用 {available:.0f}, 需要 {amount:.0f}"
+                    )
+                    return False
+
+                # 冻结金额
+                user.frozen_balance += amount
+
+                # 立即提交,快速释放锁
+                await db.commit()
+                logger.debug(f"用户 {user_id} 快速冻结成功: {amount}")
+                return True
+
+        except Exception as e:
+            logger.error(f"快速冻结异常: 用户 {user_id}, 金额 {amount}, 错误: {e}")
+            return False
+
+    async def unfreeze_and_deduct_quick(
+        self,
+        user_id: int,
+        task_id: str,
+        actual_cost: Decimal,
+        input_tokens: int,
+        output_tokens: int,
+        model_id: int,
+        model_name: str,
+        frozen_amount: Decimal
+    ) -> bool:
+        """
+        快速解冻并扣除(独立事务)
+
+        Args:
+            user_id: 用户ID
+            task_id: 任务ID
+            actual_cost: 实际消耗
+            input_tokens: 输入token数
+            output_tokens: 输出token数
+            model_id: 模型ID
+            model_name: 模型名称
+            frozen_amount: 预冻结金额
+
+        Returns:
+            是否成功
+        """
+        try:
+            async with async_session_maker() as db:
+                result = await db.execute(
+                    select(User)
+                    .where(User.id == user_id)
+                    .with_for_update()
+                )
+                user = result.scalar_one_or_none()
+
+                if not user:
+                    logger.error(f"快速结算失败: 用户 {user_id} 不存在")
+                    return False
+
+                # 记录变动前余额
+                before_balance = user.balance
+
+                # 解冻并扣除
+                user.frozen_balance -= frozen_amount
+                user.balance -= actual_cost
+
+                # 创建消耗流水
+                remark = (
+                    f"AI对话消耗 - "
+                    f"输入Token: {input_tokens}, 输出Token: {output_tokens}, "
+                    f"模型: {model_name}"
+                )
+
+                consume_log = ComputeLog(
+                    user_id=user_id,
+                    type=ComputeType.CONSUME,
+                    amount=-actual_cost,
+                    before_balance=before_balance,
+                    after_balance=user.balance,
+                    remark=remark,
+                    task_id=task_id,
+                    source="api"
+                )
+                db.add(consume_log)
+
+                # 立即提交
+                await db.commit()
+
+                logger.info(
+                    f"用户 {user_id} 快速结算成功: "
+                    f"预冻结 {frozen_amount}, 实际消耗 {actual_cost}"
+                )
+                return True
+
+        except Exception as e:
+            logger.error(f"快速结算异常: 用户 {user_id}, 任务 {task_id}, 错误: {e}")
+            return False
+
+    async def refund_quick(
+        self,
+        user_id: int,
+        task_id: str,
+        frozen_amount: Decimal,
+        reason: str = "任务失败退款"
+    ) -> bool:
+        """
+        快速退款(独立事务)
+
+        Args:
+            user_id: 用户ID
+            task_id: 任务ID
+            frozen_amount: 预冻结金额
+            reason: 退款原因
+
+        Returns:
+            是否成功
+        """
+        try:
+            async with async_session_maker() as db:
+                result = await db.execute(
+                    select(User)
+                    .where(User.id == user_id)
+                    .with_for_update()
+                )
+                user = result.scalar_one_or_none()
+
+                if not user:
+                    logger.error(f"快速退款失败: 用户 {user_id} 不存在")
+                    return False
+
+                # 只解冻,不改变总余额
+                user.frozen_balance -= frozen_amount
+
+                # 立即提交
+                await db.commit()
+
+                logger.info(f"用户 {user_id} 快速退款成功: {frozen_amount}, 原因: {reason}")
+                return True
+
+        except Exception as e:
+            logger.error(f"快速退款异常: 用户 {user_id}, 错误: {e}")
+            return False

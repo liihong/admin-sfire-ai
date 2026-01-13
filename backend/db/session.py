@@ -33,18 +33,44 @@ async def init_db() -> None:
     在应用启动时调用
     """
     global engine, async_session_maker
-    
+
     logger.info("Initializing database connection...")
-    
+
     try:
+        # 构建连接URL,添加锁超时配置 - 使用安全的URL解析
+        from urllib.parse import urlparse, parse_qs, urlencode, urlunparse
+
+        db_url = settings.MYSQL_DATABASE_URL
+
+        # 添加锁超时配置(120秒)
+        parsed = urlparse(db_url)
+        query_params = parse_qs(parsed.query)
+
+        if "init_command" not in query_params:
+            query_params["init_command"] = ["SET SESSION lock_wait_timeout=120"]
+            new_query = urlencode(query_params, doseq=True)
+            db_url = urlunparse((
+                parsed.scheme,
+                parsed.netloc,
+                parsed.path,
+                parsed.params,
+                new_query,
+                parsed.fragment
+            ))
+
         engine = create_async_engine(
-            settings.MYSQL_DATABASE_URL,
+            db_url,
             echo=settings.DEBUG,
             poolclass=NullPool if settings.APP_ENV == "testing" else None,
-            pool_pre_ping=True,
-            pool_recycle=3600,
+            pool_pre_ping=True,  # 连接健康检查
+            pool_recycle=3600,   # 1小时回收连接
+            pool_size=10,        # 连接池大小
+            max_overflow=20,     # 最大溢出连接数
+            connect_args={
+                "connect_timeout": 10,
+            },
         )
-        
+
         async_session_maker = async_sessionmaker(
             engine,
             class_=AsyncSession,
@@ -52,8 +78,8 @@ async def init_db() -> None:
             autocommit=False,
             autoflush=False,
         )
-        
-        logger.info("Database connection initialized successfully")
+
+        logger.info("Database connection initialized successfully with lock_wait_timeout=120s")
     except Exception as e:
         logger.error(f"Database connection failed: {e}")
         raise

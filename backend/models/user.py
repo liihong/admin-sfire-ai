@@ -95,25 +95,25 @@ class User(BaseModel):
     )
     
     balance: Mapped[Decimal] = mapped_column(
-        DECIMAL(16, 4),
-        default=Decimal("0.0000"),
-        server_default="0.0000",
+        DECIMAL(16, 0),
+        default=Decimal("0"),
+        server_default="0",
         nullable=False,
         comment="算力余额",
     )
-    
+
     frozen_balance: Mapped[Decimal] = mapped_column(
-        DECIMAL(16, 4),
-        default=Decimal("0.0000"),
-        server_default="0.0000",
+        DECIMAL(16, 0),
+        default=Decimal("0"),
+        server_default="0",
         nullable=False,
         comment="冻结中的算力（处理中的任务占用）",
     )
-    
+
     partner_balance: Mapped[Decimal] = mapped_column(
-        DECIMAL(16, 4),
-        default=Decimal("0.0000"),
-        server_default="0.0000",
+        DECIMAL(16, 0),
+        default=Decimal("0"),
+        server_default="0",
         nullable=False,
         comment="合伙人资产余额",
     )

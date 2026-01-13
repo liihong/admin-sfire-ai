@@ -46,19 +46,19 @@
         <el-table-column prop="typeName" label="类型" width="120" />
         <el-table-column prop="amount" label="消耗算力" width="120">
           <template #default="{ row }">
-            <span :class="row.amount > 0 ? 'positive' : 'negative'">
-              {{ row.amount > 0 ? "+" : "" }}{{ Math.abs(row.amount).toFixed(2) }}
+            <span :class="row.amount < 0 ? 'positive' : 'negative'">
+              {{ row.amount > 0 ? "+" : "" }}{{ Math.abs(row.amount) }}
             </span>
           </template>
         </el-table-column>
         <el-table-column prop="beforeBalance" label="变动前" width="120">
           <template #default="{ row }">
-            {{ Number(row.beforeBalance).toFixed(2) }}
+            {{ Number(row.beforeBalance) }}
           </template>
         </el-table-column>
         <el-table-column prop="afterBalance" label="变动后" width="120">
           <template #default="{ row }">
-            {{ Number(row.afterBalance).toFixed(2) }}
+            {{ Number(row.afterBalance) }}
           </template>
         </el-table-column>
         <el-table-column prop="remark" label="备注" min-width="200" show-overflow-tooltip />
@@ -336,6 +336,8 @@ onBeforeUnmount(() => {
   }
 }
 </style>
+
+
 
 
 

@@ -70,8 +70,8 @@ class CoinCalculatorService:
         # 应用倍率系数
         total_cost = base_cost * Decimal(model.rate_multiplier) * self.config.TOKEN_TO_COIN_RATE
 
-        # 四舍五入到4位小数
-        return round(total_cost, 4)
+        # 四舍五入到整数
+        return round(total_cost)
 
     async def estimate_max_cost(
         self,

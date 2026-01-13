@@ -64,6 +64,28 @@
         </view>
       </view>
 
+      <!-- AI智能填写卡片 -->
+      <view class="ai-fill-card" style="display: block;">
+        <view class="card-header">
+          <view class="card-icon">
+            <text class="icon-text">🤖</text>
+          </view>
+          <view class="card-title-area">
+            <text class="card-title">AI智能填写</text>
+            <text class="card-desc">通过对话形式，智能收集IP信息</text>
+          </view>
+        </view>
+        <view 
+          class="ai-fill-btn"
+          :class="{ disabled: isAICollecting }"
+          @tap="handleAICollect"
+        >
+          <view class="btn-icon" v-if="!isAICollecting">✨</view>
+          <view class="loading-icon" v-else></view>
+          <text class="btn-text">{{ isAICollecting ? '采集中' : '开始智能填写' }}</text>
+        </view>
+      </view>
+
       <!-- 分隔线 -->
       <view class="divider">
         <view class="divider-line"></view>
@@ -234,6 +256,13 @@
         <text class="progress-text">{{ collectProgress }}%</text>
       </view>
     </view>
+
+    <!-- AI智能填写对话框 -->
+    <IPCollectDialog
+      :visible="showAIDialog"
+      @close="showAIDialog = false"
+      @complete="handleAIComplete"
+    />
   </view>
 </template>
 
@@ -241,6 +270,8 @@
 import { ref, computed, reactive } from 'vue'
 import { useProjectStore, INDUSTRY_OPTIONS, TONE_OPTIONS } from '@/stores/project'
 import { post } from '@/utils/request'
+import IPCollectDialog from '@/components/IPCollectDialog.vue'
+import { compressIPInfo } from '@/api/project'
 
 // Store
 const projectStore = useProjectStore()
@@ -273,6 +304,10 @@ const keywordsInput = ref('')
 
 // 提交状态
 const isSubmitting = ref(false)
+
+// AI智能填写状态
+const isAICollecting = ref(false)
+const showAIDialog = ref(false)
 
 // 选项数据
 const industryOptions = INDUSTRY_OPTIONS.slice(0, 12)
@@ -468,6 +503,62 @@ async function handleSubmit() {
   }
 }
 
+// 处理AI智能填写
+function handleAICollect() {
+  if (isAICollecting.value) return
+  showAIDialog.value = true
+}
+
+// 处理AI采集完成
+async function handleAIComplete(collectedInfo: any) {
+  isAICollecting.value = true
+  
+  try {
+    // 调用压缩接口
+    const compressResponse = await compressIPInfo({
+      raw_info: collectedInfo
+    })
+    
+    const compressed = compressResponse.compressed_info
+    
+    // 填充表单
+    if (compressed.name) {
+      formData.name = compressed.name
+    }
+    if (compressed.industry) {
+      formData.industry = compressed.industry
+    }
+    if (compressed.introduction) {
+      formData.introduction = compressed.introduction
+    }
+    if (compressed.tone) {
+      formData.tone = compressed.tone
+    }
+    if (compressed.target_audience) {
+      formData.targetAudience = compressed.target_audience
+    }
+    if (compressed.catchphrase) {
+      formData.catchphrase = compressed.catchphrase
+    }
+    if (compressed.keywords && compressed.keywords.length > 0) {
+      keywordsInput.value = compressed.keywords.join('、')
+    }
+    
+    uni.showToast({
+      title: 'AI智能填写完成',
+      icon: 'success'
+    })
+  } catch (error: any) {
+    console.error('AI压缩失败:', error)
+    uni.showToast({
+      title: error.message || '处理失败',
+      icon: 'none'
+    })
+  } finally {
+    isAICollecting.value = false
+  }
+}
+
 // 工具函数
 function delay(ms: number) {
   return new Promise(resolve => setTimeout(resolve, ms))
@@ -577,6 +668,16 @@ function delay(ms: number) {
   margin-bottom: 32rpx;
   border: 2rpx solid rgba(249, 115, 22, 0.2);
   box-shadow: 0 8rpx 32rpx rgba(249, 115, 22, 0.1);
+}
+
+// ========== AI智能填写卡片 ==========
+.ai-fill-card {
+  background: linear-gradient(135deg, #EEF2FF 0%, #E0E7FF 100%);
+  border-radius: 28rpx;
+  padding: 32rpx;
+  margin-bottom: 32rpx;
+  border: 2rpx solid rgba(59, 130, 246, 0.2);
+  box-shadow: 0 8rpx 32rpx rgba(59, 130, 246, 0.1);
   
   .card-header {
     display: flex;
@@ -588,12 +689,12 @@ function delay(ms: number) {
   .card-icon {
     width: 72rpx;
     height: 72rpx;
-    background: linear-gradient(135deg, #F97316 0%, #FB923C 100%);
+    background: linear-gradient(135deg, #3B82F6 0%, #60A5FA 100%);
     border-radius: 20rpx;
     display: flex;
     align-items: center;
     justify-content: center;
-    box-shadow: 0 4rpx 16rpx rgba(249, 115, 22, 0.3);
+    box-shadow: 0 4rpx 16rpx rgba(59, 130, 246, 0.3);
     
     .icon-text {
       font-size: 36rpx;
@@ -607,15 +708,58 @@ function delay(ms: number) {
   .card-title {
     font-size: 32rpx;
     font-weight: 600;
-    color: #9A3412;
+    color: #1E40AF;
     display: block;
     margin-bottom: 4rpx;
   }
   
   .card-desc {
     font-size: 24rpx;
-    color: #C2410C;
+    color: #3B82F6;
     opacity: 0.8;
+  }
+  
+  .ai-fill-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12rpx;
+    height: 88rpx;
+    background: linear-gradient(135deg, #3B82F6 0%, #60A5FA 100%);
+    border-radius: 20rpx;
+    box-shadow: 0 4rpx 16rpx rgba(59, 130, 246, 0.25);
+    
+    &.disabled {
+      background: #E5E7EB;
+      box-shadow: none;
+      
+      .btn-text {
+        color: #9CA3AF;
+      }
+    }
+    
+    &:active:not(.disabled) {
+      transform: scale(0.98);
+    }
+    
+    .btn-icon {
+      font-size: 32rpx;
+    }
+    
+    .btn-text {
+      font-size: 30rpx;
+      font-weight: 600;
+      color: #fff;
+    }
+    
+    .loading-icon {
+      width: 32rpx;
+      height: 32rpx;
+      border: 3rpx solid rgba(255, 255, 255, 0.3);
+      border-top-color: #fff;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
   }
 }
 

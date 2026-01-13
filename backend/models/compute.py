@@ -90,19 +90,19 @@ class ComputeLog(BaseModel):
     )
     
     amount: Mapped[Decimal] = mapped_column(
-        DECIMAL(16, 4),
+        DECIMAL(16, 0),
         nullable=False,
         comment="变动金额（正数增加，负数减少）",
     )
-    
+
     before_balance: Mapped[Decimal] = mapped_column(
-        DECIMAL(16, 4),
+        DECIMAL(16, 0),
         nullable=False,
         comment="变动前余额",
     )
-    
+
     after_balance: Mapped[Decimal] = mapped_column(
-        DECIMAL(16, 4),
+        DECIMAL(16, 0),
         nullable=False,
         comment="变动后余额",
     )

@@ -220,7 +220,7 @@ async def test_full_workflow():
             )
             logger.info(f"✓ 实际消耗: {actual_cost} 火源币")
 
-            # 步骤4: 结算
+            # 步���4: 结算
             await balance_checker.settle(
                 user_id=user.id,
                 task_id=task_id,
@@ -228,6 +228,8 @@ async def test_full_workflow():
                 input_tokens=input_tokens,
                 output_tokens=output_tokens,
                 model_id=model.id,
+                model_name=model.name,
+                frozen_amount=freeze_info['frozen_amount'],
                 is_error=False
             )
             await db.commit()

@@ -77,22 +77,17 @@ class BalanceCheckerMiddleware:
                 f"请充值后再试。"
             )
 
-        # 3. 预冻结算力
-        await self.account_service.freeze_amount(
+        # 3. 预冻结算力（用户无感知，不记录日志）
+        frozen_amount = await self.account_service.freeze_amount(
             user_id=user_id,
             amount=estimated_cost,
             task_id=task_id,
             remark=f"对话预冻结 - 模型ID: {model_id}"
         )
 
-        logger.info(
-            f"用户 {user_id} 预冻结成功: "
-            f"金额={estimated_cost}, 任务ID={task_id}"
-        )
-
         return {
             "task_id": task_id,
-            "frozen_amount": estimated_cost,
+            "frozen_amount": frozen_amount,
             "model_id": model_id,
             "user_id": user_id,
         }
@@ -105,6 +100,8 @@ class BalanceCheckerMiddleware:
         input_tokens: int,
         output_tokens: int,
         model_id: int,
+        model_name: str,
+        frozen_amount: Decimal,
         is_error: bool = False,
         error_code: Optional[int] = None,
         is_violation: bool = False
@@ -119,6 +116,8 @@ class BalanceCheckerMiddleware:
             input_tokens: 输入Token数
             output_tokens: 输出Token数
             model_id: 模型ID
+            model_name: 模型名称
+            frozen_amount: 预冻结金额
             is_error: 是否为错误
             error_code: 错误码
             is_violation: 是否内容违规
@@ -130,18 +129,19 @@ class BalanceCheckerMiddleware:
                 user_id=user_id,
                 task_id=task_id,
                 reason=reason,
+                frozen_amount=frozen_amount,
                 error_code=error_code
             )
-            logger.warning(f"任务 {task_id} API错误,全额退款")
 
         elif is_violation:
             # 内容违规,扣除处罚费用
             await self.account_service.deduct_violation_penalty(
                 user_id=user_id,
                 task_id=task_id,
-                model_id=model_id
+                model_id=model_id,
+                model_name=model_name,
+                frozen_amount=frozen_amount
             )
-            logger.warning(f"任务 {task_id} 内容违规,已处罚")
 
         else:
             # 正常完成,解冻并扣除实际消耗
@@ -151,6 +151,7 @@ class BalanceCheckerMiddleware:
                 actual_cost=actual_cost,
                 input_tokens=input_tokens,
                 output_tokens=output_tokens,
-                model_id=model_id
+                model_id=model_id,
+                model_name=model_name,
+                frozen_amount=frozen_amount
             )
-            logger.info(f"任务 {task_id} 结算完成,消耗 {actual_cost}")

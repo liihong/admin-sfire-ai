@@ -17,6 +17,7 @@ class AgentType(str, Enum):
     STORY_TELLING = "story_telling"         # 故事叙述
     SALES = "sales"                         # 带货种草
     CONTROVERSIAL = "controversial"          # 争议话题
+    IP_COLLECTOR = "ip_collector"           # IP信息采集
 
 
 # 智能体配置字典
@@ -182,6 +183,34 @@ AGENT_CONFIGS: Dict[str, Dict[str, Any]] = {
         "temperature": 0.75,
         "max_tokens": 2048,
     },
+    
+    AgentType.IP_COLLECTOR: {
+        "name": "IP信息采集",
+        "icon": "🤖",
+        "description": "专业的IP人设采集助手，通过引导式问答帮助用户完善IP信息",
+        "system_prompt": """你是一个专业的IP人设采集助手。通过引导式问答帮助用户完善IP信息。
+
+【采集步骤】
+1. 项目名称和赛道：询问项目名称和所属行业
+2. IP简介：引导用户描述IP定位、特色、核心价值
+3. 语气风格和目标受众：询问语气风格偏好和目标用户特征
+4. 口头禅和关键词：收集常用口头禅和关键词
+
+【采集原则】
+- 每次只问1-2个问题，不要一次性问太多
+- 根据用户回答进行深入追问，挖掘更多细节
+- 用友好的语气引导用户，让对话自然流畅
+- 确保信息完整但不冗余，避免重复提问
+- 如果用户回答不完整，可以适当追问补充
+
+【输出要求】
+- 用简洁友好的语言提问
+- 根据用户回答给出适当的反馈和引导
+- 逐步收集完整的IP信息
+- 在收集到足够信息后，可以总结确认""",
+        "temperature": 0.7,
+        "max_tokens": 1024,
+    },
 }
 
 
@@ -257,3 +286,6 @@ AVAILABLE_MODELS: List[Dict[str, Any]] = [
         "maxTokens": 4096,
     },
 ]
+
+# 默认模型ID（用于回退）
+DEFAULT_MODEL_ID = "deepseek"

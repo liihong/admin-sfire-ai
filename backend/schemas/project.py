@@ -168,3 +168,37 @@ TONE_OPTIONS = [
     "冷静理性"
 ]
 
+
+# ============== AI 智能填写相关 Schemas ==============
+
+class IPCollectRequest(BaseModel):
+    """IP信息采集对话请求"""
+    messages: List[dict] = Field(..., description="对话消息列表，格式: [{'role': 'user', 'content': '...'}, ...]")
+    step: Optional[int] = Field(None, description="当前步骤（可选）")
+    context: Optional[dict] = Field(None, description="上下文信息（已收集的信息）")
+
+
+class IPCollectResponse(BaseModel):
+    """IP信息采集对话响应"""
+    reply: str = Field(..., description="AI回复内容")
+    next_step: Optional[int] = Field(None, description="下一步骤（可选）")
+    collected_info: Optional[dict] = Field(None, description="已收集的信息摘要（可选）")
+    is_complete: bool = Field(default=False, description="是否收集完成")
+
+
+class IPCompressRequest(BaseModel):
+    """IP信息压缩请求"""
+    raw_info: dict = Field(..., description="原始IP信息（可能很长）")
+    # 包含字段：name, industry, introduction, tone, target_audience, catchphrase, keywords 等
+
+
+class IPCompressResponse(BaseModel):
+    """IP信息压缩响应"""
+    compressed_info: dict = Field(..., description="压缩后的IP信息")
+    # 包含字段：
+    # - introduction: 200字以内
+    # - target_audience: 50字以内
+    # - keywords: 最多8个
+    # - catchphrase: 保持简短
+    # - 其他字段保持不变
+

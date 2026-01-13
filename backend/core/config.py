@@ -52,7 +52,7 @@ class Settings(BaseSettings):
 
     # 第三方 API 配置（Dashboard 监控用）
     TIKHUB_API_KEY: str = ""  # Tikhub API Key
-    OPENAI_API_KEY: str = ""  # OpenAI API Key
+    OPENAI_API_KEY: str = "e44c68945ae94109b4d7f433c2442310.3v8Np2obJ8MtYj33"  # OpenAI API Key
     
     # 微信小程序配置
     WECHAT_APP_ID: str = ""  # 微信小程序 AppID
@@ -62,6 +62,11 @@ class Settings(BaseSettings):
     DEEPSEEK_API_KEY: str = ""  # DeepSeek API Key
     DOUBAO_API_KEY: str = ""  # 火山引擎（Doubao）API Key
     ANTHROPIC_API_KEY: str = ""  # Anthropic (Claude) API Key
+    
+    # AI智能填写接口配置
+    AI_COLLECT_MODEL_ID: str = ""  # AI采集接口使用的模型ID（数据库ID或模型标识，如 "doubao"）
+    AI_COLLECT_API_KEY: str = ""  # AI采集接口使用的API Key（可选，优先使用模型配置）
+    AI_COLLECT_BASE_URL: str = ""  # AI采集接口使用的Base URL（可选，优先使用模型配置）
     
     # Embedding 配置
     EMBEDDING_PROVIDER: str = "openai"  # Embedding服务提供商: openai, deepseek (注意：DeepSeek不提供embedding API)

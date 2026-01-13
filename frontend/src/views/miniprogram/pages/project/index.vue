@@ -106,6 +106,14 @@
       @close="handleDialogClose"
     >
       <el-form ref="formRef" :model="formData" :rules="formRules" label-width="100px">
+        <!-- AI智能填写按钮 -->
+        <div class="ai-fill-section">
+          <el-button type="primary" :icon="MagicStick" @click="handleAICollect" :loading="isAICollecting">
+            <span>AI智能填写</span>
+          </el-button>
+          <span class="ai-fill-tip">通过对话形式，智能收集IP信息</span>
+        </div>
+
         <!-- 基础信息 -->
         <el-divider content-position="left">基础信息</el-divider>
         <el-form-item label="项目名称" prop="name">
@@ -209,6 +217,13 @@
         <el-button type="primary" :loading="submitLoading" @click="handleSubmit">确定</el-button>
       </template>
     </el-dialog>
+
+    <!-- AI智能填写对话框 -->
+    <IPCollectDialog
+      :visible="showAIDialog"
+      @close="showAIDialog = false"
+      @complete="handleAIComplete"
+    />
   </div>
 </template>
 
@@ -227,8 +242,11 @@ import {
   Clock,
   Switch,
   Edit,
-  Delete
+  Delete,
+  MagicStick
 } from "@element-plus/icons-vue";
+import IPCollectDialog from "@/components/IPCollectDialog/index.vue";
+import { compressIPInfoApi } from "@/api/modules/miniprogram";
 import { useMPUserStore } from "@/stores/modules/miniprogramUser";
 import {
   getMPProjectListApi,
@@ -290,6 +308,10 @@ const formRules = {
 
 const industryOptions = ref<Array<{ label: string; value: string }>>([]);
 const toneOptions = ref<Array<{ label: string; value: string }>>([]);
+
+// AI智能填写状态
+const isAICollecting = ref(false);
+const showAIDialog = ref(false);
 
 // 获取项目列表
 const fetchProjects = async () => {
@@ -431,6 +453,61 @@ const handleDialogClose = () => {
   currentProject.value = null;
 };
 
+// 处理AI智能填写
+const handleAICollect = () => {
+  if (isAICollecting.value) return;
+  showAIDialog.value = true;
+};
+
+// 处理AI采集完成
+const handleAIComplete = async (collectedInfo: any) => {
+  isAICollecting.value = true;
+
+  try {
+    // 调用压缩接口
+    const { data } = await compressIPInfoApi({
+      raw_info: collectedInfo
+    });
+
+    if (data?.data?.compressed_info) {
+      const compressed = data.data.compressed_info;
+
+      // 验证必填字段
+      if (!compressed.name || !compressed.industry) {
+        ElMessage.error("收集的信息不完整，缺少项目名称或行业赛道");
+        return;
+      }
+
+      // 构建创建项目的请求数据
+      const projectData: CreateMPProjectRequest = {
+        name: compressed.name,
+        industry: compressed.industry,
+        introduction: compressed.introduction || "",
+        tone: compressed.tone || "",
+        target_audience: compressed.target_audience || "",
+        catchphrase: compressed.catchphrase || "",
+        keywords: compressed.keywords || []
+      };
+
+      // 直接创建项目
+      await createMPProjectApi(projectData);
+      ElMessage.success("项目创建成功");
+      
+      // 关闭AI对话框和创建项目对话框
+      showAIDialog.value = false;
+      dialogVisible.value = false;
+      
+      // 刷新项目列表
+      await fetchProjects();
+    }
+  } catch (error: any) {
+    console.error("AI采集完成处理失败:", error);
+    ElMessage.error(error?.msg || "创建项目失败");
+  } finally {
+    isAICollecting.value = false;
+  }
+};
+
 // 格式化时间
 const formatTime = (time: string) => {
   return dayjs(time).format("YYYY-MM-DD HH:mm");
@@ -518,6 +595,23 @@ onMounted(async () => {
     max-width: 1400px;
     margin: 0 auto;
     padding: 0 40px;
+  }
+
+  // AI智能填写区域
+  .ai-fill-section {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 16px;
+    margin-bottom: 20px;
+    background: linear-gradient(135deg, #eef2ff 0%, #e0e7ff 100%);
+    border-radius: 8px;
+    border: 1px solid rgba(59, 130, 246, 0.2);
+
+    .ai-fill-tip {
+      font-size: 13px;
+      color: #6b7280;
+    }
   }
 
   // 加载状态

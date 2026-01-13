@@ -8,7 +8,7 @@ SQLAlchemy
 starlette
 uvicorn
 aiomysql
-httpx
+httpx[http2]
 redis
 bcrypt
 email-validator
