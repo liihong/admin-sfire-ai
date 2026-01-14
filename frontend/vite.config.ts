@@ -95,37 +95,65 @@ export default defineConfig(({ mode }: ConfigEnv): UserConfig => {
           manualChunks: (id: string) => {
             // 1. 将 node_modules 中的包按类型分离
             if (id.includes("node_modules")) {
-              // Vue 核心
-              if (id.includes("vue") || id.includes("@vue")) {
-                return "vendor-vue";
+              // Vue 核心 (进一步拆分)
+              if (id.includes("vue")) {
+                // vue 核心单独
+                if (id.includes("vue/runtime") || id.includes("vue/dist/vue.runtime")) {
+                  return "vendor-vue-runtime";
+                }
+                // @vue/* 相关
+                if (id.includes("@vue")) {
+                  return "vendor-vue-lib";
+                }
+                return "vendor-vue-core";
               }
-              // Element Plus 相关
+              // Element Plus 相关 (进一步拆分)
               if (id.includes("element-plus") || id.includes("@element-plus")) {
+                // 图标库单独拆分
+                if (id.includes("@element-plus/icons-vue")) {
+                  return "vendor-element-icons";
+                }
                 return "vendor-element";
               }
-              // ECharts 图表库 (单独拆分，因为很大)
+              // ECharts 图表库 (进一步拆分)
               if (id.includes("echarts")) {
+                // echarts 核心和组件
+                if (id.includes("echarts/core") || id.includes("echarts/charts") || id.includes("echarts/components")) {
+                  return "vendor-echarts-core";
+                }
+                // echarts-liquidfill 水球图插件
+                if (id.includes("echarts-liquidfill")) {
+                  return "vendor-echarts-liquidfill";
+                }
                 return "vendor-echarts";
-              }
-              // Swiper 轮播库 (单独拆分)
-              if (id.includes("swiper")) {
-                return "vendor-swiper";
-              }
-              // WangEditor 编辑器 (单独拆分)
-              if (id.includes("@wangeditor")) {
-                return "vendor-editor";
               }
               // GSAP 动画库 (单独拆分)
               if (id.includes("gsap")) {
                 return "vendor-gsap";
               }
               // 路由相关
-              if (id.includes("vue-router") || id.includes("pinia")) {
+              if (id.includes("vue-router")) {
                 return "vendor-router";
+              }
+              // 状态管理
+              if (id.includes("pinia")) {
+                return "vendor-pinia";
+              }
+              // Swiper 轮播库 (单独拆分)
+              if (id.includes("swiper")) {
+                return "vendor-swiper";
               }
               // 其他 UI 组件工具库
               if (id.includes("sortablejs") || id.includes("driver.js") || id.includes("screenfull")) {
                 return "vendor-ui-utils";
+              }
+              // axios 网络库
+              if (id.includes("axios")) {
+                return "vendor-axios";
+              }
+              // 工具库 (dayjs, md5, qs 等)
+              if (id.includes("dayjs") || id.includes("md5") || id.includes("qs") || id.includes("mitt")) {
+                return "vendor-utils";
               }
               // 其他 node_modules 包
               return "vendor";

@@ -30,8 +30,6 @@ declare module 'vue' {
     ElBreadcrumbItem: typeof import('element-plus/es')['ElBreadcrumbItem']
     ElButton: typeof import('element-plus/es')['ElButton']
     ElCard: typeof import('element-plus/es')['ElCard']
-    ElCheckbox: typeof import('element-plus/es')['ElCheckbox']
-    ElCheckboxGroup: typeof import('element-plus/es')['ElCheckboxGroup']
     ElCol: typeof import('element-plus/es')['ElCol']
     ElColorPicker: typeof import('element-plus/es')['ElColorPicker']
     ElContainer: typeof import('element-plus/es')['ElContainer']
@@ -79,7 +77,6 @@ declare module 'vue' {
     ElText: typeof import('element-plus/es')['ElText']
     ElTimeline: typeof import('element-plus/es')['ElTimeline']
     ElTimelineItem: typeof import('element-plus/es')['ElTimelineItem']
-    ElTimePicker: typeof import('element-plus/es')['ElTimePicker']
     ElTooltip: typeof import('element-plus/es')['ElTooltip']
     ElTreeSelect: typeof import('element-plus/es')['ElTreeSelect']
     ElUpload: typeof import('element-plus/es')['ElUpload']
@@ -111,7 +108,6 @@ declare module 'vue' {
     SwitchDark: typeof import('./src/components/SwitchDark/index.vue')['default']
     TableColumn: typeof import('./src/components/ProTable/components/TableColumn.vue')['default']
     TreeFilter: typeof import('./src/components/TreeFilter/index.vue')['default']
-    WangEditor: typeof import('./src/components/WangEditor/index.vue')['default']
   }
   export interface GlobalDirectives {
     vLoading: typeof import('element-plus/es')['ElLoadingDirective']
@@ -138,8 +134,6 @@ declare global {
   const ElBreadcrumbItem: typeof import('element-plus/es')['ElBreadcrumbItem']
   const ElButton: typeof import('element-plus/es')['ElButton']
   const ElCard: typeof import('element-plus/es')['ElCard']
-  const ElCheckbox: typeof import('element-plus/es')['ElCheckbox']
-  const ElCheckboxGroup: typeof import('element-plus/es')['ElCheckboxGroup']
   const ElCol: typeof import('element-plus/es')['ElCol']
   const ElColorPicker: typeof import('element-plus/es')['ElColorPicker']
   const ElContainer: typeof import('element-plus/es')['ElContainer']
@@ -187,7 +181,6 @@ declare global {
   const ElText: typeof import('element-plus/es')['ElText']
   const ElTimeline: typeof import('element-plus/es')['ElTimeline']
   const ElTimelineItem: typeof import('element-plus/es')['ElTimelineItem']
-  const ElTimePicker: typeof import('element-plus/es')['ElTimePicker']
   const ElTooltip: typeof import('element-plus/es')['ElTooltip']
   const ElTreeSelect: typeof import('element-plus/es')['ElTreeSelect']
   const ElUpload: typeof import('element-plus/es')['ElUpload']
@@ -219,5 +212,4 @@ declare global {
   const SwitchDark: typeof import('./src/components/SwitchDark/index.vue')['default']
   const TableColumn: typeof import('./src/components/ProTable/components/TableColumn.vue')['default']
   const TreeFilter: typeof import('./src/components/TreeFilter/index.vue')['default']
-  const WangEditor: typeof import('./src/components/WangEditor/index.vue')['default']
 }
