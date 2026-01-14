@@ -9,6 +9,7 @@ import type {
   UpdateMPUserRequest
 } from "@/api/modules/miniprogram";
 import { ElMessage } from "element-plus";
+import { encryptPassword } from "@/utils/encrypt";
 
 /**
  * 小程序用户信息
@@ -181,12 +182,29 @@ export const useMPUserStore = defineStore({
     // 手机号+密码登录
     async accountLogin(params: { phone: string; password: string }) {
       try {
-        const { data } = await accountLoginApi(params);
+        // 对密码进行 MD5 加密
+        const encryptedPassword = encryptPassword(params.password);
+
+        const { data } = await accountLoginApi({
+          phone: params.phone,
+          password: encryptedPassword
+        });
+
         if (data?.token && data?.userInfo) {
           this.setToken(data.token);
           this.setUserInfo(data.userInfo);
           // 登录成功后获取详细信息
           await this.fetchUserDetail();
+
+          // 检查会员是否过期
+          if (data.vip_expired) {
+            ElMessage.warning({
+              message: `您的会员已于 ${data.vip_expire_date} 过期，请续费以继续享受会员服务`,
+              duration: 5000,
+              showClose: true
+            });
+          }
+
           return true;
         } else {
           ElMessage.error("登录失败：未获取到 Token");

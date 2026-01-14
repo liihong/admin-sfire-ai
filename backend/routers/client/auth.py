@@ -487,7 +487,7 @@ async def update_user_info(
 ):
     """
     更新当前用户信息
-    
+
     需要 Authorization header 携带 Bearer token
     """
     # 直接更新用户对象属性
@@ -498,21 +498,21 @@ async def update_user_info(
     if request.gender is not None:
         # 注意：User模型可能没有gender字段，这里先不处理
         pass
-    
+
     # 如果没有要更新的字段，返回错误
     update_fields = []
     if request.nickname is not None:
         update_fields.append("nickname")
     if request.avatar is not None:
         update_fields.append("avatar")
-    
+
     if not update_fields:
         raise BadRequestException("请提供要更新的字段")
-    
+
     # 提交更改
     await db.commit()
     await db.refresh(current_user)
-    
+
     # 构建响应
     user_info = UserInfo(
         openid=current_user.openid or "",
@@ -523,11 +523,70 @@ async def update_user_info(
         province="",
         country="",
     )
-    
+
     return success(
         data={
             "success": True,
             "userInfo": user_info.model_dump()
         },
         msg="更新成功"
+    )
+
+
+class ChangePasswordRequest(BaseModel):
+    """修改密码请求"""
+    old_password: str = Field(..., description="原密码（MD5加密）")
+    new_password: str = Field(..., description="新密码（MD5加密）")
+
+
+@router.post("/user/change-password")
+async def change_password(
+    request: ChangePasswordRequest,
+    current_user: User = Depends(get_current_miniprogram_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    修改当前用户密码
+
+    流程:
+    1. 验证原密码是否正确（前端已MD5加密，后端验证MD5密码与bcrypt哈希）
+    2. 验证新密码格式
+    3. 更新密码（将MD5密码转为bcrypt哈希存储）
+
+    需要 Authorization header 携带 Bearer token
+    """
+    from core.security import get_password_hash, verify_password
+
+    # 1. 检查用户是否已设置密码
+    if not current_user.password_hash:
+        raise BadRequestException("该账号未设置密码，无法修改密码")
+
+    # 2. 验证原密码
+    if not verify_password(request.old_password, current_user.password_hash):
+        raise BadRequestException("原密码错误")
+
+    # 3. 检查新密码是否与原密码相同
+    if request.old_password == request.new_password:
+        raise BadRequestException("新密码不能与原密码相同")
+
+    # 4. 从数据库重新获取用户对象(确保在当前会话中)
+    from sqlalchemy import select
+    stmt = select(User).where(User.id == current_user.id)
+    result = await db.execute(stmt)
+    user = result.scalar_one_or_none()
+
+    if not user:
+        raise BadRequestException("用户不存在")
+
+    # 5. 更新密码（将MD5密码转为bcrypt哈希存储）
+    user.password_hash = get_password_hash(request.new_password)
+
+    # 6. 提交更改
+    await db.commit()
+
+    logger.info(f"用户 {user.phone or user.id} 修改密码成功")
+
+    return success(
+        data={"success": True},
+        msg="密码修改成功"
     )

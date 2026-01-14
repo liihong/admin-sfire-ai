@@ -12,7 +12,10 @@
       "Bash(find:*)",
       "Read(//e/project/admin-sfire-ai/**)",
       "Bash(sort:*)",
-      "Bash(npm install:*)"
+      "Bash(npm install:*)",
+      "Bash(npm run dev)",
+      "Bash(timeout 10 npm run dev:*)",
+      "Bash(findstr:*)"
     ]
   }
 }

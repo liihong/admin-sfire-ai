@@ -5,7 +5,9 @@ PC官网认证接口（扫码登录、账号密码登录）
 """
 import json
 import base64
+import hashlib
 from typing import Optional
+from datetime import datetime
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 from pydantic import BaseModel, Field
@@ -71,7 +73,14 @@ async def account_login(
     db: AsyncSession = Depends(get_db)
 ):
     """
-    PC端手机号+密码登录
+    PC端手机号+密码登录(C端用户)
+
+    登录流程:
+    1. 密码在前端使用MD5加密后传输
+    2. 后端验证MD5密码与bcrypt哈希
+    3. 检查账号是否激活(is_active)
+    4. 检查会员是否过期(vip_expire_date)
+    5. 返回token和用户信息(包含updated_at)
     """
     try:
         # 1. 通过手机号查找用户
@@ -81,21 +90,31 @@ async def account_login(
         if not user:
             raise BadRequestException("手机号或密码错误")
 
-        # 2. 验证密码
+        # 2. 检查用户是否激活
+        if not user.is_active:
+            raise BadRequestException("账号已被封禁，请联系管理员")
+
+        # 3. 验证密码(前端已MD5加密，后端验证MD5密码与bcrypt哈希)
         if not user.password_hash:
             raise BadRequestException("该账号未设置密码，请使用微信扫码登录")
 
+        # 将前端传来的MD5密码与数据库中的bcrypt哈希进行验证
         if not verify_password(request.password, user.password_hash):
             raise BadRequestException("手机号或密码错误")
 
-        # 3. 检查用户状态
-        if not user.is_active:
-            raise BadRequestException("账号已被禁用，请联系管理员")
+        # 4. 检查会员是否过期
+        if user.vip_expire_date:
+            now = datetime.now()
+            if user.vip_expire_date < now:
+                logger.warning(f"用户 {user.phone} 会员已过期: {user.vip_expire_date}")
+                # 会员已过期，可以允许登录但需要提示续费
+                # 这里我们选择在响应中添加提示信息
+                pass
 
-        # 4. 生成 JWT token
+        # 5. 生成 JWT token
         token = create_access_token(data={"sub": str(user.id)})
 
-        # 5. 构建用户信息
+        # 6. 构建用户信息
         user_info = UserInfo(
             openid=user.openid or "",
             nickname=user.nickname or "用户",
@@ -106,12 +125,29 @@ async def account_login(
             country="",
         )
 
+        # 7. 构建响应数据
+        response_data = {
+            "success": True,
+            "token": token,
+            "userInfo": user_info.model_dump(),
+        }
+
+        # 添加 updated_at 字段
+        if user.updated_at:
+            response_data["updated_at"] = user.updated_at.strftime("%Y-%m-%d %H:%M:%S")
+
+        # 添加会员过期提示
+        if user.vip_expire_date:
+            now = datetime.now()
+            if user.vip_expire_date < now:
+                response_data["vip_expired"] = True
+                response_data["vip_expire_date"] = user.vip_expire_date.strftime("%Y-%m-%d")
+            else:
+                response_data["vip_expired"] = False
+                response_data["vip_expire_date"] = user.vip_expire_date.strftime("%Y-%m-%d")
+
         return success(
-            data={
-                "success": True,
-                "token": token,
-                "userInfo": user_info.model_dump()
-            },
+            data=response_data,
             msg="登录成功"
         )
 

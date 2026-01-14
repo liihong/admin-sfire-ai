@@ -1,0 +1,342 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    
+    <!-- 基础 SEO 标签 -->
+    <title>火源编导运营智能体 - 赋能 IP 进化 | 创始人基因库 & 自动化生产线</title>
+    <meta name="description" content="火源智能体：专为短视频 IP 打造的 AI 编导工具。结合创始人基因库与全网情报，实现从选题到分发的全自动化运营。">
+    <meta name="keywords" content="AI编导, 火源科技, 创始人IP, 短视频运营, 星链式分发, 智能脚本生成">
+    <meta name="author" content="火源科技">
+
+    <!-- 外部资源 -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Inter:wght@400;700;900&display=swap" rel="stylesheet">
+
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            primary: '#FF4D00', // 烈焰橙
+                            secondary: '#FFB800', // 琥珀金
+                            dark: '#0A0A0A'
+                        }
+                    },
+                    fontFamily: {
+                        tech: ['Orbitron', 'sans-serif'],
+                        sans: ['Inter', 'sans-serif']
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        body { background-color: #050505; color: white; overflow-x: hidden; }
+        .hero-gradient {
+            background: radial-gradient(circle at center, rgba(255, 77, 0, 0.15) 0%, transparent 70%);
+        }
+        .glass-card {
+            background: rgba(255, 255, 255, 0.02);
+            backdrop-filter: blur(15px);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+        .glass-card:hover {
+            border-color: rgba(255, 77, 0, 0.4);
+            box-shadow: 0 0 30px rgba(255, 77, 0, 0.1);
+            transform: translateY(-10px) scale(1.02);
+        }
+        #hero-canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: -1;
+        }
+        .text-glow {
+            text-shadow: 0 0 20px rgba(255, 77, 0, 0.5);
+        }
+        @keyframes float {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-10px); }
+        }
+        .floating { animation: float 4s ease-in-out infinite; }
+    </style>
+</head>
+<body class="font-sans">
+
+    <!-- 导航栏 -->
+    <nav id="navbar" class="fixed top-0 w-full z-50 transition-all duration-300 py-6">
+        <div class="max-w-7xl mx-auto px-6 flex justify-between items-center">
+            <div class="flex items-center gap-3">
+                <img src="sfire-logo.jpg" alt="火源科技 Logo" class="h-10 w-10 object-contain rounded-lg shadow-[0_0_15px_rgba(255,77,0,0.5)]">
+                <span class="text-xl font-black font-tech tracking-tighter uppercase">
+                    Fire Source <span class="text-brand-primary">AI</span>
+                </span>
+            </div>
+
+            <div class="hidden md:flex items-center gap-10 text-xs font-bold uppercase tracking-widest text-white/60">
+                <a href="#features" class="hover:text-brand-primary transition-colors">Core Tools</a>
+                <a href="#solutions" class="hover:text-brand-primary transition-colors">Ecosystem</a>
+                <a href="#stats" class="hover:text-brand-primary transition-colors">Performance</a>
+                <button class="bg-brand-primary text-white px-6 py-2 rounded-full font-black hover:bg-white hover:text-black transition-all transform hover:scale-105 shadow-lg shadow-brand-primary/20">
+                    Get Started
+                </button>
+            </div>
+        </div>
+    </nav>
+
+    <!-- 3D 星链首屏 -->
+    <header class="relative min-h-screen flex items-center justify-center px-6 pt-20 overflow-hidden">
+        <canvas id="hero-canvas"></canvas>
+        <div class="hero-gradient absolute inset-0"></div>
+
+        <div class="max-w-5xl mx-auto text-center relative z-10">
+            <div class="inline-flex items-center gap-2 px-4 py-1.5 rounded-full glass-card text-brand-secondary text-[10px] font-bold tracking-[0.2em] uppercase mb-8 floating">
+                <i data-lucide="zap" class="w-3 h-3 fill-brand-secondary"></i>
+                Next-Gen Content Intelligence
+            </div>
+            
+            <h1 class="text-6xl md:text-8xl font-black tracking-tighter mb-8 leading-none font-tech">
+                赋能 IP <br>
+                <span class="bg-gradient-to-r from-brand-primary via-brand-secondary to-orange-400 bg-clip-text text-transparent text-glow">
+                    超进化
+                </span>
+            </h1>
+            
+            <p class="text-base md:text-lg text-white/50 max-w-2xl mx-auto mb-12 font-medium leading-relaxed">
+                结合创始人基因库与星链式分发逻辑，<br>
+                构建全自动短视频生产闭环。
+            </p>
+
+            <div class="flex flex-col md:flex-row items-center justify-center gap-6">
+                <button class="w-full md:w-auto px-10 py-5 bg-brand-primary rounded-2xl font-black text-lg shadow-[0_20px_40px_rgba(255,77,0,0.3)] hover:shadow-brand-primary/50 transition-all flex items-center justify-center gap-2 group">
+                    立即接入 <i data-lucide="arrow-right" class="group-hover:translate-x-1 transition-transform"></i>
+                </button>
+                <button class="w-full md:w-auto px-10 py-5 glass-card rounded-2xl font-bold text-lg hover:bg-white/10 transition-all flex items-center justify-center gap-2">
+                    <i data-lucide="monitor-play" class="w-5 h-5"></i> 演示视频
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <main>
+        <!-- Bento 核心功能卡片 -->
+        <section id="features" class="py-32 px-6 max-w-7xl mx-auto">
+            <div class="mb-20 text-center">
+                <h2 class="text-4xl md:text-6xl font-black font-tech mb-6 tracking-tight">AI 智能矩阵</h2>
+                <div class="h-1 w-20 bg-brand-primary mx-auto"></div>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+                <!-- 基因库 -->
+                <article class="md:col-span-2 glass-card rounded-[3rem] p-12 relative overflow-hidden group min-h-[400px]">
+                    <div class="absolute -right-20 -bottom-20 p-12 opacity-10 group-hover:scale-125 transition-transform duration-1000">
+                        <i data-lucide="fingerprint" class="w-96 h-96 text-brand-primary"></i>
+                    </div>
+                    <div class="relative z-10 h-full flex flex-col justify-between">
+                        <div>
+                            <div class="w-16 h-16 bg-brand-primary/20 rounded-2xl flex items-center justify-center mb-8 border border-brand-primary/30 shadow-[0_0_20px_rgba(255,77,0,0.2)]">
+                                <i data-lucide="dna" class="w-8 h-8 text-brand-primary"></i>
+                            </div>
+                            <h3 class="text-4xl font-black mb-4 font-tech tracking-tight">创始人基因库</h3>
+                            <p class="text-white/40 text-lg max-w-md">
+                                像素级复刻您的语感、认知与商业逻辑，让 AI 成为您的数字替身。
+                            </p>
+                        </div>
+                        <div class="mt-12 flex flex-wrap gap-3">
+                            <span class="px-5 py-2 glass-card rounded-full text-[10px] font-black uppercase text-brand-primary">Cognitive Map</span>
+                            <span class="px-5 py-2 glass-card rounded-full text-[10px] font-black uppercase text-brand-primary">Style Transfer</span>
+                        </div>
+                    </div>
+                </article>
+
+                <!-- 监控站 -->
+                <article class="glass-card rounded-[3rem] p-10 group flex flex-col justify-between">
+                    <div>
+                        <div class="w-14 h-14 bg-amber-500/20 rounded-2xl flex items-center justify-center mb-8 border border-amber-500/30">
+                            <i data-lucide="radar" class="w-7 h-7 text-brand-secondary"></i>
+                        </div>
+                        <h3 class="text-2xl font-bold mb-4 font-tech">全网情报雷达</h3>
+                        <p class="text-white/40 text-sm leading-relaxed mb-8">
+                            秒级监控对标账号，自动识别并拆解爆款钩子逻辑。
+                        </p>
+                    </div>
+                    <div class="flex items-center gap-2 text-brand-secondary text-xs font-bold">
+                        ACTIVE MONITORING <span class="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
+                    </div>
+                </article>
+
+                <!-- 分发 -->
+                <article class="glass-card rounded-[3rem] p-10 border-l-brand-primary border-l-4">
+                    <h3 class="text-2xl font-bold mb-4 font-tech text-brand-primary tracking-widest uppercase">Starlink Distribution</h3>
+                    <p class="text-white/60 text-sm mb-6 leading-relaxed">
+                        多维矩阵分发逻辑，单脚本全网覆盖，实现 IP 影响力星链式扩散。
+                    </p>
+                    <div class="grid grid-cols-4 gap-2">
+                        {[1,2,3,4,5,6,7,8].map(i => <div key={i} class="h-1 bg-white/10 rounded-full"></div>)}
+                    </div>
+                </article>
+
+                <!-- 数字人 -->
+                <article class="md:col-span-2 glass-card rounded-[3rem] p-12 bg-gradient-to-br from-brand-primary/20 to-transparent flex flex-col md:flex-row items-center gap-10">
+                    <div class="flex-1 text-center md:text-left">
+                        <h3 class="text-4xl font-black mb-6 font-tech">数字人矩阵</h3>
+                        <p class="text-white/50 mb-8 leading-relaxed text-lg">
+                            24小时不间断直播与短视频产出，让您的 IP 永不下线。
+                        </p>
+                        <button class="bg-white text-black px-10 py-4 rounded-2xl font-black hover:bg-brand-primary hover:text-white transition-all">
+                            预览合成效果
+                        </button>
+                    </div>
+                    <div class="w-48 h-64 bg-slate-900 rounded-3xl border border-white/10 flex items-center justify-center relative overflow-hidden group">
+                        <i data-lucide="user-check" class="w-20 h-20 text-brand-primary opacity-20 group-hover:scale-110 transition-transform"></i>
+                        <div class="absolute bottom-4 left-0 w-full text-center text-[10px] font-bold text-white/40 uppercase tracking-widest">Digital Avatar</div>
+                    </div>
+                </article>
+            </div>
+        </section>
+
+        <!-- 数字增长统计 -->
+        <section id="stats" class="py-32 border-y border-white/5 bg-brand-primary/5">
+            <div class="max-w-7xl mx-auto px-6 grid grid-cols-2 md:grid-cols-4 gap-12 text-center">
+                <div class="stat-item">
+                    <p class="text-5xl md:text-7xl font-black font-tech mb-4 text-brand-primary tracking-tighter" data-target="85">0%</p>
+                    <p class="text-white/30 text-xs uppercase tracking-[0.3em] font-bold">Workflow Efficiency</p>
+                </div>
+                <div class="stat-item">
+                    <p class="text-5xl md:text-7xl font-black font-tech mb-4 text-brand-primary tracking-tighter" data-target="12">0M+</p>
+                    <p class="text-white/30 text-xs uppercase tracking-[0.3em] font-bold">Viral Reach</p>
+                </div>
+                <div class="stat-item">
+                    <p class="text-5xl md:text-7xl font-black font-tech mb-4 text-brand-primary tracking-tighter" data-target="500">0</p>
+                    <p class="text-white/30 text-xs uppercase tracking-[0.3em] font-bold">IP Partners</p>
+                </div>
+                <div class="stat-item">
+                    <p class="text-5xl md:text-7xl font-black font-tech mb-4 text-brand-primary tracking-tighter" data-target="24">0</p>
+                    <p class="text-white/30 text-xs uppercase tracking-[0.3em] font-bold">Auto-Monitoring</p>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <footer class="py-20 text-center text-white/20 text-xs uppercase tracking-[0.5em] font-bold">
+        <div class="flex justify-center gap-10 mb-10">
+            <a href="#" class="hover:text-brand-primary transition-colors">Privacy</a>
+            <a href="#" class="hover:text-brand-primary transition-colors">Terms</a>
+            <a href="#" class="hover:text-brand-primary transition-colors">Contact</a>
+        </div>
+        <div class="flex items-center justify-center gap-3">
+            <img src="sfire-logo.jpg" class="h-6 opacity-20 filter grayscale" alt="Logo">
+            Fire Source AI Ecosystem © 2026
+        </div>
+    </footer>
+
+    <script>
+        // 初始化 Lucide 图标
+        lucide.createIcons();
+
+        // --- Three.js 星链地球首屏逻辑 ---
+        const canvas = document.querySelector('#hero-canvas');
+        const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
+        const scene = new THREE.Scene();
+        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+        camera.position.z = 5;
+
+        // 地球主体
+        const earthGroup = new THREE.Group();
+        const earthGeometry = new THREE.SphereGeometry(2, 64, 64);
+        const earthMaterial = new THREE.MeshPhongMaterial({
+            color: 0x111111,
+            wireframe: true,
+            transparent: true,
+            opacity: 0.2
+        });
+        const earth = new THREE.Mesh(earthGeometry, earthMaterial);
+        earthGroup.add(earth);
+
+        // 星链轨道点
+        const starlinkPoints = new THREE.Points(
+            new THREE.BufferGeometry().setFromPoints(new Array(500).fill(0).map(() => {
+                const point = new THREE.Vector3();
+                const radius = 2.2 + Math.random() * 0.5;
+                const phi = Math.acos(-1 + (Math.random() * 2));
+                const theta = Math.random() * Math.PI * 2;
+                point.setFromSphericalCoords(radius, phi, theta);
+                return point;
+            })),
+            new THREE.PointsMaterial({ color: 0xFF4D00, size: 0.02, transparent: true, opacity: 0.8 })
+        );
+        earthGroup.add(starlinkPoints);
+
+        // 核心光效
+        const light = new THREE.PointLight(0xFF4D00, 2, 50);
+        light.position.set(5, 5, 5);
+        scene.add(light);
+        scene.add(new THREE.AmbientLight(0x404040));
+        scene.add(earthGroup);
+
+        function animate() {
+            requestAnimationFrame(animate);
+            earthGroup.rotation.y += 0.002;
+            earthGroup.rotation.x += 0.001;
+            renderer.render(scene, camera);
+        }
+
+        function resize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+
+        window.addEventListener('resize', resize);
+        resize();
+        animate();
+
+        // --- 数字增长动画 ---
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if(entry.isIntersecting) {
+                    const target = parseInt(entry.target.getAttribute('data-target'));
+                    const duration = 2000;
+                    let start = 0;
+                    const increment = target / (duration / 16);
+                    
+                    const update = () => {
+                        start += increment;
+                        if(start < target) {
+                            entry.target.innerText = Math.floor(start) + (entry.target.innerText.includes('%') ? '%' : (entry.target.innerText.includes('M') ? 'M+' : ''));
+                            requestAnimationFrame(update);
+                        } else {
+                            entry.target.innerText = target + (entry.target.innerText.includes('%') ? '%' : (entry.target.innerText.includes('M') ? 'M+' : ''));
+                        }
+                    };
+                    update();
+                    observer.unobserve(entry.target);
+                }
+            });
+        }, { threshold: 0.5 });
+
+        document.querySelectorAll('[data-target]').forEach(el => observer.observe(el));
+
+        // 导航栏效果
+        window.addEventListener('scroll', () => {
+            const nav = document.getElementById('navbar');
+            if (window.scrollY > 50) {
+                nav.classList.add('bg-black/90', 'backdrop-blur-xl', 'py-4', 'border-b', 'border-white/10');
+                nav.classList.remove('py-6');
+            } else {
+                nav.classList.remove('bg-black/90', 'backdrop-blur-xl', 'py-4', 'border-b', 'border-white/10');
+                nav.classList.add('py-6');
+            }
+        });
+    </script>
+</body>
+</html>

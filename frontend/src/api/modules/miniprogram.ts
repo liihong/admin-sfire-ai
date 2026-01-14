@@ -40,6 +40,9 @@ export interface WechatLoginResponse {
     province?: string;
     country?: string;
   };
+  updated_at?: string; // 账号更新时间
+  vip_expired?: boolean; // 会员是否已过期
+  vip_expire_date?: string; // 会员到期日期
 }
 
 /**
@@ -104,6 +107,21 @@ export interface UpdateMPUserRequest {
 
 export const updateMPUserInfoApi = (params: UpdateMPUserRequest) => {
   return http.put<MPUserInfo>(MP_API_PREFIX + `/auth/user`, params);
+};
+
+/**
+ * 修改密码请求
+ */
+export interface ChangePasswordRequest {
+  old_password: string; // 原密码（MD5加密）
+  new_password: string; // 新密码（MD5加密）
+}
+
+/**
+ * 修改密码
+ */
+export const changePasswordApi = (params: ChangePasswordRequest) => {
+  return http.post<{ success: boolean }>(MP_API_PREFIX + `/auth/user/change-password`, params);
 };
 
 // ============== 项目管理相关 ==============

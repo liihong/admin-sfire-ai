@@ -26,7 +26,7 @@
       <div class="login-form">
         <div class="login-logo">
           <img class="login-icon" src="@/assets/images/logo.svg" alt="" />
-          <h2 class="logo-text">FireSource-Admin</h2>
+          <h2 class="logo-text">火源AI 后台管理</h2>
         </div>
         <LoginForm />
       </div>

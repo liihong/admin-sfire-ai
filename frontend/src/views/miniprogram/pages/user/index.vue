@@ -65,11 +65,55 @@
             <el-form-item>
               <el-button type="primary" :loading="submitLoading" @click="handleSubmit">保存</el-button>
               <el-button @click="handleReset">重置</el-button>
+              <el-button type="warning" @click="showChangePasswordDialog = true">修改密码</el-button>
             </el-form-item>
           </el-form>
         </el-card>
       </el-col>
     </el-row>
+
+    <!-- 修改密码对话框 -->
+    <el-dialog
+      v-model="showChangePasswordDialog"
+      title="修改密码"
+      width="500px"
+      :close-on-click-modal="false"
+    >
+      <el-form ref="passwordFormRef" :model="passwordForm" :rules="passwordFormRules" label-width="100px">
+        <el-form-item label="原密码" prop="old_password">
+          <el-input
+            v-model="passwordForm.old_password"
+            type="password"
+            placeholder="请输入原密码"
+            show-password
+          />
+        </el-form-item>
+        <el-form-item label="新密码" prop="new_password">
+          <el-input
+            v-model="passwordForm.new_password"
+            type="password"
+            placeholder="请输入新密码(6-20位)"
+            show-password
+          />
+        </el-form-item>
+        <el-form-item label="确认密码" prop="confirm_password">
+          <el-input
+            v-model="passwordForm.confirm_password"
+            type="password"
+            placeholder="请再次输入新密码"
+            show-password
+          />
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <span class="dialog-footer">
+          <el-button @click="handleCancelChangePassword">取消</el-button>
+          <el-button type="primary" :loading="passwordSubmitLoading" @click="handleChangePassword">
+            确认修改
+          </el-button>
+        </span>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
@@ -78,9 +122,10 @@ import { ref, reactive, computed, onMounted } from "vue";
 import { ElMessage, ElForm, type UploadRequestOptions } from "element-plus";
 import { UserFilled, Camera } from "@element-plus/icons-vue";
 import { useMPUserStore } from "@/stores/modules/miniprogramUser";
-import { updateMPUserInfoApi } from "@/api/modules/miniprogram";
+import { changePasswordApi } from "@/api/modules/miniprogram";
 import type { UpdateMPUserRequest } from "@/api/modules/miniprogram";
 import { uploadImg } from "@/api/modules/upload";
+import { encryptPassword } from "@/utils/encrypt";
 
 const mpUserStore = useMPUserStore();
 
@@ -98,6 +143,38 @@ const formData = reactive<UpdateMPUserRequest>({
 
 const formRules = {
   nickname: [{ required: true, message: "请输入昵称", trigger: "blur" }]
+};
+
+// 修改密码相关
+const showChangePasswordDialog = ref(false);
+const passwordFormRef = ref<InstanceType<typeof ElForm>>();
+const passwordSubmitLoading = ref(false);
+
+const passwordForm = reactive({
+  old_password: "",
+  new_password: "",
+  confirm_password: ""
+});
+
+const validateConfirmPassword = (rule: any, value: any, callback: any) => {
+  if (value === "") {
+    callback(new Error("请再次输入新密码"));
+  } else if (value !== passwordForm.new_password) {
+    callback(new Error("两次输入密码不一致"));
+  } else {
+    callback();
+  }
+};
+
+const passwordFormRules = {
+  old_password: [{ required: true, message: "请输入原密码", trigger: "blur" }],
+  new_password: [
+    { required: true, message: "请输入新密码", trigger: "blur" },
+    { min: 6, max: 20, message: "密码长度为6-20位", trigger: "blur" }
+  ],
+  confirm_password: [
+    { required: true, validator: validateConfirmPassword, trigger: "blur" }
+  ]
 };
 
 // 初始化表单数据
@@ -173,6 +250,49 @@ const handleSubmit = async () => {
 const handleReset = () => {
   formRef.value?.resetFields();
   initFormData();
+};
+
+// 取消修改密码
+const handleCancelChangePassword = () => {
+  showChangePasswordDialog.value = false;
+  passwordFormRef.value?.resetFields();
+};
+
+// 提交修改���码
+const handleChangePassword = async () => {
+  if (!passwordFormRef.value) return;
+
+  await passwordFormRef.value.validate(async valid => {
+    if (!valid) return;
+
+    passwordSubmitLoading.value = true;
+    try {
+      // 对密码进行MD5加密
+      const encryptedOldPassword = encryptPassword(passwordForm.old_password);
+      const encryptedNewPassword = encryptPassword(passwordForm.new_password);
+
+      await changePasswordApi({
+        old_password: encryptedOldPassword,
+        new_password: encryptedNewPassword
+      });
+
+      ElMessage.success("密码修改成功，请重新登录");
+      showChangePasswordDialog.value = false;
+      passwordFormRef.value?.resetFields();
+
+      // 密码修改成功后，延迟1秒后退出登录并跳转到登录页
+      setTimeout(() => {
+        // 清除用户登录状态
+        mpUserStore.resetUser();
+        // 跳转到登录页
+        window.location.href = "/mp/login";
+      }, 1000);
+    } catch (error: any) {
+      ElMessage.error(error?.msg || "密码修改失败");
+    } finally {
+      passwordSubmitLoading.value = false;
+    }
+  });
 };
 
 onMounted(async () => {
@@ -264,6 +384,7 @@ onMounted(async () => {
   }
 }
 </style>
+
 
 
 
