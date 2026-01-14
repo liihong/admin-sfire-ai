@@ -8,7 +8,7 @@ import "@/styles/common.scss";
 import "@/assets/iconfont/iconfont.scss";
 // font css
 import "@/assets/fonts/font.scss";
-// element css
+// element css (按需引入时仍需导入样式)
 import "element-plus/dist/index.css";
 // element dark css
 import "element-plus/theme-chalk/dark/css-vars.css";
@@ -18,9 +18,7 @@ import "@/styles/element-dark.scss";
 import "@/styles/element.scss";
 // svg icons
 import "virtual:svg-icons-register";
-// element plus
-import ElementPlus from "element-plus";
-// element icons
+// element icons (全部注册图标组件)
 import * as Icons from "@element-plus/icons-vue";
 // custom directives
 import directives from "@/directives/index";
@@ -42,4 +40,5 @@ Object.keys(Icons).forEach(key => {
   app.component(key, Icons[key as keyof typeof Icons]);
 });
 
-app.use(ElementPlus).use(directives).use(router).use(I18n).use(pinia).mount("#app");
+// 移除 ElementPlus 全量引入，使用按需引入
+app.use(directives).use(router).use(I18n).use(pinia).mount("#app");

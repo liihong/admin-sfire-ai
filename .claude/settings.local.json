@@ -6,7 +6,13 @@
       "Bash(ls:*)",
       "Bash(pip install:*)",
       "Bash(del:*)",
-      "Bash(gh pr:*)"
+      "Bash(gh pr:*)",
+      "Bash(npm run)",
+      "Bash(npm run build:pro:*)",
+      "Bash(find:*)",
+      "Read(//e/project/admin-sfire-ai/**)",
+      "Bash(sort:*)",
+      "Bash(npm install:*)"
     ]
   }
 }

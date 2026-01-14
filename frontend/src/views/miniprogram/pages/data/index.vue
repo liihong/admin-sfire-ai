@@ -89,7 +89,7 @@ import { FolderOpened, DataAnalysis, Coin, TrendCharts } from "@element-plus/ico
 import { useMPUserStore } from "@/stores/modules/miniprogramUser";
 import { getMPProjectListApi, getMPComputeRecordsApi, getMPCoinStatisticsApi } from "@/api/modules/miniprogram";
 import type { MPComputeRecord, MPCoinStatistics } from "@/api/modules/miniprogram";
-import * as echarts from "echarts";
+import echarts from "@/components/ECharts/config";
 import dayjs from "dayjs";
 
 const mpUserStore = useMPUserStore();
@@ -336,6 +336,7 @@ onBeforeUnmount(() => {
   }
 }
 </style>
+
 
 
 
