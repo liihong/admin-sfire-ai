@@ -55,8 +55,8 @@ class Settings(BaseSettings):
     OPENAI_API_KEY: str = "e44c68945ae94109b4d7f433c2442310.3v8Np2obJ8MtYj33"  # OpenAI API Key
     
     # 微信小程序配置
-    WECHAT_APP_ID: str = ""  # 微信小程序 AppID
-    WECHAT_APP_SECRET: str = ""  # 微信小程序 AppSecret
+    WECHAT_APP_ID: str = "wxd9e4d8682e6caff6"  # 微信小程序 AppID
+    WECHAT_APP_SECRET: str = "83ca14e30bf971e6ba2e25d16161938b"  # 微信小程序 AppSecret
     
     # LLM 配置
     DEEPSEEK_API_KEY: str = ""  # DeepSeek API Key
