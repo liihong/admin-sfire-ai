@@ -12,7 +12,7 @@
         <text class="back-icon">←</text>
       </view>
       <view class="header-content">
-        <text class="header-title">创建新项目</text>
+        <text class="header-title">创建新IP</text>
         <text class="header-subtitle">打造专属 IP 人设</text>
       </view>
     </view>
@@ -20,7 +20,7 @@
     <!-- 主内容区域 -->
     <scroll-view class="main-content" scroll-y>
       <!-- 🔥 一键采集卡片 -->
-      <view class="magic-import-card">
+      <!-- <view class="magic-import-card">
         <view class="card-header">
           <view class="card-icon">
             <text class="icon-text">🪄</text>
@@ -51,21 +51,19 @@
             </view>
           </view>
           
-          <!-- 采集状态提示 -->
           <view class="collect-status" v-if="collectStatus">
             <view class="status-dot" :class="collectStatusClass"></view>
             <text class="status-text">{{ collectStatus }}</text>
           </view>
         </view>
 
-        <!-- 支持的链接格式提示 -->
         <view class="link-tips">
           <text class="tip-text">支持格式：抖音个人主页链接 / 分享链接</text>
         </view>
-      </view>
+      </view> -->
 
       <!-- AI智能填写卡片 -->
-      <view class="ai-fill-card" style="display: block;">
+      <!-- <view class="ai-fill-card" style="display: block;">
         <view class="card-header">
           <view class="card-icon">
             <text class="icon-text">🤖</text>
@@ -78,24 +76,23 @@
         <view 
           class="ai-fill-btn"
           :class="{ disabled: isAICollecting }"
-          @tap="handleAICollect"
-        >
+          @tap="handleAICollect">
           <view class="btn-icon" v-if="!isAICollecting">✨</view>
           <view class="loading-icon" v-else></view>
           <text class="btn-text">{{ isAICollecting ? '采集中' : '开始智能填写' }}</text>
         </view>
-      </view>
+      </view> -->
 
       <!-- 分隔线 -->
-      <view class="divider">
+      <!-- <view class="divider">
         <view class="divider-line"></view>
         <text class="divider-text">或手动填写</text>
         <view class="divider-line"></view>
-      </view>
+      </view> -->
 
-      <!-- 项目表单 -->
+      <!-- IP表单 -->
       <view class="project-form">
-        <!-- 项目头像预览 -->
+        <!-- IP头像预览 -->
         <view class="avatar-section">
           <view class="avatar-preview" :style="{ background: avatarColor }">
             <image 
@@ -107,15 +104,15 @@
             <text v-else class="avatar-letter">{{ avatarLetter }}</text>
           </view>
           <view class="avatar-info">
-            <text class="avatar-hint">项目头像</text>
+            <text class="avatar-hint">IP头像</text>
             <text class="avatar-auto" v-if="avatarUrl">已从抖音导入</text>
           </view>
         </view>
 
-        <!-- 项目名称 -->
+        <!-- IP名称 -->
         <view class="form-item">
           <view class="form-label-row">
-            <text class="form-label">项目名称</text>
+            <text class="form-label">IP名称</text>
             <text class="form-required">*</text>
           </view>
           <input 
@@ -234,7 +231,7 @@
         <view class="btn-content">
           <text class="btn-icon" v-if="!isSubmitting">🚀</text>
           <view class="loading-spinner" v-else></view>
-          <text class="btn-text">{{ isSubmitting ? '创建中...' : '创建项目' }}</text>
+          <text class="btn-text">{{ isSubmitting ? '创建中...' : '创建IP' }}</text>
         </view>
       </view>
     </view>
@@ -402,8 +399,7 @@ async function handleCollect() {
     
     clearInterval(progressInterval2)
     
-    // 后端返回格式: {code: 200, data: {...}, msg: "..."}
-    if (response.code === 200 && response.data) {
+    if (response.success && response.data) {
       // 阶段3: 分析内容
       collectProgress.value = 70
       collectModalTitle.value = '正在分析视频内容...'
@@ -444,7 +440,7 @@ async function handleCollect() {
         icon: 'success'
       })
     } else {
-      throw new Error(response.msg || '采集失败')
+      throw new Error(response.message || '采集失败')
     }
   } catch (error: any) {
     console.error('Collect failed:', error)
@@ -467,39 +463,57 @@ async function handleSubmit() {
   isSubmitting.value = true
   
   try {
-    const project = await createProject({
+    // 构建请求数据（扁平化字段）
+    const requestData: any = {
       name: formData.name.trim(),
-      industry: formData.industry,
-      persona_settings: {
-        tone: formData.tone,
-        catchphrase: formData.catchphrase,
-        target_audience: formData.targetAudience,
-        introduction: formData.introduction,
-        keywords: parsedKeywords.value,
-        benchmark_accounts: [],
-        content_style: '',
-        taboos: []
-      }
+      industry: formData.industry
+    }
+
+    // 添加可选的人设字段
+    if (formData.introduction) {
+      requestData.introduction = formData.introduction
+    }
+    if (formData.tone) {
+      requestData.tone = formData.tone
+    }
+    if (formData.targetAudience) {
+      requestData.target_audience = formData.targetAudience
+    }
+    if (formData.catchphrase) {
+      requestData.catchphrase = formData.catchphrase
+    }
+    if (parsedKeywords.value.length > 0) {
+      requestData.keywords = parsedKeywords.value
+    }
+
+    // 调用 API
+    const response = await request<{
+      project: any
+    }>({
+      url: '/api/v1/client/projects',
+      method: 'POST',
+      data: requestData
     })
     
-    // 更新 store 状态
-    projectStore.upsertProject(project)
-    
-    uni.showToast({
-      title: '创建成功',
-      icon: 'success'
-    })
-    
-    // 跳转到控制台
-    setTimeout(() => {
-      uni.navigateTo({
-        url: `/pages/project/dashboard?id=${project.id}`
+    if (response.code === 200 && response.data?.project) {
+      uni.showToast({
+        title: '创建成功',
+        icon: 'success'
       })
-    }, 500)
-  } catch (error) {
+
+      // 跳转到项目列表页
+      setTimeout(() => {
+        uni.switchTab({
+          url: '/pages/project/list'
+        })
+      }, 500)
+    } else {
+      throw new Error(response.msg || '创建失败')
+    }
+  } catch (error: any) {
     console.error('Submit failed:', error)
     uni.showToast({
-      title: '创建失败，请重试',
+      title: error.message || '创建失败，请重试',
       icon: 'none'
     })
   } finally {
@@ -894,7 +908,7 @@ function delay(ms: number) {
   }
 }
 
-// ========== 项目表单 ==========
+// ========== IP表单 ==========
 .project-form {
   background: rgba(255, 255, 255, 0.9);
   backdrop-filter: blur(20px);

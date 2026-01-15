@@ -165,17 +165,15 @@ export async function fetchProjects(): Promise<FetchProjectsResponse> {
  * 创建新项目
  */
 export async function createProject(data: ProjectCreateRequest): Promise<Project> {
-  const response = await request<{
-    project: Project
-  }>({
+  const response = await request<Project>({
     url: '/api/v1/client/projects',
     method: 'POST',
     data
   })
 
-  // 后端返回格式: {code: 200, data: {project: {...}}, msg: "..."}
-  if (response.code === 200 && response.data?.project) {
-    return response.data.project
+  // 后端返回格式: {code: 200, data: {...}, msg: "..."}
+  if (response.code === 200 && response.data) {
+    return response.data as Project
   }
 
   throw new Error((response as any).msg || '创建项目失败')
@@ -185,17 +183,14 @@ export async function createProject(data: ProjectCreateRequest): Promise<Project
  * 更新项目
  */
 export async function updateProject(projectId: string, data: ProjectUpdateRequest): Promise<Project> {
-  const response = await request<{
-    project: Project
-  }>({
+  const response = await request<Project>({
     url: `/api/v1/client/projects/${projectId}`,
     method: 'PUT',
     data
   })
-
-  // 后端返回格式: {code: 200, data: {project: {...}}, msg: "..."}
-  if (response.code === 200 && response.data?.project) {
-    return response.data.project
+  // 后端返回格式: {code: 200, data: {...}, msg: "..."}
+  if (response.code === 200 && response.data) {
+    return response.data as Project
   }
 
   throw new Error((response as any).msg || '更新项目失败')

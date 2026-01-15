@@ -315,7 +315,7 @@
 
 <script setup lang="ts">
 import { ref, computed, reactive, onMounted, watch } from 'vue'
-import { useProjectStore, INDUSTRY_OPTIONS, TONE_OPTIONS, type PersonaSettings } from '@/stores/project'
+import { useProjectStore, INDUSTRY_OPTIONS, TONE_OPTIONS, DEFAULT_PERSONA_SETTINGS, type PersonaSettings } from '@/stores/project'
 import { fetchProjects, updateProject } from '@/api/project'
 
 // Store
@@ -350,18 +350,39 @@ const editForm = reactive({
 
 // 初始化
 onMounted(async () => {
-  if (!activeProject.value) {
+  // 获取 URL 参数
+  const pages = getCurrentPages()
+  const currentPage = pages[pages.length - 1] as any
+  const urlParams = currentPage?.options || {}
+  const editMode = urlParams.edit === 'true'
+  const projectId = urlParams.id
+
+  // 如果需要编辑特定项目，先加载项目列表
+  if (projectId || !activeProject.value) {
     try {
       const response = await fetchProjects()
       projectStore.setProjectList(response.projects, response.active_project_id)
 
-      if (!projectStore.hasActiveProject && projectStore.projectCount === 0) {
-        uni.redirectTo({ url: '/pages/project/list' })
-        return
-      }
-      if (!projectStore.hasActiveProject && projectStore.projectCount > 0) {
-        const firstProject = projectStore.projectList[0]
-        projectStore.setActiveProjectLocal(firstProject)
+      // 如果 URL 中指定了项目 ID，设置为激活项目
+      if (projectId) {
+        const targetProject = response.projects.find(p => String(p.id) === String(projectId))
+        if (targetProject) {
+          projectStore.setActiveProjectLocal(targetProject)
+        } else {
+          uni.showToast({ title: '项目不存在', icon: 'none' })
+          uni.navigateBack()
+          return
+        }
+      } else if (!projectStore.hasActiveProject) {
+        // 如果没有指定项目 ID 且没有激活项目
+        if (projectStore.projectCount === 0) {
+          uni.redirectTo({ url: '/pages/project/list' })
+          return
+        }
+        if (projectStore.projectCount > 0) {
+          const firstProject = projectStore.projectList[0]
+          projectStore.setActiveProjectLocal(firstProject)
+        }
       }
     } catch (error) {
       console.error('Failed to fetch projects:', error)
@@ -372,11 +393,11 @@ onMounted(async () => {
     }
   }
   
+  // 回填表单数据
   syncFormFromProject()
   
-  const pages = getCurrentPages()
-  const currentPage = pages[pages.length - 1] as any
-  if (currentPage?.options?.edit === 'true') {
+  // 如果是编辑模式，打开抽屉
+  if (editMode) {
     showPersonaDrawer.value = true
   }
 })
@@ -387,9 +408,20 @@ watch(activeProject, () => {
 
 function syncFormFromProject() {
   if (activeProject.value) {
-    editForm.name = activeProject.value.name
+    editForm.name = activeProject.value.name || ''
     editForm.industry = activeProject.value.industry || '通用'
-    editForm.persona = { ...activeProject.value.persona_settings }
+    // 使用默认值合并，确保所有字段都有值
+    const personaSettings = activeProject.value.persona_settings || {}
+    editForm.persona = {
+      tone: personaSettings.tone || DEFAULT_PERSONA_SETTINGS.tone,
+      catchphrase: personaSettings.catchphrase || DEFAULT_PERSONA_SETTINGS.catchphrase,
+      target_audience: personaSettings.target_audience || DEFAULT_PERSONA_SETTINGS.target_audience,
+      benchmark_accounts: personaSettings.benchmark_accounts || [...DEFAULT_PERSONA_SETTINGS.benchmark_accounts],
+      content_style: personaSettings.content_style || DEFAULT_PERSONA_SETTINGS.content_style,
+      taboos: personaSettings.taboos || [...DEFAULT_PERSONA_SETTINGS.taboos],
+      keywords: personaSettings.keywords || [...DEFAULT_PERSONA_SETTINGS.keywords],
+      introduction: personaSettings.introduction || DEFAULT_PERSONA_SETTINGS.introduction
+    }
   }
 }
 

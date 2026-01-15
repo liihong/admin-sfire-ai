@@ -240,6 +240,7 @@
 
 <script setup lang="ts">
 import { ref, reactive, computed, watch, onMounted, nextTick } from 'vue'
+import { onLoad } from '@dcloudio/uni-app'
 import { useSettingsStore, type ModelConfig } from '@/stores/settings'
 import { useAuthStore } from '@/stores/auth'
 import { useProjectStore } from '@/stores/project'
@@ -268,6 +269,7 @@ interface Agent {
 
 const agentList = reactive<Agent[]>([])
 const currentAgent = ref<Agent | null>(null)
+const pageAgentId = ref<string | null>(null) // 从页面参数获取的智能体ID
 
 // 加载智能体列表
 async function loadAgentList() {
@@ -291,14 +293,27 @@ async function loadAgentList() {
         })
       })
       
-      // 设置默认选中的智能体（第一个）
-      if (agentList.length > 0 && !currentAgent.value) {
-        currentAgent.value = agentList[0]
-      }
+      // 如果有传入的 agentId，优先选中该智能体
+      if (pageAgentId.value) {
+        const targetAgent = agentList.find(agent => agent.id === pageAgentId.value)
+        if (targetAgent) {
+          currentAgent.value = targetAgent
+        } else {
+          // 如果找不到对应的智能体，使用第一个
+          if (agentList.length > 0) {
+            currentAgent.value = agentList[0]
+          }
+        }
+      } else {
+        // 设置默认选中的智能体（第一个）
+        if (agentList.length > 0 && !currentAgent.value) {
+          currentAgent.value = agentList[0]
+        }
 
-      // 确保 currentAgent 不为 null
-      if (!currentAgent.value && agentList.length > 0) {
-        currentAgent.value = agentList[0]
+        // 确保 currentAgent 不为 null
+        if (!currentAgent.value && agentList.length > 0) {
+          currentAgent.value = agentList[0]
+        }
       }
     } else {
       console.error('获取智能体列表失败:', (response as any).msg)
@@ -623,6 +638,13 @@ function copyMessage(content: string) {
 }
 
 // ============== 生命周期 ==============
+// 页面加载时接收参数
+onLoad((options: any) => {
+  if (options.agentId) {
+    pageAgentId.value = options.agentId
+  }
+})
+
 onMounted(async () => {
   // 加载智能体列表
   await loadAgentList()

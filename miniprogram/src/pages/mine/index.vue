@@ -37,7 +37,7 @@
     </view>
 
     <!-- 合伙人卡片 -->
-    <view class="partner-card">
+    <!-- <view class="partner-card">
       <view class="stat-header">
         <text class="stat-title">合伙人 - {{ userInfo.partnerStatus }}</text>
         <text class="stat-link" @tap="goToDetail('asset')">资产明细 ›</text>
@@ -54,10 +54,10 @@
           <text class="btn-text-outline">邀请好友</text>
         </view>
       </view>
-    </view>
+    </view> -->
 
     <!-- 功能列表 -->
-    <view class="menu-card">
+    <!-- <view class="menu-card">
       <view 
         v-for="(item, index) in menuList" 
         :key="index" 
@@ -73,7 +73,7 @@
         </view>
         <text class="menu-arrow">›</text>
       </view>
-    </view>
+    </view> -->
   </view>
 </template>
 

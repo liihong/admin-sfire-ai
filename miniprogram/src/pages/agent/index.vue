@@ -14,7 +14,7 @@
       
       <!-- 标题信息 -->
       <view class="title-section">
-        <text class="main-title">火源文案智能体</text>
+        <text class="main-title">火源AI智能体</text>
         <text class="sub-title">HUOYUAN AI</text>
         <text class="desc">你的专属AI爆款引擎</text>
       </view>
@@ -22,101 +22,108 @@
     
     <!-- 功能列表 -->
     <view class="feature-list">
+      <!-- 加载中状态 -->
+      <view v-if="loading" class="loading-wrapper">
+        <text class="loading-text">加载中...</text>
+      </view>
+
+      <!-- 智能体列表 -->
       <view 
         v-for="(item, index) in featureList" 
-        :key="index" 
+:key="item.id"
         class="feature-card"
         @click="handleFeatureClick(item)"
       >
-        <view class="feature-icon" :style="{ backgroundColor: item.bgColor }">
+        <view class="feature-icon" :style="{ backgroundColor: getAgentBgColor(index) }">
           <text class="icon-text">{{ item.icon }}</text>
         </view>
         <view class="feature-content">
-          <text class="feature-title">{{ item.title }}</text>
+          <text class="feature-title">{{ item.name }}</text>
           <text class="feature-desc">{{ item.description }}</text>
         </view>
         <view class="feature-arrow">
           <text class="arrow-icon">›</text>
         </view>
       </view>
+
+      <!-- 空状态 -->
+      <view v-if="!loading && featureList.length === 0" class="empty-wrapper">
+        <text class="empty-text">暂无智能体</text>
+      </view>
     </view>
   </view>
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, onMounted } from 'vue'
 import { useAuthStore } from '@/stores/auth'
+import { getAgentList, type Agent } from '@/api/agent'
 
 const authStore = useAuthStore()
 
-// 功能类型定义
-interface FeatureItem {
-  id: number
-  icon: string
-  title: string
-  description: string
-  bgColor: string
-  path: string
+// 智能体列表
+const featureList = ref<Agent[]>([])
+const loading = ref(false)
+
+// 颜色配置（用于智能体卡片背景色）
+const colorPalette = [
+  '#3B82F6', // 蓝色
+  '#22C55E', // 绿色
+  '#F97316', // 橙色
+  '#8B5CF6', // 紫色
+  '#EC4899', // 粉色
+  '#06B6D4', // 青色
+  '#F59E0B', // 黄色
+  '#EF4444'  // 红色
+]
+
+// 获取智能体列表
+const loadAgentList = async () => {
+  loading.value = true
+  try {
+    const response = await getAgentList()
+    if (response.code === 200 && response.data?.agents) {
+      featureList.value = response.data.agents
+    } else {
+      uni.showToast({
+        title: response.msg || '获取智能体列表失败',
+        icon: 'none',
+        duration: 2000
+      })
+    }
+  } catch (error) {
+    console.error('加载智能体列表失败:', error)
+    uni.showToast({
+      title: '加载失败，请稍后重试',
+      icon: 'none',
+      duration: 2000
+    })
+  } finally {
+    loading.value = false
+  }
 }
 
-// Mock 数据
-const featureList = ref<FeatureItem[]>([
-  {
-    id: 1,
-    icon: '❓',
-    title: 'IP问答型文案',
-    description: '适合拍摄提问和IP问答场景文案',
-    bgColor: '#3B82F6',
-    path: '/pages/feature/qa/index'
-  },
-  {
-    id: 2,
-    icon: '🎙️',
-    title: '高效口播文案',
-    description: '基于「流量密码库」随机组合文案',
-    bgColor: '#22C55E',
-    path: '/pages/feature/broadcast/index'
-  },
-  {
-    id: 3,
-    icon: '📝',
-    title: '爆款选题创作',
-    description: '基于「流量密码库」创作爆款选题',
-    bgColor: '#F97316',
-    path: '/pages/feature/topic/index'
-  },
-  {
-    id: 4,
-    icon: '🎯',
-    title: '定向口播文案',
-    description: '基于「流量密码库」定向结构文案',
-    bgColor: '#3B82F6',
-    path: '/pages/feature/target/index'
-  },
-  {
-    id: 5,
-    icon: '🔥',
-    title: '抖音热点文案',
-    description: '结合IP行业和热点事件创作文案',
-    bgColor: '#22C55E',
-    path: '/pages/feature/trending/index'
-  }
-])
+// 获取智能体卡片的背景色
+const getAgentBgColor = (index: number): string => {
+  return colorPalette[index % colorPalette.length]
+}
 
-// 点击功能卡片
-const handleFeatureClick = async (item: FeatureItem) => {
+// 点击智能体卡片
+const handleFeatureClick = async (item: Agent) => {
   // 登录检查
   const loggedIn = await authStore.requireLogin()
   if (!loggedIn) return
   
-  uni.showToast({
-    title: `即将开放：${item.title}`,
-    icon: 'none',
-    duration: 1500
+  // 跳转到智能体对话页面，传递智能体ID
+  uni.navigateTo({
+    url: `/pages/copywriting/index?agentId=${item.id}`
   })
-  // 后续可以跳转到对应页面
-  // uni.navigateTo({ url: item.path })
 }
+
+// 页面加载时获取智能体列表
+onMounted(() => {
+  loadAgentList()
+})
 </script>
 
 <style scoped>
@@ -267,6 +274,31 @@ const handleFeatureClick = async (item: FeatureItem) => {
   font-size: 40rpx;
   color: #cbd5e1;
   font-weight: 300;
+}
+/* 加载状态 */
+.loading-wrapper {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 80rpx 0;
+}
+
+.loading-text {
+  font-size: 28rpx;
+  color: #94a3b8;
+}
+
+/* 空状态 */
+.empty-wrapper {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 80rpx 0;
+}
+
+.empty-text {
+  font-size: 28rpx;
+  color: #94a3b8;
 }
 </style>
 

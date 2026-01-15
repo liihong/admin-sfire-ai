@@ -52,7 +52,7 @@
     </view>
 
     <!-- 功能卡片区 -->
-    <view class="feature-cards">
+    <!-- <view class="feature-cards">
       <view 
         class="feature-card" 
         v-for="(card, index) in featureCards" 
@@ -68,11 +68,11 @@
           <text class="card-icon">{{ card.icon }}</text>
         </view>
       </view>
-    </view>
+    </view> -->
 
     <!-- 数字人分类区 -->
-    <view class="category-section">
-      <view class="category-tabs">
+    <!-- <view class="category-section"> -->
+    <!-- <view class="category-tabs">
         <view 
           class="category-tab" 
           v-for="(cat, index) in categories" 
@@ -82,10 +82,10 @@
         >
           <text class="tab-text">{{ cat }}</text>
         </view>
-      </view>
+      </view> -->
 
       <!-- 数字人列表 -->
-      <view class="avatar-grid">
+    <!-- <view class="avatar-grid">
         <view 
           class="avatar-card" 
           v-for="(avatar, index) in avatarList" 
@@ -98,7 +98,8 @@
           </view>
         </view>
       </view>
-    </view>
+    </view> -->
+
   </view>
 </template>
 
@@ -106,14 +107,90 @@
 import { ref, reactive, computed, onMounted } from 'vue'
 import { useAuthStore } from '@/stores/auth'
 import { useProjectStore } from '@/stores/project'
+import { getAgentList, type Agent } from '@/api/agent'
 
 const authStore = useAuthStore()
 const projectStore = useProjectStore()
 
+// 金刚区导航数据
+const navList = ref<Array<{
+  icon: string
+  label: string
+  bgColor: string
+  route?: string
+  agentId?: string
+  isMore?: boolean
+}>>([])
+
+// 加载智能体列表
+const loadAgentList = async () => {
+  try {
+    const response = await getAgentList()
+    if (response.code === 200 && response.data?.agents) {
+      const agents = response.data.agents
+      const maxDisplay = 7 // 最多显示7个
+
+      // 生成背景色数组（循环使用）
+      const bgColors = [
+        'linear-gradient(135deg, #e0f4ff 0%, #c7ecff 100%)',
+        'linear-gradient(135deg, #e8ffe8 0%, #c1ffc1 100%)',
+        'linear-gradient(135deg, #fff4e0 0%, #ffe4b5 100%)',
+        'linear-gradient(135deg, #f0e0ff 0%, #e0c0ff 100%)',
+        'linear-gradient(135deg, #e0f0ff 0%, #b0d8ff 100%)',
+        'linear-gradient(135deg, #ffe0e8 0%, #ffb0c8 100%)',
+        'linear-gradient(135deg, #fff0e0 0%, #ffd8a0 100%)',
+        'linear-gradient(135deg, #e8e8ff 0%, #d0d0ff 100%)'
+      ]
+
+      // 转换智能体数据为导航项
+      const agentNavItems = agents.slice(0, maxDisplay).map((agent, index) => ({
+        icon: agent.icon || '🤖',
+        label: agent.name || '智能体',
+        bgColor: bgColors[index % bgColors.length],
+        route: '/pages/copywriting/index',
+        agentId: agent.id
+      }))
+
+      // 添加"更多"按钮（第8个位置）
+      const moreItem = {
+        icon: '⭐',
+        label: '更多',
+        bgColor: 'linear-gradient(135deg, #e8e8ff 0%, #d0d0ff 100%)',
+        route: '/pages/agent/index',
+        isMore: true
+      }
+
+      navList.value = [...agentNavItems, moreItem]
+    } else {
+      // 如果接口失败，使用默认数据
+      console.warn('获取智能体列表失败，使用默认数据')
+      setDefaultNavList()
+    }
+  } catch (error) {
+    console.error('加载智能体列表失败:', error)
+    // 接口失败时使用默认数据
+    setDefaultNavList()
+  }
+}
+
+// 设置默认导航列表（作为fallback）
+const setDefaultNavList = () => {
+  navList.value = [
+    { icon: '👥', label: 'IP问答型文案', bgColor: 'linear-gradient(135deg, #e0f4ff 0%, #c7ecff 100%)', route: '/pages/copywriting/index' },
+    { icon: '💬', label: '高效口播文案', bgColor: 'linear-gradient(135deg, #e8ffe8 0%, #c1ffc1 100%)', route: '/pages/copywriting/index' },
+    { icon: '🔥', label: '爆款选题创作', bgColor: 'linear-gradient(135deg, #fff4e0 0%, #ffe4b5 100%)', route: '/pages/copywriting/index' },
+    { icon: '▶️', label: '爆款文案拆解', bgColor: 'linear-gradient(135deg, #f0e0ff 0%, #e0c0ff 100%)', route: '/pages/copywriting/index' },
+    { icon: '📝', label: '爆款文案仿写', bgColor: 'linear-gradient(135deg, #e0f0ff 0%, #b0d8ff 100%)', route: '/pages/copywriting/index' },
+    { icon: '🎵', label: '抖音热点文案', bgColor: 'linear-gradient(135deg, #ffe0e8 0%, #ffb0c8 100%)', route: '/pages/copywriting/index' },
+    { icon: '👍', label: '使用技巧', bgColor: 'linear-gradient(135deg, #fff0e0 0%, #ffd8a0 100%)', route: '/pages/copywriting/index' },
+    { icon: '⭐', label: '更多', bgColor: 'linear-gradient(135deg, #e8e8ff 0%, #d0d0ff 100%)', route: '/pages/agent/index', isMore: true }
+  ]
+}
+
 // 初始化时加载项目
 onMounted(async () => {
+  await loadAgentList()
 })
-
 
 // Banner 轮播数据
 const bannerList = reactive([
@@ -144,18 +221,6 @@ const bannerList = reactive([
     bgGradient: 'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)',
     image: '/static/default-avatar.png'
   }
-])
-
-// 金刚区导航数据
-const navList = reactive([
-  { icon: '👥', label: 'IP问答型文案', bgColor: 'linear-gradient(135deg, #e0f4ff 0%, #c7ecff 100%)', route: '/pages/copywriting/index' },
-  { icon: '💬', label: '高效口播文案', bgColor: 'linear-gradient(135deg, #e8ffe8 0%, #c1ffc1 100%)', route: '/pages/copywriting/index' },
-  { icon: '🔥', label: '爆款选题创作', bgColor: 'linear-gradient(135deg, #fff4e0 0%, #ffe4b5 100%)', route: '/pages/copywriting/index' },
-  { icon: '▶️', label: '爆款文案拆解', bgColor: 'linear-gradient(135deg, #f0e0ff 0%, #e0c0ff 100%)', route: '/pages/copywriting/index' },
-  { icon: '📝', label: '爆款文案仿写', bgColor: 'linear-gradient(135deg, #e0f0ff 0%, #b0d8ff 100%)', route: '/pages/copywriting/index' },
-  { icon: '🎵', label: '抖音热点文案', bgColor: 'linear-gradient(135deg, #ffe0e8 0%, #ffb0c8 100%)', route: '/pages/copywriting/index' },
-  { icon: '👍', label: '使用技巧', bgColor: 'linear-gradient(135deg, #fff0e0 0%, #ffd8a0 100%)', route: '/pages/copywriting/index' },
-  { icon: '⭐', label: '更多功能', bgColor: 'linear-gradient(135deg, #e8e8ff 0%, #d0d0ff 100%)', route: '/pages/copywriting/index' }
 ])
 
 // 功能卡片数据
@@ -195,7 +260,17 @@ const handleNavClick = async (item: any) => {
   if (!loggedIn) return
   
   console.log('导航点击:', item.label)
-  uni.navigateTo({ url: item.route })
+
+  // 如果是"更多"按钮，跳转到智能体列表页面
+  if (item.isMore) {
+    uni.navigateTo({ url: '/pages/agent/index' })
+    return
+  }
+
+  // 其他智能体点击，跳转到对应页面
+  if (item.route) {
+    uni.navigateTo({ url: item.route })
+  }
 }
 
 const handleFeatureClick = async (card: any) => {

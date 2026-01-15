@@ -69,6 +69,9 @@
             <view class="action-btn edit-btn" @tap="handleEditProject(project)">
               <text class="btn-icon">✏️</text>
             </view>
+            <view class="action-btn delete-btn" @tap="handleDeleteProject(project)">
+              <text class="btn-icon">🗑️</text>
+            </view>
           </view>
         </view>
       </view>
@@ -139,7 +142,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { useProjectStore, INDUSTRY_OPTIONS, type Project } from '@/stores/project'
-import { fetchProjects, createProject } from '@/api/project'
+import { fetchProjects, createProject, deleteProject } from '@/api/project'
 
 // Store
 const projectStore = useProjectStore()
@@ -228,6 +231,53 @@ function handleSelectProject(project: Project) {
 function handleEditProject(project: Project) {
   uni.navigateTo({
     url: `/pages/project/dashboard?id=${project.id}&edit=true`
+  })
+}
+
+// 删除项目
+async function handleDeleteProject(project: Project) {
+  // 确认对话框
+  uni.showModal({
+    title: '确认删除',
+    content: `确定要删除项目"${project.name}"吗？此操作不可恢复。`,
+    confirmText: '删除',
+    confirmColor: '#FF3B30',
+    cancelText: '取消',
+    success: async (res) => {
+      if (res.confirm) {
+        try {
+          // 调用删除接口
+          await deleteProject(project.id)
+
+          // 从本地列表移除
+          const index = projectList.value.findIndex(p => p.id === project.id)
+          if (index >= 0) {
+            projectList.value.splice(index, 1)
+          }
+
+          // 更新 store
+          projectStore.removeProject(project.id)
+
+          // 如果删除的是当前激活项目，重新获取列表以更新激活状态
+          if (activeProject.value?.id === project.id) {
+            const response = await fetchProjects()
+            projectList.value = response.projects
+            projectStore.setProjectList(response.projects, response.active_project_id)
+          }
+
+          uni.showToast({
+            title: '删除成功',
+            icon: 'success'
+          })
+        } catch (error) {
+          console.error('Failed to delete project:', error)
+          uni.showToast({
+            title: '删除失败，请重试',
+            icon: 'none'
+          })
+        }
+      }
+    }
   })
 }
 
@@ -592,6 +642,9 @@ function formatDate(dateStr: string): string {
       background: #F5F7FA;
     }
 
+                &.delete-btn {
+                  background: #FFF5F5;
+                }
     .btn-icon {
       font-size: 28rpx;
     }

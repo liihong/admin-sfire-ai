@@ -27,7 +27,7 @@ export const DEFAULT_PERSONA_SETTINGS: PersonaSettings = {
   introduction: ''
 }
 
-/**
+  /**
  * Project Store
  */
 export const useProjectStore = defineStore('project', () => {
@@ -41,6 +41,31 @@ export const useProjectStore = defineStore('project', () => {
   
   // 加载状态
   const isLoading = ref(false)
+
+  // ============== Helpers ==============
+
+  /**
+   * 兼容后端返回的扁平人设字段，确保每个项目都有 persona_settings
+   */
+  function normalizeProject(project: Project): Project {
+    // 已经有 persona_settings 的直接返回
+    if (project.persona_settings) return project
+
+    const anyProject = project as any
+
+    project.persona_settings = {
+      tone: anyProject.tone || DEFAULT_PERSONA_SETTINGS.tone,
+      catchphrase: anyProject.catchphrase || DEFAULT_PERSONA_SETTINGS.catchphrase,
+      target_audience: anyProject.target_audience || DEFAULT_PERSONA_SETTINGS.target_audience,
+      benchmark_accounts: anyProject.benchmark_accounts || [...DEFAULT_PERSONA_SETTINGS.benchmark_accounts],
+      content_style: anyProject.content_style || DEFAULT_PERSONA_SETTINGS.content_style,
+      taboos: anyProject.taboos || [...DEFAULT_PERSONA_SETTINGS.taboos],
+      keywords: anyProject.keywords || [...DEFAULT_PERSONA_SETTINGS.keywords],
+      introduction: anyProject.introduction || DEFAULT_PERSONA_SETTINGS.introduction
+    }
+
+    return project
+  }
 
   // ============== Getters ==============
   
@@ -99,7 +124,8 @@ export const useProjectStore = defineStore('project', () => {
    * 设置项目列表（由 API 调用后更新）
    */
   function setProjectList(projects: Project[], activeProjectId?: string | number) {
-    projectList.value = projects
+    // 统一归一化项目结构
+    projectList.value = projects.map(p => normalizeProject(p))
 
   // 如果有激活项目 ID，找到并设置
     if (activeProjectId) {
@@ -137,11 +163,12 @@ export const useProjectStore = defineStore('project', () => {
    * 添加或更新项目到列表
    */
   function upsertProject(project: Project) {
-    const index = projectList.value.findIndex(p => p.id === project.id)
+    const normalized = normalizeProject(project)
+    const index = projectList.value.findIndex(p => p.id === normalized.id)
     if (index >= 0) {
-      projectList.value[index] = project
+      projectList.value[index] = normalized
     } else {
-      projectList.value.push(project)
+      projectList.value.push(normalized)
     }
   }
 
@@ -164,8 +191,9 @@ export const useProjectStore = defineStore('project', () => {
    * 设置激活项目（更新本地状态并保存到 localStorage）
    */
   function setActiveProjectLocal(project: Project) {
-    activeProject.value = project
-    saveActiveProjectIdToStorage(project.id)
+    const normalized = normalizeProject(project)
+    activeProject.value = normalized
+    saveActiveProjectIdToStorage(normalized.id)
   }
 
   /**
