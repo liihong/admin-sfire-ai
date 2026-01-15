@@ -17,7 +17,8 @@
       "Bash(timeout 10 npm run dev:*)",
       "Bash(findstr:*)",
       "Bash(npm uninstall:*)",
-      "Bash(pnpm build:pro:*)"
+      "Bash(pnpm build:pro:*)",
+      "Bash(pnpm add:*)"
     ]
   }
 }

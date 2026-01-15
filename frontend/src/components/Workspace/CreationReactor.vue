@@ -25,8 +25,9 @@
         :conversation-history="conversationHistory"
         @submit="handleSubmit"
         @update:conversation="handleConversationUpdate"
+        @use-text="handleUseText"
       />
-      
+
       <div v-else class="reactor-empty">
         <el-icon :size="64"><Tools /></el-icon>
         <p>请从右上角选择智能体开始创作</p>
@@ -66,6 +67,7 @@ const props = defineProps<Props>();
 
 const emit = defineEmits<{
   generate: [prompt: string, messages: Array<{ role: "user" | "assistant"; content: string }>];
+  "use-text": [content: string];
 }>();
 
 const ipCreationStore = useIPCreationStore();
@@ -103,6 +105,11 @@ const handleSubmit = (content: string) => {
 const handleConversationUpdate = (messages: Array<{ role: "user" | "assistant"; content: string }>) => {
   // 更新对话历史
   ipCreationStore.conversationHistory = messages;
+};
+
+// 处理"Use this Text"事件
+const handleUseText = (content: string) => {
+  emit("use-text", content);
 };
 
 // 选择智能体

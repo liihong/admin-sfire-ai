@@ -1,6 +1,6 @@
 <template>
   <div class="workspace-cockpit">
-    <!-- 顶部工具栏：左侧返回按钮 -->
+    <!-- 顶部工具栏：左侧返回按钮 + Zen Mode 切换 -->
     <div class="cockpit-header">
       <div class="header-left">
         <el-button class="back-btn" @click="handleBack" text>
@@ -8,11 +8,41 @@
           <span>返回</span>
         </el-button>
       </div>
+      <div class="header-right">
+        <el-button
+          class="toggle-btn"
+          :class="{ active: !sidebarCollapsed }"
+          @click="toggleSidebar"
+          text
+          title="切换侧边栏"
+        >
+          <el-icon><Fold /></el-icon>
+        </el-button>
+        <el-button
+          class="toggle-btn"
+          :class="{ active: !chatCollapsed }"
+          @click="toggleChat"
+          text
+          title="切换聊天面板"
+        >
+          <el-icon><ChatDotRound /></el-icon>
+        </el-button>
+        <el-button
+          v-if="sidebarCollapsed || chatCollapsed"
+          class="toggle-btn zen-mode"
+          @click="resetLayout"
+          text
+          title="退出 Zen Mode"
+        >
+          <el-icon><FullScreen /></el-icon>
+          <span>Zen Mode</span>
+        </el-button>
+      </div>
     </div>
 
     <div class="cockpit-container">
       <!-- 左侧栏：IP DNA + 会话历史（类似其他对话模型） -->
-      <div class="cockpit-sidebar">
+      <div class="cockpit-sidebar" :class="{ collapsed: sidebarCollapsed }">
         <IPDNAPanel />
         <div class="sidebar-conversation">
           <ConversationHistory
@@ -21,17 +51,18 @@
           />
         </div>
       </div>
-      
+
       <!-- 中间栏：创作反应堆 -->
-      <div class="cockpit-main">
+      <div class="cockpit-main" :class="{ collapsed: chatCollapsed }">
         <CreationReactor
           :selected-agent="selectedAgent"
           @generate="handleGenerate"
+          @use-text="handleUseText"
         />
       </div>
-      
+
       <!-- 右侧栏：产出与精炼平台 -->
-      <div class="cockpit-output">
+      <div class="cockpit-output" :class="{ expanded: sidebarCollapsed || chatCollapsed }">
         <RefineryDeck />
       </div>
     </div>
@@ -39,10 +70,10 @@
 </template>
 
 <script setup lang="ts" name="WorkspaceCockpit">
-import { computed, onMounted, watch, nextTick } from "vue";
+import { computed, onMounted, watch, nextTick, ref } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { ElMessage } from "element-plus";
-import { ArrowLeft } from "@element-plus/icons-vue";
+import { ArrowLeft, Fold, ChatDotRound, FullScreen } from "@element-plus/icons-vue";
 import IPDNAPanel from "@/components/Workspace/IPDNAPanel.vue";
 import CreationReactor from "@/components/Workspace/CreationReactor.vue";
 import RefineryDeck from "@/components/Workspace/RefineryDeck.vue";
@@ -60,6 +91,10 @@ const route = useRoute();
 const router = useRouter();
 const ipCreationStore = useIPCreationStore();
 const mpUserStore = useMPUserStore();
+
+// 布局切换状态
+const sidebarCollapsed = ref(false);
+const chatCollapsed = ref(false);
 
 const selectedAgent = computed(() => ipCreationStore.selectedAgent);
 const activeProject = computed(() => ipCreationStore.activeProject);
@@ -211,13 +246,35 @@ const handleConversationCreate = () => {
   // 清空当前对话历史
   ipCreationStore.clearConversation();
   ipCreationStore.updateCurrentContent("");
-  
+
   // 生成 AI 欢迎语
   const agentName = selectedAgent.value?.name || "AI助手";
   const welcomeMessage = `你好！我是${agentName}，很高兴为你服务。请告诉我你想创作什么内容吧~`;
-  
+
   // 添加欢迎语到对话历史
   ipCreationStore.addMessage("assistant", welcomeMessage);
+};
+
+// 处理"Use this Text"按钮点击
+const handleUseText = (content: string) => {
+  ipCreationStore.updateCurrentContent(content);
+  ElMessage.success("内容已应用到编辑器");
+};
+
+// 切换侧边栏
+const toggleSidebar = () => {
+  sidebarCollapsed.value = !sidebarCollapsed.value;
+};
+
+// 切换聊天面板
+const toggleChat = () => {
+  chatCollapsed.value = !chatCollapsed.value;
+};
+
+// 重置布局
+const resetLayout = () => {
+  sidebarCollapsed.value = false;
+  chatCollapsed.value = false;
 };
 
 // 防止重复加载的标记
@@ -274,6 +331,12 @@ onMounted(async () => {
   align-items: center;
 }
 
+.header-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
 .back-btn {
   display: inline-flex;
   align-items: center;
@@ -294,20 +357,57 @@ onMounted(async () => {
   }
 }
 
+.toggle-btn {
+  padding: 8px 12px;
+  border-radius: 8px;
+  font-size: 14px;
+  color: var(--ip-os-text-secondary);
+  transition: all 0.2s ease;
+
+  &:hover {
+    background: var(--ip-os-bg-tertiary);
+    color: var(--ip-os-accent-primary);
+  }
+
+  &.active {
+    color: var(--ip-os-accent-primary);
+    background: rgba(255, 107, 53, 0.08);
+  }
+
+  &.zen-mode {
+    color: var(--ip-os-accent-primary);
+    background: rgba(255, 107, 53, 0.12);
+    font-weight: 600;
+  }
+
+  .el-icon {
+    font-size: 16px;
+  }
+}
+
 .cockpit-container {
   display: flex;
   width: 100%;
-  flex: 1; // 使用 flex 占据剩余空间，自动减去 header 高度
-  min-height: 0; // 防止 flex 子元素溢出
+  flex: 1;
+  min-height: 0;
 }
 
 .cockpit-sidebar {
   width: 20%;
   min-width: 280px;
-  height: 100%; // 在 flex 容器中，100% 会正确计算
+  height: 100%;
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  transition: all 0.3s ease;
+
+  &.collapsed {
+    width: 0;
+    min-width: 0;
+    padding: 0;
+    opacity: 0;
+    pointer-events: none;
+  }
 }
 
 .sidebar-conversation {
@@ -316,7 +416,7 @@ onMounted(async () => {
   overflow: hidden;
   display: flex;
   flex-direction: column;
-  
+
   :deep(.conversation-history) {
     height: 100%;
     border-right: 1px solid var(--ip-os-border-primary);
@@ -329,6 +429,14 @@ onMounted(async () => {
   overflow: hidden;
   border-left: 1px solid var(--ip-os-border-primary);
   border-right: 1px solid var(--ip-os-border-primary);
+  transition: all 0.3s ease;
+
+  &.collapsed {
+    width: 0;
+    min-width: 0;
+    opacity: 0;
+    pointer-events: none;
+  }
 }
 
 .cockpit-output {
@@ -336,6 +444,12 @@ onMounted(async () => {
   min-width: 320px;
   height: 100%;
   overflow: hidden;
+  transition: all 0.3s ease;
+
+  &.expanded {
+    width: 100%;
+    flex: 1;
+  }
 }
 
 @media (max-width: 1200px) {

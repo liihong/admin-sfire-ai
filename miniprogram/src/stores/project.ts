@@ -112,18 +112,12 @@ export const useProjectStore = defineStore('project', () => {
     try {
       // 加载项目列表
       const storedList = uni.getStorageSync(PROJECT_LIST_KEY)
-      // #region agent log
-      fetch('http://127.0.0.1:7244/ingest/3bdcb60a-ce08-411e-9085-4a67fcb85719', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'project.ts:114', message: 'initialize 读取缓存', data: { hasStoredList: !!storedList }, timestamp: Date.now(), sessionId: 'debug-session', runId: 'run2', hypothesisId: 'H4' }) }).catch(() => { })
-      // #endregion
       if (storedList) {
         projectList.value = JSON.parse(storedList)
       }
       
       // 加载激活项目
       const storedActive = uni.getStorageSync(ACTIVE_PROJECT_KEY)
-      // #region agent log
-      fetch('http://127.0.0.1:7244/ingest/3bdcb60a-ce08-411e-9085-4a67fcb85719', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'project.ts:122', message: 'initialize 读取激活项目', data: { hasStoredActive: !!storedActive }, timestamp: Date.now(), sessionId: 'debug-session', runId: 'run2', hypothesisId: 'H4' }) }).catch(() => { })
-      // #endregion
       if (storedActive) {
         activeProject.value = JSON.parse(storedActive)
       }
@@ -139,18 +133,12 @@ export const useProjectStore = defineStore('project', () => {
    */
   function saveToStorage() {
     try {
-      // #region agent log
-      fetch('http://127.0.0.1:7244/ingest/3bdcb60a-ce08-411e-9085-4a67fcb85719', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'project.ts:135', message: 'saveToStorage 写入前', data: { projectListLength: projectList.value.length, hasActive: !!activeProject.value }, timestamp: Date.now(), sessionId: 'debug-session', runId: 'run2', hypothesisId: 'H1' }) }).catch(() => { })
-      // #endregion
       uni.setStorageSync(PROJECT_LIST_KEY, JSON.stringify(projectList.value))
       if (activeProject.value) {
         uni.setStorageSync(ACTIVE_PROJECT_KEY, JSON.stringify(activeProject.value))
       } else {
         uni.removeStorageSync(ACTIVE_PROJECT_KEY)
       }
-      // #region agent log
-      fetch('http://127.0.0.1:7244/ingest/3bdcb60a-ce08-411e-9085-4a67fcb85719', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'project.ts:141', message: 'saveToStorage 写入后', data: { projectListLength: projectList.value.length, activeId: activeProject.value?.id || null }, timestamp: Date.now(), sessionId: 'debug-session', runId: 'run2', hypothesisId: 'H1' }) }).catch(() => { })
-      // #endregion
     } catch (error) {
       console.error('Failed to save project data:', error)
     }
@@ -168,16 +156,9 @@ export const useProjectStore = defineStore('project', () => {
         projects: Project[]
         active_project_id: string | null
       }>('/api/v1/client/projects')
-      
-      // #region agent log
-      fetch('http://127.0.0.1:7244/ingest/3bdcb60a-ce08-411e-9085-4a67fcb85719', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'project.ts:160', message: 'fetchProjects 响应', data: { success: response.success, hasData: !!response.data, projectsLength: response.data?.projects?.length || 0, activeId: response.data?.active_project_id || null }, timestamp: Date.now(), sessionId: 'debug-session', runId: 'run2', hypothesisId: 'H2' }) }).catch(() => { })
-      // #endregion
 
       if (response.success && response.data) {
         projectList.value = response.data.projects || []
-        // #region agent log
-        fetch('http://127.0.0.1:7244/ingest/3bdcb60a-ce08-411e-9085-4a67fcb85719', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'project.ts:164', message: 'fetchProjects 设置列表后', data: { projectListLength: projectList.value.length, firstProject: projectList.value[0]?.id || null }, timestamp: Date.now(), sessionId: 'debug-session', runId: 'run2', hypothesisId: 'H1' }) }).catch(() => { })
-        // #endregion
         
         // 如果有激活项目 ID，找到并设置
         if (response.data.active_project_id) {
