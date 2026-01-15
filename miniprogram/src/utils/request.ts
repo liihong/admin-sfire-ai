@@ -22,18 +22,16 @@ export interface RequestConfig {
   showLoading?: boolean
   // loading 提示文字
   loadingText?: string
-  // 是否使用 Mock 数据（默认 false）
-  useMock?: boolean
-  // Mock 数据
-  mockData?: any
 }
 
-// 响应类型
+// 响应类型（后端返回格式: {code: 200, data: {...}, msg: "..."}）
 export interface ResponseData<T = any> {
-  success: boolean
+  code: number
   data?: T
+  msg?: string
+  // 兼容字段（用于错误处理）
+  success?: boolean
   message?: string
-  code?: number
 }
 
 // API 基础地址（在 vite.config.ts 中配置）
@@ -41,9 +39,6 @@ const BASE_URL = __API_BASE_URL__
 
 // 请求超时时间（毫秒）
 const TIMEOUT = 30000
-
-// 是否开启全局 Mock 模式（开发环境可设为 true）
-const GLOBAL_MOCK_MODE = false
 
 /**
  * 请求拦截器 - 处理请求前的逻辑
@@ -99,7 +94,7 @@ function responseInterceptor<T>(response: UniApp.RequestSuccessCallbackResult): 
   // 检查响应数据中的code字段（后端可能返回HTTP 200但code为401）
   const responseData = data as any
   const responseCode = responseData?.code
-  
+
   // 处理401未授权（HTTP状态码401或响应数据code为401）
   if (statusCode === 401 || responseCode === 401) {
     handleUnauthorized()
@@ -113,11 +108,7 @@ function responseInterceptor<T>(response: UniApp.RequestSuccessCallbackResult): 
   // HTTP 状态码处理
   if (statusCode >= 200 && statusCode < 300) {
     // 成功响应
-    return {
-      success: true,
-      data: data as T,
-      code: statusCode
-    }
+    return data as ResponseData<T>;
   }
   
   if (statusCode === 403) {
@@ -189,19 +180,6 @@ function errorHandler(error: any): ResponseData {
  */
 export function request<T = any>(config: RequestConfig): Promise<ResponseData<T>> {
   return new Promise((resolve) => {
-    // 全局 Mock 模式或单个请求 Mock
-    if (GLOBAL_MOCK_MODE || config.useMock) {
-      console.log('[Mock] Using mock data for:', config.url)
-      setTimeout(() => {
-        resolve({
-          success: true,
-          data: config.mockData as T,
-          code: 200
-        })
-      }, 300) // 模拟网络延迟
-      return
-    }
-    
     // 请求拦截
     const processedConfig = requestInterceptor(config)
     
@@ -242,199 +220,8 @@ export function request<T = any>(config: RequestConfig): Promise<ResponseData<T>
   })
 }
 
-// ============== 快捷方法 ==============
-
-/**
- * GET 请求
- */
-export function get<T = any>(url: string, params?: Record<string, any>, config?: Partial<RequestConfig>): Promise<ResponseData<T>> {
-  // 处理 query 参数
-  if (params) {
-    const queryString = Object.entries(params)
-      .filter(([_, value]) => value !== undefined && value !== null)
-      .map(([key, value]) => `${encodeURIComponent(key)}=${encodeURIComponent(String(value))}`)
-      .join('&')
-    
-    if (queryString) {
-      url += (url.includes('?') ? '&' : '?') + queryString
-    }
-  }
-  
-  return request<T>({
-    url,
-    method: 'GET',
-    ...config
-  })
-}
-
-/**
- * POST 请求
- */
-export function post<T = any>(url: string, data?: any, config?: Partial<RequestConfig>): Promise<ResponseData<T>> {
-  return request<T>({
-    url,
-    method: 'POST',
-    data,
-    ...config
-  })
-}
-
-/**
- * PUT 请求
- */
-export function put<T = any>(url: string, data?: any, config?: Partial<RequestConfig>): Promise<ResponseData<T>> {
-  return request<T>({
-    url,
-    method: 'PUT',
-    data,
-    ...config
-  })
-}
-
-/**
- * DELETE 请求
- */
-export function del<T = any>(url: string, data?: any, config?: Partial<RequestConfig>): Promise<ResponseData<T>> {
-  return request<T>({
-    url,
-    method: 'DELETE',
-    data,
-    ...config
-  })
-}
-
-// ============== API 模块 ==============
-
-/**
- * 用户信息 API
- */
-export const userApi = {
-  /**
-   * 获取用户详细信息（我的页面使用）
-   */
-  getUserInfo: () => {
-    return get<{
-      phone: string
-      avatar: string
-      nickname: string
-      power: string
-      partnerBalance: string
-      partnerStatus: string
-      expireDate: string | null
-    }>('/api/v1/client/auth/user/info', undefined, { 
-      showLoading: false 
-    })
-  },
-  
-  /**
-   * 更新用户信息
-   */
-  updateUserInfo: (data: {
-    nickname?: string
-    avatar?: string
-  }) => {
-    return put<{
-      success: boolean
-      userInfo: {
-        openid: string
-        nickname: string
-        avatarUrl: string
-      }
-    }>('/api/v1/client/auth/user', data, { 
-      showLoading: true,
-      loadingText: '更新中...'
-    })
-  }
-}
-
-/**
- * 智能体 API
- */
-export const agentApi = {
-  /**
-   * 获取智能体列表
-   */
-  getAgentList: () => {
-    return get<{
-      success: boolean
-      agents: Array<{
-        type: string
-        id: string
-        name: string
-        icon: string
-        description: string
-      }>
-    }>('/api/v1/client/creation/agents', undefined, { 
-      showLoading: false 
-    })
-  }
-}
-
-/**
- * 生成内容 API
- */
-export const generateApi = {
-  /**
-   * 通用生成接口（对话式创作）
-   */
-  generate: (params: {
-    project_id?: number
-    agent_type?: string
-    messages: Array<{role: string, content: string}>
-    model_type?: string
-    temperature?: number
-    max_tokens?: number
-    stream?: boolean
-  }) => {
-    return post<{
-      success: boolean
-      content: string
-      agent_type: string
-      model_type: string
-    }>('/api/v1/client/creation/chat', {
-      project_id: params.project_id,
-      agent_type: params.agent_type || 'efficient_oral',
-      messages: params.messages,
-      model_type: params.model_type || 'deepseek',
-      temperature: params.temperature,
-      max_tokens: params.max_tokens || 2048,
-      stream: params.stream !== false
-    }, { showLoading: true, loadingText: 'AI 生成中...' })
-  },
-  
-  /**
-   * 快速文案生成
-   */
-  copywriting: (params: {
-    content: string
-    agent_type?: string
-    project_id?: number
-    model_type?: string
-  }) => {
-    const queryParams = new URLSearchParams()
-    queryParams.append('content', params.content)
-    if (params.agent_type) queryParams.append('agent_type', params.agent_type)
-    if (params.project_id) queryParams.append('project_id', String(params.project_id))
-    if (params.model_type) queryParams.append('model_type', params.model_type)
-    
-    return post<{
-      success: boolean
-      content: string
-      agent_type: string
-      model_type: string
-    }>(`/api/v1/client/creation/chat/quick?${queryParams.toString()}`, null, { showLoading: true })
-  }
-}
-
 // 默认导出
 export default {
-  request,
-  get,
-  post,
-  put,
-  del,
-  userApi,
-  generateApi,
-  agentApi
+  request
 }
 

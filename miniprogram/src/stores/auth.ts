@@ -277,12 +277,19 @@ async function loginWithCode(code: string): Promise<{
         'Content-Type': 'application/json'
       },
       success: (res: any) => {
+        // 后端返回格式: {code: 200, data: {token: "...", userInfo: {...}}, msg: "..."}
         if (res.statusCode === 200 && res.data) {
-          resolve({
-            success: true,
-            token: res.data.token,
-            userInfo: res.data.userInfo
-          })
+          const responseData = res.data
+          if (responseData.code === 200 && responseData.data) {
+            resolve({
+              success: true,
+              token: responseData.data.token,
+              userInfo: responseData.data.userInfo
+            })
+          } else {
+            console.error('Login API error:', responseData)
+            resolve({ success: false })
+          }
         } else {
           console.error('Login API error:', res)
           resolve({ success: false })

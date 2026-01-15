@@ -19,7 +19,8 @@
     </view>
 
     <!-- 项目列表区域 -->
-    <scroll-view class="project-list-wrapper" scroll-y :refresher-enabled="true" @refresherrefresh="onRefresh" :refresher-triggered="isRefreshing">
+    <scroll-view class="project-list-wrapper" scroll-y :refresher-enabled="true" @refresherrefresh="onRefresh"
+      :refresher-triggered="isRefreshing">
       <!-- 空状态 -->
       <view class="empty-state" v-if="!isLoading && projectList.length === 0">
         <view class="empty-icon">🚀</view>
@@ -32,24 +33,17 @@
 
       <!-- 项目卡片列表 -->
       <view class="project-cards" v-else>
-        <view 
-          class="project-card"
-          v-for="(project, index) in projectList"
-          :key="project.id"
-          :class="{ 
-            active: activeProject?.id === project.id,
-            'enter-animation': true
-          }"
-          :style="{ animationDelay: `${index * 0.08}s` }"
-          @tap="handleSelectProject(project)"
-        >
+        <view class="project-card" v-for="(project, index) in projectList" :key="project.id" :class="{
+          active: activeProject?.id === project.id,
+          'enter-animation': true
+}" :style="{ animationDelay: `${index * 0.08}s` }" @tap="handleSelectProject(project)">
           <!-- 选中指示器 -->
           <view class="active-indicator" v-if="activeProject?.id === project.id">
             <text class="indicator-icon">✓</text>
           </view>
 
           <!-- 项目头像 -->
-          <view class="project-avatar" :style="{ background: project.avatar_color }">
+          <view class="project-avatar" style="background: #3B82F6;">
             <text class="avatar-letter">{{ project.avatar_letter || project.name[0] }}</text>
           </view>
 
@@ -108,25 +102,15 @@
           <!-- 项目名称 -->
           <view class="form-item">
             <text class="form-label">项目名称</text>
-            <input 
-              class="form-input"
-              v-model="newProjectName"
-              placeholder="如：李医生科普IP"
-              :maxlength="30"
-            />
+            <input class="form-input" v-model="newProjectName" placeholder="如：李医生科普IP" :maxlength="30" />
           </view>
 
           <!-- 赛道选择 -->
           <view class="form-item">
             <text class="form-label">所属赛道</text>
             <view class="industry-grid">
-              <view 
-                class="industry-option"
-                v-for="industry in industryOptions.slice(0, 9)"
-                :key="industry"
-                :class="{ selected: newProjectIndustry === industry }"
-                @tap="newProjectIndustry = industry"
-              >
+              <view class="industry-option" v-for="industry in industryOptions.slice(0, 9)" :key="industry"
+                :class="{ selected: newProjectIndustry === industry }" @tap="newProjectIndustry = industry">
                 <text class="option-text">{{ industry }}</text>
               </view>
             </view>
@@ -137,11 +121,7 @@
           <view class="modal-btn cancel-btn" @tap="showCreateModal = false">
             <text class="btn-text">取消</text>
           </view>
-          <view 
-            class="modal-btn confirm-btn"
-            :class="{ disabled: !newProjectName.trim() }"
-            @tap="handleCreateProject"
-          >
+          <view class="modal-btn confirm-btn" :class="{ disabled: !newProjectName.trim() }" @tap="handleCreateProject">
             <text class="btn-text">创建</text>
           </view>
         </view>
@@ -159,12 +139,14 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { useProjectStore, INDUSTRY_OPTIONS, type Project } from '@/stores/project'
+import { fetchProjects, createProject } from '@/api/project'
 
 // Store
 const projectStore = useProjectStore()
-const projectList = computed(() => projectStore.projectList)
+// 直接使用本地状态存储接口返回的数据，不依赖 store 的缓存
+const projectList = ref<Project[]>([])
 const activeProject = computed(() => projectStore.activeProject)
-const isLoading = computed(() => projectStore.isLoading)
+const isLoading = ref(false)
 
 // 状态
 const isRefreshing = ref(false)
@@ -181,9 +163,17 @@ onMounted(async () => {
   // 检查是否可以返回
   const pages = getCurrentPages()
   canGoBack.value = pages.length > 1
-  
+
   // 加载项目列表
-  await projectStore.fetchProjects()
+  isLoading.value = true
+  try {
+    await getProjectList()
+  } catch (error) {
+    console.error('Failed to fetch projects:', error)
+    uni.showToast({ title: '加载失败', icon: 'none' })
+  } finally {
+    isLoading.value = false
+  }
 })
 
 // 返回上一页
@@ -195,22 +185,37 @@ function goBack() {
   })
 }
 
+async function getProjectList() {
+  const response = await fetchProjects()
+  console.log(response)
+  projectList.value = response.projects
+  // 更新 store 状态
+  projectStore.setProjectList(response.projects, response.active_project_id)
+}
 // 下拉刷新
 async function onRefresh() {
   isRefreshing.value = true
-  await projectStore.fetchProjects()
-  isRefreshing.value = false
+  try {
+    await getProjectList()
+  } catch (error) {
+    console.error('Failed to refresh projects:', error)
+    uni.showToast({ title: '刷新失败', icon: 'none' })
+  } finally {
+    isRefreshing.value = false
+  }
 }
 
+
 // 选择项目
-async function handleSelectProject(project: Project) {
-  await projectStore.setActiveProject(project)
-  
+function handleSelectProject(project: Project) {
+  // 更新 store 状态（会自动保存到 localStorage）
+  projectStore.setActiveProjectLocal(project)
+
   uni.showToast({
     title: `已切换到：${project.name}`,
     icon: 'success'
   })
-  
+
   // 延迟跳转到控制台
   setTimeout(() => {
     uni.navigateTo({
@@ -239,26 +244,38 @@ async function handleCreateProject() {
     uni.showToast({ title: '请输入项目名称', icon: 'none' })
     return
   }
-  
-  const project = await projectStore.createProject({
-    name: newProjectName.value.trim(),
-    industry: newProjectIndustry.value
-  })
-  
-  if (project) {
+
+  try {
+    const project = await createProject({
+      name: newProjectName.value.trim(),
+      industry: newProjectIndustry.value
+    })
+
+    // 更新 store 状态
+    projectStore.upsertProject(project)
+    // 如果是第一个项目，自动激活
+    if (projectList.value.length === 0) {
+      projectStore.setActiveProjectLocal(project)
+    }
+    // 重新获取项目列表以同步状态
+    const response = await fetchProjects()
+    projectList.value = response.projects
+    projectStore.setProjectList(response.projects, response.active_project_id)
+
     showCreateModal.value = false
     newProjectName.value = ''
     newProjectIndustry.value = '通用'
-    
+
     uni.showToast({ title: '创建成功', icon: 'success' })
-    
+
     // 跳转到控制台编辑人设
     setTimeout(() => {
       uni.navigateTo({
         url: `/pages/project/dashboard?id=${project.id}&edit=true`
       })
     }, 500)
-  } else {
+  } catch (error) {
+    console.error('Failed to create project:', error)
     uni.showToast({ title: '创建失败，请重试', icon: 'none' })
   }
 }
@@ -269,16 +286,16 @@ function formatDate(dateStr: string): string {
   const date = new Date(dateStr)
   const now = new Date()
   const diff = now.getTime() - date.getTime()
-  
+
   const minutes = Math.floor(diff / 60000)
   const hours = Math.floor(diff / 3600000)
   const days = Math.floor(diff / 86400000)
-  
+
   if (minutes < 1) return '刚刚'
   if (minutes < 60) return `${minutes}分钟前`
   if (hours < 24) return `${hours}小时前`
   if (days < 7) return `${days}天前`
-  
+
   return `${date.getMonth() + 1}/${date.getDate()}`
 }
 </script>
@@ -300,13 +317,13 @@ function formatDate(dateStr: string): string {
   height: 400rpx;
   pointer-events: none;
   overflow: hidden;
-  
+
   .decoration-circle {
     position: absolute;
     border-radius: 50%;
     opacity: 0.6;
   }
-  
+
   .circle-1 {
     width: 300rpx;
     height: 300rpx;
@@ -314,7 +331,7 @@ function formatDate(dateStr: string): string {
     top: -100rpx;
     right: -50rpx;
   }
-  
+
   .circle-2 {
     width: 200rpx;
     height: 200rpx;
@@ -322,7 +339,7 @@ function formatDate(dateStr: string): string {
     top: 100rpx;
     left: -60rpx;
   }
-  
+
   .circle-3 {
     width: 150rpx;
     height: 150rpx;
@@ -340,7 +357,7 @@ function formatDate(dateStr: string): string {
   display: flex;
   align-items: flex-start;
   gap: 20rpx;
-  
+
   .header-back {
     width: 72rpx;
     height: 72rpx;
@@ -351,18 +368,18 @@ function formatDate(dateStr: string): string {
     align-items: center;
     justify-content: center;
     box-shadow: 0 4rpx 16rpx rgba(0, 0, 0, 0.06);
-    
+
     .back-icon {
       font-size: 36rpx;
       color: #333;
     }
   }
-  
+
   .header-content {
     flex: 1;
     padding-top: 40rpx;
   }
-  
+
   .header-title {
     font-size: 44rpx;
     font-weight: 700;
@@ -371,7 +388,7 @@ function formatDate(dateStr: string): string {
     display: block;
     margin-bottom: 12rpx;
   }
-  
+
   .header-subtitle {
     font-size: 26rpx;
     color: #666;
@@ -393,19 +410,19 @@ function formatDate(dateStr: string): string {
   flex-direction: column;
   align-items: center;
   padding: 120rpx 40rpx;
-  
+
   .empty-icon {
     font-size: 100rpx;
     margin-bottom: 32rpx;
   }
-  
+
   .empty-title {
     font-size: 36rpx;
     font-weight: 600;
     color: #333;
     margin-bottom: 16rpx;
   }
-  
+
   .empty-desc {
     font-size: 28rpx;
     color: #999;
@@ -413,13 +430,13 @@ function formatDate(dateStr: string): string {
     line-height: 1.6;
     margin-bottom: 48rpx;
   }
-  
+
   .empty-action {
     padding: 24rpx 64rpx;
     background: linear-gradient(135deg, #3B82F6 0%, #60A5FA 100%);
     border-radius: 48rpx;
     box-shadow: 0 8rpx 24rpx rgba(59, 130, 246, 0.3);
-    
+
     .action-text {
       font-size: 30rpx;
       font-weight: 600;
@@ -447,22 +464,22 @@ function formatDate(dateStr: string): string {
   border: 2rpx solid transparent;
   box-shadow: 0 4rpx 20rpx rgba(0, 0, 0, 0.04);
   transition: all 0.3s ease;
-  
+
   &.enter-animation {
     animation: slideInUp 0.5s ease-out forwards;
     opacity: 0;
   }
-  
+
   &.active {
     border-color: #3B82F6;
     background: rgba(255, 255, 255, 0.95);
     box-shadow: 0 8rpx 32rpx rgba(59, 130, 246, 0.15);
   }
-  
+
   &:active {
     transform: scale(0.98);
   }
-  
+
   .active-indicator {
     position: absolute;
     top: -8rpx;
@@ -475,7 +492,7 @@ function formatDate(dateStr: string): string {
     align-items: center;
     justify-content: center;
     box-shadow: 0 4rpx 12rpx rgba(59, 130, 246, 0.3);
-    
+
     .indicator-icon {
       font-size: 22rpx;
       color: #fff;
@@ -493,7 +510,7 @@ function formatDate(dateStr: string): string {
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
-  
+
   .avatar-letter {
     font-size: 40rpx;
     font-weight: 700;
@@ -506,51 +523,51 @@ function formatDate(dateStr: string): string {
 .project-info {
   flex: 1;
   min-width: 0;
-  
+
   .project-name-row {
     display: flex;
     align-items: center;
     gap: 12rpx;
     margin-bottom: 8rpx;
   }
-  
+
   .project-name {
     font-size: 32rpx;
     font-weight: 600;
     color: #1a1a2e;
   }
-  
+
   .industry-tag {
     padding: 4rpx 16rpx;
     background: linear-gradient(135deg, #EEF2FF 0%, #E0E7FF 100%);
     border-radius: 20rpx;
-    
+
     .tag-text {
       font-size: 20rpx;
       color: #6366F1;
       font-weight: 500;
     }
   }
-  
+
   .project-meta {
     margin-bottom: 8rpx;
-    
+
     .meta-item {
       font-size: 24rpx;
       color: #999;
     }
   }
-  
+
   .persona-preview {
     display: flex;
     align-items: center;
     gap: 4rpx;
-    
+
     .preview-label {
       font-size: 22rpx;
       color: #999;
     }
-    
+
     .preview-value {
       font-size: 22rpx;
       color: #3B82F6;
@@ -562,7 +579,7 @@ function formatDate(dateStr: string): string {
 .project-actions {
   display: flex;
   gap: 16rpx;
-  
+
   .action-btn {
     width: 64rpx;
     height: 64rpx;
@@ -570,11 +587,11 @@ function formatDate(dateStr: string): string {
     display: flex;
     align-items: center;
     justify-content: center;
-    
+
     &.edit-btn {
       background: #F5F7FA;
     }
-    
+
     .btn-icon {
       font-size: 28rpx;
     }
@@ -596,7 +613,7 @@ function formatDate(dateStr: string): string {
   padding-bottom: calc(32rpx + env(safe-area-inset-bottom));
   background: linear-gradient(180deg, transparent 0%, #F5F7FA 40%);
   z-index: 100;
-  
+
   .create-btn {
     position: relative;
     height: 100rpx;
@@ -607,12 +624,12 @@ function formatDate(dateStr: string): string {
     justify-content: center;
     box-shadow: 0 8rpx 32rpx rgba(59, 130, 246, 0.35);
     overflow: hidden;
-    
+
     &:active {
       transform: scale(0.98);
       box-shadow: 0 4rpx 16rpx rgba(59, 130, 246, 0.25);
     }
-    
+
     .btn-glow {
       position: absolute;
       top: 0;
@@ -622,17 +639,17 @@ function formatDate(dateStr: string): string {
       background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
       animation: btnGlow 3s infinite;
     }
-    
+
     .btn-content {
       display: flex;
       align-items: center;
       gap: 12rpx;
       z-index: 1;
-      
+
       .btn-icon {
         font-size: 36rpx;
       }
-      
+
       .btn-text {
         font-size: 32rpx;
         font-weight: 600;
@@ -666,20 +683,20 @@ function formatDate(dateStr: string): string {
   border-radius: 32rpx;
   overflow: hidden;
   animation: slideUp 0.3s ease;
-  
+
   .modal-header {
     display: flex;
     align-items: center;
     justify-content: space-between;
     padding: 32rpx;
     border-bottom: 1rpx solid #f0f0f0;
-    
+
     .modal-title {
       font-size: 34rpx;
       font-weight: 600;
       color: #1a1a2e;
     }
-    
+
     .modal-close {
       width: 56rpx;
       height: 56rpx;
@@ -688,7 +705,7 @@ function formatDate(dateStr: string): string {
       display: flex;
       align-items: center;
       justify-content: center;
-      
+
       .close-icon {
         font-size: 40rpx;
         color: #999;
@@ -696,17 +713,17 @@ function formatDate(dateStr: string): string {
       }
     }
   }
-  
+
   .modal-body {
     padding: 32rpx;
-    
+
     .form-item {
       margin-bottom: 32rpx;
-      
+
       &:last-child {
         margin-bottom: 0;
       }
-      
+
       .form-label {
         font-size: 28rpx;
         font-weight: 500;
@@ -714,7 +731,7 @@ function formatDate(dateStr: string): string {
         margin-bottom: 16rpx;
         display: block;
       }
-      
+
       .form-input {
         width: 100%;
         height: 88rpx;
@@ -724,7 +741,7 @@ function formatDate(dateStr: string): string {
         font-size: 30rpx;
         color: #333;
         border: 2rpx solid transparent;
-        
+
         &:focus {
           border-color: #3B82F6;
           background: #fff;
@@ -732,12 +749,12 @@ function formatDate(dateStr: string): string {
       }
     }
   }
-  
+
   .modal-footer {
     display: flex;
     gap: 24rpx;
     padding: 24rpx 32rpx 32rpx;
-    
+
     .modal-btn {
       flex: 1;
       height: 88rpx;
@@ -745,32 +762,32 @@ function formatDate(dateStr: string): string {
       display: flex;
       align-items: center;
       justify-content: center;
-      
+
       &.cancel-btn {
         background: #F5F7FA;
-        
+
         .btn-text {
           color: #666;
         }
       }
-      
+
       &.confirm-btn {
         background: linear-gradient(135deg, #3B82F6 0%, #60A5FA 100%);
-        
+
         .btn-text {
           color: #fff;
           font-weight: 600;
         }
-        
+
         &.disabled {
           background: #e0e5ec;
-          
+
           .btn-text {
             color: #999;
           }
         }
       }
-      
+
       .btn-text {
         font-size: 30rpx;
       }
@@ -783,7 +800,7 @@ function formatDate(dateStr: string): string {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   gap: 16rpx;
-  
+
   .industry-option {
     padding: 20rpx 12rpx;
     background: #F5F7FA;
@@ -791,17 +808,17 @@ function formatDate(dateStr: string): string {
     text-align: center;
     border: 2rpx solid transparent;
     transition: all 0.2s ease;
-    
+
     &.selected {
       background: linear-gradient(135deg, #EEF2FF 0%, #E0E7FF 100%);
       border-color: #3B82F6;
-      
+
       .option-text {
         color: #3B82F6;
         font-weight: 500;
       }
     }
-    
+
     .option-text {
       font-size: 24rpx;
       color: #666;
@@ -824,7 +841,7 @@ function formatDate(dateStr: string): string {
   align-items: center;
   justify-content: center;
   gap: 24rpx;
-  
+
   .loading-spinner {
     width: 60rpx;
     height: 60rpx;
@@ -833,7 +850,7 @@ function formatDate(dateStr: string): string {
     border-radius: 50%;
     animation: spin 0.8s linear infinite;
   }
-  
+
   .loading-text {
     font-size: 28rpx;
     color: #666;
@@ -846,6 +863,7 @@ function formatDate(dateStr: string): string {
     opacity: 0;
     transform: translateY(30rpx);
   }
+
   to {
     opacity: 1;
     transform: translateY(0);
@@ -853,8 +871,13 @@ function formatDate(dateStr: string): string {
 }
 
 @keyframes fadeIn {
-  from { opacity: 0; }
-  to { opacity: 1; }
+  from {
+      opacity: 0;
+    }
+  
+    to {
+      opacity: 1;
+    }
 }
 
 @keyframes slideUp {
@@ -862,6 +885,7 @@ function formatDate(dateStr: string): string {
     opacity: 0;
     transform: translateY(40rpx);
   }
+
   to {
     opacity: 1;
     transform: translateY(0);
@@ -869,12 +893,20 @@ function formatDate(dateStr: string): string {
 }
 
 @keyframes btnGlow {
-  0% { left: -100%; }
-  50%, 100% { left: 100%; }
+  0% {
+      left: -100%;
+    }
+  
+    50%,
+    100% {
+      left: 100%;
+    }
 }
 
 @keyframes spin {
-  to { transform: rotate(360deg); }
+  to {
+      transform: rotate(360deg);
+    }
 }
 </style>
 

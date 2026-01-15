@@ -2,58 +2,18 @@
  * Project Store - 项目（IP）状态管理
  * 
  * 使用 Pinia 管理多项目切换和当前激活项目
- * 支持本地持久化存储
+ * 激活的项目ID会持久化到本地存储
  */
 
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
-import { get, post, put, del } from '@/utils/request'
+import type { Project, PersonaSettings, ProjectCreateRequest, ProjectUpdateRequest } from '@/api/project'
 
-// ============== 类型定义 ==============
+// ============== 类型导出（向后兼容） ==============
+export type { Project, PersonaSettings, ProjectCreateRequest, ProjectUpdateRequest }
 
-// 人设配置类型
-export interface PersonaSettings {
-  tone: string
-  catchphrase: string
-  target_audience: string
-  benchmark_accounts: string[]
-  content_style: string
-  taboos: string[]
-  keywords: string[]
-  introduction: string
-}
-
-// 项目类型
-export interface Project {
-  id: string
-  user_id: string
-  name: string
-  industry: string
-  avatar_letter: string
-  avatar_color: string
-  persona_settings: PersonaSettings
-  created_at: string
-  updated_at: string
-  is_active: boolean
-}
-
-// 创建项目请求
-export interface ProjectCreateRequest {
-  name: string
-  industry?: string
-  persona_settings?: Partial<PersonaSettings>
-}
-
-// 更新项目请求
-export interface ProjectUpdateRequest {
-  name?: string
-  industry?: string
-  persona_settings?: Partial<PersonaSettings>
-}
-
-// 缓存 key
-const ACTIVE_PROJECT_KEY = 'sfire_ai_active_project'
-const PROJECT_LIST_KEY = 'sfire_ai_project_list'
+// localStorage key
+const ACTIVE_PROJECT_ID_KEY = 'active_project_id'
 
 // 默认人设配置
 export const DEFAULT_PERSONA_SETTINGS: PersonaSettings = {
@@ -81,10 +41,7 @@ export const useProjectStore = defineStore('project', () => {
   
   // 加载状态
   const isLoading = ref(false)
-  
-  // 是否已初始化
-  const isInitialized = ref(false)
-  
+
   // ============== Getters ==============
   
   // 是否有激活的项目
@@ -102,228 +59,129 @@ export const useProjectStore = defineStore('project', () => {
   })
   
   // ============== Actions ==============
-  
-  /**
-   * 初始化 - 从本地存储加载数据
-   */
-  function initialize() {
-    if (isInitialized.value) return
-    
-    try {
-      // 加载项目列表
-      const storedList = uni.getStorageSync(PROJECT_LIST_KEY)
-      if (storedList) {
-        projectList.value = JSON.parse(storedList)
-      }
-      
-      // 加载激活项目
-      const storedActive = uni.getStorageSync(ACTIVE_PROJECT_KEY)
-      if (storedActive) {
-        activeProject.value = JSON.parse(storedActive)
-      }
-      
-      isInitialized.value = true
-    } catch (error) {
-      console.error('Failed to load project data:', error)
-    }
-  }
-  
-  /**
-   * 保存到本地存储
-   */
-  function saveToStorage() {
-    try {
-      uni.setStorageSync(PROJECT_LIST_KEY, JSON.stringify(projectList.value))
-      if (activeProject.value) {
-        uni.setStorageSync(ACTIVE_PROJECT_KEY, JSON.stringify(activeProject.value))
-      } else {
-        uni.removeStorageSync(ACTIVE_PROJECT_KEY)
-      }
-    } catch (error) {
-      console.error('Failed to save project data:', error)
-    }
-  }
-  
-  /**
-   * 获取项目列表
-   */
-  async function fetchProjects(): Promise<boolean> {
-    isLoading.value = true
-    
-    try {
-      const response = await get<{
-        success: boolean
-        projects: Project[]
-        active_project_id: string | null
-      }>('/api/v1/client/projects')
 
-      if (response.success && response.data) {
-        projectList.value = response.data.projects || []
-        
-        // 如果有激活项目 ID，找到并设置
-        if (response.data.active_project_id) {
-          const active = projectList.value.find(
-            p => p.id === response.data!.active_project_id
-          )
-          if (active) {
-            activeProject.value = active
-          }
-        } else if (projectList.value.length === 1) {
-          // 如果只有一个项目，自动激活
-          activeProject.value = projectList.value[0]
+  /**
+   * 从 localStorage 读取激活的项目ID
+   */
+  function getActiveProjectIdFromStorage(): string | null {
+    try {
+      const projectId = uni.getStorageSync(ACTIVE_PROJECT_ID_KEY)
+      return projectId || null
+    } catch (error) {
+      console.error('Failed to get active project id from storage:', error)
+      return null
+    }
+  }
+
+  /**
+   * 保存激活的项目ID到 localStorage
+   */
+  function saveActiveProjectIdToStorage(projectId: string) {
+    try {
+      uni.setStorageSync(ACTIVE_PROJECT_ID_KEY, projectId)
+    } catch (error) {
+      console.error('Failed to save active project id to storage:', error)
+    }
+  }
+
+  /**
+   * 清除 localStorage 中的激活项目ID
+   */
+  function clearActiveProjectIdFromStorage() {
+    try {
+      uni.removeStorageSync(ACTIVE_PROJECT_ID_KEY)
+    } catch (error) {
+      console.error('Failed to clear active project id from storage:', error)
+    }
+  }
+
+  /**
+   * 设置项目列表（由 API 调用后更新）
+   */
+  function setProjectList(projects: Project[], activeProjectId?: string | number) {
+    projectList.value = projects
+
+  // 如果有激活项目 ID，找到并设置
+    if (activeProjectId) {
+      const active = projectList.value.find(
+        p => p.id === String(activeProjectId)
+      )
+      if (active) {
+        activeProject.value = active
+        saveActiveProjectIdToStorage(active.id)
+      }
+    } else {
+      // 如果没有传入 activeProjectId，尝试从 localStorage 读取
+      const storedProjectId = getActiveProjectIdFromStorage()
+      if (storedProjectId) {
+        const active = projectList.value.find(
+          p => p.id === storedProjectId
+        )
+        if (active) {
+          activeProject.value = active
+        } else {
+          // 如果存储的项目ID不存在于列表中，清除存储
+          clearActiveProjectIdFromStorage()
         }
-        
-        saveToStorage()
-        return true
       }
       
-      return false
-    } catch (error) {
-      console.error('Failed to fetch projects:', error)
-      return false
-    } finally {
-      isLoading.value = false
-    }
-  }
-  
-  /**
-   * 创建新项目
-   */
-  async function createProject(data: ProjectCreateRequest): Promise<Project | null> {
-    isLoading.value = true
-    
-    try {
-      const response = await post<{
-        success: boolean
-        project: Project
-      }>('/api/v1/client/projects', data)
-      
-      if (response.success && response.data?.project) {
-        const newProject = response.data.project
-        projectList.value.unshift(newProject)
-        
-        // 如果是第一个项目，自动激活
-        if (projectList.value.length === 1) {
-          await setActiveProject(newProject)
-        }
-        
-        saveToStorage()
-        return newProject
+      // 如果还是没有激活项目，且只有一个项目，自动激活
+      if (!activeProject.value && projectList.value.length === 1) {
+        activeProject.value = projectList.value[0]
+        saveActiveProjectIdToStorage(projectList.value[0].id)
       }
-      
-      return null
-    } catch (error) {
-      console.error('Failed to create project:', error)
-      return null
-    } finally {
-      isLoading.value = false
     }
   }
-  
+
   /**
-   * 更新项目
+   * 添加或更新项目到列表
    */
-  async function updateProject(projectId: string, data: ProjectUpdateRequest): Promise<Project | null> {
-    isLoading.value = true
-    
-    try {
-      const response = await put<{
-        success: boolean
-        project: Project
-      }>(`/api/v1/client/projects/${projectId}`, data)
-      
-      if (response.success && response.data?.project) {
-        const updatedProject = response.data.project
-        
-        // 更新列表中的项目
-        const index = projectList.value.findIndex(p => p.id === projectId)
-        if (index !== -1) {
-          projectList.value[index] = updatedProject
-        }
-        
-        // 如果是当前激活项目，同步更新
-        if (activeProject.value?.id === projectId) {
-          activeProject.value = updatedProject
-        }
-        
-        saveToStorage()
-        return updatedProject
+  function upsertProject(project: Project) {
+    const index = projectList.value.findIndex(p => p.id === project.id)
+    if (index >= 0) {
+      projectList.value[index] = project
+    } else {
+      projectList.value.push(project)
+    }
+  }
+
+  /**
+   * 从列表中移除项目
+   */
+  function removeProject(projectId: string) {
+    const index = projectList.value.findIndex(p => p.id === projectId)
+    if (index >= 0) {
+      projectList.value.splice(index, 1)
+      // 如果删除的是当前激活的项目，清空激活状态
+      if (activeProject.value?.id === projectId) {
+        activeProject.value = null
+        clearActiveProjectIdFromStorage()
       }
-      
-      return null
-    } catch (error) {
-      console.error('Failed to update project:', error)
-      return null
-    } finally {
-      isLoading.value = false
     }
   }
-  
+
   /**
-   * 删除项目
+   * 设置激活项目（更新本地状态并保存到 localStorage）
    */
-  async function deleteProject(projectId: string): Promise<boolean> {
-    isLoading.value = true
-    
-    try {
-      const response = await del<{ success: boolean }>(`/api/v1/client/projects/${projectId}`)
-      
-      if (response.success) {
-        // 从列表中移除
-        projectList.value = projectList.value.filter(p => p.id !== projectId)
-        
-        // 如果删除的是当前激活项目
-        if (activeProject.value?.id === projectId) {
-          activeProject.value = projectList.value[0] || null
-        }
-        
-        saveToStorage()
-        return true
-      }
-      
-      return false
-    } catch (error) {
-      console.error('Failed to delete project:', error)
-      return false
-    } finally {
-      isLoading.value = false
-    }
+  function setActiveProjectLocal(project: Project) {
+    activeProject.value = project
+    saveActiveProjectIdToStorage(project.id)
   }
-  
+
   /**
-   * 设置激活项目
-   */
-  async function setActiveProject(project: Project): Promise<boolean> {
-    try {
-      // 先更新本地状态
-      activeProject.value = project
-      saveToStorage()
-      
-      // 同步到后端
-      const response = await post<{ success: boolean }>('/api/v1/client/projects/switch', {
-        project_id: project.id
-      })
-      
-      return response.success
-    } catch (error) {
-      console.error('Failed to switch project:', error)
-      // 即使后端失败，本地状态已更新
-      return true
-    }
-  }
-  
-  /**
-   * 清除所有项目数据
+   * 清除所有项目数据（清空内存状态和本地存储）
    */
   function clearProjects() {
     projectList.value = []
     activeProject.value = null
-    try {
-      uni.removeStorageSync(PROJECT_LIST_KEY)
-      uni.removeStorageSync(ACTIVE_PROJECT_KEY)
-    } catch (error) {
-      console.error('Failed to clear project data:', error)
-    }
+    clearActiveProjectIdFromStorage()
+  }
+
+  /**
+   * 设置加载状态
+   */
+  function setLoading(loading: boolean) {
+    isLoading.value = loading
   }
   
   /**
@@ -367,16 +225,12 @@ export const useProjectStore = defineStore('project', () => {
     
     return parts.join('\n')
   }
-  
-  // 初始化
-  initialize()
-  
+
   return {
     // State
     projectList,
     activeProject,
     isLoading,
-    isInitialized,
     
     // Getters
     hasActiveProject,
@@ -385,15 +239,13 @@ export const useProjectStore = defineStore('project', () => {
     currentPersonaSettings,
     
     // Actions
-    initialize,
-    fetchProjects,
-    createProject,
-    updateProject,
-    deleteProject,
-    setActiveProject,
+    setProjectList,
+    upsertProject,
+    removeProject,
+    setActiveProjectLocal,
     clearProjects,
-    getPersonaSystemPrompt,
-    saveToStorage
+    setLoading,
+    getPersonaSystemPrompt
   }
 })
 

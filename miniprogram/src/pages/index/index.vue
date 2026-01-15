@@ -1,18 +1,9 @@
 <template>
   <view class="container">
     <!-- 顶部标题栏 -->
-    <view class="header">
+    <!-- <view class="header">
       <text class="header-title">火源文案智能体</text>
-      <!-- 项目切换入口 -->
-      <view class="project-entry" @tap="goToProjectDashboard" v-if="authStore.isLoggedIn">
-        <view class="project-avatar" v-if="activeProject" :style="{ background: activeProject.avatar_color }">
-          <text class="avatar-letter">{{ activeProject.avatar_letter || activeProject.name[0] }}</text>
-        </view>
-        <text class="project-name" v-if="activeProject">{{ activeProject.name }}</text>
-        <text class="project-hint" v-else>选择项目</text>
-        <text class="entry-arrow">›</text>
-      </view>
-    </view>
+    </view> -->
 
     <!-- Banner 轮播图 -->
     <view class="banner-wrapper">
@@ -118,23 +109,11 @@ import { useProjectStore } from '@/stores/project'
 
 const authStore = useAuthStore()
 const projectStore = useProjectStore()
-const activeProject = computed(() => projectStore.activeProject)
 
 // 初始化时加载项目
-onMounted(() => {
-  if (authStore.isLoggedIn) {
-    projectStore.fetchProjects()
-  }
+onMounted(async () => {
 })
 
-// 进入项目控制台
-function goToProjectDashboard() {
-  if (activeProject.value) {
-    uni.navigateTo({ url: '/pages/project/dashboard' })
-  } else {
-    uni.navigateTo({ url: '/pages/project/list' })
-  }
-}
 
 // Banner 轮播数据
 const bannerList = reactive([

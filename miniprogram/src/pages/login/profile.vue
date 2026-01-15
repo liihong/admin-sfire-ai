@@ -99,7 +99,7 @@
 <script setup lang="ts">
 import { ref, reactive } from 'vue'
 import { useAuthStore } from '@/stores/auth'
-import { put } from '@/utils/request'
+import { request } from '@/utils/request'
 
 const authStore = useAuthStore()
 
@@ -185,18 +185,23 @@ const handleSubmit = async () => {
     }
     
     // 调用更新接口
-    const response = await put<{
+    const response = await request<{
       success: boolean
       user_info: any
-    }>('/api/v1/client/auth/user', {
-      nickname: formData.nickname.trim(),
-      avatar: avatarData,
-      gender: formData.gender
+    }>({
+      url: '/api/v1/client/auth/user',
+      method: 'PUT',
+      data: {
+        nickname: formData.nickname.trim(),
+        avatar: avatarData,
+        gender: formData.gender
+      }
     })
     
     uni.hideLoading()
     
-    if (response.success) {
+    // 后端返回格式: {code: 200, data: {...}, msg: "..."}
+    if (response.code === 200) {
       // 更新本地用户信息
       authStore.setUserInfo({
         ...authStore.userInfo!,
@@ -218,7 +223,7 @@ const handleSubmit = async () => {
         })
       }, 1500)
     } else {
-      throw new Error(response.message || '保存失败')
+      throw new Error(response.msg || '保存失败')
     }
   } catch (error: any) {
     uni.hideLoading()

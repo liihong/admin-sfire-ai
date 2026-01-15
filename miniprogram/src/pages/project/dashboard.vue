@@ -316,6 +316,7 @@
 <script setup lang="ts">
 import { ref, computed, reactive, onMounted, watch } from 'vue'
 import { useProjectStore, INDUSTRY_OPTIONS, TONE_OPTIONS, type PersonaSettings } from '@/stores/project'
+import { fetchProjects, updateProject } from '@/api/project'
 
 // Store
 const projectStore = useProjectStore()
@@ -350,13 +351,24 @@ const editForm = reactive({
 // 初始化
 onMounted(async () => {
   if (!activeProject.value) {
-    await projectStore.fetchProjects()
-    if (!projectStore.hasActiveProject && projectStore.projectCount === 0) {
-      uni.redirectTo({ url: '/pages/project/list' })
-      return
-    }
-    if (!projectStore.hasActiveProject && projectStore.projectCount > 0) {
-      await projectStore.setActiveProject(projectStore.projectList[0])
+    try {
+      const response = await fetchProjects()
+      projectStore.setProjectList(response.projects, response.active_project_id)
+
+      if (!projectStore.hasActiveProject && projectStore.projectCount === 0) {
+        uni.redirectTo({ url: '/pages/project/list' })
+        return
+      }
+      if (!projectStore.hasActiveProject && projectStore.projectCount > 0) {
+        const firstProject = projectStore.projectList[0]
+        projectStore.setActiveProjectLocal(firstProject)
+      }
+    } catch (error) {
+      console.error('Failed to fetch projects:', error)
+      if (projectStore.projectCount === 0) {
+        uni.redirectTo({ url: '/pages/project/list' })
+        return
+      }
     }
   }
   
@@ -431,19 +443,23 @@ async function savePersonaSettings() {
   isSaving.value = true
   
   try {
-    const result = await projectStore.updateProject(activeProject.value.id, {
+    const result = await updateProject(activeProject.value.id, {
       name: editForm.name,
       industry: editForm.industry,
       persona_settings: editForm.persona
     })
     
-    if (result) {
-      uni.showToast({ title: '保存成功', icon: 'success' })
-      showPersonaDrawer.value = false
-    } else {
-      uni.showToast({ title: '保存失败', icon: 'none' })
+    // 更新 store 状态
+    projectStore.upsertProject(result)
+    // 如果更新的是当前激活的项目，更新激活项目状态
+    if (activeProject.value.id === result.id) {
+      projectStore.setActiveProjectLocal(result)
     }
+
+    uni.showToast({ title: '保存成功', icon: 'success' })
+    showPersonaDrawer.value = false
   } catch (error) {
+    console.error('Failed to update project:', error)
     uni.showToast({ title: '保存失败', icon: 'none' })
   } finally {
     isSaving.value = false

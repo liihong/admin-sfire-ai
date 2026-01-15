@@ -188,7 +188,7 @@
             v-for="(agent, idx) in agentList" 
             :key="idx"
             class="agent-item"
-            :class="{ active: currentAgent.id === agent.id }"
+            :class="{ active: currentAgent?.id === agent.id }"
             @tap="selectAgent(agent)"
           >
             <view class="agent-icon-wrap">
@@ -198,7 +198,7 @@
               <text class="agent-name">{{ agent.name }}</text>
               <text class="agent-desc">{{ agent.description }}</text>
             </view>
-            <view class="agent-check" v-if="currentAgent.id === agent.id">
+            <view class="agent-check" v-if="currentAgent?.id === agent.id">
               <text>✓</text>
             </view>
           </view>
@@ -243,7 +243,8 @@ import { ref, reactive, computed, watch, onMounted, nextTick } from 'vue'
 import { useSettingsStore, type ModelConfig } from '@/stores/settings'
 import { useAuthStore } from '@/stores/auth'
 import { useProjectStore } from '@/stores/project'
-import { generateApi, agentApi } from '@/utils/request'
+import { generate } from '@/api/generate'
+import { getAgentList } from '@/api/agent'
 
 // ============== Store ==============
 const settingsStore = useSettingsStore()
@@ -271,8 +272,10 @@ const currentAgent = ref<Agent | null>(null)
 // 加载智能体列表
 async function loadAgentList() {
   try {
-    const response = await agentApi.getAgentList()
-    if (response.success && response.data?.agents) {
+    const response = await getAgentList()
+    console.log(response)
+    // 后端返回格式: {code: 200, data: {agents: [...]}, msg: "..."}
+    if (response.code === 200 && response.data?.agents) {
       // 清空现有列表
       agentList.length = 0
       
@@ -292,10 +295,15 @@ async function loadAgentList() {
       if (agentList.length > 0 && !currentAgent.value) {
         currentAgent.value = agentList[0]
       }
+
+      // 确保 currentAgent 不为 null
+      if (!currentAgent.value && agentList.length > 0) {
+        currentAgent.value = agentList[0]
+      }
     } else {
-      console.error('获取智能体列表失败:', response.message)
+      console.error('获取智能体列表失败:', (response as any).msg)
       uni.showToast({
-        title: '获取智能体列表失败',
+        title: (response as any).msg || '获取智能体列表失败',
         icon: 'none'
       })
     }
@@ -558,7 +566,7 @@ async function sendMessage() {
     }
 
     // 使用封装的请求方法，自动添加 Authorization header
-    const response = await generateApi.generate({
+    const response = await generate({
       project_id: projectId,
       agent_type: agentType,
       messages: messages,
@@ -568,7 +576,8 @@ async function sendMessage() {
       stream: false
     })
 
-    if (response.success && response.data?.content) {
+    // 后端返回格式: {code: 200, data: {content: "...", ...}, msg: "..."}
+    if (response.code === 200 && response.data?.content) {
       chatHistory.push({
         role: 'assistant',
         content: response.data.content,
@@ -576,7 +585,7 @@ async function sendMessage() {
       })
       scrollToBottom()
     } else {
-      throw new Error(response.message || '生成失败')
+      throw new Error((response as any).msg || '生成失败')
     }
 
   } catch (error: any) {

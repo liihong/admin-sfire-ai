@@ -269,9 +269,9 @@
 <script setup lang="ts">
 import { ref, computed, reactive } from 'vue'
 import { useProjectStore, INDUSTRY_OPTIONS, TONE_OPTIONS } from '@/stores/project'
-import { post } from '@/utils/request'
+import { request } from '@/utils/request'
 import IPCollectDialog from '@/components/IPCollectDialog.vue'
-import { compressIPInfo } from '@/api/project'
+import { compressIPInfo, createProject } from '@/api/project'
 
 // Store
 const projectStore = useProjectStore()
@@ -380,7 +380,7 @@ async function handleCollect() {
     }, 200)
     
     // 调用后端 API
-    const response = await post<{
+    const response = await request<{
       success: boolean
       data: {
         nickname: string
@@ -392,13 +392,18 @@ async function handleCollect() {
         target_audience_guess: string
       }
       message?: string
-    }>('/api/v1/client/tikhub/analyze-douyin', {
-      url: douyinUrl.value.trim()
+    }>({
+      url: '/api/v1/client/tikhub/analyze-douyin',
+      method: 'POST',
+      data: {
+        url: douyinUrl.value.trim()
+      }
     })
     
     clearInterval(progressInterval2)
     
-    if (response.success && response.data) {
+    // 后端返回格式: {code: 200, data: {...}, msg: "..."}
+    if (response.code === 200 && response.data) {
       // 阶段3: 分析内容
       collectProgress.value = 70
       collectModalTitle.value = '正在分析视频内容...'
@@ -439,7 +444,7 @@ async function handleCollect() {
         icon: 'success'
       })
     } else {
-      throw new Error(response.message || '采集失败')
+      throw new Error(response.msg || '采集失败')
     }
   } catch (error: any) {
     console.error('Collect failed:', error)
@@ -462,7 +467,7 @@ async function handleSubmit() {
   isSubmitting.value = true
   
   try {
-    const project = await projectStore.createProject({
+    const project = await createProject({
       name: formData.name.trim(),
       industry: formData.industry,
       persona_settings: {
@@ -477,21 +482,20 @@ async function handleSubmit() {
       }
     })
     
-    if (project) {
-      uni.showToast({
-        title: '创建成功',
-        icon: 'success'
+    // 更新 store 状态
+    projectStore.upsertProject(project)
+    
+    uni.showToast({
+      title: '创建成功',
+      icon: 'success'
+    })
+    
+    // 跳转到控制台
+    setTimeout(() => {
+      uni.navigateTo({
+        url: `/pages/project/dashboard?id=${project.id}`
       })
-      
-      // 跳转到控制台
-      setTimeout(() => {
-        uni.navigateTo({
-          url: `/pages/project/dashboard?id=${project.id}`
-        })
-      }, 500)
-    } else {
-      throw new Error('创建失败')
-    }
+    }, 500)
   } catch (error) {
     console.error('Submit failed:', error)
     uni.showToast({

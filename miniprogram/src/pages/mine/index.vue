@@ -80,7 +80,7 @@
 <script setup lang="ts">
 import { ref, reactive, computed } from 'vue'
 import { onShow } from '@dcloudio/uni-app'
-import { userApi } from '@/utils/request'
+import { getUserInfo, updateUserInfo } from '@/api/user'
 import { useAuthStore } from '@/stores/auth'
 
 // 用户信息
@@ -133,13 +133,10 @@ const menuList = ref([
 // 获取用户信息
 const fetchUserInfo = async () => {
   try {
-    const response = await userApi.getUserInfo()
-    if (response.success && response.data) {
-      // 后端使用success函数返回: {code: 200, data: {...}, msg: "..."}
-      // responseInterceptor将整个响应作为data返回
-      // 所以需要访问 response.data.data 获取实际数据
-      const backendResponse = response.data as any
-      const data = backendResponse.data || backendResponse
+    const response = await getUserInfo()
+    // 后端返回格式: {code: 200, data: {...}, msg: "..."}
+    if (response.code === 200 && response.data) {
+      const data = response.data
       
       userInfo.avatar = data.avatar || ''
       userInfo.phone = data.phone || ''
@@ -148,9 +145,9 @@ const fetchUserInfo = async () => {
       userInfo.balance = data.partnerBalance || '0.00'
       userInfo.partnerStatus = data.partnerStatus || '普通用户'
     } else {
-      console.error('获取用户信息失败:', response.message)
+      console.error('获取用户信息失败:', (response as any).msg)
       uni.showToast({
-        title: response.message || '获取用户信息失败',
+        title: (response as any).msg || '获取用户信息失败',
         icon: 'none'
       })
     }
@@ -175,12 +172,13 @@ const handleAvatarClick = () => {
       
       // 调用接口更新用户信息
       try {
-        const updateResponse = await userApi.updateUserInfo({
+        const updateResponse = await updateUserInfo({
           avatar: avatarUrl,
           nickname: nickName
         })
         
-        if (updateResponse.success) {
+        // 后端返回格式: {code: 200, data: {...}, msg: "..."}
+        if (updateResponse.code === 200) {
           uni.showToast({
             title: '更新成功',
             icon: 'success'
@@ -189,7 +187,7 @@ const handleAvatarClick = () => {
           await fetchUserInfo()
         } else {
           uni.showToast({
-            title: updateResponse.message || '更新失败',
+            title: (updateResponse as any).msg || '更新失败',
             icon: 'none'
           })
         }
@@ -229,10 +227,16 @@ const handleAvatarClick = () => {
 
 // 跳转到明细页面
 const goToDetail = (type: string) => {
-  uni.showToast({
-    title: type === 'power' ? '查看算力明细' : '查看资产明细',
-    icon: 'none'
-  })
+  if (type === 'power') {
+    uni.navigateTo({
+      url: '/pages/mine/power-detail'
+    })
+  } else {
+    uni.showToast({
+      title: '查看资产明细',
+      icon: 'none'
+    })
+  }
 }
 
 // 申请提现

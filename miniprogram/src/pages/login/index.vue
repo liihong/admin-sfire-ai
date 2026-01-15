@@ -67,7 +67,7 @@
 
     <!-- 底部版权 -->
     <view class="footer">
-      <text class="copyright">© 2026 火源文案 版权所有</text>
+      <text class="copyright">© 2026 火源AI 版权所有</text>
     </view>
   </view>
 </template>
@@ -75,7 +75,7 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import { useAuthStore } from '@/stores/auth'
-import { post } from '@/utils/request'
+import { request } from '@/utils/request'
 
 const authStore = useAuthStore()
 
@@ -147,20 +147,24 @@ const handleGetPhoneNumber = async (e: any) => {
     }
     
     // 调用后端登录接口
-    const response = await post<any>('/api/v1/client/auth/login', {
-      code: loginResult.code,
-      phone_code: phoneCode
+    const response = await request<any>({
+      url: '/api/v1/client/auth/login',
+      method: 'POST',
+      data: {
+        code: loginResult.code,
+        phone_code: phoneCode
+      }
     })
     
     uni.hideLoading()
     
-    if (response.success && response.data) {
-      // 保存 Token（使用 uni.setStorageSync 长期存储，数据会一直保存直到用户清除小程序数据）
-      // 后端返回格式: {code: 200, data: {token: "...", ...}, msg: "..."}
-      // responseInterceptor 返回: {success: true, data: <entire backend response>, code: 200}
-      // 所以 token 在 response.data.data.token
-      const tokenValue = response.data.data?.token || response.data.token
+    console.log(response)
+    // 后端返回格式: {code: 200, data: {token: "...", userInfo: {...}, is_new_user: ...}, msg: "..."}
+    if (response.code === 200 && response.data) {
+      const data = response.data
       
+      // 保存 Token
+      const tokenValue = data.token
       if (tokenValue) {
         authStore.setToken(tokenValue)
         
@@ -175,8 +179,7 @@ const handleGetPhoneNumber = async (e: any) => {
       }
       
       // 保存用户信息（长期存储）
-      // 用户信息可能在 response.data.data.userInfo 或 response.data.userInfo
-      const userInfo = response.data.data?.userInfo || response.data.data?.user_info || response.data.userInfo || response.data.user_info
+      const userInfo = data.userInfo
       if (userInfo) {
         authStore.setUserInfo({
           openid: userInfo.openid,
@@ -193,8 +196,7 @@ const handleGetPhoneNumber = async (e: any) => {
       })
       
       // 登录成功后统一跳转到IP工作台
-      // is_new_user 可能在 response.data.data.is_new_user 或 response.data.is_new_user
-      const isNewUser = response.data.data?.is_new_user ?? response.data?.is_new_user ?? false
+      const isNewUser = data.is_new_user ?? false
       setTimeout(() => {
         if (isNewUser) {
           // 新用户，先跳转到完善资料页，完善后再跳转到IP工作台
@@ -209,18 +211,12 @@ const handleGetPhoneNumber = async (e: any) => {
         }
       }, 1500)
     } else {
-      throw new Error(response.message || '登录失败')
+      throw new Error((response as any).msg || '登录失败')
     }
   } catch (error: any) {
     uni.hideLoading()
     console.error('Login error:', error)
-    
-    // 开发环境模拟登录成功
-    // #ifdef H5
-    mockLogin()
-    return
-    // #endif
-    
+
     uni.showToast({
       title: error.message || '登录失败，请重试',
       icon: 'none',
@@ -261,36 +257,6 @@ function wxLogin(): Promise<{ code: string }> {
   })
 }
 
-/**
- * 开发环境模拟登录
- */
-const mockLogin = () => {
-  console.log('[Dev] Mock login')
-  
-  // 模拟 Token
-  const mockToken = `mock_token_${Date.now()}`
-  authStore.setToken(mockToken)
-  
-  // 模拟用户信息
-  authStore.setUserInfo({
-    openid: `mock_openid_${Date.now()}`,
-    nickname: '',
-    avatarUrl: '/static/default-avatar.png'
-  })
-  
-  uni.showToast({
-    title: '登录成功',
-    icon: 'success',
-    duration: 1500
-  })
-  
-  // 跳转到IP工作台
-  setTimeout(() => {
-    uni.switchTab({
-      url: '/pages/project/list'
-    })
-  }, 1500)
-}
 
 /**
  * 打开用户协议

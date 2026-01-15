@@ -6,3 +6,4 @@
 编写可运行的代码。 
 
 注意：Uni-app 中不能使用 div / span，请全部使用 view / text 标签。
+调试的时候不要用fetch而需要用uni.request.

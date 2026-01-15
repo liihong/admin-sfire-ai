@@ -37,6 +37,14 @@
       }
     },
     {
+      "path": "pages/mine/power-detail",
+      "style": {
+        "navigationBarTitleText": "算力明细",
+        "navigationStyle": "custom",
+        "disableScroll": true
+      }
+    },
+    {
       "path": "pages/copywriting/index",
       "style": {
         "navigationBarTitleText": "AI 文案生成",
