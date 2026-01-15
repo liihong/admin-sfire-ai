@@ -23,13 +23,13 @@ class CoinAccountService:
         self.db = db
         self.calculator = CoinCalculatorService(db)
 
-    async def get_user_with_lock(self, user_id: int, nowait: bool = False) -> User:
+    async def get_user_with_lock(self, user_id: int, skip_locked: bool = False) -> User:
         """
         获取用户并加锁(防止并发问题)
 
         Args:
             user_id: 用户ID
-            nowait: 是否不等待锁(立即返回错误),用于避免死锁
+            skip_locked: 是否跳过已被锁定的记录(快速失败),用于避免长等待
 
         Returns:
             用户对象
@@ -37,11 +37,18 @@ class CoinAccountService:
         result = await self.db.execute(
             select(User)
             .where(User.id == user_id)
-            .with_for_update(nowait=nowait)  # 行级锁,防止并发修改
+            .with_for_update(skip_locked=skip_locked)  # 行级锁,防止并发修改
         )
         user = result.scalar_one_or_none()
 
         if not user:
+            # 如果是 skip_locked 模式下没获取到,可能是锁冲突
+            if skip_locked:
+                from sqlalchemy.exc import OperationalError
+                raise OperationalError(
+                    "锁冲突，用户记录被其他事务占用",
+                    orig=type('obj', (object,), {'args': [1205]})
+                )
             raise NotFoundException(f"用户ID {user_id} 不存在")
 
         return user
@@ -89,23 +96,54 @@ class CoinAccountService:
         Returns:
             实际冻结金额
         """
-        # 获取用户并加锁
-        user = await self.get_user_with_lock(user_id)
+        import asyncio
+        from sqlalchemy.exc import OperationalError, DBAPIError
 
-        # 检查可用余额
-        available = user.balance - user.frozen_balance
-        if available < amount:
-            raise BadRequestException(
-                f"余额不足。可用余额: {available:.0f}, 需要: {amount:.0f}"
-            )
+        max_retries = 5  # 最大重试次数
+        base_delay = 0.3  # 基础延迟(秒)
 
-        # 冻结金额（不记录日志，用户无感知）
-        user.frozen_balance += amount
+        for attempt in range(max_retries):
+            try:
+                # 获取用户并加锁(使用 skip_locked 快速失败)
+                user = await self.get_user_with_lock(user_id, skip_locked=True)
 
-        # 立即刷新到数据��
-        await self.db.flush()
+                # 检查可用余额
+                available = user.balance - user.frozen_balance
+                if available < amount:
+                    raise BadRequestException(
+                        f"余额不足。可用余额: {available:.0f}, 需要: {amount:.0f}"
+                    )
 
-        return amount
+                # 冻结金额（不记录日志，用户无感知）
+                user.frozen_balance += amount
+
+                # 立即刷新到数据库
+                await self.db.flush()
+
+                return amount
+
+            except (OperationalError, DBAPIError) as e:
+                # 检查是否是锁等待超时或死锁错误
+                error_code = None
+                if hasattr(e, 'orig') and hasattr(e.orig, 'args'):
+                    error_code = e.orig.args[0] if e.orig.args else None
+
+                # 1205: Lock wait timeout exceeded
+                # 1213: Deadlock found when trying to get lock
+                is_lock_error = error_code in (1205, 1213)
+
+                if is_lock_error and attempt < max_retries - 1:
+                    # 指数退避: 0.3s, 0.6s, 1.2s, 1.8s, 2.4s
+                    delay = base_delay * (attempt + 1)
+                    logger.warning(
+                        f"算力预冻结时遇到锁冲突(尝试 {attempt + 1}/{max_retries}): "
+                        f"用户ID={user_id}, 错误码={error_code}, {delay}秒后重试..."
+                    )
+                    await asyncio.sleep(delay)
+                    continue
+                else:
+                    # 重试次数用完或非锁错误,抛出异常
+                    raise
 
     async def unfreeze_and_deduct(
         self,
@@ -136,44 +174,77 @@ class CoinAccountService:
             model_name: 模型名称
             frozen_amount: 预冻结金额
         """
-        # 获取用户并加锁
-        user = await self.get_user_with_lock(user_id)
+        import asyncio
+        from sqlalchemy.exc import OperationalError, DBAPIError
 
-        # 记录变动前余额
-        before_balance = user.balance
-        before_frozen = user.frozen_balance
+        max_retries = 5  # 最大重试次数
+        base_delay = 0.3  # 基础延迟(秒)
 
-        # 解冻：减少冻结余额
-        user.frozen_balance -= frozen_amount
+        for attempt in range(max_retries):
+            try:
+                # 获取用户并加锁(使用 skip_locked 快速失败)
+                user = await self.get_user_with_lock(user_id, skip_locked=True)
 
-        # 扣除实际消耗
-        user.balance -= actual_cost
+                # 记录变动前余额
+                before_balance = user.balance
+                before_frozen = user.frozen_balance
 
-        # 创建消耗流水（负数表示减少）
-        remark = (
-            f"AI对话消耗 - "
-            f"输入Token: {input_tokens}, 输出Token: {output_tokens}, "
-            f"模型: {model_name}"
-        )
+                # 解冻：减少冻结余额
+                user.frozen_balance -= frozen_amount
 
-        consume_log = ComputeLog(
-            user_id=user_id,
-            type=ComputeType.CONSUME,
-            amount=-actual_cost,  # 负数表示减少
-            before_balance=before_balance,
-            after_balance=user.balance,
-            remark=remark,
-            task_id=task_id,
-            source="api"
-        )
-        self.db.add(consume_log)
+                # 扣除实际消耗
+                user.balance -= actual_cost
 
-        logger.info(
-            f"用户 {user_id} 算力结算: "
-            f"预冻结 {frozen_amount}, 实际消耗 {actual_cost}, "
-            f"解冻前: {before_frozen}, 解冻后: {user.frozen_balance}, "
-            f"余额前: {before_balance}, 余额后: {user.balance}"
-        )
+                # 创建消耗流水（负数表示减少）
+                remark = (
+                    f"AI对话消耗 - "
+                    f"输入Token: {input_tokens}, 输出Token: {output_tokens}, "
+                    f"模型: {model_name}"
+                )
+
+                consume_log = ComputeLog(
+                    user_id=user_id,
+                    type=ComputeType.CONSUME,
+                    amount=-actual_cost,  # 负数表示减少
+                    before_balance=before_balance,
+                    after_balance=user.balance,
+                    remark=remark,
+                    task_id=task_id,
+                    source="api"
+                )
+                self.db.add(consume_log)
+
+                logger.info(
+                    f"用户 {user_id} 算力结算: "
+                    f"预冻结 {frozen_amount}, 实际消耗 {actual_cost}, "
+                    f"解冻前: {before_frozen}, 解冻后: {user.frozen_balance}, "
+                    f"余额前: {before_balance}, 余额后: {user.balance}"
+                )
+
+                return  # 成功,退出重试循环
+
+            except (OperationalError, DBAPIError) as e:
+                # 检查是否是锁等待超时或死锁错误
+                error_code = None
+                if hasattr(e, 'orig') and hasattr(e.orig, 'args'):
+                    error_code = e.orig.args[0] if e.orig.args else None
+
+                # 1205: Lock wait timeout exceeded
+                # 1213: Deadlock found when trying to get lock
+                is_lock_error = error_code in (1205, 1213)
+
+                if is_lock_error and attempt < max_retries - 1:
+                    # 指数退避: 0.3s, 0.6s, 1.2s, 1.8s, 2.4s
+                    delay = base_delay * (attempt + 1)
+                    logger.warning(
+                        f"算力解冻扣款时遇到锁冲突(尝试 {attempt + 1}/{max_retries}): "
+                        f"用户ID={user_id}, 错误码={error_code}, {delay}秒后重试..."
+                    )
+                    await asyncio.sleep(delay)
+                    continue
+                else:
+                    # 重试次数用完或非锁错误,抛出异常
+                    raise
 
     async def refund_full(
         self,
@@ -197,13 +268,46 @@ class CoinAccountService:
             frozen_amount: 预冻结金额
             error_code: 错误码(可选)
         """
-        # 获取用户并加锁
-        user = await self.get_user_with_lock(user_id)
+        import asyncio
+        from sqlalchemy.exc import OperationalError, DBAPIError
 
-        # 只解冻，不改变总余额（用户无感知，不记录日志）
-        # 因为冻结时：frozen_balance增加，balance不变
-        # 解冻时：frozen_balance减少，balance不变
-        user.frozen_balance -= frozen_amount
+        max_retries = 5  # 最大重试次数
+        base_delay = 0.3  # 基础延迟(秒)
+
+        for attempt in range(max_retries):
+            try:
+                # 获取用户并加锁(使用 skip_locked 快速失败)
+                user = await self.get_user_with_lock(user_id, skip_locked=True)
+
+                # 只解冻，不改变总余额（用户无感知，不记录日志）
+                # 因为冻结时：frozen_balance增加，balance不变
+                # 解冻时：frozen_balance减少，balance不变
+                user.frozen_balance -= frozen_amount
+
+                return  # 成功,退出重试循环
+
+            except (OperationalError, DBAPIError) as e:
+                # 检查是否是锁等待超时或死锁错误
+                error_code_temp = None
+                if hasattr(e, 'orig') and hasattr(e.orig, 'args'):
+                    error_code_temp = e.orig.args[0] if e.orig.args else None
+
+                # 1205: Lock wait timeout exceeded
+                # 1213: Deadlock found when trying to get lock
+                is_lock_error = error_code_temp in (1205, 1213)
+
+                if is_lock_error and attempt < max_retries - 1:
+                    # 指数退避: 0.3s, 0.6s, 1.2s, 1.8s, 2.4s
+                    delay = base_delay * (attempt + 1)
+                    logger.warning(
+                        f"算力退款时遇到锁冲突(尝试 {attempt + 1}/{max_retries}): "
+                        f"用户ID={user_id}, 错误码={error_code_temp}, {delay}秒后重试..."
+                    )
+                    await asyncio.sleep(delay)
+                    continue
+                else:
+                    # 重试次数用完或非锁错误,抛出异常
+                    raise
 
     async def deduct_violation_penalty(
         self,
@@ -228,41 +332,74 @@ class CoinAccountService:
             model_name: 模型名称
             frozen_amount: 预冻结金额
         """
-        # 获取用户并加锁
-        user = await self.get_user_with_lock(user_id)
+        import asyncio
+        from sqlalchemy.exc import OperationalError, DBAPIError
 
-        # 计算处罚费用
-        penalty = await self.calculator.calculate_violation_penalty(model_id)
+        max_retries = 5  # 最大重试次数
+        base_delay = 0.3  # 基础延迟(秒)
 
-        # 记录变动前余额
-        before_balance = user.balance
-        before_frozen = user.frozen_balance
+        for attempt in range(max_retries):
+            try:
+                # 获取用户并加锁(使用 skip_locked 快速失败)
+                user = await self.get_user_with_lock(user_id, skip_locked=True)
 
-        # 解冻
-        user.frozen_balance -= frozen_amount
+                # 计算处罚费用
+                penalty = await self.calculator.calculate_violation_penalty(model_id)
 
-        # 扣除处罚费用
-        user.balance -= penalty
+                # 记录变动前余额
+                before_balance = user.balance
+                before_frozen = user.frozen_balance
 
-        # 退还剩余部分
-        refund_amount = frozen_amount - penalty
-        if refund_amount > 0:
-            user.balance += refund_amount
+                # 解冻
+                user.frozen_balance -= frozen_amount
 
-        # 创建消耗流水
-        remark = f"内容违规处罚 - 模型: {model_name}"
+                # 扣除处罚费用
+                user.balance -= penalty
 
-        consume_log = ComputeLog(
-            user_id=user_id,
-            type=ComputeType.CONSUME,
-            amount=-penalty,  # 负数表示减少
-            before_balance=before_balance,
-            after_balance=user.balance,
-            remark=remark,
-            task_id=task_id,
-            source="api"
-        )
-        self.db.add(consume_log)
+                # 退还剩余部分
+                refund_amount = frozen_amount - penalty
+                if refund_amount > 0:
+                    user.balance += refund_amount
+
+                # 创建消耗流水
+                remark = f"内容违规处罚 - 模型: {model_name}"
+
+                consume_log = ComputeLog(
+                    user_id=user_id,
+                    type=ComputeType.CONSUME,
+                    amount=-penalty,  # 负数表示减少
+                    before_balance=before_balance,
+                    after_balance=user.balance,
+                    remark=remark,
+                    task_id=task_id,
+                    source="api"
+                )
+                self.db.add(consume_log)
+
+                return  # 成功,退出重试循环
+
+            except (OperationalError, DBAPIError) as e:
+                # 检查是否是锁等待超时或死锁错误
+                error_code = None
+                if hasattr(e, 'orig') and hasattr(e.orig, 'args'):
+                    error_code = e.orig.args[0] if e.orig.args else None
+
+                # 1205: Lock wait timeout exceeded
+                # 1213: Deadlock found when trying to get lock
+                is_lock_error = error_code in (1205, 1213)
+
+                if is_lock_error and attempt < max_retries - 1:
+                    # 指数退避: 0.3s, 0.6s, 1.2s, 1.8s, 2.4s
+                    delay = base_delay * (attempt + 1)
+                    logger.warning(
+                        f"算力违规处罚时遇到锁冲突(尝试 {attempt + 1}/{max_retries}): "
+                        f"用户ID={user_id}, 错误码={error_code}, {delay}秒后重试..."
+                    )
+                    await asyncio.sleep(delay)
+                    continue
+                else:
+                    # 重试次数用完或非锁错误,抛出异常
+                    raise
 
         logger.warning(
             f"用户 {user_id} 内容违规处罚: {penalty}, "

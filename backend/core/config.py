@@ -56,7 +56,7 @@ class Settings(BaseSettings):
     
     # 微信小程序配置
     WECHAT_APP_ID: str = "wxd9e4d8682e6caff6"  # 微信小程序 AppID
-    WECHAT_APP_SECRET: str = "83ca14e30bf971e6ba2e25d16161938b"  # 微信小程序 AppSecret
+    WECHAT_APP_SECRET: str = "8a74db18d133f00d4e6360edec9d40d9"  # 微信小程序 AppSecret
     
     # LLM 配置
     DEEPSEEK_API_KEY: str = ""  # DeepSeek API Key

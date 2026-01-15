@@ -12,12 +12,12 @@
           <text class="tag-text">AI 创作助手</text>
         </view>
       </view>
-      <view class="nav-right">
+      <!-- <view class="nav-right">
         <view class="model-chip" @tap="showModelPicker">
           <text class="model-icon">{{ currentModel.icon }}</text>
           <text class="model-text">{{ currentModel.name }}</text>
         </view>
-      </view>
+      </view> -->
     </view>
 
     <!-- 聊天消息区域 -->
@@ -244,7 +244,7 @@ import { onLoad } from '@dcloudio/uni-app'
 import { useSettingsStore, type ModelConfig } from '@/stores/settings'
 import { useAuthStore } from '@/stores/auth'
 import { useProjectStore } from '@/stores/project'
-import { generate } from '@/api/generate'
+import { chat, type ChatResponseData } from '@/api/generate'
 import { getAgentList } from '@/api/agent'
 
 // ============== Store ==============
@@ -345,6 +345,7 @@ const scrollTop = ref(0)
 const showAgentModal = ref(false)
 const showModelModal = ref(false)
 const ipCardMessage = ref<ChatMessage | null>(null)
+const conversationId = ref<number | undefined>(undefined)
 
 // ============== 计算属性 ==============
 const canSend = computed(() => inputText.value.trim().length > 0)
@@ -426,6 +427,9 @@ function selectAgent(agent: Agent) {
   currentAgent.value = agent
   showAgentModal.value = false
 
+  // 切换智能体时重置会话ID，因为不同智能体应该有不同的会话
+  conversationId.value = undefined
+
   // 插入系统提示消息，不清除历史记录
   chatHistory.push({
     role: 'system_hint',
@@ -483,6 +487,8 @@ function clearChat() {
       if (res.confirm) {
         // 清空聊天历史，但保留 IP 卡片
         chatHistory.splice(0, chatHistory.length)
+        // 重置会话ID
+        conversationId.value = undefined
         uni.showToast({
           title: '对话已清空',
           icon: 'success'
@@ -540,22 +546,6 @@ async function sendMessage() {
   isGenerating.value = true
 
   try {
-    // 构建系统提示词
-    // 注意：数据库返回的数据中可能没有 systemPrompt，这里使用空字符串作为默认值
-    // 实际的 systemPrompt 应该由后端根据 agent_type 生成
-    let systemPrompt = currentAgent.value?.systemPrompt || ''
-    
-    // 注入项目人设上下文
-    const personaContext = projectStore.getPersonaSystemPrompt()
-    if (personaContext) {
-      systemPrompt = `${personaContext}\n\n---\n\n${systemPrompt}`
-    }
-
-    let modelType = settingsStore.modelType
-    if (!modelType || !['deepseek', 'doubao', 'claude'].includes(modelType)) {
-      modelType = 'claude'
-    }
-
     // 获取当前激活的项目ID
     const projectId = activeProject.value?.id ? parseInt(activeProject.value.id) : undefined
 
@@ -567,40 +557,43 @@ async function sendMessage() {
         content: msg.content
       }))
 
-    // 使用智能体的 type 作为后端的 agent_type
-    // 如果 agent.type 是数据库的 id，可能需要映射；如果是后端的 agent_type，直接使用
-    // 这里假设 agent.type 就是后端的 agent_type（如 'efficient_oral', 'sales' 等）
-    // 如果不是，可能需要根据 agent.id 或 agent.name 进行映射
-    let agentType = currentAgent.value?.type || 'efficient_oral'
+    // 使用智能体的 ID 作为后端的 agent_type
+    const agentType = currentAgent.value?.id || ''
     
-    // 如果 agent.type 是数字字符串（数据库 id），可能需要映射
-    // 这里可以根据实际情况调整映射逻辑
-    if (/^\d+$/.test(agentType)) {
-      // 如果 type 是纯数字，说明是数据库 id，使用默认值或根据 id 映射
-      agentType = 'efficient_oral'  // 默认值，或者可以根据 agent.id 映射
+    if (!agentType) {
+      throw new Error('请先选择一个智能体')
     }
 
-    // 使用封装的请求方法，自动添加 Authorization header
-    const response = await generate({
-      project_id: projectId,
-      agent_type: agentType,
+    // 使用新的 chat 接口
+    const response = await chat({
+      agent_type: agentType.toString(),
+      conversation_id: conversationId.value,
       messages: messages,
-      model_type: modelType,
-      temperature: 0.7,
-      max_tokens: 2048,
-      stream: false
+      project_id: projectId,
+      stream: true
     })
 
-    // 后端返回格式: {code: 200, data: {content: "...", ...}, msg: "..."}
-    if (response.code === 200 && response.data?.content) {
-      chatHistory.push({
-        role: 'assistant',
-        content: response.data.content,
-        timestamp: Date.now()
-      })
-      scrollToBottom()
+    // 后端返回格式: {code: 200, data: {content: "...", conversation_id: 15, ...}, msg: "..."}
+    if (response.code === 200 && response.data) {
+      const responseData = response.data as ChatResponseData
+      // 保存 conversation_id（如果响应中包含）
+      if (responseData.conversation_id) {
+        conversationId.value = responseData.conversation_id
+      }
+
+      // 添加 AI 回复消息
+      if (responseData.content) {
+        chatHistory.push({
+          role: 'assistant',
+          content: responseData.content,
+          timestamp: Date.now()
+        })
+        scrollToBottom()
+      } else {
+        throw new Error('响应中未包含内容')
+      }
     } else {
-      throw new Error((response as any).msg || '生成失败')
+      throw new Error(response.msg || '生成失败')
     }
 
   } catch (error: any) {

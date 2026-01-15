@@ -2,6 +2,7 @@
 SFire Admin API - FastAPI Application Entry Point
 """
 import uvicorn
+import asyncio
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
@@ -12,6 +13,12 @@ from utils.exceptions import register_exception_handlers
 from db.session import init_db, close_db
 from db.redis import init_redis, close_redis
 from middleware.rate_limiter import RateLimiterMiddleware
+from loguru import logger
+
+
+# 队列Worker管理
+queue_workers = []
+worker_stop_event = asyncio.Event()
 
 
 @asynccontextmanager
@@ -20,18 +27,51 @@ async def lifespan(app: FastAPI):
     # 启动时初始化
     await init_db()
     await init_redis()
-    
+
+    # 启动队列Worker(如果Redis可用)
+    from db.redis import get_redis
+    redis = await get_redis()
+
+    if redis:
+        try:
+            # 启动3个Worker并发处理
+            worker_count = 3
+            for i in range(worker_count):
+                worker_id = f"worker-{i+1}"
+
+                from db.queue import conversation_queue_worker
+                task = asyncio.create_task(
+                    conversation_queue_worker(worker_id, worker_stop_event)
+                )
+                queue_workers.append(task)
+
+            logger.info(f"✅ [队列] 已启动 {worker_count} 个Worker处理会话保存任务")
+        except Exception as e:
+            logger.warning(f"⚠️ [队列] Worker启动失败: {e}")
+
     # 开发环境：自动创建缺失的表
     if settings.DEBUG:
         try:
             from db.session import create_tables
             # await create_tables()
         except Exception as e:
-            from loguru import logger
             logger.warning(f"自动创建表失败（可能表已存在）: {e}")
-    
+
     yield
+
     # 关闭时清理
+    # 1. 停止所有队列Worker
+    if queue_workers:
+        logger.info("正在停止队列Worker...")
+        worker_stop_event.set()
+
+        # 等待所有Worker完成
+        await asyncio.gather(*queue_workers, return_exceptions=True)
+        queue_workers.clear()
+
+        logger.info("✅ [队列] 所有Worker已停止")
+
+    # 2. 关闭Redis和数据库连接
     await close_redis()
     await close_db()
 
@@ -56,7 +96,7 @@ def create_app() -> FastAPI:
         allow_methods=["*"],
         allow_headers=["*"],
     )
-    
+
     # 注册 API 限流中间件
     app.add_middleware(RateLimiterMiddleware)
 
@@ -78,7 +118,15 @@ app = create_app()
 @app.get("/health")
 async def health_check():
     """健康检查接口"""
-    return {"status": "ok", "message": "Service is running"}
+    from db.queue import ConversationQueue
+    queue_size = await ConversationQueue.get_queue_size()
+
+    return {
+        "status": "ok",
+        "message": "Service is running",
+        "queue_size": queue_size,
+        "workers_active": len(queue_workers)
+    }
 
 
 if __name__ == "__main__":

@@ -38,7 +38,7 @@ export interface ResponseData<T = any> {
 const BASE_URL = __API_BASE_URL__
 
 // 请求超时时间（毫秒）
-const TIMEOUT = 30000
+const TIMEOUT = 60000
 
 /**
  * 请求拦截器 - 处理请求前的逻辑

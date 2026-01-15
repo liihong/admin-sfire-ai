@@ -531,15 +531,17 @@ class ConversationService:
                     await db.refresh(assistant_msg)
 
                     # ✅ 优化：使用增量更新而不是重新统计（提升性能）
-                    # 添加 NOWAIT 选项避免等待锁
+                    # 使用 skip_locked 避免锁等待，如果锁被占用则跳过（配合重试机制）
                     conversation_query = select(Conversation).where(
                         Conversation.id == conversation_id
-                    ).with_for_update(nowait=False)
+                    ).with_for_update(skip_locked=True)
                     conversation_result = await db.execute(conversation_query)
                     conversation = conversation_result.scalar_one_or_none()
 
-                    if not conversation:
-                        raise NotFoundException(f"会话 {conversation_id} 不存在")
+                    # 如果因为锁冲突没获取到记录，触发重试
+                    if conversation is None:
+                        from sqlalchemy.exc import OperationalError
+                        raise OperationalError("锁冲突，记录被其他事务占用", orig=type('obj', (object,), {'args': [1205]}))
 
                     # 增量更新统计信息
                     conversation.message_count += 2  # user + assistant

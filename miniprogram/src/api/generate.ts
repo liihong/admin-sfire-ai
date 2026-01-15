@@ -47,41 +47,40 @@ export interface CopywritingResponse {
 }
 
 /**
- * 通用生成接口（对话式创作）
+ * 聊天请求参数类型
  */
-export function generate(params: GenerateRequest) {
-  return request<GenerateResponse>({
-    url: '/api/v1/client/creation/chat',
-    method: 'POST',
-    data: {
-      project_id: params.project_id,
-      agent_type: params.agent_type || 'efficient_oral',
-      messages: params.messages,
-      model_type: params.model_type || 'deepseek',
-      temperature: params.temperature,
-      max_tokens: params.max_tokens || 2048,
-      stream: params.stream !== false
-    },
-    showLoading: true,
-    loadingText: 'AI 生成中...'
-  })
+export interface ChatRequest {
+    agent_type: string
+    conversation_id?: number
+    messages: Array<{ role: string, content: string }>
+    project_id?: number
+    stream: boolean
 }
 
 /**
- * 快速文案生成
+ * 聊天响应数据类型（response.data 的类型）
  */
-export function copywriting(params: CopywritingRequest) {
-  const queryParams = new URLSearchParams()
-  queryParams.append('content', params.content)
-  if (params.agent_type) queryParams.append('agent_type', params.agent_type)
-  if (params.project_id) queryParams.append('project_id', String(params.project_id))
-  if (params.model_type) queryParams.append('model_type', params.model_type)
-  
-  return request<CopywritingResponse>({
-    url: `/api/v1/client/creation/chat/quick?${queryParams.toString()}`,
-    method: 'POST',
-    data: null,
-    showLoading: true
-  })
+export interface ChatResponseData {
+    content?: string
+    conversation_id?: number
+    [key: string]: any
+}
+
+/**
+ * 聊天接口（对话式创作）
+ */
+export function chat(params: ChatRequest) {
+    return request<ChatResponseData>({
+        url: '/api/v1/client/chat',
+        method: 'POST',
+        data: {
+            agent_type: params.agent_type,
+            conversation_id: params.conversation_id,
+            messages: params.messages,
+            project_id: params.project_id,
+            stream: params.stream
+        },
+        loadingText: 'AI 生成中...'
+    })
 }
 

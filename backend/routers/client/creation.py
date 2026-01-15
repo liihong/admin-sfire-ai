@@ -72,7 +72,73 @@ async def save_conversation_background_task(
     assistant_tokens: int = 0
 ):
     """
-    后台任务：保存对话消息到数据库并触发向量化
+    后台任务：将保存任务加入Redis队列,由队列Worker处理
+
+    Args:
+        conversation_id: 会话ID
+        user_message: 用户消息内容
+        assistant_message: AI回复内容
+        user_tokens: 用户消息token数
+        assistant_tokens: AI回复token数
+    """
+    try:
+        # 使用队列化处理,避免数据库锁冲突
+        from db.queue import ConversationQueue
+
+        success = await ConversationQueue.enqueue(
+            conversation_id=conversation_id,
+            user_message=user_message,
+            assistant_message=assistant_message,
+            user_tokens=user_tokens,
+            assistant_tokens=assistant_tokens
+        )
+
+        if success:
+            logger.info(
+                f"✅ [后台任务] 会话保存任务已加入队列: "
+                f"会话ID={conversation_id}"
+            )
+        else:
+            # Redis不可用时,降级为直接保存(保持原有逻辑)
+            logger.warning(
+                f"⚠️ [后台任务] Redis不可用,降级为直接保存: "
+                f"会话ID={conversation_id}"
+            )
+            await save_conversation_fallback(
+                conversation_id=conversation_id,
+                user_message=user_message,
+                assistant_message=assistant_message,
+                user_tokens=user_tokens,
+                assistant_tokens=assistant_tokens
+            )
+
+    except Exception as e:
+        logger.error(f"❌ [后台任务] 队列入队失败: 会话{conversation_id}, 错误: {e}")
+        # 降级为直接保存
+        try:
+            await save_conversation_fallback(
+                conversation_id=conversation_id,
+                user_message=user_message,
+                assistant_message=assistant_message,
+                user_tokens=user_tokens,
+                assistant_tokens=assistant_tokens
+            )
+        except Exception as fallback_error:
+            logger.error(
+                f"❌ [后台任务] 降级保存也失败: "
+                f"会话{conversation_id}, 错误={fallback_error}"
+            )
+
+
+async def save_conversation_fallback(
+    conversation_id: int,
+    user_message: str,
+    assistant_message: str,
+    user_tokens: int = 0,
+    assistant_tokens: int = 0
+):
+    """
+    降级方案: 直接保存对话消息(Redis不可用时使用)
 
     Args:
         conversation_id: 会话ID
@@ -123,7 +189,7 @@ async def save_conversation_background_task(
                 logger.warning(f"无法找到消息进行向量化: 会话{conversation_id}")
 
     except Exception as e:
-        logger.error(f"后台任务失败: 会话{conversation_id}, 错误: {e}")
+        logger.error(f"降级保存失败: 会话{conversation_id}, 错误: {e}")
         # 不抛出异常，避免影响主流程
 
 
