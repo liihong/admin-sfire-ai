@@ -64,6 +64,7 @@ class RequestHttp {
         // 设置 Authorization header（Bearer Token）
         if (token && config.headers) {
           config.headers.Authorization = `Bearer ${token}`;
+          config.headers["X-My-Gate-Key"] = "Huoyuan2026";
         }
         return config;
       },
