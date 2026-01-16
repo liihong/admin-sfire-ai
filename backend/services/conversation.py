@@ -268,14 +268,10 @@ class ConversationService:
         Returns:
             ConversationMessage: 创建的消息对象
         """
-        # 如果未指定sequence，自动计算下一个序号
+        # 如果未指定sequence，使用时间戳生成（避免查询数据库导致的并发冲突）
         if message_data.sequence is None:
-            max_sequence_query = select(func.max(ConversationMessage.sequence)).where(
-                ConversationMessage.conversation_id == conversation_id
-            )
-            max_sequence_result = await self.db.execute(max_sequence_query)
-            max_sequence = max_sequence_result.scalar() or 0
-            sequence = max_sequence + 1
+            from utils.sequence import generate_sequence
+            sequence = generate_sequence()
         else:
             sequence = message_data.sequence
         
@@ -497,12 +493,9 @@ class ConversationService:
         for attempt in range(max_retries):
             try:
                 async with async_session_maker() as db:
-                    # 获取当前最大sequence (不使用锁,快速查询)
-                    max_sequence_query = select(func.max(ConversationMessage.sequence)).where(
-                        ConversationMessage.conversation_id == conversation_id
-                    )
-                    max_sequence_result = await db.execute(max_sequence_query)
-                    max_sequence = max_sequence_result.scalar() or 0
+                    # ✅ 优化：使用时间戳生成sequence，避免查询数据库导致的并发冲突
+                    from utils.sequence import generate_sequence_pair
+                    user_sequence, assistant_sequence = generate_sequence_pair()
 
                     # 保存用户消息
                     user_msg = ConversationMessage(
@@ -510,7 +503,7 @@ class ConversationService:
                         role="user",
                         content=user_message,
                         tokens=user_tokens,
-                        sequence=max_sequence + 1,
+                        sequence=user_sequence,
                         embedding_status=EmbeddingStatus.PENDING.value,
                     )
 
@@ -520,7 +513,7 @@ class ConversationService:
                         role="assistant",
                         content=assistant_message,
                         tokens=assistant_tokens,
-                        sequence=max_sequence + 2,
+                        sequence=assistant_sequence,
                         embedding_status=EmbeddingStatus.PENDING.value,
                     )
 

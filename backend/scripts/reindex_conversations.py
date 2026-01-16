@@ -57,7 +57,9 @@ async def reindex_conversations():
             
             for user_msg in user_messages:
                 try:
-                    # 查找对应的助手消息（sequence + 1）
+                    # 查找对应的助手消息
+                    # 注意：新格式下，assistant_sequence = user_sequence + 1 仍然成立
+                    # 但为了兼容旧数据，先尝试精确匹配，如果失败则使用范围查找
                     assistant_query = select(ConversationMessage).where(
                         ConversationMessage.conversation_id == user_msg.conversation_id,
                         ConversationMessage.sequence == user_msg.sequence + 1,
@@ -65,6 +67,16 @@ async def reindex_conversations():
                     )
                     assistant_result = await db.execute(assistant_query)
                     assistant_msg = assistant_result.scalar_one_or_none()
+                    
+                    # 如果精确匹配失败，尝试范围查找（兼容旧数据或异常情况）
+                    if not assistant_msg:
+                        assistant_query = select(ConversationMessage).where(
+                            ConversationMessage.conversation_id == user_msg.conversation_id,
+                            ConversationMessage.sequence > user_msg.sequence,
+                            ConversationMessage.role == "assistant"
+                        ).order_by(ConversationMessage.sequence.asc()).limit(1)
+                        assistant_result = await db.execute(assistant_query)
+                        assistant_msg = assistant_result.scalar_one_or_none()
                     
                     if not assistant_msg:
                         logger.debug(f"未找到用户消息 {user_msg.id} 对应的助手消息，跳过")
@@ -185,6 +197,7 @@ async def reindex_conversations():
 
 if __name__ == "__main__":
     asyncio.run(reindex_conversations())
+
 
 
 

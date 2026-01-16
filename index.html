@@ -5,337 +5,304 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     
     <!-- 基础 SEO 标签 -->
-    <title>火源编导运营智能体 - 赋能 IP 进化 | 创始人基因库 & 自动化生产线</title>
-    <meta name="description" content="火源智能体：专为短视频 IP 打造的 AI 编导工具。结合创始人基因库与全网情报，实现从选题到分发的全自动化运营。">
-    <meta name="keywords" content="AI编导, 火源科技, 创始人IP, 短视频运营, 星链式分发, 智能脚本生成">
+    <title>火源编导运营智能体 - 下一代 AI 短视频自动化生产线 | 创始人 IP 数字化</title>
+    <meta name="description" content="火源智能体是一款专为短视频 IP 打造的 AI 编导工具。提供 IP 基因库构建、爆款选题拆解、高效率脚本生成及数字人矩阵分发全链路解决方案，赋能每个 IP 进化为顶流编导。">
+    <meta name="keywords" content="AI编导, 智能视频脚本, 短视频运营工具, 创始人IP, 火源科技, 数字人分发, 爆款选题拆解">
     <meta name="author" content="火源科技">
+    <link rel="canonical" href="https://yourdomain.com/">
+
+    <!-- Open Graph / 社交媒体分享 -->
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://yourdomain.com/">
+    <meta property="og:title" content="火源编导运营智能体 - 下一代 AI 短视频自动化生产线">
+    <meta property="og:description" content="从基因库构建到爆款生成，火源智能体为您构建完整的短视频自动化生产线。">
+    <meta property="og:image" content="https://yourdomain.com/og-image.jpg">
+
+    <!-- 结构化数据 JSON-LD -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "SoftwareApplication",
+      "name": "火源编导运营智能体",
+      "operatingSystem": "Web",
+      "applicationCategory": "BusinessApplication",
+      "offers": {
+        "@type": "Offer",
+        "price": "0",
+        "priceCurrency": "CNY"
+      },
+      "description": "基于 AIGC 底层能力，重新定义内容运营流程。赋能每个 IP 进化为顶流编导。",
+      "aggregateRating": {
+        "@type": "AggregateRating",
+        "ratingValue": "4.9",
+        "reviewCount": "500"
+      }
+    }
+    </script>
 
     <!-- 外部资源 -->
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Inter:wght@400;700;900&display=swap" rel="stylesheet">
-
-    <script>
-        tailwind.config = {
-            theme: {
-                extend: {
-                    colors: {
-                        brand: {
-                            primary: '#FF4D00', // 烈焰橙
-                            secondary: '#FFB800', // 琥珀金
-                            dark: '#0A0A0A'
-                        }
-                    },
-                    fontFamily: {
-                        tech: ['Orbitron', 'sans-serif'],
-                        sans: ['Inter', 'sans-serif']
-                    }
-                }
-            }
-        }
-    </script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&display=swap" rel="stylesheet">
 
     <style>
-        body { background-color: #050505; color: white; overflow-x: hidden; }
-        .hero-gradient {
-            background: radial-gradient(circle at center, rgba(255, 77, 0, 0.15) 0%, transparent 70%);
+        body { font-family: 'Inter', sans-serif; }
+        .bg-grid {
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='40' height='40' viewBox='0 0 40 40'%3E%3Cpath d='M0 40 L40 40 L40 0' fill='none' stroke='rgba(255,255,255,0.03)' stroke-width='1'/%3E%3C/svg%3E");
+        }
+        @keyframes fade-in {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .animate-fade-in {
+            animation: fade-in 1s ease-out forwards;
         }
         .glass-card {
-            background: rgba(255, 255, 255, 0.02);
-            backdrop-filter: blur(15px);
-            border: 1px solid rgba(255, 255, 255, 0.05);
-            transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            background: rgba(255, 255, 255, 0.03);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
         }
-        .glass-card:hover {
-            border-color: rgba(255, 77, 0, 0.4);
-            box-shadow: 0 0 30px rgba(255, 77, 0, 0.1);
-            transform: translateY(-10px) scale(1.02);
-        }
-        #hero-canvas {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            z-index: -1;
-        }
-        .text-glow {
-            text-shadow: 0 0 20px rgba(255, 77, 0, 0.5);
-        }
-        @keyframes float {
-            0%, 100% { transform: translateY(0); }
-            50% { transform: translateY(-10px); }
-        }
-        .floating { animation: float 4s ease-in-out infinite; }
     </style>
 </head>
-<body class="font-sans">
+<body class="bg-[#050505] text-white selection:bg-blue-500/30 overflow-x-hidden bg-grid">
 
     <!-- 导航栏 -->
     <nav id="navbar" class="fixed top-0 w-full z-50 transition-all duration-300 py-6">
         <div class="max-w-7xl mx-auto px-6 flex justify-between items-center">
-            <div class="flex items-center gap-3">
-                <img src="sfire-logo.jpg" alt="火源科技 Logo" class="h-10 w-10 object-contain rounded-lg shadow-[0_0_15px_rgba(255,77,0,0.5)]">
-                <span class="text-xl font-black font-tech tracking-tighter uppercase">
-                    Fire Source <span class="text-brand-primary">AI</span>
-                </span>
+            <div class="flex items-center gap-2">
+                <div class="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center shadow-[0_0_20px_rgba(37,99,235,0.5)]">
+                    <i data-lucide="zap" class="w-6 h-6 text-white"></i>
+                </div>
+                <span class="text-xl font-bold tracking-tighter">火源科技 <span class="text-blue-500 uppercase">Fire Source</span></span>
             </div>
 
-            <div class="hidden md:flex items-center gap-10 text-xs font-bold uppercase tracking-widest text-white/60">
-                <a href="#features" class="hover:text-brand-primary transition-colors">Core Tools</a>
-                <a href="#solutions" class="hover:text-brand-primary transition-colors">Ecosystem</a>
-                <a href="#stats" class="hover:text-brand-primary transition-colors">Performance</a>
-                <button class="bg-brand-primary text-white px-6 py-2 rounded-full font-black hover:bg-white hover:text-black transition-all transform hover:scale-105 shadow-lg shadow-brand-primary/20">
-                    Get Started
+            <div class="hidden md:flex items-center gap-10 text-sm font-medium text-white/70">
+                <a href="#features" class="hover:text-blue-500 transition-colors">核心功能</a>
+                <a href="#stats" class="hover:text-blue-500 transition-colors">运营数据</a>
+                <a href="#testimonials" class="hover:text-blue-500 transition-colors">客户口碑</a>
+                <button class="bg-white text-black px-6 py-2.5 rounded-full font-bold hover:bg-blue-500 hover:text-white transition-all transform hover:scale-105">
+                    立即预约演示
                 </button>
             </div>
         </div>
     </nav>
 
-    <!-- 3D 星链首屏 -->
-    <header class="relative min-h-screen flex items-center justify-center px-6 pt-20 overflow-hidden">
-        <canvas id="hero-canvas"></canvas>
-        <div class="hero-gradient absolute inset-0"></div>
+    <!-- 主视觉区域 (Hero Section) -->
+    <header class="relative pt-48 pb-20 px-6 overflow-hidden">
+        <!-- 装饰光影 -->
+        <div class="absolute top-[-10%] left-1/2 -translate-x-1/2 w-full max-w-7xl h-full -z-10 opacity-30">
+            <div class="absolute top-0 left-0 w-[50%] h-[50%] bg-blue-600 blur-[120px] rounded-full"></div>
+            <div class="absolute bottom-0 right-0 w-[40%] h-[40%] bg-indigo-600 blur-[120px] rounded-full"></div>
+        </div>
 
-        <div class="max-w-5xl mx-auto text-center relative z-10">
-            <div class="inline-flex items-center gap-2 px-4 py-1.5 rounded-full glass-card text-brand-secondary text-[10px] font-bold tracking-[0.2em] uppercase mb-8 floating">
-                <i data-lucide="zap" class="w-3 h-3 fill-brand-secondary"></i>
-                Next-Gen Content Intelligence
+        <div class="max-w-5xl mx-auto text-center">
+            <div class="inline-flex items-center gap-2 px-4 py-1.5 rounded-full glass-card text-blue-400 text-sm font-medium mb-8 animate-fade-in">
+                <i data-lucide="sparkles" class="w-4 h-4"></i>
+                <span>下一代 AI 编导运营工作台现已上线</span>
             </div>
             
-            <h1 class="text-6xl md:text-8xl font-black tracking-tighter mb-8 leading-none font-tech">
-                赋能 IP <br>
-                <span class="bg-gradient-to-r from-brand-primary via-brand-secondary to-orange-400 bg-clip-text text-transparent text-glow">
-                    超进化
+            <h1 class="text-5xl md:text-8xl font-black tracking-tight mb-8 leading-[1.1] animate-fade-in">
+                赋能每个 IP <br>
+                <span class="bg-gradient-to-r from-blue-400 via-blue-600 to-indigo-500 bg-clip-text text-transparent">
+                    进化为顶流编导
                 </span>
             </h1>
             
-            <p class="text-base md:text-lg text-white/50 max-w-2xl mx-auto mb-12 font-medium leading-relaxed">
-                结合创始人基因库与星链式分发逻辑，<br>
-                构建全自动短视频生产闭环。
+            <p class="text-lg md:text-xl text-white/50 max-w-2xl mx-auto mb-12 leading-relaxed animate-fade-in" style="animation-delay: 0.2s">
+                从基因库构建到爆款选题拆解，从脚本生成到数字人分发。
+                火源智能体为您构建完整的短视频自动化生产线。
             </p>
 
-            <div class="flex flex-col md:flex-row items-center justify-center gap-6">
-                <button class="w-full md:w-auto px-10 py-5 bg-brand-primary rounded-2xl font-black text-lg shadow-[0_20px_40px_rgba(255,77,0,0.3)] hover:shadow-brand-primary/50 transition-all flex items-center justify-center gap-2 group">
-                    立即接入 <i data-lucide="arrow-right" class="group-hover:translate-x-1 transition-transform"></i>
-                </button>
+            <div class="flex flex-col md:flex-row items-center justify-center gap-6 animate-fade-in" style="animation-delay: 0.4s">
+                <a href="#register" class="w-full md:w-auto px-10 py-5 bg-blue-600 rounded-2xl font-black text-lg shadow-[0_20px_40px_rgba(37,99,235,0.3)] hover:bg-blue-500 transition-all flex items-center justify-center gap-2 group">
+                    开始免费体验 <i data-lucide="arrow-right" class="group-hover:translate-x-1 transition-transform"></i>
+                </a>
                 <button class="w-full md:w-auto px-10 py-5 glass-card rounded-2xl font-bold text-lg hover:bg-white/10 transition-all flex items-center justify-center gap-2">
-                    <i data-lucide="monitor-play" class="w-5 h-5"></i> 演示视频
+                    <i data-lucide="play" class="w-5 h-5 fill-white"></i> 观看产品演示
                 </button>
             </div>
         </div>
     </header>
 
     <main>
-        <!-- Bento 核心功能卡片 -->
+        <!-- 特色功能区 (Features) -->
         <section id="features" class="py-32 px-6 max-w-7xl mx-auto">
-            <div class="mb-20 text-center">
-                <h2 class="text-4xl md:text-6xl font-black font-tech mb-6 tracking-tight">AI 智能矩阵</h2>
-                <div class="h-1 w-20 bg-brand-primary mx-auto"></div>
-            </div>
+            <header class="mb-20">
+                <h2 class="text-3xl md:text-5xl font-bold mb-6">全链路智能覆盖</h2>
+                <p class="text-white/40 text-lg">基于 AIGC 底层能力，重新定义内容运营流程</p>
+            </header>
 
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
-                <!-- 基因库 -->
-                <article class="md:col-span-2 glass-card rounded-[3rem] p-12 relative overflow-hidden group min-h-[400px]">
-                    <div class="absolute -right-20 -bottom-20 p-12 opacity-10 group-hover:scale-125 transition-transform duration-1000">
-                        <i data-lucide="fingerprint" class="w-96 h-96 text-brand-primary"></i>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <!-- 核心模块: 基因库 -->
+                <article class="md:col-span-2 bg-gradient-to-br from-[#111] to-black border border-white/10 rounded-[2.5rem] p-10 relative overflow-hidden group">
+                    <div class="absolute top-0 right-0 p-12 opacity-5 group-hover:scale-110 transition-transform duration-700">
+                        <i data-lucide="cpu" class="w-64 h-64 text-blue-500"></i>
                     </div>
-                    <div class="relative z-10 h-full flex flex-col justify-between">
+                    <div class="relative z-10 flex flex-col justify-between h-full">
                         <div>
-                            <div class="w-16 h-16 bg-brand-primary/20 rounded-2xl flex items-center justify-center mb-8 border border-brand-primary/30 shadow-[0_0_20px_rgba(255,77,0,0.2)]">
-                                <i data-lucide="dna" class="w-8 h-8 text-brand-primary"></i>
+                            <div class="w-12 h-12 bg-blue-600/20 rounded-xl flex items-center justify-center mb-6 border border-blue-500/30">
+                                <i data-lucide="layers" class="w-6 h-6 text-blue-500"></i>
                             </div>
-                            <h3 class="text-4xl font-black mb-4 font-tech tracking-tight">创始人基因库</h3>
-                            <p class="text-white/40 text-lg max-w-md">
-                                像素级复刻您的语感、认知与商业逻辑，让 AI 成为您的数字替身。
+                            <h3 class="text-3xl font-bold mb-4">创始人 IP 基因库</h3>
+                            <p class="text-white/50 text-lg max-w-md leading-relaxed">
+                                通过深度调教，复刻创始人说话的语气、价值观与专业背景，让每一行文案都带有您的独特印记。
                             </p>
                         </div>
-                        <div class="mt-12 flex flex-wrap gap-3">
-                            <span class="px-5 py-2 glass-card rounded-full text-[10px] font-black uppercase text-brand-primary">Cognitive Map</span>
-                            <span class="px-5 py-2 glass-card rounded-full text-[10px] font-black uppercase text-brand-primary">Style Transfer</span>
+                        <div class="mt-12 flex gap-4">
+                            <span class="px-4 py-1.5 bg-white/5 rounded-full text-xs font-bold border border-white/10 text-white/40">语气调教</span>
+                            <span class="px-4 py-1.5 bg-white/5 rounded-full text-xs font-bold border border-white/10 text-white/40">私有知识上传</span>
                         </div>
                     </div>
                 </article>
 
-                <!-- 监控站 -->
-                <article class="glass-card rounded-[3rem] p-10 group flex flex-col justify-between">
-                    <div>
-                        <div class="w-14 h-14 bg-amber-500/20 rounded-2xl flex items-center justify-center mb-8 border border-amber-500/30">
-                            <i data-lucide="radar" class="w-7 h-7 text-brand-secondary"></i>
-                        </div>
-                        <h3 class="text-2xl font-bold mb-4 font-tech">全网情报雷达</h3>
-                        <p class="text-white/40 text-sm leading-relaxed mb-8">
-                            秒级监控对标账号，自动识别并拆解爆款钩子逻辑。
-                        </p>
+                <!-- 情报站 -->
+                <article class="bg-[#111] border border-white/10 rounded-[2.5rem] p-10 hover:border-blue-500/50 transition-all">
+                    <div class="w-12 h-12 bg-indigo-600/20 rounded-xl flex items-center justify-center mb-6 border border-indigo-500/30">
+                        <i data-lucide="trending-up" class="w-6 h-6 text-indigo-500"></i>
                     </div>
-                    <div class="flex items-center gap-2 text-brand-secondary text-xs font-bold">
-                        ACTIVE MONITORING <span class="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
-                    </div>
-                </article>
-
-                <!-- 分发 -->
-                <article class="glass-card rounded-[3rem] p-10 border-l-brand-primary border-l-4">
-                    <h3 class="text-2xl font-bold mb-4 font-tech text-brand-primary tracking-widest uppercase">Starlink Distribution</h3>
-                    <p class="text-white/60 text-sm mb-6 leading-relaxed">
-                        多维矩阵分发逻辑，单脚本全网覆盖，实现 IP 影响力星链式扩散。
+                    <h3 class="text-2xl font-bold mb-4">全网情报站</h3>
+                    <p class="text-white/40 text-sm leading-relaxed mb-8">
+                        实时监控同赛道对标账号，1小时点赞破万视频自动预警，精准捕获最新的流量爆点。
                     </p>
-                    <div class="grid grid-cols-4 gap-2">
-                        {[1,2,3,4,5,6,7,8].map(i => <div key={i} class="h-1 bg-white/10 rounded-full"></div>)}
+                    <div class="w-full h-1 bg-white/5 rounded-full overflow-hidden">
+                        <div class="w-2/3 h-full bg-indigo-500"></div>
                     </div>
                 </article>
 
-                <!-- 数字人 -->
-                <article class="md:col-span-2 glass-card rounded-[3rem] p-12 bg-gradient-to-br from-brand-primary/20 to-transparent flex flex-col md:flex-row items-center gap-10">
-                    <div class="flex-1 text-center md:text-left">
-                        <h3 class="text-4xl font-black mb-6 font-tech">数字人矩阵</h3>
-                        <p class="text-white/50 mb-8 leading-relaxed text-lg">
-                            24小时不间断直播与短视频产出，让您的 IP 永不下线。
-                        </p>
-                        <button class="bg-white text-black px-10 py-4 rounded-2xl font-black hover:bg-brand-primary hover:text-white transition-all">
-                            预览合成效果
-                        </button>
+                <!-- 风险检测 -->
+                <article class="bg-[#111] border border-white/10 rounded-[2.5rem] p-10 hover:border-blue-500/50 transition-all">
+                    <div class="w-12 h-12 bg-emerald-600/20 rounded-xl flex items-center justify-center mb-6 border border-emerald-500/30">
+                        <i data-lucide="shield-check" class="w-6 h-6 text-emerald-500"></i>
                     </div>
-                    <div class="w-48 h-64 bg-slate-900 rounded-3xl border border-white/10 flex items-center justify-center relative overflow-hidden group">
-                        <i data-lucide="user-check" class="w-20 h-20 text-brand-primary opacity-20 group-hover:scale-110 transition-transform"></i>
-                        <div class="absolute bottom-4 left-0 w-full text-center text-[10px] font-bold text-white/40 uppercase tracking-widest">Digital Avatar</div>
+                    <h3 class="text-2xl font-bold mb-4">违规风险检测</h3>
+                    <p class="text-white/40 text-sm leading-relaxed">
+                        基于主流短视频平台审核规则，自动规避违禁词与版权风险，确保您的每一条作品发布安全。
+                    </p>
+                </article>
+
+                <!-- 数字人分发 -->
+                <article class="md:col-span-2 bg-gradient-to-r from-blue-700 to-indigo-800 rounded-[2.5rem] p-10 relative overflow-hidden group">
+                    <div class="relative z-10">
+                        <h3 class="text-3xl font-black mb-4">数字人矩阵分发</h3>
+                        <p class="text-white/80 text-lg max-w-xl leading-relaxed mb-10">
+                            生成的脚本可一键发送至数字人控制台，实现24小时不间断的内容分发，效率提升 1000%。
+                        </p>
+                        <button class="bg-black text-white px-8 py-3 rounded-xl font-bold flex items-center gap-2 hover:bg-black/80 transition-all">
+                            探索分发逻辑 <i data-lucide="chevron-right" class="w-4 h-4"></i>
+                        </button>
                     </div>
                 </article>
             </div>
         </section>
 
-        <!-- 数字增长统计 -->
-        <section id="stats" class="py-32 border-y border-white/5 bg-brand-primary/5">
+        <!-- 数据展示 (Stats) -->
+        <section id="stats" class="py-20 border-y border-white/5 bg-white/2 backdrop-blur-sm">
             <div class="max-w-7xl mx-auto px-6 grid grid-cols-2 md:grid-cols-4 gap-12 text-center">
-                <div class="stat-item">
-                    <p class="text-5xl md:text-7xl font-black font-tech mb-4 text-brand-primary tracking-tighter" data-target="85">0%</p>
-                    <p class="text-white/30 text-xs uppercase tracking-[0.3em] font-bold">Workflow Efficiency</p>
+                <div>
+                    <p class="text-4xl md:text-5xl font-black mb-2 tracking-tighter">85%</p>
+                    <p class="text-white/30 text-sm uppercase tracking-widest font-bold">效率提升</p>
                 </div>
-                <div class="stat-item">
-                    <p class="text-5xl md:text-7xl font-black font-tech mb-4 text-brand-primary tracking-tighter" data-target="12">0M+</p>
-                    <p class="text-white/30 text-xs uppercase tracking-[0.3em] font-bold">Viral Reach</p>
+                <div>
+                    <p class="text-4xl md:text-5xl font-black mb-2 tracking-tighter">10W+</p>
+                    <p class="text-white/30 text-sm uppercase tracking-widest font-bold">爆款生成</p>
                 </div>
-                <div class="stat-item">
-                    <p class="text-5xl md:text-7xl font-black font-tech mb-4 text-brand-primary tracking-tighter" data-target="500">0</p>
-                    <p class="text-white/30 text-xs uppercase tracking-[0.3em] font-bold">IP Partners</p>
+                <div>
+                    <p class="text-4xl md:text-5xl font-black mb-2 tracking-tighter">500+</p>
+                    <p class="text-white/30 text-sm uppercase tracking-widest font-bold">入驻IP</p>
                 </div>
-                <div class="stat-item">
-                    <p class="text-5xl md:text-7xl font-black font-tech mb-4 text-brand-primary tracking-tighter" data-target="24">0</p>
-                    <p class="text-white/30 text-xs uppercase tracking-[0.3em] font-bold">Auto-Monitoring</p>
+                <div>
+                    <p class="text-4xl md:text-5xl font-black mb-2 tracking-tighter">24/7</p>
+                    <p class="text-white/30 text-sm uppercase tracking-widest font-bold">自动化监控</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- 口碑区域 (Testimonials) -->
+        <section id="testimonials" class="py-32 px-6 max-w-7xl mx-auto">
+            <h2 class="text-3xl md:text-5xl font-bold mb-20 text-center">头部创作者的选择</h2>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                <blockquote class="bg-white/5 border border-white/10 rounded-3xl p-8 hover:bg-white/10 transition-all">
+                    <div class="flex items-center gap-4 mb-6">
+                        <div class="w-12 h-12 bg-blue-600 rounded-full flex items-center justify-center font-bold">李</div>
+                        <cite>
+                            <div class="font-bold not-italic">李老师</div>
+                            <div class="text-xs text-white/30 not-italic">科技区百万博主</div>
+                        </cite>
+                    </div>
+                    <p class="text-white/70 italic leading-relaxed">"火源的基因库功能简直神了，AI写出来的文案连我自己的粉丝都没察觉出是机器人写的。"</p>
+                </blockquote>
+                <blockquote class="bg-white/5 border border-white/10 rounded-3xl p-8 hover:bg-white/10 transition-all">
+                    <div class="flex items-center gap-4 mb-6">
+                        <div class="w-12 h-12 bg-indigo-600 rounded-full flex items-center justify-center font-bold">张</div>
+                        <cite>
+                            <div class="font-bold not-italic">张总</div>
+                            <div class="text-xs text-white/30 not-italic">商业IP创始人</div>
+                        </cite>
+                    </div>
+                    <p class="text-white/70 italic leading-relaxed">"以前一个编剧团队才能干的活，现在靠这一个工具就能覆盖全网的情报监控和脚本产出。"</p>
+                </blockquote>
+            </div>
+        </section>
+
+        <!-- 注册引导 (CTA) -->
+        <section id="register" class="py-32 px-6">
+            <div class="max-w-5xl mx-auto bg-gradient-to-r from-blue-700 to-indigo-800 rounded-[3rem] p-12 md:p-20 text-center relative overflow-hidden">
+                <div class="relative z-10">
+                    <h2 class="text-4xl md:text-6xl font-black mb-8 leading-tight">开启您的智能编导时代</h2>
+                    <p class="text-white/70 text-lg mb-12 max-w-xl mx-auto">
+                        现在注册，立享 14 天专业版全功能试用。不再为选题焦虑，不再为脚本秃头。
+                    </p>
+                    <form action="#" class="flex flex-col md:flex-row items-center justify-center gap-4">
+                        <input type="email" required placeholder="输入您的邮箱" aria-label="电子邮箱地址" class="w-full md:w-80 bg-black/20 border border-white/20 rounded-2xl px-6 py-5 focus:outline-none focus:border-white transition-all text-white placeholder:text-white/40">
+                        <button type="submit" class="w-full md:w-auto px-10 py-5 bg-white text-blue-800 font-black rounded-2xl hover:scale-105 transition-all">
+                            立即获取访问权限
+                        </button>
+                    </form>
                 </div>
             </div>
         </section>
     </main>
 
-    <footer class="py-20 text-center text-white/20 text-xs uppercase tracking-[0.5em] font-bold">
-        <div class="flex justify-center gap-10 mb-10">
-            <a href="#" class="hover:text-brand-primary transition-colors">Privacy</a>
-            <a href="#" class="hover:text-brand-primary transition-colors">Terms</a>
-            <a href="#" class="hover:text-brand-primary transition-colors">Contact</a>
-        </div>
-        <div class="flex items-center justify-center gap-3">
-            <img src="sfire-logo.jpg" class="h-6 opacity-20 filter grayscale" alt="Logo">
-            Fire Source AI Ecosystem © 2026
+    <!-- 页脚 -->
+    <footer class="py-12 border-t border-white/5 text-center text-white/20 text-sm">
+        <div class="max-w-7xl mx-auto px-6 flex flex-col md:flex-row justify-between items-center gap-6">
+            <div class="flex items-center gap-2">
+                <i data-lucide="zap" class="w-4 h-4 text-blue-500 fill-blue-500"></i>
+                <span class="font-bold tracking-tighter text-white/40 uppercase">Fire Source AI © 2026</span>
+            </div>
+            <nav class="flex gap-8">
+                <a href="#" class="hover:text-white transition-colors">隐私政策</a>
+                <a href="#" class="hover:text-white transition-colors">服务条款</a>
+                <a href="#" class="hover:text-white transition-colors">联系我们</a>
+            </nav>
         </div>
     </footer>
 
+    <!-- 初始化图标与交互 -->
     <script>
         // 初始化 Lucide 图标
         lucide.createIcons();
 
-        // --- Three.js 星链地球首屏逻辑 ---
-        const canvas = document.querySelector('#hero-canvas');
-        const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
-        const scene = new THREE.Scene();
-        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-        camera.position.z = 5;
-
-        // 地球主体
-        const earthGroup = new THREE.Group();
-        const earthGeometry = new THREE.SphereGeometry(2, 64, 64);
-        const earthMaterial = new THREE.MeshPhongMaterial({
-            color: 0x111111,
-            wireframe: true,
-            transparent: true,
-            opacity: 0.2
-        });
-        const earth = new THREE.Mesh(earthGeometry, earthMaterial);
-        earthGroup.add(earth);
-
-        // 星链轨道点
-        const starlinkPoints = new THREE.Points(
-            new THREE.BufferGeometry().setFromPoints(new Array(500).fill(0).map(() => {
-                const point = new THREE.Vector3();
-                const radius = 2.2 + Math.random() * 0.5;
-                const phi = Math.acos(-1 + (Math.random() * 2));
-                const theta = Math.random() * Math.PI * 2;
-                point.setFromSphericalCoords(radius, phi, theta);
-                return point;
-            })),
-            new THREE.PointsMaterial({ color: 0xFF4D00, size: 0.02, transparent: true, opacity: 0.8 })
-        );
-        earthGroup.add(starlinkPoints);
-
-        // 核心光效
-        const light = new THREE.PointLight(0xFF4D00, 2, 50);
-        light.position.set(5, 5, 5);
-        scene.add(light);
-        scene.add(new THREE.AmbientLight(0x404040));
-        scene.add(earthGroup);
-
-        function animate() {
-            requestAnimationFrame(animate);
-            earthGroup.rotation.y += 0.002;
-            earthGroup.rotation.x += 0.001;
-            renderer.render(scene, camera);
-        }
-
-        function resize() {
-            camera.aspect = window.innerWidth / window.innerHeight;
-            camera.updateProjectionMatrix();
-            renderer.setSize(window.innerWidth, window.innerHeight);
-        }
-
-        window.addEventListener('resize', resize);
-        resize();
-        animate();
-
-        // --- 数字增长动画 ---
-        const observer = new IntersectionObserver((entries) => {
-            entries.forEach(entry => {
-                if(entry.isIntersecting) {
-                    const target = parseInt(entry.target.getAttribute('data-target'));
-                    const duration = 2000;
-                    let start = 0;
-                    const increment = target / (duration / 16);
-                    
-                    const update = () => {
-                        start += increment;
-                        if(start < target) {
-                            entry.target.innerText = Math.floor(start) + (entry.target.innerText.includes('%') ? '%' : (entry.target.innerText.includes('M') ? 'M+' : ''));
-                            requestAnimationFrame(update);
-                        } else {
-                            entry.target.innerText = target + (entry.target.innerText.includes('%') ? '%' : (entry.target.innerText.includes('M') ? 'M+' : ''));
-                        }
-                    };
-                    update();
-                    observer.unobserve(entry.target);
-                }
-            });
-        }, { threshold: 0.5 });
-
-        document.querySelectorAll('[data-target]').forEach(el => observer.observe(el));
-
-        // 导航栏效果
+        // 导航栏滚动效果
+        const navbar = document.getElementById('navbar');
         window.addEventListener('scroll', () => {
-            const nav = document.getElementById('navbar');
             if (window.scrollY > 50) {
-                nav.classList.add('bg-black/90', 'backdrop-blur-xl', 'py-4', 'border-b', 'border-white/10');
-                nav.classList.remove('py-6');
+                navbar.classList.add('bg-black/80', 'backdrop-blur-md', 'border-b', 'border-white/10', 'py-4');
+                navbar.classList.remove('py-6');
             } else {
-                nav.classList.remove('bg-black/90', 'backdrop-blur-xl', 'py-4', 'border-b', 'border-white/10');
-                nav.classList.add('py-6');
+                navbar.classList.remove('bg-black/80', 'backdrop-blur-md', 'border-b', 'border-white/10', 'py-4');
+                navbar.classList.add('py-6');
             }
+        });
+
+        // 平滑滚动
+        document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+            anchor.addEventListener('click', function (e) {
+                e.preventDefault();
+                document.querySelector(this.getAttribute('href')).scrollIntoView({
+                    behavior: 'smooth'
+                });
+            });
         });
     </script>
 </body>

@@ -42,7 +42,7 @@ SQL_STATEMENTS = [
       `role` VARCHAR(20) NOT NULL COMMENT '角色',
       `content` TEXT NOT NULL COMMENT '消息内容',
       `tokens` INT NOT NULL DEFAULT 0 COMMENT 'token数',
-      `sequence` INT NOT NULL COMMENT '消息序号',
+      `sequence` BIGINT NOT NULL COMMENT '消息序号（基于时间戳生成）',
       `embedding_status` VARCHAR(20) NOT NULL DEFAULT 'pending' COMMENT '向量化状态',
       `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
       PRIMARY KEY (`id`),
@@ -126,6 +126,7 @@ async def main():
 
 if __name__ == "__main__":
     asyncio.run(main())
+
 
 
 

@@ -29,7 +29,7 @@ CREATE TABLE IF NOT EXISTS `conversation_messages` (
   `role` VARCHAR(20) NOT NULL COMMENT '角色：user-用户, assistant-AI助手, system-系统',
   `content` TEXT NOT NULL COMMENT '消息内容',
   `tokens` INT NOT NULL DEFAULT 0 COMMENT '该消息的token数（用于统计）',
-  `sequence` INT NOT NULL COMMENT '消息序号（用于排序）',
+  `sequence` BIGINT NOT NULL COMMENT '消息序号（用于排序，基于时间戳生成）',
   `embedding_status` VARCHAR(20) NOT NULL DEFAULT 'pending' COMMENT '向量化状态：pending-待处理, processing-处理中, completed-已完成, failed-失败',
   `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
   `updated_at` DATETIME NULL DEFAULT NULL ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',

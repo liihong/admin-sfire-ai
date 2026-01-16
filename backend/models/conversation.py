@@ -199,9 +199,9 @@ class ConversationMessage(BaseModel):
     )
     
     sequence: Mapped[int] = mapped_column(
-        Integer,
+        BigInteger,  # 改为BIGINT以支持时间戳格式的序列号
         nullable=False,
-        comment="消息序号（用于排序）",
+        comment="消息序号（用于排序，基于时间戳生成）",
     )
     
     # === 向量化状态 ===
@@ -278,6 +278,7 @@ class ConversationChunk(BaseModel):
     
     def __repr__(self) -> str:
         return f"<ConversationChunk(id={self.id}, conversation_id={self.conversation_id}, vector_id={self.vector_id})>"
+
 
 
 
