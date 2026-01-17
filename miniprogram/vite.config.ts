@@ -5,7 +5,7 @@ import uni from "@dcloudio/vite-plugin-uni";
 // 开发环境 API 地址
 const DEV_API_URL = "http://localhost:8000";
 // 生产环境 API 地址（部署时修改此处）
-const PROD_API_URL = "https://api.your-domain.com";
+const PROD_API_URL = "https://sourcefire.cn";
 
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => {
