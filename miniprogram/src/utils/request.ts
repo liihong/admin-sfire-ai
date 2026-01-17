@@ -38,7 +38,7 @@ export interface ResponseData<T = any> {
 const BASE_URL = __API_BASE_URL__
 
 // 请求超时时间（毫秒）
-const TIMEOUT = 60000
+const TIMEOUT = 100000
 
 /**
  * 请求拦截器 - 处理请求前的逻辑
@@ -59,6 +59,7 @@ function requestInterceptor(config: RequestConfig): RequestConfig {
     const token = authStore.getToken()
     if (token) {
       config.header['Authorization'] = `Bearer ${token}`
+      config.header["X-My-Gate-Key"] = "Huoyuan2026";
     }
   }
   
@@ -86,13 +87,92 @@ function handleUnauthorized() {
 }
 
 /**
+ * 解析 SSE (Server-Sent Events) 格式的流式响应
+ */
+function parseSSEResponse(sseData: string): any {
+  const lines = sseData.split('\n')
+  let conversationId: number | undefined
+  let content = ''
+
+  for (const line of lines) {
+    const trimmed = line.trim()
+    if (trimmed.startsWith('data: ')) {
+      try {
+        const jsonStr = trimmed.substring(6) // 移除 "data: " 前缀
+        const parsed = JSON.parse(jsonStr)
+
+        if (parsed.conversation_id !== undefined) {
+          conversationId = parsed.conversation_id
+        }
+        if (parsed.content) {
+          content += parsed.content
+        }
+      } catch (e) {
+        // 忽略解析错误，继续处理下一行
+        console.warn('Failed to parse SSE data line:', trimmed)
+      }
+    }
+  }
+
+  return {
+    code: 200,
+    data: {
+      conversation_id: conversationId,
+      content: content
+    }
+  }
+}
+
+/**
  * 响应拦截器 - 处理响应数据
  */
 function responseInterceptor<T>(response: UniApp.RequestSuccessCallbackResult): ResponseData<T> {
   const { statusCode, data } = response
-  
+
+  // 检查是否为 SSE 流式响应
+  // 注意：微信小程序中 header 键名可能是小写
+  const header = response.header || {}
+  const contentType = (header['content-type'] || header['Content-Type'] || '').toLowerCase()
+  const dataIsString = typeof data === 'string'
+  const dataStr = dataIsString ? (data as string) : ''
+  const startsWithData = dataIsString && dataStr.trim().startsWith('data: ')
+  const isEventStream = contentType.includes('text/event-stream')
+  const isSSEResponse = dataIsString && (isEventStream || startsWithData)
+
+  let processedData = data
+
+  // 如果是 SSE 格式，解析并转换为 JSON 格式
+  if (isSSEResponse) {
+    try {
+      processedData = parseSSEResponse(dataStr)
+    } catch (error) {
+      console.error('Failed to parse SSE response:', error)
+      return {
+        success: false,
+        message: '解析流式响应失败',
+        code: -3
+      }
+    }
+  }
+
   // 检查响应数据中的code字段（后端可能返回HTTP 200但code为401）
-  const responseData = data as any
+  // 确保 processedData 是对象而不是字符串
+  let responseData: any
+  if (typeof processedData === 'string') {
+    // 如果仍然是字符串，尝试解析为 JSON
+    try {
+      responseData = JSON.parse(processedData)
+    } catch (e) {
+      return {
+        success: false,
+        message: '响应数据格式错误',
+        code: -4
+      }
+    }
+  } else {
+    responseData = processedData
+  }
+
   const responseCode = responseData?.code
 
   // 处理401未授权（HTTP状态码401或响应数据code为401）
@@ -108,7 +188,7 @@ function responseInterceptor<T>(response: UniApp.RequestSuccessCallbackResult): 
   // HTTP 状态码处理
   if (statusCode >= 200 && statusCode < 300) {
     // 成功响应
-    return data as ResponseData<T>;
+    return processedData as ResponseData<T>;
   }
   
   if (statusCode === 403) {

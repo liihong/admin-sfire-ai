@@ -183,3 +183,23 @@ async def change_user_level(
         remark=request.remark,
     )
     return success(msg="等级修改成功")
+
+
+@router.post("/{user_id}/reset-password", summary="重置用户密码")
+async def reset_user_password(
+    user_id: int,
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    重置用户密码为默认密码 123456
+
+    密码处理流程:
+    1. 明文密码 "123456" → MD5加密 → "e10adc3949ba59abbe56e057f20f883e"
+    2. MD5密码 → bcrypt哈希 → 存储到数据库
+
+    用户可以使用新密码 123456 登录
+    """
+    user_service = UserService(db)
+    await user_service.reset_password(user_id)
+    return success(msg="密码重置成功，新密码为：123456")
+

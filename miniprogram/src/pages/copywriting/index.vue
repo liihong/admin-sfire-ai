@@ -576,6 +576,7 @@ async function sendMessage() {
     // 后端返回格式: {code: 200, data: {content: "...", conversation_id: 15, ...}, msg: "..."}
     if (response.code === 200 && response.data) {
       const responseData = response.data as ChatResponseData
+
       // 保存 conversation_id（如果响应中包含）
       if (responseData.conversation_id) {
         conversationId.value = responseData.conversation_id

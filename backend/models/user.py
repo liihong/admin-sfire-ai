@@ -110,6 +110,14 @@ class User(BaseModel):
         comment="冻结中的算力（处理中的任务占用）",
     )
 
+    version: Mapped[int] = mapped_column(
+        BigInteger,
+        default=0,
+        server_default="0",
+        nullable=False,
+        comment="版本号（乐观锁，防止并发更新冲突）",
+    )
+
     partner_balance: Mapped[Decimal] = mapped_column(
         DECIMAL(16, 0),
         default=Decimal("0"),

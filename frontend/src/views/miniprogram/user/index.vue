@@ -65,6 +65,7 @@
       <template #operation="scope">
         <el-button type="primary" link :icon="Coin" @click="openRechargeDialog(scope.row)">充值</el-button>
         <el-button type="primary" link :icon="EditPen" @click="openDrawer('编辑', scope.row)">编辑</el-button>
+        <el-button type="warning" link :icon="RefreshRight" @click="handleResetPassword(scope.row)">重置密码</el-button>
         <el-button type="primary" link :icon="User" @click="viewUserProfile(scope.row)">画像</el-button>
         <el-button type="danger" link :icon="Delete" @click="deleteAccount(scope.row)">删除</el-button>
       </template>
@@ -113,7 +114,7 @@
 <script setup lang="tsx" name="miniprogramUserManage">
 import { ref, reactive } from "vue";
 import { ElMessage, ElMessageBox, FormInstance, FormRules } from "element-plus";
-import { CirclePlus, Delete, EditPen, Download, User, Coin, InfoFilled } from "@element-plus/icons-vue";
+import { CirclePlus, Delete, EditPen, Download, User, Coin, InfoFilled, RefreshRight } from "@element-plus/icons-vue";
 import type { User as UserType } from "@/api/interface";
 import { useHandleData } from "@/hooks/useHandleData";
 import { useDownload } from "@/hooks/useDownload";
@@ -129,7 +130,8 @@ import {
   rechargeUserCompute,
   getUserLevelOptions,
   getUserStatusOptions,
-  exportUserData
+  exportUserData,
+  resetUserPassWord
 } from "@/api/modules/user";
 
 // ProTable 实例
@@ -237,7 +239,7 @@ const columns = reactive<ColumnProps<UserType.ResUserList>[]>([
     fieldNames: { label: "userLabel", value: "userValue" },
     search: { el: "select" }
   },
-  { prop: "operation", label: "操作", fixed: "right", width: 260 }
+  { prop: "operation", label: "操作", fixed: "right", width: 320 }
 ]);
 
 // 状态切换 loading
@@ -344,6 +346,24 @@ const profileVisible = ref(false);
 const viewUserProfile = (row: UserType.ResUserList) => {
   currentUser.value = row;
   profileVisible.value = true;
+};
+
+// ==================== 重置密码 ====================
+const handleResetPassword = async (row: UserType.ResUserList) => {
+  try {
+    await ElMessageBox.confirm(`确定要将用户【${row.username}】的密码重置为 123456 吗？`, "重置密码", {
+      confirmButtonText: "确定",
+      cancelButtonText: "取消",
+      type: "warning"
+    });
+
+    await resetUserPassWord({ id: row.id });
+    ElMessage.success("密码重置成功，新密码为：123456");
+  } catch (error: any) {
+    if (error !== "cancel") {
+      ElMessage.error(error?.msg || "密码重置失败");
+    }
+  }
 };
 </script>
 

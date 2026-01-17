@@ -112,6 +112,22 @@ class DashboardStats(BaseModel):
     abnormal_users: List[AbnormalUserRecord] = Field(default_factory=list, description="最近异常用户列表")
 
 
+class AgentRankItem(BaseModel):
+    """
+    智能体调用排行数据项
+
+    Attributes:
+        id: 智能体 ID
+        name: 智能体名���
+        icon: 智能体图标
+        call_count: 调用次数
+    """
+    id: str = Field(..., description="智能体 ID")
+    name: str = Field(..., description="智能体名称")
+    icon: str = Field(..., description="智能体图标")
+    call_count: int = Field(..., description="调用次数")
+
+
 class DashboardStatsResponse(BaseModel):
     """Dashboard 统计响应"""
     code: int = 200

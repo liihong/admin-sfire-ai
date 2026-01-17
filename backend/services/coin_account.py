@@ -23,35 +23,22 @@ class CoinAccountService:
         self.db = db
         self.calculator = CoinCalculatorService(db)
 
-    async def get_user_with_lock(self, user_id: int, skip_locked: bool = False) -> User:
+    async def get_user_for_read(self, user_id: int) -> Optional[User]:
         """
-        获取用户并加锁(防止并发问题)
+        获取用户信息（只读，不加锁）
+
+        ⚠️ 不再使用 FOR UPDATE，避免锁冲突
 
         Args:
             user_id: 用户ID
-            skip_locked: 是否跳过已被锁定的记录(快速失败),用于避免长等待
 
         Returns:
-            用户对象
+            用户对象或None
         """
         result = await self.db.execute(
-            select(User)
-            .where(User.id == user_id)
-            .with_for_update(skip_locked=skip_locked)  # 行级锁,防止并发修改
+            select(User).where(User.id == user_id)
         )
-        user = result.scalar_one_or_none()
-
-        if not user:
-            # 如果是 skip_locked 模式下没获取到,可能是锁冲突
-            if skip_locked:
-                from sqlalchemy.exc import OperationalError
-                raise OperationalError(
-                    "锁冲突，用户记录被其他事务占用",
-                    orig=type('obj', (object,), {'args': [1205]})
-                )
-            raise NotFoundException(f"用户ID {user_id} 不存在")
-
-        return user
+        return result.scalar_one_or_none()
 
     async def check_balance(
         self,
@@ -59,7 +46,9 @@ class CoinAccountService:
         required_amount: Decimal
     ) -> bool:
         """
-        检查余额是否充足
+        检查余额是否充足（原子操作，无需加锁）
+
+        ⚠️ 不再使用 FOR UPDATE，使用原子SQL避免锁冲突
 
         Args:
             user_id: 用户ID
@@ -68,9 +57,19 @@ class CoinAccountService:
         Returns:
             True-余额充足, False-余额不足
         """
-        user = await self.get_user_with_lock(user_id)
-        available = user.balance - user.frozen_balance
+        from sqlalchemy import select
 
+        result = await self.db.execute(
+            select(User.balance, User.frozen_balance)
+            .where(User.id == user_id)
+        )
+        row = result.first()
+
+        if not row:
+            return False
+
+        balance, frozen_balance = row
+        available = balance - frozen_balance
         return available >= required_amount
 
     async def freeze_amount(
@@ -513,176 +512,534 @@ class CoinAccountService:
             "available_balance": user.balance - user.frozen_balance,
         }
 
-    # ============== 快速事务方法(独立会话,快速释放锁) ==============
+    # ============== ✅ 原子化操作方法（无锁冲突） ==============
 
-    async def freeze_amount_quick(self, user_id: int, amount: Decimal) -> bool:
+    async def freeze_amount_atomic(
+        self,
+        user_id: int,
+        amount: Decimal,
+        request_id: str,
+        model_id: Optional[int] = None,
+        conversation_id: Optional[int] = None,
+        remark: Optional[str] = None
+    ) -> dict:
         """
-        快速预冻结(独立事务,快速释放锁)
+        ✅ 原子化冻结算力（幂等性保证 + 乐观锁 CAS）
 
-        使用独立的数据库会话和事务,避免长时间持有锁
-        适用于需要快速冻结但不立即提交的场景
+        核心优化：
+        - ✅ 使用乐观锁（CAS版本号），避免锁等待超时
+        - ✅ 通过request_id实现幂等性
+        - ✅ 自动重试（CAS冲突时，1ms间隔）
+
+        CAS 原理：
+        ```sql
+        UPDATE users
+        SET frozen_balance = frozen_balance + amount,
+            version = version + 1
+        WHERE id = user_id
+          AND version = current_version
+          AND balance - frozen_balance >= amount  -- ✅ 原子条件判断
+        ```
 
         Args:
             user_id: 用户ID
             amount: 冻结金额
+            request_id: 请求ID（全局唯一，用于幂等性）
+            model_id: 模型ID（可选）
+            conversation_id: 会话ID（可选）
+            remark: 备注（可选）
 
         Returns:
-            是否成功
+            {
+                'success': bool,              # 是否成功
+                'already_frozen': bool,       # 是否已冻结（幂等）
+                'freeze_log_id': int,         # 冻结记录ID
+                'insufficient_balance': bool  # 是否余额不足
+            }
         """
-        try:
-            async with async_session_maker() as db:
-                result = await db.execute(
-                    select(User)
-                    .where(User.id == user_id)
-                    .with_for_update(nowait=False)  # 等待锁,但设置超时
-                )
-                user = result.scalar_one_or_none()
+        from models.compute_freeze import ComputeFreezeLog, FreezeStatus
+        from sqlalchemy import update, select
+        from sqlalchemy.exc import IntegrityError
+        import asyncio
+        import time
 
-                if not user:
-                    logger.error(f"快速冻结失败: 用户 {user_id} 不存在")
-                    return False
+        max_retries = 50  # CAS冲突最多重试50次（每次1ms，总共50ms）
+        start_time = time.time()
 
-                # 检查可用余额
-                available = user.balance - user.frozen_balance
-                if available < amount:
-                    logger.warning(
-                        f"快速冻结失败: 用户 {user_id} 余额不足, "
-                        f"可用 {available:.0f}, 需要 {amount:.0f}"
+        for attempt in range(max_retries):
+            try:
+                # ✅ 第一步：幂等性检查（无锁查询，优先检查）
+                result = await self.db.execute(
+                    select(ComputeFreezeLog).where(
+                        ComputeFreezeLog.request_id == request_id
                     )
-                    return False
+                )
+                existing_log = result.scalar_one_or_none()
 
-                # 冻结金额
-                user.frozen_balance += amount
+                if existing_log:
+                    logger.info(
+                        f"✅ [CAS冻结] 幂等返回: request_id={request_id}, "
+                        f"用户={user_id}, 金额={amount}, 原冻结记录ID={existing_log.id}"
+                    )
+                    return {
+                        'success': True,
+                        'already_frozen': True,
+                        'freeze_log_id': existing_log.id,
+                        'insufficient_balance': False,
+                    }
 
-                # 立即提交,快速释放锁
-                await db.commit()
-                logger.debug(f"用户 {user_id} 快速冻结成功: {amount}")
-                return True
+                # ✅ 第二步：查询当前用户版本号（无锁）
+                user_result = await self.db.execute(
+                    select(User.id, User.version, User.balance, User.frozen_balance)
+                    .where(User.id == user_id)
+                )
+                user_row = user_result.first()
 
-        except Exception as e:
-            logger.error(f"快速冻结异常: 用户 {user_id}, 金额 {amount}, 错误: {e}")
-            return False
+                if not user_row:
+                    await self.db.rollback()
+                    logger.error(f"❌ [CAS冻结] 用户不存在: user_id={user_id}")
+                    return {
+                        'success': False,
+                        'already_frozen': False,
+                        'freeze_log_id': None,
+                        'insufficient_balance': False,
+                    }
 
-    async def unfreeze_and_deduct_quick(
+                current_version = user_row[1]
+
+                # ✅ 第三步：CAS 更新（乐观锁）
+                update_result = await self.db.execute(
+                    update(User)
+                    .where(
+                        User.id == user_id,
+                        User.version == current_version,  # ✅ CAS 版本号
+                        User.balance - User.frozen_balance >= amount  # ✅ 原子条件
+                    )
+                    .values(
+                        frozen_balance=User.frozen_balance + amount,
+                        version=User.version + 1  # ✅ 版本号+1
+                    )
+                )
+
+                if update_result.rowcount == 0:
+                    # CAS 失败：版本号冲突 或 余额不足
+                    # 检查是否是余额不足
+                    user_check = await self.db.execute(
+                        select(User.balance, User.frozen_balance)
+                        .where(User.id == user_id)
+                    )
+                    balance_row = user_check.first()
+                    if balance_row:
+                        available = balance_row[0] - balance_row[1]
+                        if available < amount:
+                            await self.db.rollback()
+                            logger.warning(
+                                f"⚠️ [CAS冻结] 余额不足: 用户={user_id}, "
+                                f"可用={available}, 需要={amount}"
+                            )
+                            return {
+                                'success': False,
+                                'already_frozen': False,
+                                'freeze_log_id': None,
+                                'insufficient_balance': True,
+                            }
+
+                    # 版本号冲突，快速重试
+                    if attempt < max_retries - 1:
+                        await asyncio.sleep(0.001)  # 1ms 后重试
+                        continue
+                    else:
+                        await self.db.rollback()
+                        logger.error(
+                            f"❌ [CAS冻结] CAS重试耗尽: 用户={user_id}, "
+                            f"尝试次数={max_retries}"
+                        )
+                        return {
+                            'success': False,
+                            'already_frozen': False,
+                            'freeze_log_id': None,
+                            'insufficient_balance': False,
+                        }
+
+                # ✅ 第四步：创建冻结记录
+                freeze_log = ComputeFreezeLog(
+                    request_id=request_id,
+                    user_id=user_id,
+                    amount=amount,
+                    model_id=model_id,
+                    conversation_id=conversation_id,
+                    status=FreezeStatus.FROZEN.value,
+                    remark=remark,
+                )
+                self.db.add(freeze_log)
+                await self.db.flush()
+
+                await self.db.commit()
+
+                elapsed = time.time() - start_time
+                logger.info(
+                    f"✅ [CAS冻结] 成功: 用户={user_id}, 金额={amount}, "
+                    f"request_id={request_id}, 冻结记录ID={freeze_log.id}, "
+                    f"耗时={elapsed*1000:.1f}ms, 重试次数={attempt}"
+                )
+
+                return {
+                    'success': True,
+                    'already_frozen': False,
+                    'freeze_log_id': freeze_log.id,
+                    'insufficient_balance': False,
+                }
+
+            except IntegrityError:
+                # 幂等性保证：request_id 冲突（并发场景下的竞态）
+                await self.db.rollback()
+
+                # 再次查询原有记录
+                result = await self.db.execute(
+                    select(ComputeFreezeLog).where(
+                        ComputeFreezeLog.request_id == request_id
+                    )
+                )
+                existing_log = result.scalar_one_or_none()
+
+                if existing_log:
+                    logger.info(
+                        f"✅ [CAS冻结] 幂等返回(并发): request_id={request_id}, "
+                        f"用户={user_id}, 金额={amount}, 原冻结记录ID={existing_log.id}"
+                    )
+                    return {
+                        'success': True,
+                        'already_frozen': True,
+                        'freeze_log_id': existing_log.id,
+                        'insufficient_balance': False,
+                    }
+                else:
+                    # 异常情况：不应该发生
+                    logger.error(f"❌ [CAS冻结] 幂等检查失败: request_id={request_id}")
+                    return {
+                        'success': False,
+                        'already_frozen': False,
+                        'freeze_log_id': None,
+                        'insufficient_balance': False,
+                    }
+
+            except Exception as e:
+                await self.db.rollback()
+                logger.error(f"❌ [CAS冻结] 异常: 用户={user_id}, 错误={e}")
+                raise
+
+        # 理论上不会执行到这里
+        logger.error(f"❌ [CAS冻结] 重试耗尽: 用户={user_id}")
+        return {
+            'success': False,
+            'already_frozen': False,
+            'freeze_log_id': None,
+            'insufficient_balance': False,
+        }
+
+    async def settle_amount_atomic(
         self,
         user_id: int,
-        task_id: str,
+        request_id: str,
         actual_cost: Decimal,
-        input_tokens: int,
-        output_tokens: int,
-        model_id: int,
-        model_name: str,
-        frozen_amount: Decimal
-    ) -> bool:
+        input_tokens: int = 0,
+        output_tokens: int = 0,
+        model_name: str = ""
+    ) -> dict:
         """
-        快速解冻并扣除(独立事务)
+        ✅ 原子化结算算力（乐观锁 CAS + 解冻 + 扣除）
+
+        操作：
+        1. 从 frozen_balance 减去预冻结金额（解冻）
+        2. 从 balance 减去实际消耗
+        3. 创建消耗流水记录
+        4. 更新冻结记录状态为 SETTLED
+
+        CAS 原理：
+        ```sql
+        UPDATE users
+        SET frozen_balance = frozen_balance - freeze_amount,
+            balance = balance - actual_cost,
+            version = version + 1
+        WHERE id = user_id
+          AND version = current_version
+          AND frozen_balance >= freeze_amount  -- ✅ 原子条件
+        ```
 
         Args:
             user_id: 用户ID
-            task_id: 任务ID
-            actual_cost: 实际消耗
-            input_tokens: 输入token数
-            output_tokens: 输出token数
-            model_id: 模型ID
+            request_id: 请求ID
+            actual_cost: 实际消耗金额
+            input_tokens: 输入Token数
+            output_tokens: 输出Token数
             model_name: 模型名称
-            frozen_amount: 预冻结金额
 
         Returns:
-            是否成功
+            {
+                'success': bool,
+                'message': str
+            }
         """
-        try:
-            async with async_session_maker() as db:
-                result = await db.execute(
-                    select(User)
-                    .where(User.id == user_id)
-                    .with_for_update()
+        from models.compute_freeze import ComputeFreezeLog, FreezeStatus
+        from models.compute import ComputeLog, ComputeType
+        from sqlalchemy import select, update
+        from datetime import datetime
+        import asyncio
+        import time
+
+        max_retries = 50  # CAS冲突最多重试50次
+        start_time = time.time()
+
+        for attempt in range(max_retries):
+            try:
+                # 查询冻结记录
+                result = await self.db.execute(
+                    select(ComputeFreezeLog).where(
+                        ComputeFreezeLog.request_id == request_id
+                    )
                 )
-                user = result.scalar_one_or_none()
+                freeze_log = result.scalar_one_or_none()
 
-                if not user:
-                    logger.error(f"快速结算失败: 用户 {user_id} 不存在")
-                    return False
+                if not freeze_log:
+                    logger.error(f"❌ [CAS结算] 冻结记录不存在: request_id={request_id}")
+                    return {'success': False, 'message': '冻结记录不存在'}
 
-                # 记录变动前余额
-                before_balance = user.balance
+                if freeze_log.status != FreezeStatus.FROZEN.value:
+                    logger.warning(
+                        f"⚠️ [CAS结算] 记录已处理: request_id={request_id}, "
+                        f"status={freeze_log.status}"
+                    )
+                    return {'success': True, 'message': '已处理'}
 
-                # 解冻并扣除
-                user.frozen_balance -= frozen_amount
-                user.balance -= actual_cost
+                freeze_amount = freeze_log.amount
+
+                # ✅ 查询当前用户版本号和余额
+                user_result = await self.db.execute(
+                    select(User.id, User.version, User.balance, User.frozen_balance)
+                    .where(User.id == user_id)
+                )
+                user_row = user_result.first()
+
+                if not user_row:
+                    await self.db.rollback()
+                    logger.error(f"❌ [CAS结算] 用户不存在: user_id={user_id}")
+                    return {'success': False, 'message': '用户不存在'}
+
+                current_version = user_row[1]
+                before_balance = user_row[2]
+
+                # ✅ 执行 CAS 更新：解冻 + 扣除
+                update_result = await self.db.execute(
+                    update(User)
+                    .where(
+                        User.id == user_id,
+                        User.version == current_version,  # ✅ CAS 版本号
+                        User.frozen_balance >= freeze_amount  # ✅ 原子条件
+                    )
+                    .values(
+                        frozen_balance=User.frozen_balance - freeze_amount,  # 解冻
+                        balance=User.balance - actual_cost,  # 扣除实际消耗
+                        version=User.version + 1  # ✅ 版本号+1
+                    )
+                )
+
+                if update_result.rowcount == 0:
+                    # CAS 失败：版本号冲突 或 冻结余额不足
+                    if attempt < max_retries - 1:
+                        await asyncio.sleep(0.001)  # 1ms 后重试
+                        continue
+                    else:
+                        await self.db.rollback()
+                        logger.error(
+                            f"❌ [CAS结算] CAS重试耗尽: 用户={user_id}, "
+                            f"尝试次数={max_retries}"
+                        )
+                        return {'success': False, 'message': '结算失败'}
+
+                # ✅ 重新查询用户余额（用于流水记录）
+                after_user = await self.db.execute(
+                    select(User.balance).where(User.id == user_id)
+                )
+                after_balance = after_user.scalar_one()
+
+                # 更新冻结记录状态
+                freeze_log.status = FreezeStatus.SETTLED.value
+                freeze_log.actual_cost = actual_cost
+                freeze_log.input_tokens = input_tokens
+                freeze_log.output_tokens = output_tokens
+                freeze_log.settled_at = datetime.now()
 
                 # 创建消耗流水
                 remark = (
                     f"AI对话消耗 - "
-                    f"输入Token: {input_tokens}, 输出Token: {output_tokens}, "
-                    f"模型: {model_name}"
+                    f"输入: {input_tokens} tokens, 输出: {output_tokens} tokens"
                 )
+                if model_name:
+                    remark += f", 模型: {model_name}"
 
                 consume_log = ComputeLog(
                     user_id=user_id,
                     type=ComputeType.CONSUME,
-                    amount=-actual_cost,
+                    amount=-actual_cost,  # 负数表示减少
                     before_balance=before_balance,
-                    after_balance=user.balance,
+                    after_balance=after_balance,
                     remark=remark,
-                    task_id=task_id,
+                    task_id=request_id,
                     source="api"
                 )
-                db.add(consume_log)
+                self.db.add(consume_log)
 
-                # 立即提交
-                await db.commit()
+                await self.db.commit()
 
+                elapsed = time.time() - start_time
                 logger.info(
-                    f"用户 {user_id} 快速结算成功: "
-                    f"预冻结 {frozen_amount}, 实际消耗 {actual_cost}"
+                    f"✅ [CAS结算] 成功: 用户={user_id}, "
+                    f"预冻结={freeze_amount}, 实际消耗={actual_cost}, "
+                    f"余额: {before_balance} → {after_balance}, "
+                    f"request_id={request_id}, 耗时={elapsed*1000:.1f}ms, "
+                    f"重试次数={attempt}"
                 )
-                return True
 
-        except Exception as e:
-            logger.error(f"快速结算异常: 用户 {user_id}, 任务 {task_id}, 错误: {e}")
-            return False
+                return {'success': True, 'message': '结算成功'}
 
-    async def refund_quick(
+            except Exception as e:
+                await self.db.rollback()
+                logger.error(f"❌ [CAS结算] 异常: 用户={user_id}, 错误={e}")
+                raise
+
+        # 理论上不会执行到这里
+        logger.error(f"❌ [CAS结算] 重试耗尽: 用户={user_id}")
+        return {'success': False, 'message': '结算失败'}
+
+    async def refund_amount_atomic(
         self,
         user_id: int,
-        task_id: str,
-        frozen_amount: Decimal,
-        reason: str = "任务失败退款"
-    ) -> bool:
+        request_id: str,
+        reason: str = "AI生成失败"
+    ) -> dict:
         """
-        快速退款(独立事务)
+        ✅ 原子化退还算力（乐观锁 CAS + 全额退还）
+
+        操作：
+        1. 从 frozen_balance 减去预冻结金额（解冻）
+        2. 不扣减 balance（全额退还）
+        3. 更新冻结记录状态为 REFUNDED
+
+        CAS 原理：
+        ```sql
+        UPDATE users
+        SET frozen_balance = frozen_balance - freeze_amount,
+            version = version + 1
+        WHERE id = user_id
+          AND version = current_version
+          AND frozen_balance >= freeze_amount  -- ✅ 原子条件
+        ```
 
         Args:
             user_id: 用户ID
-            task_id: 任务ID
-            frozen_amount: 预冻结金额
+            request_id: 请求ID
             reason: 退款原因
 
         Returns:
-            是否成功
+            {
+                'success': bool,
+                'message': str
+            }
         """
-        try:
-            async with async_session_maker() as db:
-                result = await db.execute(
-                    select(User)
-                    .where(User.id == user_id)
-                    .with_for_update()
+        from models.compute_freeze import ComputeFreezeLog, FreezeStatus
+        from sqlalchemy import select, update
+        from datetime import datetime
+        import asyncio
+        import time
+
+        max_retries = 50  # CAS冲突最多重试50次
+        start_time = time.time()
+
+        for attempt in range(max_retries):
+            try:
+                # 查询冻结记录
+                result = await self.db.execute(
+                    select(ComputeFreezeLog).where(
+                        ComputeFreezeLog.request_id == request_id
+                    )
                 )
-                user = result.scalar_one_or_none()
+                freeze_log = result.scalar_one_or_none()
 
-                if not user:
-                    logger.error(f"快速退款失败: 用户 {user_id} 不存在")
-                    return False
+                if not freeze_log:
+                    logger.error(f"❌ [CAS退款] 冻结记录不存在: request_id={request_id}")
+                    return {'success': False, 'message': '冻结记录不存在'}
 
-                # 只解冻,不改变总余额
-                user.frozen_balance -= frozen_amount
+                if freeze_log.status != FreezeStatus.FROZEN.value:
+                    logger.warning(
+                        f"⚠️ [CAS退款] 记录已处理: request_id={request_id}, "
+                        f"status={freeze_log.status}"
+                    )
+                    return {'success': True, 'message': '已处理'}
 
-                # 立即提交
-                await db.commit()
+                freeze_amount = freeze_log.amount
 
-                logger.info(f"用户 {user_id} 快速退款成功: {frozen_amount}, 原因: {reason}")
-                return True
+                # ✅ 查询当前用户版本号
+                user_result = await self.db.execute(
+                    select(User.id, User.version, User.frozen_balance)
+                    .where(User.id == user_id)
+                )
+                user_row = user_result.first()
 
-        except Exception as e:
-            logger.error(f"快速退款异常: 用户 {user_id}, 错误: {e}")
-            return False
+                if not user_row:
+                    await self.db.rollback()
+                    logger.error(f"❌ [CAS退款] 用户不存在: user_id={user_id}")
+                    return {'success': False, 'message': '用户不存在'}
+
+                current_version = user_row[1]
+
+                # ✅ 执行 CAS 更新：只解冻，不扣余额
+                update_result = await self.db.execute(
+                    update(User)
+                    .where(
+                        User.id == user_id,
+                        User.version == current_version,  # ✅ CAS 版本号
+                        User.frozen_balance >= freeze_amount  # ✅ 原子条件
+                    )
+                    .values(
+                        frozen_balance=User.frozen_balance - freeze_amount,  # 只解冻
+                        version=User.version + 1  # ✅ 版本号+1
+                    )
+                )
+
+                if update_result.rowcount == 0:
+                    # CAS 失败：版本号冲突 或 冻结余额不足
+                    if attempt < max_retries - 1:
+                        await asyncio.sleep(0.001)  # 1ms 后重试
+                        continue
+                    else:
+                        await self.db.rollback()
+                        logger.error(
+                            f"❌ [CAS退款] CAS重试耗尽: 用户={user_id}, "
+                            f"尝试次数={max_retries}"
+                        )
+                        return {'success': False, 'message': '退款失败'}
+
+                # 更新冻结记录状态
+                freeze_log.status = FreezeStatus.REFUNDED.value
+                freeze_log.refunded_at = datetime.now()
+                freeze_log.remark = reason
+
+                await self.db.commit()
+
+                elapsed = time.time() - start_time
+                logger.info(
+                    f"✅ [CAS退款] 成功: 用户={user_id}, "
+                    f"退还金额={freeze_amount}, request_id={request_id}, "
+                    f"原因={reason}, 耗时={elapsed*1000:.1f}ms, 重试次数={attempt}"
+                )
+
+                return {'success': True, 'message': '退款成功'}
+
+            except Exception as e:
+                await self.db.rollback()
+                logger.error(f"❌ [CAS退款] 异常: 用户={user_id}, 错误={e}")
+                raise
+
+        # 理论上不会执行到这里
+        logger.error(f"❌ [CAS退款] 重试耗尽: 用户={user_id}")
+        return {'success': False, 'message': '退款失败'}

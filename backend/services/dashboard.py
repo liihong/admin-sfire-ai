@@ -14,6 +14,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from db.redis import RedisCache
 from models.user import User
 from models.compute import ComputeLog, ComputeType
+from models.conversation import Conversation
 from schemas.dashboard import (
     DashboardStats,
     OverviewStats,
@@ -22,6 +23,7 @@ from schemas.dashboard import (
     UserTrendItem,
     CallTrendItem,
     AbnormalUserRecord,
+    AgentRankItem,
 )
 from core.config import settings
 from middleware.rate_limiter import RateLimiter
@@ -486,9 +488,72 @@ class DashboardService:
     async def clear_abnormal_records(self) -> bool:
         """
         清空异常用户记录
-        
+
         Returns:
-            bool: 是否成功
+            bool: 是��成功
         """
         return await RateLimiter.clear_abnormal_records()
 
+    async def get_agent_rank(self, limit: int = 5) -> List[AgentRankItem]:
+        """
+        获取智能体调用排行
+
+        统计每个智能体的调用次数（基于关联的会话数量），返回 Top N
+
+        Args:
+            limit: 返回的记录数量，默认 5 条
+
+        Returns:
+            List[AgentRankItem]: 智能体排行列表
+        """
+        try:
+            # 按智能体分组统计会话数量
+            result = await self.db.execute(
+                select(
+                    Conversation.agent_id,
+                    func.count(Conversation.id).label("call_count")
+                ).where(
+                    Conversation.agent_id.isnot(None)
+                ).group_by(
+                    Conversation.agent_id
+                ).order_by(
+                    func.count(Conversation.id).desc()
+                ).limit(limit)
+            )
+
+            agent_call_counts = {}
+            for row in result.fetchall():
+                agent_call_counts[row.agent_id] = row.call_count
+
+            if not agent_call_counts:
+                # 如果没有数据，返回空列表
+                return []
+
+            # 获取智能体详细信息
+            from models.agent import Agent
+
+            agent_ids = list(agent_call_counts.keys())
+            agents_result = await self.db.execute(
+                select(Agent).where(Agent.id.in_(agent_ids))
+            )
+            agents = agents_result.scalars().all()
+
+            # 构建返回结果
+            agent_rank = []
+            for agent in agents:
+                agent_rank.append(AgentRankItem(
+                    id=str(agent.id),
+                    name=agent.name,
+                    icon=agent.icon,
+                    call_count=agent_call_counts[agent.id]
+                ))
+
+            # 按调用次数排序
+            agent_rank.sort(key=lambda x: x.call_count, reverse=True)
+
+            logger.info(f"获取智能体排行成功，共 {len(agent_rank)} 条")
+            return agent_rank
+
+        except Exception as e:
+            logger.error(f"获取智能体排行失败: {e}")
+            return []

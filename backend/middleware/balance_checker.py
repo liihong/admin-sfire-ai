@@ -31,11 +31,9 @@ class BalanceCheckerMiddleware:
         """
         对话前余额检查并预冻结
 
-        流程:
-        1. 估算最大消耗
-        2. 检查可用余额
-        3. 余额不足返回错误
-        4. 余额充足则预冻结
+        ✅ 优化：使用原子操作，避免锁冲突
+        - 不再先 check_balance 再 freeze_amount（会导致两次锁等待）
+        - 直接调用 freeze_amount_atomic，一次性完成检查和冻结
 
         Args:
             user_id: 用户ID
@@ -62,14 +60,19 @@ class BalanceCheckerMiddleware:
             f"模型ID={model_id}, 预估消耗={estimated_cost}"
         )
 
-        # 2. 检查可用余额
-        has_balance = await self.account_service.check_balance(
+        # 2. 直接使用原子操作冻结（内部会检查余额）
+        # ✅ 这样只需要一次原子 UPDATE，避免锁冲突
+        freeze_result = await self.account_service.freeze_amount_atomic(
             user_id=user_id,
-            required_amount=estimated_cost
+            amount=estimated_cost,
+            request_id=task_id,
+            model_id=model_id,
+            remark=f"对话预冻结 - 模型ID: {model_id}"
         )
 
-        if not has_balance:
-            # 获取用户当前余额
+        # 3. 检查冻结结果
+        if freeze_result['insufficient_balance']:
+            # 获取用户当前余额，用于错误提示
             balance_info = await self.account_service.get_user_balance(user_id)
             raise BadRequestException(
                 f"余额不足。可用余额: {balance_info['available_balance']:.4f} 火源币, "
@@ -77,19 +80,27 @@ class BalanceCheckerMiddleware:
                 f"请充值后再试。"
             )
 
-        # 3. 预冻结算力（用户无感知，不记录日志）
-        frozen_amount = await self.account_service.freeze_amount(
-            user_id=user_id,
-            amount=estimated_cost,
-            task_id=task_id,
-            remark=f"对话预冻结 - 模型ID: {model_id}"
+        if not freeze_result['success']:
+            logger.error(
+                f"❌ [余额检查] 冻结失败: 用户={user_id}, "
+                f"task_id={task_id}, result={freeze_result}"
+            )
+            raise BadRequestException(
+                "算力冻结失败，请稍后重试"
+            )
+
+        logger.debug(
+            f"✅ [余额检查] 冻结成功: 用户={user_id}, "
+            f"task_id={task_id}, 金额={estimated_cost}, "
+            f"freeze_log_id={freeze_result['freeze_log_id']}"
         )
 
         return {
             "task_id": task_id,
-            "frozen_amount": frozen_amount,
+            "frozen_amount": estimated_cost,
             "model_id": model_id,
             "user_id": user_id,
+            "freeze_log_id": freeze_result['freeze_log_id'],
         }
 
     async def settle(
@@ -109,6 +120,8 @@ class BalanceCheckerMiddleware:
         """
         最终结算
 
+        ✅ 优化：使用原子操作，避免锁冲突
+
         Args:
             user_id: 用户ID
             task_id: 任务ID
@@ -123,14 +136,12 @@ class BalanceCheckerMiddleware:
             is_violation: 是否内容违规
         """
         if is_error:
-            # API错误,全额退还
+            # API错误,全额退还（使用原子退款）
             reason = "API调用失败"
-            await self.account_service.refund_full(
+            await self.account_service.refund_amount_atomic(
                 user_id=user_id,
-                task_id=task_id,
-                reason=reason,
-                frozen_amount=frozen_amount,
-                error_code=error_code
+                request_id=task_id,
+                reason=reason
             )
 
         elif is_violation:
@@ -144,14 +155,20 @@ class BalanceCheckerMiddleware:
             )
 
         else:
-            # 正常完成,解冻并扣除实际消耗
-            await self.account_service.unfreeze_and_deduct(
+            # ✅ 正常完成,使用原子结算（解冻 + 扣除）
+            settle_result = await self.account_service.settle_amount_atomic(
                 user_id=user_id,
-                task_id=task_id,
+                request_id=task_id,
                 actual_cost=actual_cost,
                 input_tokens=input_tokens,
                 output_tokens=output_tokens,
-                model_id=model_id,
-                model_name=model_name,
-                frozen_amount=frozen_amount
+                model_name=model_name
             )
+
+            if not settle_result['success']:
+                logger.error(
+                    f"❌ [结算] 失败: 用户={user_id}, task_id={task_id}, "
+                    f"message={settle_result.get('message', '未知错误')}"
+                )
+                # 结算失败不抛异常，避免影响主流程
+                # 但记录错误日志供后续处理

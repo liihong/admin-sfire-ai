@@ -19,7 +19,8 @@
       "Bash(npm uninstall:*)",
       "Bash(pnpm build:pro:*)",
       "Bash(pnpm add:*)",
-      "Bash(mysql:*)"
+      "Bash(mysql:*)",
+      "Bash(python3:*)"
     ]
   }
 }

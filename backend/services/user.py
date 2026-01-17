@@ -7,6 +7,7 @@ from decimal import Decimal
 from typing import List, Tuple, Optional, Dict, Any
 import secrets
 import string
+import hashlib
 
 from sqlalchemy import select, func, and_, desc, asc
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -444,5 +445,32 @@ class UserService(BaseService):
         await self.db.refresh(user)
         
         logger.info(f"User created from dict: {user.username} (openid: {user.openid})")
-        
+
         return user
+
+    async def reset_password(self, user_id: int, new_password: str = "123456") -> None:
+        """
+        重置用户密码
+
+        密码处理流程:
+        1. 前端使用 MD5 加密密码 (如 "123456" → "e10adc3949ba59abbe56e057f20f883e")
+        2. 后端接收 MD5 密码后，使用 bcrypt 进行哈希存储
+
+        Args:
+            user_id: 用户ID
+            new_password: 新密码（明文，默认为 "123456"）
+        """
+        user = await super().get_by_id(user_id)
+
+        # 1. 先对明文密码进行 MD5 加密（模拟前端行为）
+        md5_password = hashlib.md5(new_password.encode('utf-8')).hexdigest()
+
+        # 2. 对 MD5 密码进行 bcrypt 哈希存储
+        user.password_hash = hash_password(md5_password)
+
+        await self.db.flush()
+
+        logger.info(
+            f"User password reset: {user.username}, "
+            f"new password (MD5): {md5_password}"
+        )

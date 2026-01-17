@@ -673,26 +673,70 @@ async def generate_chat(
         if not llm_model.api_key:
             raise BadRequestException(f"模型 {llm_model.name} 未配置 API Key，请在管理后台配置")
 
-        # 8.5 算力预冻结（在AI调用前）
+        # ========== ✅ 第一阶段：算力预冻结（极短事务，~10ms） ==========
         task_id = str(uuid.uuid4())
+        request_id = f"chat_{current_user.id}_{task_id}"  # ✅ 幂等性request_id
         balance_checker = BalanceCheckerMiddleware(db)
+        account_service = balance_checker.account_service
         estimated_output_tokens = request.max_tokens or 2048
 
         try:
-            # 获取用户输入文本用于估算
-            user_input_text = user_prompt  # 使用用户提示词
+            # 1️⃣ 先计算预估成本（不涉及数据库操作）
+            user_input_text = user_prompt
 
-            freeze_info = await balance_checker.check_and_freeze(
-                user_id=current_user.id,
+            calculator = CoinCalculatorService(db)
+            estimated_cost = await calculator.estimate_max_cost(
                 model_id=llm_model.id,
                 input_text=user_input_text,
-                task_id=task_id,
                 estimated_output_tokens=estimated_output_tokens
             )
-            logger.info(f"💰 [DEBUG] 算力预冻结成功: 用户ID={current_user.id}, 金额={freeze_info['frozen_amount']}, 任务ID={task_id}")
-        except BadRequestException as e:
+
+            logger.info(
+                f"💰 [原子冻结] 预估成本: "
+                f"用户ID={current_user.id}, "
+                f"预估金额={estimated_cost}, "
+                f"request_id={request_id}"
+            )
+
+            # 2️⃣ 使用原子化冻结（无锁冲突）
+            freeze_result = await account_service.freeze_amount_atomic(
+                user_id=current_user.id,
+                amount=estimated_cost,  # ✅ 使用预估成本
+                request_id=request_id,
+                model_id=llm_model.id,
+                conversation_id=conversation_id
+            )
+
+            if not freeze_result['success']:
+                if freeze_result.get('insufficient_balance'):
+                    # 余额不足，直接返回错误
+                    logger.warning(f"❌ [原子冻结] 用户余额不足: 用户ID={current_user.id}")
+                    raise BadRequestException(
+                        f"余额不足。预估需要: {estimated_cost:.4f} 火源币，请充值后再试。"
+                    )
+                else:
+                    # 其他错误
+                    logger.error(f"❌ [原子冻结] 冻结失败: 用户ID={current_user.id}")
+                    raise BadRequestException("算力冻结失败，请稍后重试")
+
+            freeze_info = {
+                'task_id': task_id,
+                'request_id': request_id,
+                'freeze_log_id': freeze_result['freeze_log_id'],
+                'frozen_amount': estimated_cost,  # ✅ 保存预估金额
+                'estimated_cost': estimated_cost
+            }
+
+            logger.info(
+                f"✅ [原子冻结] 算力预冻结成功: "
+                f"用户ID={current_user.id}, "
+                f"request_id={request_id}, "
+                f"冻结金额={estimated_cost}, "
+                f"冻结记录ID={freeze_result['freeze_log_id']}"
+            )
+
+        except BadRequestException:
             # 余额不足，直接返回错误
-            logger.warning(f"❌ [DEBUG] 用户余额不足: {str(e)}")
             raise
         except Exception as e:
             # 预冻结失败，记录警告但不阻止请求（降级处理）
@@ -806,8 +850,8 @@ async def generate_chat(
         # 10. 使用 AIService（与 admin/ai 保持一致，避免差异）
         ai_service = AIService(db)
 
-        # 查找模型 ID（使用数据库中的模型 ID）
-        model_id_for_ai = str(llm_model.id)  # 使用数据库 ID 作为模型标识
+        # 查找模型 ID（使用实际的模型标识符，而不是数据库主键）
+        model_id_for_ai = llm_model.model_id  # 使用 model_id 字段（实际的模型标识符）
 
         # 🔍 调试日志: 打印关键信息
         # 计算请求体大小(估算)
@@ -903,44 +947,58 @@ async def generate_chat(
                     logger.info(f"✅ [DEBUG] Stream generation completed. Total chunks: {chunk_count}, Content length: {len(assistant_content)}")
                     yield f"data: {json.dumps({'done': True}, ensure_ascii=False)}\n\n"
 
-                    # 8.6 算力结算（在AI调用后）
-                    if task_id:
-                        logger.info(f"💰 [DEBUG] 开始算力结算流程，task_id={task_id}")
+                    # ========== ✅ 第三阶段：算力结算（极短事务，~10ms） ==========
+                    if task_id and freeze_info.get('request_id'):
+                        logger.info(f"💰 [原子结算] 开始算力结算流程，request_id={freeze_info['request_id']}")
                         try:
                             # 估算实际token使用
                             calculator = CoinCalculatorService(db)
                             input_tokens = calculator.estimate_tokens_from_text(user_prompt)
                             output_tokens = calculator.estimate_tokens_from_text(assistant_content)
 
-                            logger.info(f"💰 [DEBUG] Token估算完成: 输入={input_tokens}, 输出={output_tokens}")
+                            logger.info(f"💰 [原子结算] Token估算完成: 输入={input_tokens}, 输出={output_tokens}")
 
-                            # 计算实际消耗金额（注意参数顺序：input_tokens, output_tokens, model_id）
+                            # 计算实际消耗金额
                             actual_cost = await calculator.calculate_cost(
                                 input_tokens=input_tokens,
                                 output_tokens=output_tokens,
                                 model_id=llm_model.id
                             )
 
-                            logger.info(f"💰 [DEBUG] 成本计算完成: {actual_cost} (类型: {type(actual_cost)})")
+                            logger.info(f"💰 [原子结算] 成本计算完成: {actual_cost}")
 
-                            # 执行结算
-                            await balance_checker.settle(
-                                user_id=current_user.id,
-                                task_id=task_id,
-                                actual_cost=actual_cost,
-                                input_tokens=input_tokens,
-                                output_tokens=output_tokens,
-                                model_id=llm_model.id,
-                                model_name=llm_model.name,
-                                frozen_amount=freeze_info["frozen_amount"],
-                                is_error=False,
-                                error_code=None
-                            )
-                            logger.info(f"💰 [DEBUG] 算力结算成功: 用户ID={current_user.id}, 输入Token={input_tokens}, 输出Token={output_tokens}, 结算金额={actual_cost}")
+                            # ✅ 使用原子化结算（独立事务，无锁冲突）
+                            from db.session import async_session_maker
+                            async with async_session_maker() as settle_db:
+                                settle_account_service = CoinAccountService(settle_db)
+                                settle_result = await settle_account_service.settle_amount_atomic(
+                                    user_id=current_user.id,
+                                    request_id=freeze_info['request_id'],
+                                    actual_cost=actual_cost,
+                                    input_tokens=input_tokens,
+                                    output_tokens=output_tokens,
+                                    model_name=llm_model.name
+                                )
+
+                                if settle_result['success']:
+                                    logger.info(
+                                        f"✅ [原子结算] 算力结算成功: "
+                                        f"用户ID={current_user.id}, "
+                                        f"输入Token={input_tokens}, "
+                                        f"输出Token={output_tokens}, "
+                                        f"结算金额={actual_cost}"
+                                    )
+                                else:
+                                    logger.error(
+                                        f"❌ [原子结算] 算力结算失败: "
+                                        f"用户ID={current_user.id}, "
+                                        f"错误={settle_result.get('message')}"
+                                    )
+
                         except Exception as e:
-                            logger.error(f"❌ [DEBUG] 算力结算失败: {str(e)}")
+                            logger.error(f"❌ [原子结算] 算力结算异常: {str(e)}")
                             import traceback
-                            logger.error(f"❌ [DEBUG] 结算错误详情: {traceback.format_exc()}")
+                            logger.error(f"❌ [原子结算] 结算错误详情: {traceback.format_exc()}")
                             # 结算失败不影响对话，只记录错误
 
                     # 流式完成后，触发后台任务保存
@@ -968,24 +1026,32 @@ async def generate_chat(
                     logger.error(f"  - Temperature: {temperature}, Max Tokens: {max_tokens}")
                     logger.error(f"  - Traceback:\n{traceback.format_exc()}")
 
-                    # 8.7 错误时退款预冻结的算力
-                    if task_id:
+                    # ========== ✅ 错误时退款预冻结的算力（原子化退款） ==========
+                    if task_id and freeze_info.get('request_id'):
                         try:
-                            await balance_checker.settle(
-                                user_id=current_user.id,
-                                task_id=task_id,
-                                actual_cost=0,  # 错误时实际消耗为0
-                                input_tokens=0,
-                                output_tokens=0,
-                                model_id=llm_model.id,
-                                model_name=llm_model.name,
-                                frozen_amount=freeze_info["frozen_amount"],
-                                is_error=True,
-                                error_code="generation_error"
-                            )
-                            logger.info(f"💰 [DEBUG] 错误退款成功: 用户ID={current_user.id}, 任务ID={task_id}")
+                            from db.session import async_session_maker
+                            async with async_session_maker() as refund_db:
+                                refund_account_service = CoinAccountService(refund_db)
+                                refund_result = await refund_account_service.refund_amount_atomic(
+                                    user_id=current_user.id,
+                                    request_id=freeze_info['request_id'],
+                                    reason="AI生成失败"
+                                )
+
+                                if refund_result['success']:
+                                    logger.info(
+                                        f"✅ [原子退款] 错误退款成功: "
+                                        f"用户ID={current_user.id}, request_id={freeze_info['request_id']}"
+                                    )
+                                else:
+                                    logger.error(
+                                        f"❌ [原子退款] 错误退款失败: "
+                                        f"用户ID={current_user.id}, "
+                                        f"错误={refund_result.get('message')}"
+                                    )
+
                         except Exception as refund_error:
-                            logger.error(f"❌ [DEBUG] 错误退款失败: {str(refund_error)}")
+                            logger.error(f"❌ [原子退款] 退款异常: {str(refund_error)}")
 
                     error_msg = f"生成错误: {str(e)}"
                     yield f"data: {json.dumps({'error': error_msg}, ensure_ascii=False)}\n\n"

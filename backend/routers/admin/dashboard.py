@@ -192,14 +192,39 @@ async def clear_abnormal_users(
 ):
     """
     清空所有异常用户记录
-    
+
     注意: 此操作不可逆
     """
     dashboard_service = DashboardService(db)
     result = await dashboard_service.clear_abnormal_records()
-    
+
     if result:
         return success(msg="异常记录已清空")
     else:
         return success(msg="清空失败，Redis 可能不可用", code=500)
+
+
+@router.get("/agent-rank", summary="获取智能体调用排行")
+async def get_agent_rank(
+    limit: int = Query(5, ge=1, le=100, description="返回记录数量"),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    获取智能体调用排行（Top N）
+
+    统计每个智能体的调用次数（基于关联的会话数量），返回最受欢迎的智能体
+
+    返回字段:
+    - id: 智能体 ID
+    - name: 智能体名称
+    - icon: 智能体图标
+    - call_count: 调用次数（会话数量）
+
+    Args:
+        limit: 返回记录数量，默认 5 条，最多 100 条
+    """
+    dashboard_service = DashboardService(db)
+    agent_rank = await dashboard_service.get_agent_rank(limit=limit)
+
+    return success(data=[item.model_dump() for item in agent_rank])
 

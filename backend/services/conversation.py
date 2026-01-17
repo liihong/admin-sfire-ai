@@ -260,11 +260,15 @@ class ConversationService:
     ) -> ConversationMessage:
         """
         添加消息到会话
-        
+
+        优化策略：
+        - 只插入消息，不更新统计（避免锁冲突）
+        - 统计信息通过独立异步任务更新
+
         Args:
             conversation_id: 会话ID
             message_data: 消息数据
-        
+
         Returns:
             ConversationMessage: 创建的消息对象
         """
@@ -274,7 +278,7 @@ class ConversationService:
             sequence = generate_sequence()
         else:
             sequence = message_data.sequence
-        
+
         message = ConversationMessage(
             conversation_id=conversation_id,
             role=message_data.role,
@@ -283,14 +287,17 @@ class ConversationService:
             sequence=sequence,
             embedding_status=EmbeddingStatus.PENDING.value,
         )
-        
+
         self.db.add(message)
         await self.db.flush()
         await self.db.refresh(message)
-        
-        # 更新会话统计
-        await self._update_conversation_stats(conversation_id)
-        
+
+        # ✅ 异步更新统计（独立事务，失败不影响消息保存）
+        import asyncio
+        asyncio.create_task(
+            self._update_conversation_stats_async(conversation_id)
+        )
+
         return message
     
     async def _update_conversation_stats(self, conversation_id: int):
@@ -470,7 +477,11 @@ class ConversationService:
         """
         异步保存对话消息（后台任务）
         注意：此方法在后台任务中调用，需要创建新的数据库会话
-        
+
+        优化策略：
+        - 只插入消息，不更新统计（避免锁冲突）
+        - 统计信息通过独立异步任务更新
+
         Args:
             conversation_id: 会话ID
             user_message: 用户消息内容
@@ -480,16 +491,14 @@ class ConversationService:
         """
         # 在后台任务中创建新的数据库会话
         from db.session import async_session_maker
-        
+
         # 使用重试机制处理锁等待超时
         import asyncio
         from sqlalchemy.exc import OperationalError, DBAPIError
-        from pymysql.err import OperationalError as PyMySQLOperationalError
 
-        max_retries = 5  # 增加重试次数
-        base_delay = 0.3  # 300ms基础延迟
+        max_retries = 3  # 减少重试次数（因为不再有统计更新锁）
+        base_delay = 0.1  # 减少基础延迟（100ms）
 
-        last_error = None
         for attempt in range(max_retries):
             try:
                 async with async_session_maker() as db:
@@ -497,7 +506,7 @@ class ConversationService:
                     from utils.sequence import generate_sequence_pair
                     user_sequence, assistant_sequence = generate_sequence_pair()
 
-                    # 保存用户消息
+                    # ✅ 只插入消息，不更新统计（避免锁冲突）
                     user_msg = ConversationMessage(
                         conversation_id=conversation_id,
                         role="user",
@@ -507,7 +516,6 @@ class ConversationService:
                         embedding_status=EmbeddingStatus.PENDING.value,
                     )
 
-                    # 保存AI回复
                     assistant_msg = ConversationMessage(
                         conversation_id=conversation_id,
                         role="assistant",
@@ -519,38 +527,23 @@ class ConversationService:
 
                     db.add(user_msg)
                     db.add(assistant_msg)
-                    await db.flush()
-                    await db.refresh(user_msg)
-                    await db.refresh(assistant_msg)
 
-                    # ✅ 优化：使用增量更新而不是重新统计（提升性能）
-                    # 使用 skip_locked 避免锁等待，如果锁被占用则跳过（配合重试机制）
-                    conversation_query = select(Conversation).where(
-                        Conversation.id == conversation_id
-                    ).with_for_update(skip_locked=True)
-                    conversation_result = await db.execute(conversation_query)
-                    conversation = conversation_result.scalar_one_or_none()
-
-                    # 如果因为锁冲突没获取到记录，触发重试
-                    if conversation is None:
-                        from sqlalchemy.exc import OperationalError
-                        raise OperationalError("锁冲突，记录被其他事务占用", orig=type('obj', (object,), {'args': [1205]}))
-
-                    # 增量更新统计信息
-                    conversation.message_count += 2  # user + assistant
-                    conversation.total_tokens += user_tokens + assistant_tokens
-
-                    await db.flush()
+                    # ✅ 立即提交，不锁定Conversation表（避免锁冲突）
                     await db.commit()
 
                     logger.info(
-                        f"已保存对话消息: 会话{conversation_id}, "
+                        f"✅ [优化] 已保存对话消息: 会话{conversation_id}, "
                         f"消息{user_msg.id}-{assistant_msg.id}, "
                         f"尝试次数: {attempt + 1}"
                     )
 
-                    # 成功，跳出重试循环
-                    return
+                    # ✅ 异步更新统计（独立事务，失败不影响消息保存）
+                    # 使用 asyncio.create_task 确保不阻塞主流程
+                    asyncio.create_task(
+                        self._update_conversation_stats_async(conversation_id)
+                    )
+
+                    return  # 成功，直接返回
 
             except (OperationalError, DBAPIError) as e:
                 # 检查是否是锁等待超时或死锁错误
@@ -563,11 +556,10 @@ class ConversationService:
                 is_lock_error = error_code in (1205, 1213)
 
                 if is_lock_error and attempt < max_retries - 1:
-                    last_error = e
-                    # 指数退避: 0.3s, 0.6s, 1.2s, 1.8s, 2.4s
+                    # 指数退避: 0.1s, 0.2s, 0.3s
                     delay = base_delay * (attempt + 1)
                     logger.warning(
-                        f"保存对话时遇到锁冲突(尝试 {attempt + 1}/{max_retries}): "
+                        f"⚠️ [优化] 保存对话时遇到间隙锁冲突(尝试 {attempt + 1}/{max_retries}): "
                         f"错误码={error_code}, {delay}秒后重试..."
                     )
                     await asyncio.sleep(delay)
@@ -575,15 +567,83 @@ class ConversationService:
                 else:
                     # 最后一次重试失败或非锁错误，抛出异常
                     logger.error(
-                        f"保存对话失败(尝试 {attempt + 1}/{max_retries}): "
+                        f"❌ [优化] 保存对话失败(尝试 {attempt + 1}/{max_retries}): "
                         f"错误码={error_code}, {str(e)}"
                     )
                     raise
 
             except Exception as e:
                 # 其他异常，直接抛出
-                logger.error(f"保存对话时发生未预期错误: {str(e)}")
+                logger.error(f"❌ [优化] 保存对话时发生未预期错误: {str(e)}")
                 raise
+
+    async def _update_conversation_stats_async(self, conversation_id: int):
+        """
+        异步更新会话统计（独立事务，失败不影响消息保存）
+
+        ✅ 优化：移除 FOR UPDATE，使用原子SQL避免锁冲突
+
+        核心优化：
+        - 使用独立数据库会话，避免与消息插入产生锁冲突
+        - 失败时只记录警告，不影响主流程
+        - 不再使用 with_for_update，避免锁等待
+
+        Args:
+            conversation_id: 会话ID
+        """
+        from db.session import async_session_maker
+        from sqlalchemy import select, func, update
+
+        try:
+            # 使用独立的数据库会话
+            async with async_session_maker() as db:
+                # 查询统计信息（不需要锁）
+                stats_query = select(
+                    func.count(ConversationMessage.id),
+                    func.sum(ConversationMessage.tokens)
+                ).where(ConversationMessage.conversation_id == conversation_id)
+
+                stats_result = await db.execute(stats_query)
+                count, total_tokens = stats_result.one()
+
+                # ✅ 直接使用原子UPDATE，无需先SELECT FOR UPDATE
+                result = await db.execute(
+                    update(Conversation)
+                    .where(Conversation.id == conversation_id)
+                    .values(
+                        message_count=count or 0,
+                        total_tokens=int(total_tokens or 0)
+                    )
+                )
+
+                if result.rowcount > 0:
+                    await db.commit()
+                    logger.debug(
+                        f"✅ [统计] 异步更新会话统计成功: "
+                        f"会话{conversation_id}, 消息数={count}, tokens={total_tokens}"
+                    )
+                else:
+                    # 会话不存在（可能被删除）
+                    logger.debug(
+                        f"⏭️ [统计] 会话{conversation_id}不存在，跳过统计更新"
+                    )
+
+        except Exception as e:
+            # 统计更新失败不影响消息保存，只记录警告
+            from sqlalchemy.exc import OperationalError
+            if isinstance(e, OperationalError) and hasattr(e, 'orig') and hasattr(e.orig, 'args'):
+                error_code = e.orig.args[0] if e.orig.args else None
+                if error_code == 1205:
+                    # 锁等待超时（nowait模式下不会超时，但防御性处理）
+                    logger.debug(
+                        f"⏭️ [统计] 会话{conversation_id}统计更新跳过（记录被锁定）"
+                    )
+                    return
+
+            logger.warning(
+                f"⚠️ [统计] 异步更新会话统计失败（可忽略）: "
+                f"会话{conversation_id}, 错误: {e}"
+            )
     
     async def embed_conversation_async(
         self,
