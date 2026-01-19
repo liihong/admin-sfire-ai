@@ -72,3 +72,5 @@ export const cardLeaveAnimation = (card: HTMLElement) => {
 
 
 
+
+

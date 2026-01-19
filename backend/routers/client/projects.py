@@ -9,7 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from db import get_db
 from models.user import User
-from core.deps import get_current_miniprogram_user
+from core.deps import get_current_miniprogram_user, get_current_miniprogram_user_optional
 from services.project import ProjectService
 from services.dictionary import DictionaryService
 from schemas.project import (
@@ -72,15 +72,28 @@ def _build_frontend_project(project_dict: dict) -> dict:
 
 @router.get("")
 async def list_projects(
-    current_user: User = Depends(get_current_miniprogram_user),
+    current_user: Optional[User] = Depends(get_current_miniprogram_user_optional),
     db: AsyncSession = Depends(get_db)
 ):
-    """获取当前用户的所有项目列表，按最后修改时间倒序排列"""
+    """获取当前用户的所有项目列表，按最后修改时间倒序排列（支持游客模式）"""
     project_service = ProjectService(db)
-    
+
+    # 游客模式：返回空列表
+    if current_user is None:
+        return success(
+            data={
+                "success": True,
+                "projects": [],
+                "active_project_id": None,
+                "is_guest": True
+            },
+            msg="获取成功（游客模式）"
+        )
+
+    # 已登录用户：获取项目列表
     projects = await project_service.get_projects_by_user(current_user.id)
     active_project_id = await project_service.get_active_project(current_user.id)
-    
+
     # 转换为响应格式（扁平化人设字段）
     project_list = []
     for project in projects:
@@ -89,12 +102,13 @@ async def list_projects(
         project_dict = project_response.model_dump()
         frontend_project = _build_frontend_project(project_dict)
         project_list.append(frontend_project)
-    
+
     return success(
         data={
             "success": True,
             "projects": project_list,
-            "active_project_id": str(active_project_id) if active_project_id else None
+            "active_project_id": str(active_project_id) if active_project_id else None,
+            "is_guest": False
         },
         msg="获取成功"
     )

@@ -1,7 +1,7 @@
 import { defineStore } from "pinia";
 import { UserState, UserInfo, UserLevelConfig } from "@/stores/interface";
 import piniaPersistConfig from "@/stores/helper/persist";
-import { loginApi } from "@/api/modules/login";
+import { loginApi, refreshTokenApi } from "@/api/modules/login";
 import { Login } from "@/api/interface";
 import { ElMessage } from "element-plus";
 
@@ -21,6 +21,8 @@ export const useUserStore = defineStore({
   id: "sfire-user",
   state: (): UserState => ({
     token: "",
+    refreshToken: "",
+    tokenExpiresAt: 0,
     userInfo: { ...defaultUserInfo },
     roles: []
   }),
@@ -51,9 +53,32 @@ export const useUserStore = defineStore({
     }
   },
   actions: {
-    // 设置 Token
-    setToken(token: string) {
+    // 设置 Token（包含过期时间）
+    setToken(token: string, expiresIn: number) {
       this.token = token;
+      this.tokenExpiresAt = Date.now() + expiresIn * 1000;
+    },
+    // 设置 RefreshToken
+    setRefreshToken(refreshToken: string) {
+      this.refreshToken = refreshToken;
+    },
+    // 检查token是否即将过期（提前5分钟刷新）
+    isTokenExpiringSoon(): boolean {
+      if (!this.token || !this.tokenExpiresAt) return false;
+      // 提前5分钟刷新
+      return this.tokenExpiresAt - Date.now() < 5 * 60 * 1000;
+    },
+    // 刷新token
+    async refreshToken(): Promise<boolean> {
+      try {
+        const { data } = await refreshTokenApi(this.refreshToken);
+        this.setToken(data.access_token || data.token, data.expires_in);
+        this.setRefreshToken(data.refresh_token);
+        return true;
+      } catch (error) {
+        console.error("Token刷新失败:", error);
+        return false;
+      }
     },
     // 设置用户信息
     setUserInfo(userInfo: Partial<UserInfo>) {
@@ -79,11 +104,12 @@ export const useUserStore = defineStore({
         // 调用登录接口
         const { data } = await loginApi(loginForm);
 
-        // 保存 Token
-        // 后端返回格式: { code: 200, data: { access_token: "..." }, msg: "..." }
+        // 保存 Token 和 RefreshToken
+        // 后端返回格式: { code: 200, data: { access_token: "...", refresh_token: "...", expires_in: 1800 }, msg: "..." }
         // axios 拦截器已经提取了 data，所以这里直接使用
         if (data?.access_token) {
-          this.setToken(data.access_token);
+          this.setToken(data.access_token, data.expires_in);
+          this.setRefreshToken(data.refresh_token);
           // TODO: 如果后端返回用户信息，可以在这里设置
           // this.setUserInfo({ ... });
           return true;
@@ -100,6 +126,8 @@ export const useUserStore = defineStore({
     // 重置用户状态（退出登录）
     resetUser() {
       this.token = "";
+      this.refreshToken = "";
+      this.tokenExpiresAt = 0;
       this.userInfo = { ...defaultUserInfo };
       this.roles = [];
     }

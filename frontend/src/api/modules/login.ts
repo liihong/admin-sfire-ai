@@ -25,3 +25,8 @@ export const getAuthButtonListApi = () => {
 export const logoutApi = () => {
   return http.post(PORT1 + `/auth/logout`);
 };
+
+// 刷新Token
+export const refreshTokenApi = (refreshToken: string) => {
+  return http.post<Login.ResRefreshToken>(PORT1 + `/auth/refresh`, { refresh_token: refreshToken }, { loading: false });
+};

@@ -41,3 +41,5 @@ def generate_sequence_pair() -> tuple[int, int]:
     return base_sequence, base_sequence + 1
 
 
+
+

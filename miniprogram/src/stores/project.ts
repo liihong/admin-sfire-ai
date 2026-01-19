@@ -197,6 +197,14 @@ export const useProjectStore = defineStore('project', () => {
   }
 
   /**
+   * 清除激活项目（清空激活状态和本地存储）
+   */
+  function clearActiveProject() {
+    activeProject.value = null
+    clearActiveProjectIdFromStorage()
+  }
+
+  /**
    * 清除所有项目数据（清空内存状态和本地存储）
    */
   function clearProjects() {
@@ -271,6 +279,7 @@ export const useProjectStore = defineStore('project', () => {
     upsertProject,
     removeProject,
     setActiveProjectLocal,
+    clearActiveProject,
     clearProjects,
     setLoading,
     getPersonaSystemPrompt

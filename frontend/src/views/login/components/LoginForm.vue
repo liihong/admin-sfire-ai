@@ -70,16 +70,19 @@ const login = (formEl: FormInstance | undefined) => {
     try {
       // 1.执行登录接口（直接发送原始密码，后端使用 bcrypt 验证）
       const { data } = await loginApi(loginForm);
-      userStore.setToken(data.access_token);
 
-      // 2.添加动态路由
+      // 2.保存Token和RefreshToken
+      userStore.setToken(data.access_token, data.expires_in);
+      userStore.setRefreshToken(data.refresh_token);
+
+      // 3.添加动态路由
       await initDynamicRouter();
 
-      // 3.清空 tabs、keepAlive 数据
+      // 4.清空 tabs、keepAlive 数据
       tabsStore.setTabs([]);
       keepAliveStore.setKeepAliveName([]);
 
-      // 4.跳转到首页
+      // 5.跳转到首页
       router.push(HOME_URL);
       // ElNotification({
       //   title: getTimeState(),
@@ -87,7 +90,7 @@ const login = (formEl: FormInstance | undefined) => {
       //   type: "success",
       //   duration: 3000
       // });
-      
+
     } finally {
       loading.value = false;
     }

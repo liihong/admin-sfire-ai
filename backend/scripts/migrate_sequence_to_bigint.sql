@@ -19,3 +19,5 @@ MODIFY COLUMN `sequence` BIGINT NOT NULL COMMENT '消息序号（用于排序，
 -- 应该返回: bigint(20)
 
 
+
+

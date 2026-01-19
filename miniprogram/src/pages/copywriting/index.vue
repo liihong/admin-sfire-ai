@@ -139,6 +139,7 @@
       <text class="fab-icon">{{ currentAgent?.icon || '🤖' }}</text>
     </view>
 
+
     <!-- 底部输入栏 -->
     <view class="input-bar">
       <view class="input-container">
@@ -173,6 +174,12 @@
         </view>
       </view>
     </view>
+
+    <!-- AI 生成提示 -->
+    <view class="ai-disclaimer">
+      <text class="disclaimer-text">本内容由 AI 生成，不代表开发者立场。</text>
+    </view>
+
 
     <!-- 智能体选择弹窗 -->
     <view class="agent-modal" v-if="showAgentModal" @tap="showAgentModal = false">
@@ -246,6 +253,7 @@ import { useAuthStore } from '@/stores/auth'
 import { useProjectStore } from '@/stores/project'
 import { chat, type ChatResponseData } from '@/api/generate'
 import { getAgentList } from '@/api/agent'
+import { msgSecCheck } from '@/utils/security'
 
 // ============== Store ==============
 const settingsStore = useSettingsStore()
@@ -533,6 +541,21 @@ async function sendMessage() {
   if (!loggedIn) return
 
   const userMessage = inputText.value.trim()
+
+  // 内容安全检测
+  const securityCheck = await msgSecCheck(userMessage, {
+    showLoading: false
+  })
+
+  if (!securityCheck.pass) {
+    uni.showToast({
+      title: securityCheck.message || '内容包含违规信息，请修改后重试',
+      icon: 'none',
+      duration: 2500
+    })
+    return
+  }
+
   inputText.value = ''
 
   // 添加用户消息
@@ -1134,12 +1157,24 @@ $border-light: rgba(0, 0, 0, 0.06);
   50% { transform: translateY(-8rpx); }
 }
 
+// ============== AI 生成提示 ==============
+.ai-disclaimer {
+  padding: 16rpx 24rpx;
+  text-align: center;
+  background: rgba(255, 255, 255, 0.95);
+  padding-bottom: calc(env(safe-area-inset-bottom));
+
+  .disclaimer-text {
+    font-size: 22rpx;
+    color: #999;
+    line-height: 1.5;
+  }
+}
 // ============== 底部输入栏 ==============
 .input-bar {
   background: rgba(255, 255, 255, 0.95);
   backdrop-filter: blur(20px);
   padding: 20rpx 24rpx;
-  padding-bottom: calc(20rpx + env(safe-area-inset-bottom));
   border-top: 1rpx solid $border-light;
   box-shadow: 0 -4rpx 24rpx rgba(0, 0, 0, 0.05);
 

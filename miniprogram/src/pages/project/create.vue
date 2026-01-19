@@ -294,7 +294,7 @@ const formData = reactive({
 
 // 头像相关
 const avatarUrl = ref('')
-const avatarColor = ref('#3B82F6')
+const avatarColor = ref('#FF8800')
 
 // 关键词输入
 const keywordsInput = ref('')

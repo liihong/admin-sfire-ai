@@ -211,7 +211,7 @@ const handleGetPhoneNumber = async (e: any) => {
         } else {
           // 老用户，直接跳转到IP工作台
           uni.switchTab({
-            url: '/pages/project/list'
+            url: '/pages/project/index'
           })
         }
       }, 1500)
@@ -322,16 +322,21 @@ const handleSkipLogin = () => {
 </script>
 
 <style lang="scss" scoped>
+// CSS变量 - 品牌色（与 ProjectDashboard 保持一致）
+$brand-orange: #FF8800;
+$brand-orange-alt: #F37021;
+$brand-orange-light: rgba(255, 136, 0, 0.1);
+$bg-light: #F5F7FA;
 .login-container {
   min-height: 100vh;
-  background: linear-gradient(180deg, #667eea 0%, #764ba2 50%, #f5f7fa 100%);
+  background: linear-gradient(180deg, $brand-orange 0%, $brand-orange-alt 50%, $bg-light 100%);
   display: flex;
   flex-direction: column;
   position: relative;
   overflow: hidden;
 }
 
-/* 背景装饰 */
+/* 背景装饰（与 ProjectDashboard 风格一致） */
 .bg-decoration {
   position: absolute;
   top: 0;
@@ -344,12 +349,12 @@ const handleSkipLogin = () => {
   .circle {
     position: absolute;
     border-radius: 50%;
-    background: rgba(255, 255, 255, 0.1);
   }
   
   .circle-1 {
     width: 400rpx;
     height: 400rpx;
+    background: radial-gradient(circle, rgba(255, 255, 255, 0.15) 0%, transparent 70%);
     top: -100rpx;
     right: -100rpx;
   }
@@ -357,6 +362,7 @@ const handleSkipLogin = () => {
   .circle-2 {
     width: 300rpx;
     height: 300rpx;
+    background: radial-gradient(circle, rgba(255, 255, 255, 0.12) 0%, transparent 70%);
     top: 200rpx;
     left: -150rpx;
   }
@@ -364,6 +370,7 @@ const handleSkipLogin = () => {
   .circle-3 {
     width: 200rpx;
     height: 200rpx;
+    background: radial-gradient(circle, rgba(255, 255, 255, 0.1) 0%, transparent 70%);
     bottom: 400rpx;
     right: -50rpx;
   }
@@ -447,7 +454,7 @@ const handleSkipLogin = () => {
 .login-btn {
   width: 100%;
   height: 100rpx;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(135deg, $brand-orange 0%, $brand-orange-alt 100%);
   border-radius: 50rpx;
   display: flex;
   align-items: center;
@@ -455,7 +462,7 @@ const handleSkipLogin = () => {
   border: none;
   padding: 0;
   margin: 0;
-  box-shadow: 0 8rpx 32rpx rgba(102, 126, 234, 0.4);
+  box-shadow: 0 8rpx 32rpx rgba(255, 136, 0, 0.4);
   transition: all 0.3s ease;
   
   &::after {
@@ -567,8 +574,8 @@ const handleSkipLogin = () => {
     margin-top: 4rpx;
     
     &.checked {
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-      border-color: #667eea;
+      background: linear-gradient(135deg, $brand-orange 0%, $brand-orange-alt 100%);
+        border-color: $brand-orange;
     }
     
     .check-icon {
@@ -590,7 +597,7 @@ const handleSkipLogin = () => {
   }
   
   .link-text {
-    color: #667eea;
+    color: $brand-orange;
     font-weight: 500;
   }
 }

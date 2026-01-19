@@ -26,6 +26,21 @@ const config = {
 
 const axiosCanceler = new AxiosCanceler();
 
+// Token刷新相关变量
+let isRefreshing = false;
+let refreshSubscribers: ((token: string) => void)[] = [];
+
+// 订阅token刷新完成
+function subscribeTokenRefresh(cb: (token: string) => void) {
+  refreshSubscribers.push(cb);
+}
+
+// 通知所有订阅者token已刷新
+function onTokenRefreshed(token: string) {
+  refreshSubscribers.forEach(cb => cb(token));
+  refreshSubscribers = [];
+}
+
 class RequestHttp {
   service: AxiosInstance;
   public constructor(config: AxiosRequestConfig) {
@@ -38,9 +53,48 @@ class RequestHttp {
      * token校验(JWT) : 接受服务器返回的 token,存储到 vuex/pinia/本地储存当中
      */
     this.service.interceptors.request.use(
-      (config: CustomAxiosRequestConfig) => {
+      async (config: CustomAxiosRequestConfig) => {
         const userStore = useUserStore();
         const mpUserStore = useMPUserStore();
+
+        // 判断是Admin还是Client请求
+        const isClientRequest = config.url && config.url.includes("/v1/client");
+        const store = isClientRequest ? mpUserStore : userStore;
+
+        // Token自动刷新逻辑
+        if (store && store.isTokenExpiringSoon && store.isTokenExpiringSoon() && store.refreshToken) {
+          if (!isRefreshing) {
+            isRefreshing = true;
+            try {
+              const success = await store.refreshToken();
+              if (!success) {
+                // 刷新失败，清除token并跳转登录
+                store.resetUser();
+                router.replace(isClientRequest ? MP_LOGIN_URL : LOGIN_URL);
+                return Promise.reject("Token刷新失败");
+              }
+            } catch (error) {
+              // 刷新异常，清除token并跳转登录
+              store.resetUser();
+              router.replace(isClientRequest ? MP_LOGIN_URL : LOGIN_URL);
+              return Promise.reject("Token刷新异常");
+            } finally {
+              isRefreshing = false;
+              // 通知所有订阅者token已刷新
+              onTokenRefreshed(store.token);
+            }
+          } else {
+            // 如果正在刷新，等待刷新完成
+            return new Promise(resolve => {
+              subscribeTokenRefresh(token => {
+                if (config.headers) {
+                  config.headers.Authorization = `Bearer ${token}`;
+                }
+                resolve(config);
+              });
+            });
+          }
+        }
 
         // 重复请求不需要取消，在 api 服务中通过指定的第三个参数: { cancel: false } 来控制
         if (config.cancel === undefined) config.cancel = true;
@@ -97,7 +151,7 @@ class RequestHttp {
             router.replace(MP_LOGIN_URL);
           } else {
           // Admin 用户 token 失效
-            userStore.setToken("");
+            userStore.resetUser();
             router.replace(LOGIN_URL);
           }
           ElMessage.error(data.msg);

@@ -20,6 +20,7 @@ from .conversation import (
     EmbeddingStatus,
 )
 from .dictionary import Dictionary, DictionaryItem
+from .skill_library import SkillLibrary
 
 __all__ = [
     "BaseModel",
@@ -45,4 +46,5 @@ __all__ = [
     "EmbeddingStatus",
     "Dictionary",
     "DictionaryItem",
+    "SkillLibrary",
 ]

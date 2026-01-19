@@ -53,6 +53,14 @@
       }
     },
     {
+      "path": "pages/project/index",
+      "style": {
+        "navigationBarTitleText": "IP操作台",
+        "navigationStyle": "custom",
+        "disableScroll": true
+      }
+    },
+    {
       "path": "pages/project/list",
       "style": {
         "navigationBarTitleText": "选择项目",
@@ -103,7 +111,7 @@
         "selectedIconPath": "static/tab/home-active.png"
       },
       {
-        "pagePath": "pages/project/list",
+        "pagePath": "pages/project/index",
         "text": "IP操作台",
         "iconPath": "static/tab/sfire.png",
         "selectedIconPath": "static/tab/sfire-active.png"

@@ -42,6 +42,8 @@ export interface MPUserDetailState {
  */
 interface MPUserState {
   token: string;
+  refreshToken: string;
+  tokenExpiresAt: number; // token过期时间戳（毫秒）
   userInfo: MPUserInfoState;
   userDetail: MPUserDetailState | null;
 }
@@ -72,6 +74,8 @@ export const useMPUserStore = defineStore({
   id: "sfire-mp-user",
   state: (): MPUserState => ({
     token: "",
+    refreshToken: "",
+    tokenExpiresAt: 0,
     userInfo: { ...defaultUserInfo },
     userDetail: null
   }),
@@ -90,9 +94,33 @@ export const useMPUserStore = defineStore({
     }
   },
   actions: {
-    // 设置 Token
-    setToken(token: string) {
+    // 设置 Token（包含过期时间）
+    setToken(token: string, expiresIn: number) {
       this.token = token;
+      this.tokenExpiresAt = Date.now() + expiresIn * 1000;
+    },
+    // 设置 RefreshToken
+    setRefreshToken(refreshToken: string) {
+      this.refreshToken = refreshToken;
+    },
+    // 检查token是否即将过期（提前5分钟刷新）
+    isTokenExpiringSoon(): boolean {
+      if (!this.token || !this.tokenExpiresAt) return false;
+      // 提前5分钟刷新
+      return this.tokenExpiresAt - Date.now() < 5 * 60 * 1000;
+    },
+    // 刷新token
+    async refreshToken(): Promise<boolean> {
+      try {
+        const { refreshClientTokenApi } = await import("@/api/modules/miniprogram");
+        const { data } = await refreshClientTokenApi(this.refreshToken);
+        this.setToken(data.token, data.expiresIn);
+        this.setRefreshToken(data.refreshToken);
+        return true;
+      } catch (error) {
+        console.error("Token刷新失败:", error);
+        return false;
+      }
     },
     // 设置用户信息
     setUserInfo(userInfo: Partial<MPUserInfoState>) {
@@ -110,7 +138,8 @@ export const useMPUserStore = defineStore({
       try {
         const { data } = await wechatLoginApi(params);
         if (data?.token && data?.userInfo) {
-          this.setToken(data.token);
+          this.setToken(data.token, data.expiresIn);
+          this.setRefreshToken(data.refreshToken);
           this.setUserInfo(data.userInfo);
           // 登录成功后获取详细信息
           await this.fetchUserDetail();
@@ -173,9 +202,11 @@ export const useMPUserStore = defineStore({
         return false;
       }
     },
-    // 重置用户状态（退出登录）
+    // 重置用��状态（退出登录）
     resetUser() {
       this.token = "";
+      this.refreshToken = "";
+      this.tokenExpiresAt = 0;
       this.userInfo = { ...defaultUserInfo };
       this.userDetail = null;
     },
@@ -191,7 +222,8 @@ export const useMPUserStore = defineStore({
         });
 
         if (data?.token && data?.userInfo) {
-          this.setToken(data.token);
+          this.setToken(data.token, data.expiresIn);
+          this.setRefreshToken(data.refreshToken);
           this.setUserInfo(data.userInfo);
           // 登录成功后获取详细信息
           await this.fetchUserDetail();

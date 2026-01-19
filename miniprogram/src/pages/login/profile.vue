@@ -318,10 +318,18 @@ function fileToBase64(filePath: string): Promise<string> {
 </script>
 
 <style lang="scss" scoped>
+// CSS变量 - 品牌色（与 ProjectDashboard 保持一致）
+$brand-orange: #FF8800;
+$brand-orange-alt: #F37021;
+$brand-orange-light: rgba(255, 136, 0, 0.1);
+$bg-light: #F5F7FA;
+
 .profile-container {
   min-height: 100vh;
-  background: #f5f7fa;
+  background: $bg-light;
   padding-bottom: 60rpx;
+  position: relative;
+  overflow: hidden;
 }
 
 /* 顶部背景 */
@@ -331,18 +339,18 @@ function fileToBase64(filePath: string): Promise<string> {
   left: 0;
   right: 0;
   height: 400rpx;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(135deg, $brand-orange 0%, $brand-orange-alt 100%);
   overflow: hidden;
   
   .bg-circle {
     position: absolute;
     border-radius: 50%;
-    background: rgba(255, 255, 255, 0.1);
   }
   
   .circle-1 {
     width: 300rpx;
     height: 300rpx;
+    background: radial-gradient(circle, rgba(255, 255, 255, 0.15) 0%, transparent 70%);
     top: -100rpx;
     right: -50rpx;
   }
@@ -350,6 +358,7 @@ function fileToBase64(filePath: string): Promise<string> {
   .circle-2 {
     width: 200rpx;
     height: 200rpx;
+    background: radial-gradient(circle, rgba(255, 255, 255, 0.12) 0%, transparent 70%);
     top: 150rpx;
     left: -100rpx;
   }
@@ -429,7 +438,7 @@ function fileToBase64(filePath: string): Promise<string> {
   position: relative;
   border-radius: 50%;
   overflow: hidden;
-  box-shadow: 0 8rpx 32rpx rgba(102, 126, 234, 0.25);
+  box-shadow: 0 8rpx 32rpx rgba(255, 136, 0, 0.25);
   
   &::after {
     border: none;
@@ -475,7 +484,7 @@ function fileToBase64(filePath: string): Promise<string> {
   transition: all 0.3s ease;
   
   &:focus-within {
-    border-color: #667eea;
+    border-color: $brand-orange;
     background: #ffffff;
   }
 }
@@ -515,11 +524,11 @@ function fileToBase64(filePath: string): Promise<string> {
   transition: all 0.3s ease;
   
   &.active {
-    background: linear-gradient(135deg, rgba(102, 126, 234, 0.1) 0%, rgba(118, 75, 162, 0.1) 100%);
-    border-color: #667eea;
+    background: linear-gradient(135deg, rgba(255, 136, 0, 0.1) 0%, rgba(255, 136, 0, 0.15) 100%);
+    border-color: $brand-orange;
     
     .gender-text {
-      color: #667eea;
+      color: $brand-orange;
       font-weight: 600;
     }
   }
@@ -542,13 +551,13 @@ function fileToBase64(filePath: string): Promise<string> {
 .submit-btn {
   width: 100%;
   height: 100rpx;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(135deg, $brand-orange 0%, $brand-orange-alt 100%);
   border-radius: 50rpx;
   display: flex;
   align-items: center;
   justify-content: center;
   border: none;
-  box-shadow: 0 8rpx 32rpx rgba(102, 126, 234, 0.4);
+  box-shadow: 0 8rpx 32rpx rgba(255, 136, 0, 0.4);
   
   &::after {
     border: none;

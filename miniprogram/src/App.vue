@@ -18,6 +18,9 @@ const TABBAR_PAGES = [
   '/pages/mine/index'
 ]
 
+// 记录用户已选择继续浏览的 URL（避免重复弹窗）
+const allowedVisitorUrls = new Set<string>()
+
 /**
  * 检查路径是否在白名单中
  */
@@ -40,6 +43,7 @@ function isTabbarPage(url: string): boolean {
  * @param callback 用户选择后的回调函数
  */
 function showMemberTip(callback: (goToLogin: boolean) => void) {
+  console.log('会员提示')
   uni.showModal({
     title: '提示',
     content: '您当前为游客模式，部分功能受限。开通会员后可体验全部功能，是否前往登录？',
@@ -67,6 +71,7 @@ function showMemberTip(callback: (goToLogin: boolean) => void) {
 function handleRouteIntercept(args: { url: string }, interceptorType: string): boolean {
   const authStore = useAuthStore()
   const url = args.url
+  const path = url.split('?')[0] // 获取路径部分，忽略参数
   
   console.log('[Router] Intercepting:', url)
   
@@ -78,10 +83,15 @@ function handleRouteIntercept(args: { url: string }, interceptorType: string): b
   
   // 检查是否有 Token
   if (!authStore.hasToken) {
+    // 如果用户已经选择继续浏览过这个页面，直接放行
+    if (allowedVisitorUrls.has(path)) {
+      console.log('[Router] User already chose to continue browsing this page, allow')
+      return true
+    }
+
     console.log('[Router] No token, visitor mode')
     
-    // 游客模式：显示提示，不强制跳转
-    // 使用 setTimeout 延迟执行，避免拦截器冲突
+    // 游客模式：先阻止路由跳转，显示提示弹窗
     setTimeout(() => {
       showMemberTip((goToLogin) => {
         if (goToLogin) {
@@ -90,14 +100,26 @@ function handleRouteIntercept(args: { url: string }, interceptorType: string): b
             url: '/pages/login/index'
           })
         } else {
-          // 用户选择继续浏览，允许访问（功能可能受限）
-          console.log('[Router] User continues as visitor')
+          // 用户选择继续浏览，记录允许的 URL，然后手动执行路由跳转
+          allowedVisitorUrls.add(path)
+          console.log('[Router] User continues as visitor, navigating to:', url)
+
+          // 使用 nextTick 确保拦截器状态更新后再执行跳转
+          setTimeout(() => {
+            if (interceptorType === 'navigateTo') {
+              uni.navigateTo({ url })
+            } else if (interceptorType === 'redirectTo') {
+              uni.redirectTo({ url })
+            } else if (interceptorType === 'reLaunch') {
+              uni.reLaunch({ url })
+            }
+          }, 100)
         }
       })
     }, 0)
     
-    // 允许继续访问（游客模式）
-    return true
+    // 先阻止路由跳转，等待用户选择
+    return false
   }
   
   // 有 Token，放行
@@ -144,14 +166,21 @@ function setupRouteInterceptors() {
   uni.addInterceptor('switchTab', {
     invoke(args: { url: string }) {
       const authStore = useAuthStore()
+      const path = args.url.split('?')[0] // 获取路径部分，忽略参数
       
       console.log('[Router] switchTab intercepting:', args.url)
       
       // 检查是否有 Token
       if (!authStore.hasToken) {
+        // 如果用户已经选择继续浏览过这个页面，直接放行
+        if (allowedVisitorUrls.has(path)) {
+          console.log('[Router] User already chose to continue browsing this tab, allow')
+          return true
+        }
+
         console.log('[Router] No token, visitor mode')
         
-        // 游客模式：显示提示，不强制跳转
+        // 游客模式：先阻止路由跳转，显示提示弹窗
         setTimeout(() => {
           showMemberTip((goToLogin) => {
             if (goToLogin) {
@@ -160,14 +189,20 @@ function setupRouteInterceptors() {
                 url: '/pages/login/index'
               })
             } else {
-              // 用户选择继续浏览，允许访问
-              console.log('[Router] User continues as visitor')
+              // 用户选择继续浏览，记录允许的 URL，然后手动执行 tabbar 跳转
+              allowedVisitorUrls.add(path)
+              console.log('[Router] User continues as visitor, switching to tab:', args.url)
+
+              // 使用 nextTick 确保拦截器状态更新后再执行跳转
+              setTimeout(() => {
+                uni.switchTab({ url: args.url })
+              }, 100)
             }
           })
         }, 0)
         
-        // 允许继续访问（游客模式）
-        return true
+        // 先阻止路由跳转，等待用户选择
+        return false
       }
       
       return true

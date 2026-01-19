@@ -31,6 +31,8 @@ export interface AccountLoginRequest {
 export interface WechatLoginResponse {
   success: boolean;
   token: string;
+  refreshToken: string;
+  expiresIn: number;
   userInfo: {
     openid: string;
     nickname: string;
@@ -57,6 +59,19 @@ export const wechatLoginApi = (params: WechatLoginRequest) => {
  */
 export const accountLoginApi = (params: AccountLoginRequest) => {
   return http.post<WechatLoginResponse>(MP_API_PREFIX + `/auth/account/login`, params, { loading: false });
+};
+
+/**
+ * 刷新Token
+ */
+export interface RefreshTokenResponse {
+  token: string;
+  refreshToken: string;
+  expiresIn: number;
+}
+
+export const refreshClientTokenApi = (refreshToken: string) => {
+  return http.post<RefreshTokenResponse>(MP_API_PREFIX + `/auth/refresh`, { refreshToken }, { loading: false });
 };
 
 /**

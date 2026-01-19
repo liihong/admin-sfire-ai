@@ -5,7 +5,7 @@ C端路由聚合（小程序 & PC官网）
 """
 from fastapi import APIRouter
 
-from . import auth, creation, projects, tikhub, web_auth, conversations, coin
+from . import auth, creation, projects, tikhub, web_auth, conversations, coin, security
 
 # 创建C端路由聚合器
 client_router = APIRouter()
@@ -31,3 +31,6 @@ client_router.include_router(conversations.router, prefix="", tags=["C端-对话
 
 # 算力管理模块
 client_router.include_router(coin.router, prefix="", tags=["C端-算力管理"])
+
+# 安全检测模块：内容安全检测等
+client_router.include_router(security.router, prefix="/security", tags=["C端-安全检测"])

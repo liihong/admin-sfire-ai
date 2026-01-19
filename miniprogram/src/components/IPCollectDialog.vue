@@ -89,6 +89,7 @@
 
 <script setup lang="ts">
 import { ref, watch, nextTick } from 'vue'
+import { msgSecCheck } from '@/utils/security'
 
 interface Message {
   role: 'user' | 'assistant'
@@ -165,6 +166,22 @@ function scrollToBottom() {
 async function sendMessage(input: string, isInit = false) {
   if (!isInit && !input.trim()) return
   
+  // 内容安全检测（仅对用户输入进行检测）
+  if (!isInit) {
+    const securityCheck = await msgSecCheck(input, {
+      showLoading: false
+    })
+
+    if (!securityCheck.pass) {
+      uni.showToast({
+        title: securityCheck.message || '内容包含违规信息，请修改后重试',
+        icon: 'none',
+        duration: 2500
+      })
+      return
+    }
+  }
+
   // 添加用户消息
   if (!isInit) {
     addMessage('user', input)
@@ -525,6 +542,8 @@ function handleClose() {
   }
 }
 </style>
+
+
 
 
 

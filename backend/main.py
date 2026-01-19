@@ -8,7 +8,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 
 from core.config import settings
-from routers import client_router, admin_router
+from routers import client_router, admin_router, admin_v2_router, client_v2_router
 from utils.exceptions import register_exception_handlers
 from db.session import init_db, close_db
 from db.redis import init_redis, close_redis
@@ -108,6 +108,9 @@ def create_app() -> FastAPI:
     app.include_router(client_router, prefix="/api/v1/client", tags=["C端接口"])
     # B端接口（管理后台）：包括管理员认证、用户管理、系统配置等功能
     app.include_router(admin_router, prefix="/api/v1/admin", tags=["B端接口"])
+    # v2版本接口：技能组装模式
+    app.include_router(admin_v2_router, prefix="/api/v1/admin", tags=["B端接口（v2-技能组装）"])
+    app.include_router(client_v2_router, prefix="/api/v1/client", tags=["C端接口（v2-执行）"])
 
     return app
 

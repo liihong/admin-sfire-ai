@@ -1,5 +1,11 @@
 <template>
   <view class="container">
+    <!-- 背景装饰 -->
+    <view class="bg-decoration">
+      <view class="deco-circle c1"></view>
+      <view class="deco-circle c2"></view>
+    </view>
+
     <!-- 顶部标题栏 -->
     <!-- <view class="header">
       <text class="header-title">火源文案智能体</text>
@@ -71,8 +77,8 @@
     </view> -->
 
     <!-- 数字人分类区 -->
-    <!-- <view class="category-section"> -->
-    <!-- <view class="category-tabs">
+    <!-- <view class="category-section">
+      <view class="category-tabs">
         <view 
           class="category-tab" 
           v-for="(cat, index) in categories" 
@@ -82,10 +88,10 @@
         >
           <text class="tab-text">{{ cat }}</text>
         </view>
-      </view> -->
+      </view>
 
-      <!-- 数字人列表 -->
-    <!-- <view class="avatar-grid">
+     
+      <view class="avatar-grid">
         <view 
           class="avatar-card" 
           v-for="(avatar, index) in avatarList" 
@@ -130,16 +136,16 @@ const loadAgentList = async () => {
       const agents = response.data.agents
       const maxDisplay = 7 // 最多显示7个
 
-      // 生成背景色数组（循环使用）
+      // 生成背景色数组（循环使用，统一为橙色系）
       const bgColors = [
-        'linear-gradient(135deg, #e0f4ff 0%, #c7ecff 100%)',
-        'linear-gradient(135deg, #e8ffe8 0%, #c1ffc1 100%)',
-        'linear-gradient(135deg, #fff4e0 0%, #ffe4b5 100%)',
-        'linear-gradient(135deg, #f0e0ff 0%, #e0c0ff 100%)',
-        'linear-gradient(135deg, #e0f0ff 0%, #b0d8ff 100%)',
-        'linear-gradient(135deg, #ffe0e8 0%, #ffb0c8 100%)',
-        'linear-gradient(135deg, #fff0e0 0%, #ffd8a0 100%)',
-        'linear-gradient(135deg, #e8e8ff 0%, #d0d0ff 100%)'
+        'linear-gradient(135deg, rgba(255, 136, 0, 0.15) 0%, rgba(255, 184, 77, 0.2) 100%)',
+        'linear-gradient(135deg, rgba(255, 136, 0, 0.12) 0%, rgba(255, 184, 77, 0.18) 100%)',
+        'linear-gradient(135deg, rgba(255, 136, 0, 0.18) 0%, rgba(255, 184, 77, 0.22) 100%)',
+        'linear-gradient(135deg, rgba(255, 136, 0, 0.14) 0%, rgba(255, 184, 77, 0.19) 100%)',
+        'linear-gradient(135deg, rgba(255, 136, 0, 0.16) 0%, rgba(255, 184, 77, 0.21) 100%)',
+        'linear-gradient(135deg, rgba(255, 136, 0, 0.13) 0%, rgba(255, 184, 77, 0.17) 100%)',
+        'linear-gradient(135deg, rgba(255, 136, 0, 0.17) 0%, rgba(255, 184, 77, 0.23) 100%)',
+        'linear-gradient(135deg, rgba(255, 136, 0, 0.15) 0%, rgba(255, 184, 77, 0.2) 100%)'
       ]
 
       // 转换智能体数据为导航项
@@ -155,7 +161,7 @@ const loadAgentList = async () => {
       const moreItem = {
         icon: '⭐',
         label: '更多',
-        bgColor: 'linear-gradient(135deg, #e8e8ff 0%, #d0d0ff 100%)',
+        bgColor: 'linear-gradient(135deg, rgba(255, 136, 0, 0.15) 0%, rgba(255, 184, 77, 0.2) 100%)',
         route: '/pages/agent/index',
         isMore: true
       }
@@ -175,15 +181,25 @@ const loadAgentList = async () => {
 
 // 设置默认导航列表（作为fallback）
 const setDefaultNavList = () => {
+  const defaultBgColors = [
+    'linear-gradient(135deg, rgba(255, 136, 0, 0.15) 0%, rgba(255, 184, 77, 0.2) 100%)',
+    'linear-gradient(135deg, rgba(255, 136, 0, 0.12) 0%, rgba(255, 184, 77, 0.18) 100%)',
+    'linear-gradient(135deg, rgba(255, 136, 0, 0.18) 0%, rgba(255, 184, 77, 0.22) 100%)',
+    'linear-gradient(135deg, rgba(255, 136, 0, 0.14) 0%, rgba(255, 184, 77, 0.19) 100%)',
+    'linear-gradient(135deg, rgba(255, 136, 0, 0.16) 0%, rgba(255, 184, 77, 0.21) 100%)',
+    'linear-gradient(135deg, rgba(255, 136, 0, 0.13) 0%, rgba(255, 184, 77, 0.17) 100%)',
+    'linear-gradient(135deg, rgba(255, 136, 0, 0.17) 0%, rgba(255, 184, 77, 0.23) 100%)',
+    'linear-gradient(135deg, rgba(255, 136, 0, 0.15) 0%, rgba(255, 184, 77, 0.2) 100%)'
+  ]
   navList.value = [
-    { icon: '👥', label: 'IP问答型文案', bgColor: 'linear-gradient(135deg, #e0f4ff 0%, #c7ecff 100%)', route: '/pages/copywriting/index' },
-    { icon: '💬', label: '高效口播文案', bgColor: 'linear-gradient(135deg, #e8ffe8 0%, #c1ffc1 100%)', route: '/pages/copywriting/index' },
-    { icon: '🔥', label: '爆款选题创作', bgColor: 'linear-gradient(135deg, #fff4e0 0%, #ffe4b5 100%)', route: '/pages/copywriting/index' },
-    { icon: '▶️', label: '爆款文案拆解', bgColor: 'linear-gradient(135deg, #f0e0ff 0%, #e0c0ff 100%)', route: '/pages/copywriting/index' },
-    { icon: '📝', label: '爆款文案仿写', bgColor: 'linear-gradient(135deg, #e0f0ff 0%, #b0d8ff 100%)', route: '/pages/copywriting/index' },
-    { icon: '🎵', label: '抖音热点文案', bgColor: 'linear-gradient(135deg, #ffe0e8 0%, #ffb0c8 100%)', route: '/pages/copywriting/index' },
-    { icon: '👍', label: '使用技巧', bgColor: 'linear-gradient(135deg, #fff0e0 0%, #ffd8a0 100%)', route: '/pages/copywriting/index' },
-    { icon: '⭐', label: '更多', bgColor: 'linear-gradient(135deg, #e8e8ff 0%, #d0d0ff 100%)', route: '/pages/agent/index', isMore: true }
+    { icon: '👥', label: 'IP问答型文案', bgColor: defaultBgColors[0], route: '/pages/copywriting/index' },
+    { icon: '💬', label: '高效口播文案', bgColor: defaultBgColors[1], route: '/pages/copywriting/index' },
+    { icon: '🔥', label: '爆款选题创作', bgColor: defaultBgColors[2], route: '/pages/copywriting/index' },
+    { icon: '▶️', label: '爆款文案拆解', bgColor: defaultBgColors[3], route: '/pages/copywriting/index' },
+    { icon: '📝', label: '爆款文案仿写', bgColor: defaultBgColors[4], route: '/pages/copywriting/index' },
+    { icon: '🎵', label: '抖音热点文案', bgColor: defaultBgColors[5], route: '/pages/copywriting/index' },
+    { icon: '👍', label: '使用技巧', bgColor: defaultBgColors[6], route: '/pages/copywriting/index' },
+    { icon: '⭐', label: '更多', bgColor: defaultBgColors[7], route: '/pages/agent/index', isMore: true }
   ]
 }
 
@@ -200,7 +216,7 @@ const bannerList = reactive([
     mainText: '一次投入，',
     highlight: '持续收益',
     subText: '加入我们，成为终身代理',
-    bgGradient: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+    bgGradient: 'linear-gradient(135deg, #FF8800 0%, #F37021 100%)',
     image: '/static/default-avatar.png'
   },
   {
@@ -209,7 +225,7 @@ const bannerList = reactive([
     mainText: '智能文案，',
     highlight: '高效创作',
     subText: '让AI为你的创意赋能',
-    bgGradient: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)',
+    bgGradient: 'linear-gradient(135deg, #FF8800 0%, #FFB84D 100%)',
     image: '/static/default-avatar.png'
   },
   {
@@ -218,7 +234,7 @@ const bannerList = reactive([
     mainText: '数字分身，',
     highlight: '无限可能',
     subText: '打造你的专属数字人',
-    bgGradient: 'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)',
+    bgGradient: 'linear-gradient(135deg, #F37021 0%, #FF8800 100%)',
     image: '/static/default-avatar.png'
   }
 ])
@@ -229,14 +245,14 @@ const featureCards = reactive([
     title: '合成视频',
     desc: 'AI数字人视频',
     icon: '🎬',
-    bgGradient: 'linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)',
+    bgGradient: 'linear-gradient(135deg, #FF8800 0%, #FFB84D 100%)',
     route: '/pages/video/create'
   },
   {
     title: '形象克隆',
     desc: '定制专属数字人',
     icon: '▶️',
-    bgGradient: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+    bgGradient: 'linear-gradient(135deg, #F37021 0%, #FF8800 100%)',
     route: '/pages/avatar/clone'
   }
 ])
@@ -256,8 +272,8 @@ const avatarList = reactive([
 // 事件处理
 const handleNavClick = async (item: any) => {
   // 登录检查
-  const loggedIn = await authStore.requireLogin()
-  if (!loggedIn) return
+  // const loggedIn = await authStore.requireLogin()
+  // if (!loggedIn) return
   
   console.log('导航点击:', item.label)
 
@@ -292,10 +308,50 @@ const handleAvatarClick = async (avatar: any) => {
 </script>
 
 <style lang="scss" scoped>
+// CSS变量 - 品牌色（与 ProjectDashboard 保持一致）
+$brand-orange: #FF8800;
+$brand-orange-alt: #F37021;
+$brand-orange-light: rgba(255, 136, 0, 0.1);
+$bg-light: #F5F7FA;
 .container {
   min-height: 100vh;
-  background: linear-gradient(180deg, #f8faff 0%, #ffffff 100%);
+  background: $bg-light;
   padding-bottom: 120rpx;
+  position: relative;
+    overflow: hidden;
+  }
+  
+  // 背景装饰（与 ProjectDashboard 风格一致）
+  .bg-decoration {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 500rpx;
+    pointer-events: none;
+    overflow: hidden;
+    z-index: 0;
+  
+    .deco-circle {
+      position: absolute;
+      border-radius: 50%;
+  
+      &.c1 {
+        width: 400rpx;
+        height: 400rpx;
+        background: radial-gradient(circle, rgba(255, 136, 0, 0.08) 0%, transparent 70%);
+        top: -150rpx;
+        right: -100rpx;
+      }
+  
+      &.c2 {
+        width: 300rpx;
+        height: 300rpx;
+        background: radial-gradient(circle, rgba(59, 130, 246, 0.06) 0%, transparent 70%);
+        top: 100rpx;
+        left: -80rpx;
+      }
+    }
 }
 
 /* 顶部标题栏 */
@@ -309,7 +365,7 @@ const handleAvatarClick = async (avatar: any) => {
   .header-title {
     font-size: 36rpx;
     font-weight: 600;
-    color: #4facfe;
+    color: $brand-orange;
     letter-spacing: 2rpx;
   }
   
@@ -343,7 +399,7 @@ const handleAvatarClick = async (avatar: any) => {
     .project-name {
       font-size: 24rpx;
       font-weight: 500;
-      color: #3B82F6;
+      color: $brand-orange;
       max-width: 120rpx;
       overflow: hidden;
       text-overflow: ellipsis;
@@ -364,13 +420,15 @@ const handleAvatarClick = async (avatar: any) => {
 
 /* Banner 轮播图 */
 .banner-wrapper {
+  position: relative;
+    z-index: 10;
   padding: 24rpx;
   
   .banner-swiper {
     height: 320rpx;
     border-radius: 24rpx;
     overflow: hidden;
-    box-shadow: 0 8rpx 32rpx rgba(102, 126, 234, 0.25);
+    box-shadow: 0 8rpx 32rpx rgba(255, 136, 0, 0.25);
   }
   
   .banner-item {
@@ -454,14 +512,18 @@ const handleAvatarClick = async (avatar: any) => {
 
 /* 金刚区网格导航 */
 .nav-grid {
+  position: relative;
+    z-index: 10;
   display: grid;
   grid-template-columns: repeat(4, 1fr);
   gap: 24rpx 16rpx;
   padding: 32rpx 24rpx;
-  background: #ffffff;
+  background: rgba(255, 255, 255, 0.85);
   margin: 0 24rpx;
   border-radius: 24rpx;
   box-shadow: 0 4rpx 24rpx rgba(0, 0, 0, 0.06);
+  backdrop-filter: blur(10px);
+    border: 1rpx solid rgba(255, 255, 255, 0.8);
   
   .nav-item {
     display: flex;
@@ -501,6 +563,8 @@ const handleAvatarClick = async (avatar: any) => {
 
 /* 功能卡片区 */
 .feature-cards {
+  position: relative;
+    z-index: 10;
   display: flex;
   gap: 20rpx;
   padding: 32rpx 24rpx;
@@ -571,6 +635,8 @@ const handleAvatarClick = async (avatar: any) => {
 
 /* 数字人分类区 */
 .category-section {
+  position: relative;
+    z-index: 10;
   padding: 0 24rpx;
   
   .category-tabs {
@@ -599,7 +665,7 @@ const handleAvatarClick = async (avatar: any) => {
     
     &.active {
       .tab-text {
-        color: #4facfe;
+        color: $brand-orange;
         font-weight: 600;
       }
       
@@ -611,7 +677,7 @@ const handleAvatarClick = async (avatar: any) => {
         transform: translateX(-50%);
         width: 40rpx;
         height: 6rpx;
-        background: linear-gradient(90deg, #4facfe 0%, #00f2fe 100%);
+        background: linear-gradient(90deg, $brand-orange 0%, $brand-orange-alt 100%);
         border-radius: 3rpx;
       }
     }
@@ -626,10 +692,10 @@ const handleAvatarClick = async (avatar: any) => {
   padding: 24rpx 0;
   
   .avatar-card {
-    border-radius: 20rpx;
+    border-radius: 24rpx;
     overflow: hidden;
-    background: #f5f5f5;
-    box-shadow: 0 4rpx 16rpx rgba(0, 0, 0, 0.08);
+    background: #fff;
+      box-shadow: 0 4rpx 20rpx rgba(0, 0, 0, 0.05);
     aspect-ratio: 1;
     position: relative;
     

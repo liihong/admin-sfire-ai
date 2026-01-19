@@ -15,7 +15,8 @@ from loguru import logger
 
 from db import get_db
 from db.redis import RedisCache
-from core.security import create_access_token, verify_password
+from core.security import create_access_token, create_refresh_token, verify_password
+from core.config import settings
 from services.user import UserService
 from utils.response import success
 from utils.exceptions import BadRequestException, ServerErrorException
@@ -111,8 +112,9 @@ async def account_login(
                 # 这里我们选择在响应中添加提示信息
                 pass
 
-        # 5. 生成 JWT token
-        token = create_access_token(data={"sub": str(user.id)})
+        # 5. 生成 JWT token（包含 access_token 和 refresh_token）
+        access_token = create_access_token(data={"sub": str(user.id)})
+        refresh_token = create_refresh_token(data={"sub": str(user.id)})
 
         # 6. 构建用户信息
         user_info = UserInfo(
@@ -128,7 +130,9 @@ async def account_login(
         # 7. 构建响应数据
         response_data = {
             "success": True,
-            "token": token,
+            "token": access_token,
+            "refreshToken": refresh_token,
+            "expiresIn": settings.JWT_ACCESS_TOKEN_EXPIRE_MINUTES * 60,  # 秒数
             "userInfo": user_info.model_dump(),
         }
 
@@ -241,8 +245,9 @@ async def qrcode_login(
         else:
             logger.info(f"User exists for QR code login: id={user.id}, openid={user.openid}")
 
-        # 3. 生成 JWT token
-        token = create_access_token(data={"sub": str(user.id)})
+        # 3. 生成 JWT token（包含 access_token 和 refresh_token）
+        access_token = create_access_token(data={"sub": str(user.id)})
+        refresh_token = create_refresh_token(data={"sub": str(user.id)})
 
         # 4. 构建用户信息
         user_info = UserInfo(
@@ -259,7 +264,9 @@ async def qrcode_login(
         redis_key = f"mp:login:scene:{request.scene}"
         login_data = {
             "status": "authorized",
-            "token": token,
+            "token": access_token,
+            "refreshToken": refresh_token,
+            "expiresIn": settings.JWT_ACCESS_TOKEN_EXPIRE_MINUTES * 60,  # 秒数
             "userInfo": user_info.model_dump()
         }
         await RedisCache.set(redis_key, json.dumps(login_data), expire=300)  # 5分钟过期

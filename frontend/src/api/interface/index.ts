@@ -38,6 +38,13 @@ export namespace Login {
   }
   export interface ResLogin {
     access_token: string;
+    refresh_token: string;
+    expires_in: number;
+  }
+  export interface ResRefreshToken {
+    access_token: string;
+    refresh_token: string;
+    expires_in: number;
   }
   export interface ResAuthButtons {
     [key: string]: string[];
@@ -459,6 +466,180 @@ export namespace Agent {
     name: string;
     content: string;
     category: string;
+  }
+}
+
+// ========== v2版本：技能组装模式 ==========
+
+// 技能库模块
+export namespace Skill {
+  // 技能状态
+  export type StatusType = 0 | 1;
+
+  // 技能分类
+  export type CategoryType = "model" | "hook" | "rule" | "audit";
+
+  // 技能列表项
+  export interface ResSkillItem {
+    id: number;
+    name: string;
+    category: CategoryType;
+    meta_description?: string;
+    content: string;
+    status: StatusType;
+    created_at: string;
+  }
+
+  // 技能列表响应
+  export interface ResSkillList {
+    list: ResSkillItem[];
+    total: number;
+  }
+
+  // 创建技能请求
+  export interface ReqSkillCreate {
+    name: string;
+    category: CategoryType;
+    meta_description?: string;
+    content: string;
+    status?: StatusType;
+  }
+
+  // 更新技能请求
+  export interface ReqSkillUpdate {
+    name?: string;
+    category?: CategoryType;
+    meta_description?: string;
+    content?: string;
+    status?: StatusType;
+  }
+
+  // 技能分类响应
+  export interface ResSkillCategory {
+    category: string;
+    count: number;
+  }
+}
+
+// Agent v2模块（技能组装模式）
+export namespace AgentV2 {
+  // Agent模式
+  export type AgentMode = 0 | 1; // 0-普通模式, 1-Skill组装模式
+  export type StatusType = 0 | 1;
+
+  // Agent配置参数
+  export interface AgentConfig {
+    temperature: number;
+    maxTokens: number;
+    topP?: number;
+    frequencyPenalty?: number;
+    presencePenalty?: number;
+  }
+
+  // 技能列表项
+  export interface ResSkillItem {
+    id: number;
+    name: string;
+    category: string;
+    meta_description?: string;
+    content: string;
+    status: number;
+    created_at: string;
+  }
+
+  // Agent详情响应
+  export interface ResAgentItem {
+    id: number;
+    name: string;
+    icon: string;
+    description?: string;
+    agent_mode: AgentMode;
+    system_prompt: string;
+    model: string;
+    config?: AgentConfig;
+    sort_order: number;
+    status: StatusType;
+    usage_count: number;
+    skill_ids?: number[];
+    skill_variables?: Record<number, Record<string, string>>;
+    routing_description?: string;
+    is_routing_enabled: number;
+    skills_detail?: ResSkillItem[];
+    created_at: string;
+    updated_at?: string;
+  }
+
+  // Agent列表响应
+  export interface ResAgentList {
+    list: ResAgentItem[];
+    total: number;
+  }
+
+  // 创建Agent请求
+  export interface ReqAgentCreate {
+    name: string;
+    icon: string;
+    description?: string;
+    agent_mode: AgentMode;
+    system_prompt?: string;
+    model: string;
+    config?: AgentConfig;
+    sort_order?: number;
+    status?: StatusType;
+    skill_ids?: number[];
+    skill_variables?: Record<number, Record<string, string>>;
+    routing_description?: string;
+    is_routing_enabled?: number;
+  }
+
+  // 更新Agent请求
+  export interface ReqAgentUpdate {
+    name?: string;
+    icon?: string;
+    description?: string;
+    agent_mode?: AgentMode;
+    system_prompt?: string;
+    model?: string;
+    config?: AgentConfig;
+    sort_order?: number;
+    status?: StatusType;
+    skill_ids?: number[];
+    skill_variables?: Record<number, Record<string, string>>;
+    routing_description?: string;
+    is_routing_enabled?: number;
+  }
+
+  // Prompt预览请求
+  export interface ReqPreviewPrompt {
+    skill_ids: number[];
+    skill_variables?: Record<number, Record<string, string>>;
+  }
+
+  // Prompt预览响应
+  export interface ResPreviewPrompt {
+    full_prompt: string;
+    token_count: number;
+    skills_used: Array<{
+      id: number;
+      name: string;
+      category: string;
+      order: number;
+    }>;
+  }
+
+  // Agent执行请求（前端用户使用）
+  export interface ReqAgentExecute {
+    user_id: number;
+    project_id: number;
+    input_text: string;
+    enable_persona?: boolean;
+  }
+
+  // Agent执行响应
+  export interface ResAgentExecute {
+    response: string;
+    prompt_used: string;
+    skills_applied: number[];
   }
 }
 

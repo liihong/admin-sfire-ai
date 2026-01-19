@@ -14,7 +14,7 @@
     >
       <!-- 表格 header 按钮 -->
       <template #tableHeader>
-        <el-button v-auth="'add'" type="primary" :icon="CirclePlus" @click="openDrawer('新增')">新增菜单</el-button>
+        <el-button type="primary" :icon="CirclePlus" @click="openDrawer('新增')">新增菜单</el-button>
       </template>
 
       <!-- 菜单图标 -->
@@ -278,6 +278,8 @@ const buildParentMenuOptions = (menus: Menu.ResMenuList[], excludeId?: number): 
     .map(menu => {
       const item: any = {
         id: menu.id,
+        // 为 TreeSelect 提供 value 字段，便于作为选中值绑定
+        value: menu.id,
         title: menu.title,
         children: menu.children && menu.children.length > 0 ? buildParentMenuOptions(menu.children, excludeId) : undefined
       };

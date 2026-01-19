@@ -14,7 +14,7 @@ from loguru import logger
 
 from db import get_db
 from models.user import User
-from core.security import create_access_token
+from core.security import create_access_token, create_refresh_token, decode_token
 from core.config import settings
 from core.deps import get_current_miniprogram_user
 from services.user import UserService
@@ -353,9 +353,10 @@ async def miniprogram_login(
             elif not phone_number:
                 logger.warning(f"No phone number obtained, cannot update")
         
-        # 4. 生成 JWT token
-        token = create_access_token(data={"sub": str(user.id)})
-        
+        # 4. 生成 JWT token（包含 access_token 和 refresh_token）
+        access_token = create_access_token(data={"sub": str(user.id)})
+        refresh_token = create_refresh_token(data={"sub": str(user.id)})
+
         # 5. 构建用户信息
         user_info = UserInfo(
             openid=user.openid or openid,
@@ -366,12 +367,14 @@ async def miniprogram_login(
             province="",
             country="",
         )
-        
+
         # 返回统一格式的响应，兼容前端期望的格式
         return success(
             data={
                 "success": True,
-                "token": token,
+                "token": access_token,
+                "refreshToken": refresh_token,
+                "expiresIn": settings.JWT_ACCESS_TOKEN_EXPIRE_MINUTES * 60,  # 秒数
                 "userInfo": user_info.model_dump(),
                 "is_new_user": is_new_user
             },
@@ -590,3 +593,82 @@ async def change_password(
         data={"success": True},
         msg="密码修改成功"
     )
+
+
+# ============== Token Refresh ==============
+
+class RefreshTokenRequest(BaseModel):
+    """刷新令牌请求"""
+    refreshToken: str = Field(..., description="刷新令牌")
+
+
+class RefreshTokenResponse(BaseModel):
+    """刷新令牌响应"""
+    token: str = Field(..., description="新的访问令牌")
+    refreshToken: str = Field(..., description="新的刷新令牌")
+    expiresIn: int = Field(..., description="访问令牌过期时间（秒）")
+
+
+@router.post("/refresh")
+async def refresh_token(
+    request: RefreshTokenRequest,
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    使用刷新令牌获取新的访问令牌
+
+    - **refreshToken**: 刷新令牌（7天有效）
+
+    流程:
+    1. 验证refresh_token是否有效
+    2. 提取用户ID并查询用户
+    3. 生成新的access_token和refresh_token
+    4. 返回新token
+    """
+    try:
+        # 1. 解码并验证refresh_token
+        payload = decode_token(request.refreshToken)
+        if not payload:
+            raise BadRequestException("刷新令牌无效或已过期")
+
+        # 2. 验证token类型
+        token_type = payload.get("type")
+        if token_type != "refresh":
+            raise BadRequestException("令牌类型错误")
+
+        # 3. 提取用户ID
+        user_id = payload.get("sub")
+        if not user_id:
+            raise BadRequestException("令牌数据无效")
+
+        # 4. 查询用户
+        user_service = UserService(db)
+        user = await user_service.get_user_by_id(int(user_id))
+
+        if not user:
+            raise BadRequestException("用户不存在")
+
+        if not user.is_active:
+            raise BadRequestException("用户已被封禁")
+
+        # 5. 生成新的access_token和refresh_token
+        new_access_token = create_access_token(data={"sub": str(user.id)})
+        new_refresh_token = create_refresh_token(data={"sub": str(user.id)})
+
+        logger.info(f"Token refreshed successfully for user: {user.id}")
+
+        return success(
+            data={
+                "token": new_access_token,
+                "refreshToken": new_refresh_token,
+                "expiresIn": settings.JWT_ACCESS_TOKEN_EXPIRE_MINUTES * 60
+            },
+            msg="令牌刷新成功"
+        )
+
+    except BadRequestException:
+        raise
+    except Exception as e:
+        logger.error(f"Token refresh failed: {str(e)}", exc_info=True)
+        raise ServerErrorException(f"令牌刷新失败: {str(e)}")
+

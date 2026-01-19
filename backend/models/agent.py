@@ -101,6 +101,45 @@ class Agent(BaseModel):
         comment="使用次数",
     )
     
+    # === 技能组装模式字段（v2版本） ===
+    agent_mode: Mapped[int] = mapped_column(
+        Integer,
+        nullable=False,
+        default=0,
+        comment="0-普通模式, 1-Skill组装模式",
+    )
+    
+    persona_id: Mapped[Optional[int]] = mapped_column(
+        BigInteger,
+        nullable=True,
+        comment="关联IP基因库ID",
+    )
+    
+    skill_ids: Mapped[Optional[list]] = mapped_column(
+        JSON,
+        nullable=True,
+        comment="存储技能ID数组 [1, 5, 20]",
+    )
+    
+    skill_variables: Mapped[Optional[dict]] = mapped_column(
+        JSON,
+        nullable=True,
+        comment="技能变量配置 {skill_id: {var: value}}",
+    )
+    
+    routing_description: Mapped[Optional[str]] = mapped_column(
+        Text,
+        nullable=True,
+        comment="路由特征描述",
+    )
+    
+    is_routing_enabled: Mapped[int] = mapped_column(
+        Integer,
+        nullable=False,
+        default=0,
+        comment="是否启用智能路由：0-否 1-是",
+    )
+    
     def __repr__(self) -> str:
         return f"<Agent(id={self.id}, name={self.name}, status={self.status})>"
     

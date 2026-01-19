@@ -54,6 +54,8 @@ export interface UserInfo {
 /* UserState */
 export interface UserState {
   token: string;
+  refreshToken: string;
+  tokenExpiresAt: number; // token过期时间戳（毫秒）
   userInfo: UserInfo;
   roles: string[];
 }
