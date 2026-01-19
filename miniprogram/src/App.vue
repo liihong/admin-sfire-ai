@@ -5,7 +5,17 @@ import { useAuthStore } from "@/stores/auth";
 // ============== 路由白名单 ==============
 const WHITE_LIST = [
   '/pages/login/index',
-  '/pages/login/profile'
+  '/pages/login/profile',
+  '/pages/mine/index',
+  '/pages/project/list',
+  '/pages/contact/index'
+]
+
+// Tabbar 页面列表（不能使用 redirectTo 跳转）
+const TABBAR_PAGES = [
+  '/pages/index/index',
+  '/pages/project/list',
+  '/pages/mine/index'
 ]
 
 /**
@@ -18,9 +28,43 @@ function isWhiteListed(url: string): boolean {
 }
 
 /**
+ * 检查路径是否是 tabbar 页面
+ */
+function isTabbarPage(url: string): boolean {
+  const path = url.split('?')[0]
+  return TABBAR_PAGES.some(item => path === item)
+}
+
+/**
+ * 显示会员提示弹窗
+ * @param callback 用户选择后的回调函数
+ */
+function showMemberTip(callback: (goToLogin: boolean) => void) {
+  uni.showModal({
+    title: '提示',
+    content: '您当前为游客模式，部分功能受限。开通会员后可体验全部功能，是否前往登录？',
+    confirmText: '去登录',
+    cancelText: '继续浏览',
+    success: (res) => {
+      if (res.confirm) {
+        // 用户选择去登录
+        callback(true)
+      } else {
+        // 用户选择继续浏览
+        callback(false)
+      }
+    },
+    fail: () => {
+      // 弹窗显示失败，默认允许访问
+      callback(false)
+    }
+  })
+}
+
+/**
  * 路由拦截处理
  */
-function handleRouteIntercept(args: { url: string }): boolean {
+function handleRouteIntercept(args: { url: string }, interceptorType: string): boolean {
   const authStore = useAuthStore()
   const url = args.url
   
@@ -34,17 +78,26 @@ function handleRouteIntercept(args: { url: string }): boolean {
   
   // 检查是否有 Token
   if (!authStore.hasToken) {
-    console.log('[Router] No token, redirect to login')
+    console.log('[Router] No token, visitor mode')
     
+    // 游客模式：显示提示，不强制跳转
     // 使用 setTimeout 延迟执行，避免拦截器冲突
     setTimeout(() => {
-      uni.reLaunch({
-        url: '/pages/login/index'
+      showMemberTip((goToLogin) => {
+        if (goToLogin) {
+          // 用户选择去登录，跳转到登录页
+          uni.reLaunch({
+            url: '/pages/login/index'
+          })
+        } else {
+          // 用户选择继续浏览，允许访问（功能可能受限）
+          console.log('[Router] User continues as visitor')
+        }
       })
     }, 0)
     
-    // 阻止原导航
-    return false
+    // 允许继续访问（游客模式）
+    return true
   }
   
   // 有 Token，放行
@@ -59,14 +112,20 @@ function setupRouteInterceptors() {
   // 拦截 navigateTo
   uni.addInterceptor('navigateTo', {
     invoke(args: { url: string }) {
-      return handleRouteIntercept(args)
+      return handleRouteIntercept(args, 'navigateTo')
     }
   })
   
   // 拦截 redirectTo
   uni.addInterceptor('redirectTo', {
     invoke(args: { url: string }) {
-      return handleRouteIntercept(args)
+      // 检查是否是 tabbar 页面，redirectTo 不能跳转到 tabbar 页面
+      if (isTabbarPage(args.url)) {
+        console.warn('[Router] redirectTo cannot redirect to tabbar page:', args.url)
+        // 不允许使用 redirectTo 跳转到 tabbar 页面
+        return false
+      }
+      return handleRouteIntercept(args, 'redirectTo')
     }
   })
   
@@ -77,7 +136,7 @@ function setupRouteInterceptors() {
       if (isWhiteListed(args.url)) {
         return true
       }
-      return handleRouteIntercept(args)
+      return handleRouteIntercept(args, 'reLaunch')
     }
   })
   
@@ -90,15 +149,25 @@ function setupRouteInterceptors() {
       
       // 检查是否有 Token
       if (!authStore.hasToken) {
-        console.log('[Router] No token, redirect to login')
+        console.log('[Router] No token, visitor mode')
         
+        // 游客模式：显示提示，不强制跳转
         setTimeout(() => {
-          uni.reLaunch({
-            url: '/pages/login/index'
+          showMemberTip((goToLogin) => {
+            if (goToLogin) {
+              // 用户选择去登录，跳转到登录页
+              uni.reLaunch({
+                url: '/pages/login/index'
+              })
+            } else {
+              // 用户选择继续浏览，允许访问
+              console.log('[Router] User continues as visitor')
+            }
           })
         }, 0)
         
-        return false
+        // 允许继续访问（游客模式）
+        return true
       }
       
       return true

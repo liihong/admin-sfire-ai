@@ -57,7 +57,7 @@
     </view> -->
 
     <!-- 功能列表 -->
-    <!-- <view class="menu-card">
+    <view class="menu-card">
       <view 
         v-for="(item, index) in menuList" 
         :key="index" 
@@ -73,7 +73,7 @@
         </view>
         <text class="menu-arrow">›</text>
       </view>
-    </view> -->
+    </view>
   </view>
 </template>
 
@@ -105,28 +105,14 @@ const formatPhone = (phone: string): string => {
 // 格式化后的手机号（计算属性）
 const displayPhone = computed(() => formatPhone(userInfo.phone))
 
-// 功能菜单 Mock 数据
+// 功能菜单列表
 const menuList = ref([
   {
-    id: 'digital-human',
-    name: '我的数字人',
-    icon: '👤',
-    iconBg: 'linear-gradient(135deg, #e0e7ff 0%, #c7d2fe 100%)',
-    path: '/pages/digital-human/index'
-  },
-  {
-    id: 'works',
-    name: '我的作品',
-    icon: '📊',
-    iconBg: 'linear-gradient(135deg, #fef3c7 0%, #fde68a 100%)',
-    path: '/pages/works/index'
-  },
-  {
-    id: 'help',
-    name: '帮助与反馈',
-    icon: '❓',
+    id: 'contact',
+    name: '联系客服',
+    icon: '💬',
     iconBg: 'linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%)',
-    path: '/pages/help/index'
+    path: '/pages/contact/index'
   }
 ])
 
@@ -257,10 +243,16 @@ const handleInvite = () => {
 
 // 菜单点击
 const handleMenuClick = (item: any) => {
-  uni.showToast({
-    title: `进入${item.name}`,
-    icon: 'none'
-  })
+  if (item.path) {
+    uni.navigateTo({
+      url: item.path
+    })
+  } else {
+    uni.showToast({
+      title: `进入${item.name}`,
+      icon: 'none'
+    })
+  }
 }
 
 // 页面显示时获取用户信息

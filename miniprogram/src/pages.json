@@ -75,6 +75,13 @@
         "navigationStyle": "custom",
         "disableScroll": true
       }
+    },
+    {
+      "path": "pages/contact/index",
+      "style": {
+        "navigationBarTitleText": "联系客服",
+        "disableScroll": true
+      }
     }
   ],
   "globalStyle": {
