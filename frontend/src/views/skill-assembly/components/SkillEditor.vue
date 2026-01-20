@@ -136,6 +136,17 @@ const rules: FormRules = {
   content: [{ required: true, message: "请输入技能内容", trigger: "blur" }]
 };
 
+// 重置表单
+const resetForm = () => {
+  formData.id = undefined;
+  formData.name = "";
+  formData.category = "model";
+  formData.meta_description = "";
+  formData.content = "";
+  formData.status = 1;
+  formRef.value?.clearValidate();
+};
+
 // 监听skillData变化，初始化表单
 watch(
   () => props.skillData,
@@ -155,16 +166,6 @@ watch(
   },
   { immediate: true }
 );
-
-const resetForm = () => {
-  formData.id = undefined;
-  formData.name = "";
-  formData.category = "model";
-  formData.meta_description = "";
-  formData.content = "";
-  formData.status = 1;
-  formRef.value?.clearValidate();
-};
 
 const handleSubmit = async () => {
   if (!formRef.value) return;

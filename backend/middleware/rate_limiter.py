@@ -258,7 +258,7 @@ class RateLimiterMiddleware(BaseHTTPMiddleware):
         path = request.url.path
         if path in self.EXCLUDED_PATHS or not path.startswith("/api/"):
             return await call_next(request)
-        
+
         # 尝试从请求中获取用户 ID
         user_id = await self._extract_user_id(request)
         

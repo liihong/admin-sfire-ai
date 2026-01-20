@@ -48,7 +48,7 @@ class Settings(BaseSettings):
     JWT_REFRESH_TOKEN_EXPIRE_DAYS: int = 7
 
     # 跨域配置
-    CORS_ORIGINS: List[str] = ["http://localhost:5173", "http://localhost:3000"]
+    CORS_ORIGINS: List[str] = ["http://0.0.0.0:8000", "http://0.0.0.0:9000"]
 
     # 第三方 API 配置（Dashboard 监控用）
     TIKHUB_API_KEY: str = ""  # Tikhub API Key

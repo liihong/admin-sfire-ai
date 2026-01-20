@@ -434,6 +434,7 @@ export namespace Agent {
     config: AgentConfig;
     sortOrder: number;
     status: StatusType;
+    agentMode?: number;
     usageCount?: number;
     createdAt?: string;
     updatedAt?: string;
@@ -640,6 +641,36 @@ export namespace AgentV2 {
     response: string;
     prompt_used: string;
     skills_applied: number[];
+  }
+
+  // 路由预览请求
+  export interface ReqRoutingPreview {
+    user_input: string;
+    use_vector?: boolean;
+    top_k?: number;
+    threshold?: number;
+  }
+
+  // 技能路由信息
+  export interface SkillRoutingInfo {
+    id: number;
+    name: string;
+    category: string;
+    similarity: number;
+    meta_description?: string;
+  }
+
+  // 路由预览响应
+  export interface ResRoutingPreview {
+    selected_skills: SkillRoutingInfo[];
+    rejected_skills: SkillRoutingInfo[];
+    token_comparison: {
+      full: number;
+      routed: number;
+      saved_percent: number;
+    };
+    final_prompt: string;
+    routing_method: "vector" | "keywords";
   }
 }
 

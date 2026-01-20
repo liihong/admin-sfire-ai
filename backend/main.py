@@ -109,8 +109,8 @@ def create_app() -> FastAPI:
     # B端接口（管理后台）：包括管理员认证、用户管理、系统配置等功能
     app.include_router(admin_router, prefix="/api/v1/admin", tags=["B端接口"])
     # v2版本接口：技能组装模式
-    app.include_router(admin_v2_router, prefix="/api/v1/admin", tags=["B端接口（v2-技能组装）"])
-    app.include_router(client_v2_router, prefix="/api/v1/client", tags=["C端接口（v2-执行）"])
+    app.include_router(admin_v2_router, prefix="/api/v2/admin", tags=["B端接口（v2-技能组装）"])
+    app.include_router(client_v2_router, prefix="/api/v2/client", tags=["C端接口（v2-执行）"])
 
     return app
 

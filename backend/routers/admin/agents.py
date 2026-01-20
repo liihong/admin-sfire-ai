@@ -30,12 +30,16 @@ async def get_agents(
     pageSize: int = Query(10, ge=1, le=100, description="每页数量"),
     name: Optional[str] = Query(None, description="智能体名称（模糊查询）"),
     status: Optional[int] = Query(None, description="状态：0-下架, 1-上架"),
+    agentMode: Optional[int] = Query(
+        None,
+        description="智能体模式：0-普通模式, 1-Skill 组装模式",
+    ),
     db: AsyncSession = Depends(get_db),
 ):
     """
     获取智能体列表（分页）
     
-    支持按名称、状态筛选
+    支持按名称、状态、智能体模式筛选
     """
     agent_service = AgentService(db)
     
@@ -44,6 +48,7 @@ async def get_agents(
         pageSize=pageSize,
         name=name,
         status=status,
+        agentMode=agentMode,
     )
     
     result = await agent_service.get_agent_list(params)

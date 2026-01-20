@@ -99,7 +99,7 @@
       <div class="selected-skills">
         <div class="section-header">
           <span>已挂载技能</span>
-          <el-badge :value="selectedSkills.length" type="primary" />
+          <el-badge :value="selectedSkillsList.length" type="primary" />
         </div>
 
         <div class="skill-list">
@@ -210,7 +210,7 @@ const loadSkills = async () => {
 
 // 过滤技能
 const filteredSkills = computed(() => {
-  let skills = allSkills.value;
+  let skills = allSkills.value || [];
 
   // 分类过滤
   if (activeCategory.value !== "all") {
@@ -236,16 +236,17 @@ const addSkill = (skill: Skill.ResSkillItem) => {
   const newIds = [...(props.modelValue || []), skill.id];
   emit("update:modelValue", newIds);
 
-  selectedSkillsList.value = allSkills.value.filter(s => newIds.includes(s.id));
+  selectedSkillsList.value = (allSkills.value || []).filter(s => newIds.includes(s.id));
   emit("change", selectedSkillsList.value);
 };
 
 // 移除技能
 const removeSkill = (index: number) => {
-  const newIds = props.modelValue.filter((_, i) => i !== index);
+  const currentIds = props.modelValue || [];
+  const newIds = currentIds.filter((_, i) => i !== index);
   emit("update:modelValue", newIds);
 
-  selectedSkillsList.value = allSkills.value.filter(s => newIds.includes(s.id));
+  selectedSkillsList.value = (allSkills.value || []).filter(s => newIds.includes(s.id));
   emit("change", selectedSkillsList.value);
 };
 
@@ -312,7 +313,7 @@ watch(
   () => props.modelValue,
   (newIds) => {
     if (newIds && newIds.length > 0) {
-      selectedSkillsList.value = allSkills.value
+      selectedSkillsList.value = (allSkills.value || [])
         .filter(s => newIds.includes(s.id))
         .sort((a, b) => newIds.indexOf(a.id) - newIds.indexOf(b.id));
     } else {
@@ -345,6 +346,7 @@ onMounted(() => {
     display: flex;
     flex-direction: column;
     overflow: hidden;
+    min-width: 500px;
   }
 
   .section-header {

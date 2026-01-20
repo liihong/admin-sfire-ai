@@ -23,6 +23,8 @@ def agent_to_response(agent: Agent) -> dict:
         "model": agent.model,
         "config": config.model_dump(),
         "sortOrder": agent.sort_order,
+        # 智能体模式：0-普通模式, 1-Skill 组装模式
+        "agentMode": agent.agent_mode,
         "status": agent.status,
         "usageCount": agent.usage_count,
         "createTime": agent.created_at.strftime("%Y-%m-%d %H:%M:%S"),

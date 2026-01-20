@@ -6,7 +6,7 @@ from fastapi import APIRouter
 
 from .execution import router as execution_router
 
-client_v2_router = APIRouter(prefix="/v2")
+client_v2_router = APIRouter()
 
 # 注册子路由
 client_v2_router.include_router(execution_router)

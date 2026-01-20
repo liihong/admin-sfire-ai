@@ -146,3 +146,29 @@ class AgentQueryParamsV2(BaseModel):
     name: Optional[str] = Field(None, description="智能体名称(模糊查询)")
     agent_mode: Optional[AgentMode] = Field(None, description="运行模式筛选")
     status: Optional[StatusType] = Field(None, description="状态筛选")
+
+
+class RoutingPreviewRequest(BaseModel):
+    """智能路由预览请求"""
+    user_input: str = Field(..., min_length=1, description="模拟的用户输入")
+    use_vector: bool = Field(default=True, description="是否使用向量检索")
+    top_k: int = Field(default=3, ge=1, le=10, description="选择Top-K个技能")
+    threshold: float = Field(default=0.7, ge=0.0, le=1.0, description="相似度阈值")
+
+
+class SkillRoutingInfo(BaseModel):
+    """技能路由信息"""
+    id: int = Field(..., description="技能ID")
+    name: str = Field(..., description="技能名称")
+    category: str = Field(..., description="技能分类")
+    similarity: float = Field(..., description="相似度得分")
+    meta_description: Optional[str] = Field(None, description="特征描述")
+
+
+class RoutingPreviewResponse(BaseModel):
+    """智能路由预览响应"""
+    selected_skills: List[SkillRoutingInfo] = Field(..., description="选中的技能列表")
+    rejected_skills: List[SkillRoutingInfo] = Field(..., description="未选中的技能列表")
+    token_comparison: Dict = Field(..., description="Token对比 {full: 全量, routed: 路由后, saved_percent: 节省比例}")
+    final_prompt: str = Field(..., description="最终组装的Prompt")
+    routing_method: str = Field(..., description="使用的路由方法: vector/keywords")

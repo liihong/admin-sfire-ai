@@ -4,7 +4,9 @@ Agent管理路由（v2版本）
 """
 from fastapi import APIRouter, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select
 from loguru import logger
+from typing import Dict
 
 from core.deps import _get_db
 from schemas.v2.agent import (
@@ -13,6 +15,8 @@ from schemas.v2.agent import (
     AgentResponseV2,
     PromptPreviewRequest,
     PromptPreviewResponse,
+    RoutingPreviewRequest,
+    RoutingPreviewResponse,
 )
 from services.agent_service_v2 import AgentServiceV2
 from services.prompt_builder import PromptBuilder
@@ -104,7 +108,7 @@ async def create_agent(
 ):
     """
     创建Agent（支持技能模式）
-
+    
     - agent_mode=0: 普通模式，直接使用system_prompt
     - agent_mode=1: 技能组装模式，使用skill_ids组装Prompt
     """
@@ -218,7 +222,7 @@ async def switch_agent_mode(
     """
     if agent_mode not in [0, 1]:
         raise BadRequestException(msg="agent_mode必须是0或1")
-    
+
     agent = await AgentServiceV2.update_with_skills(
         db,
         agent_id,
@@ -230,3 +234,176 @@ async def switch_agent_mode(
     agent_dict = await AgentServiceV2.get_detail_with_skills(db, agent.id)
     logger.info(f"切换Agent模式成功: {agent.name} (ID={agent_id}), mode={agent_mode}")
     return success(data=AgentResponseV2(**agent_dict).model_dump(), msg="切换成功")
+
+
+@router.post("/{agent_id}/routing-preview")
+async def preview_intelligent_routing(
+    agent_id: int,
+    request_data: RoutingPreviewRequest,
+    db: AsyncSession = Depends(_get_db),
+):
+    """
+    预览智能路由结果
+
+    功能：
+    1. 根据用户输入测试智能路由
+    2. 展示选中和未选中的技能
+    3. 对比Token使用量
+    4. 返回最终组装的Prompt
+
+    注意：此接口不注入IP基因（仅用于后台调试）
+    """
+    try:
+        # 1. 获取Agent
+        result = await db.execute(select(Agent).filter(Agent.id == agent_id))
+        agent = result.scalar_one_or_none()
+        if not agent:
+            raise NotFoundException(msg="Agent不存在")
+
+        # 2. 验证Agent配置
+        if agent.agent_mode != 1:
+            raise BadRequestException(msg="该Agent未启用技能组装模式")
+
+        if not agent.skill_ids or len(agent.skill_ids) == 0:
+            raise BadRequestException(msg="该Agent未配置技能")
+
+        agent_skill_ids = agent.skill_ids
+        skill_variables = agent.skill_variables or {}
+        routing_description = agent.routing_description or ""
+
+        # 3. 执行智能路由
+        use_vector = request_data.use_vector and agent.is_routing_enabled == 1
+
+        if use_vector:
+            # 使用向量检索
+            selected_skill_ids = await PromptBuilder.intelligent_routing(
+                db=db,
+                user_input=request_data.user_input,
+                agent_skill_ids=agent_skill_ids,
+                routing_description=routing_description,
+                use_vector=True,
+                top_k=request_data.top_k,
+                threshold=request_data.threshold
+            )
+            routing_method = "vector"
+        else:
+            # 使用关键词匹配
+            selected_skill_ids = await PromptBuilder.intelligent_routing(
+                db=db,
+                user_input=request_data.user_input,
+                agent_skill_ids=agent_skill_ids,
+                routing_description=routing_description,
+                use_vector=False
+            )
+            routing_method = "keywords"
+
+        # 4. 获取所有技能详情
+        all_skill_ids = agent_skill_ids
+        result = await db.execute(
+            select(SkillLibrary).filter(SkillLibrary.id.in_(all_skill_ids))
+        )
+        all_skills = result.scalars().all()
+        skills_map = {s.id: s for s in all_skills}
+
+        # 5. 构建选中和未选中的技能列表
+        selected_skills = []
+        rejected_skills = []
+
+        # 计算相似度（用于展示）
+        if use_vector:
+            # 使用向量相似度
+            from services.skill_embedding import get_skill_embedding_service
+            skill_embedding_service = get_skill_embedding_service()
+            query = f"{request_data.user_input}\n{routing_description}"
+
+            similar_skills = await skill_embedding_service.search_similar_skills(
+                query_text=query,
+                top_k=len(all_skill_ids),
+                threshold=0.0  # 获取所有结果的相似度
+            )
+            similarity_map = {skill_id: sim for skill_id, sim, _ in similar_skills}
+        else:
+            # 使用关键词相似度
+            input_keywords = PromptBuilder._extract_keywords(request_data.user_input)
+            routing_keywords = PromptBuilder._extract_keywords(routing_description)
+            similarity_map = {}
+
+            for skill in all_skills:
+                skill_keywords = PromptBuilder._extract_keywords(
+                    skill.meta_description or skill.name
+                )
+                score = PromptBuilder._calculate_relevance(
+                    input_keywords, skill_keywords, routing_keywords
+                )
+                similarity_map[skill.id] = score
+
+        # 分类技能
+        for skill_id in all_skill_ids:
+            skill = skills_map.get(skill_id)
+            if not skill:
+                continue
+
+            similarity = similarity_map.get(skill_id, 0.0)
+            skill_info = {
+                "id": skill.id,
+                "name": skill.name,
+                "category": skill.category,
+                "similarity": round(similarity, 3),
+                "meta_description": skill.meta_description
+            }
+
+            if skill_id in selected_skill_ids:
+                selected_skills.append(skill_info)
+            else:
+                rejected_skills.append(skill_info)
+
+        # 按相似度排序
+        selected_skills.sort(key=lambda x: x["similarity"], reverse=True)
+        rejected_skills.sort(key=lambda x: x["similarity"], reverse=True)
+
+        # 6. 组装Prompt（使用选中的技能）
+        final_prompt, token_routed, _ = await PromptBuilder.build_prompt(
+            db=db,
+            skill_ids=selected_skill_ids,
+            skill_variables=skill_variables
+        )
+
+        # 7. 计算全量加载的Token（用于对比）
+        _, token_full, _ = await PromptBuilder.build_prompt(
+            db=db,
+            skill_ids=agent_skill_ids,
+            skill_variables=skill_variables
+        )
+
+        # 8. 计算节省比例
+        saved_percent = 0.0
+        if token_full > 0:
+            saved_percent = round((1 - token_routed / token_full) * 100, 1)
+
+        token_comparison = {
+            "full": token_full,
+            "routed": token_routed,
+            "saved_percent": saved_percent
+        }
+
+        data = RoutingPreviewResponse(
+            selected_skills=selected_skills,
+            rejected_skills=rejected_skills,
+            token_comparison=token_comparison,
+            final_prompt=final_prompt,
+            routing_method=routing_method
+        ).model_dump()
+
+        logger.info(
+            f"路由预览成功: Agent={agent.name}, "
+            f"选中{len(selected_skills)}个, "
+            f"Token节省{saved_percent}%, "
+            f"方法={routing_method}"
+        )
+        return success(data=data, msg="预览成功")
+
+    except (NotFoundException, BadRequestException):
+        raise
+    except Exception as e:
+        logger.error(f"路由预览失败: {e}")
+        raise BadRequestException(msg=f"预览失败: {str(e)}")

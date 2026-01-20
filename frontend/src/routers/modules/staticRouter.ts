@@ -27,7 +27,18 @@ export const staticRouter: RouteRecordRaw[] = [
     children: []
   },
   // 小程序用户路由
-  ...miniprogramRouter
+  ...miniprogramRouter,
+  // Agent路由调试页面（不需要在菜单中显示，通过按钮跳转）
+  {
+    path: "/agent/routing-debug/:id",
+    name: "AgentRoutingDebug",
+    component: () => import("@/views/agent/RoutingDebug.vue"),
+    meta: {
+      title: "Agent路由调试",
+      hidden: true,
+      isFull: false
+    }
+  }
 ];
 
 /**

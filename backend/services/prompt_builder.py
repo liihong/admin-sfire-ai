@@ -13,6 +13,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 
 from models.skill_library import SkillLibrary
+from services.skill_embedding import get_skill_embedding_service
 
 
 # region agent log
@@ -307,7 +308,10 @@ class PromptBuilder:
         db: AsyncSession,
         user_input: str,
         agent_skill_ids: List[int],
-        routing_description: str
+        routing_description: str,
+        use_vector: bool = True,
+        top_k: int = 3,
+        threshold: float = 0.7
     ) -> List[int]:
         """
         智能路由：根据用户输入和路由描述，选择最合适的技能（异步版本）
@@ -317,6 +321,9 @@ class PromptBuilder:
             user_input: 用户输入
             agent_skill_ids: Agent配置的所有技能ID
             routing_description: 路由特征描述
+            use_vector: 是否使用向量检索（默认True），False则使用关键词匹配
+            top_k: 选择最相关的K个技能（默认3）
+            threshold: 相似度阈值（默认0.7）
 
         Returns:
             选中的技能ID列表（按优先级排序）
@@ -329,6 +336,8 @@ class PromptBuilder:
             data={
                 "agent_skill_ids": agent_skill_ids,
                 "user_input_length": len(user_input or ""),
+                "use_vector": use_vector,
+                "top_k": top_k,
             },
         )
         # endregion
@@ -336,6 +345,122 @@ class PromptBuilder:
         if not agent_skill_ids:
             logger.info("智能路由: 技能ID列表为空")
             return []
+
+        # 优先使用向量检索
+        if use_vector:
+            try:
+                return await PromptBuilder._intelligent_routing_vector(
+                    db=db,
+                    user_input=user_input,
+                    agent_skill_ids=agent_skill_ids,
+                    routing_description=routing_description,
+                    top_k=top_k,
+                    threshold=threshold
+                )
+            except Exception as e:
+                logger.warning(f"向量检索失败，降级为关键词匹配: {e}")
+                # 降级到关键词匹配
+                pass
+
+        # 关键词匹配方式（保留原有逻辑作为降级方案）
+        return await PromptBuilder._intelligent_routing_keywords(
+            db=db,
+            user_input=user_input,
+            agent_skill_ids=agent_skill_ids,
+            routing_description=routing_description
+        )
+
+    @staticmethod
+    async def _intelligent_routing_vector(
+        db: AsyncSession,
+        user_input: str,
+        agent_skill_ids: List[int],
+        routing_description: str,
+        top_k: int,
+        threshold: float
+    ) -> List[int]:
+        """
+        基于向量检索的智能路由（私有方法）
+
+        Args:
+            db: 数据库会话
+            user_input: 用户输入
+            agent_skill_ids: Agent配置的技能ID
+            routing_description: 路由描述
+            top_k: 选择Top-K
+            threshold: 相似度阈值
+
+        Returns:
+            选中的技能ID列表
+        """
+        logger.info(f"使用向量检索进行智能路由 (top_k={top_k}, threshold={threshold})")
+
+        # 获取技能Embedding服务
+        skill_embedding_service = get_skill_embedding_service()
+
+        # 构建搜索查询（用户输入 + 路由描述）
+        query = f"{user_input}\n{routing_description}"
+
+        # 搜索相似技能
+        similar_skills = await skill_embedding_service.search_similar_skills(
+            query_text=query,
+            top_k=top_k * 2,  # 多搜索一些，然后过滤
+            threshold=threshold
+        )
+
+        # 过滤出Agent配置的技能ID
+        agent_skill_set = set(agent_skill_ids)
+        selected_skills = []
+
+        for skill_id, similarity, metadata in similar_skills:
+            if skill_id in agent_skill_set:
+                selected_skills.append((skill_id, similarity))
+                logger.debug(f"向量路由: 技能 {metadata.get('name')} (ID={skill_id}) 相似度={similarity:.3f}")
+
+            # 达到top_k个就停止
+            if len(selected_skills) >= top_k:
+                break
+
+        # 如果没有找到相关技能，回退到使用Agent配置的全部技能
+        if not selected_skills:
+            logger.warning(f"向量检索未找到相关技能（阈值={threshold}），使用全部配置的技能")
+            # 检查是否有任何相似结果（即使低于阈值）
+            for skill_id, similarity, metadata in similar_skills:
+                if skill_id in agent_skill_set:
+                    selected_skills.append((skill_id, similarity))
+
+            # 如果还是没有，返回全部技能ID（保证至少有技能可用）
+            if not selected_skills:
+                logger.info("向量检索无任何相似结果，返回全部Agent配置的技能")
+                return agent_skill_ids
+
+        # 按相似度排序并返回ID列表
+        selected_skills.sort(key=lambda x: x[1], reverse=True)
+        selected_ids = [skill_id for skill_id, _ in selected_skills]
+
+        logger.info(f"向量路由完成: 从{len(agent_skill_ids)}个技能中选择了{len(selected_ids)}个")
+        return selected_ids
+
+    @staticmethod
+    async def _intelligent_routing_keywords(
+        db: AsyncSession,
+        user_input: str,
+        agent_skill_ids: List[int],
+        routing_description: str
+    ) -> List[int]:
+        """
+        基于关键词匹配的智能路由（降级方案）
+
+        Args:
+            db: 数据库会话
+            user_input: 用户输入
+            agent_skill_ids: Agent配置的技能ID
+            routing_description: 路由描述
+
+        Returns:
+            选中的技能ID列表
+        """
+        logger.info("使用关键词匹配进行智能路由（降级方案）")
 
         # 获取所有候选技能（异步查询）
         result = await db.execute(
@@ -353,7 +478,7 @@ class PromptBuilder:
         # 提取关键词
         input_keywords = PromptBuilder._extract_keywords(user_input)
         routing_keywords = PromptBuilder._extract_keywords(routing_description)
-        
+
         logger.debug(f"智能路由: 用户输入关键词={input_keywords}, 路由关键词={routing_keywords}")
 
         # 为每个技能计算相关性得分
@@ -378,7 +503,7 @@ class PromptBuilder:
         skill_scores.sort(key=lambda x: x[1], reverse=True)
 
         selected_ids = [skill_id for skill_id, _ in skill_scores]
-        logger.info(f"智能路由完成: 从{len(agent_skill_ids)}个技能中选择了{len(selected_ids)}个")
+        logger.info(f"关键词路由完成: 从{len(agent_skill_ids)}个技能中选择了{len(selected_ids)}个")
 
         # 返回得分最高的技能（如果有匹配的话）
         return selected_ids

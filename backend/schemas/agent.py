@@ -82,9 +82,20 @@ class AgentListResponse(BaseModel):
 
 
 class AgentQueryParams(PageParams):
-    """智能体查询参数"""
+    """智能体查询参数
+    
+    说明：
+        - name: 按名称模糊查询
+        - status: 按状态筛选
+        - agentMode: 按智能体模式筛选（0-普通模式, 1-Skill 组装模式）
+    """
     name: Optional[str] = Field(None, description="智能体名称（模糊查询）")
     status: Optional[StatusType] = Field(None, description="状态")
+    agentMode: Optional[int] = Field(
+        default=None,
+        ge=0,
+        description="智能体模式：0-普通模式, 1-Skill 组装模式",
+    )
 
 
 class PromptTemplate(BaseModel):

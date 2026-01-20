@@ -94,14 +94,48 @@ class SkillService:
 
     @staticmethod
     async def delete(db: AsyncSession, skill_id: int) -> bool:
-        """删除技能（软删除）"""
+        """
+        删除技能（物理删除）
+
+        说明：
+            - 此方法会直接从数据库中删除记录
+            - 禁用/启用请使用单独的状态更新接口，不要与删除混用
+        """
         skill = await SkillService.get_by_id(db, skill_id)
         if not skill:
             return False
 
-        skill.status = 0  # 软删除：设置为禁用
+        # 物理删除记录
+        await db.delete(skill)
         await db.commit()
         return True
+
+    @staticmethod
+    async def update_status(
+        db: AsyncSession,
+        skill_id: int,
+        status: int,
+    ) -> Optional[SkillLibrary]:
+        """
+        更新技能状态（启用/禁用）
+
+        Args:
+            db: 异步数据库会话
+            skill_id: 技能ID
+            status: 状态（1-启用, 0-禁用）
+
+        Returns:
+            更新后的技能对象；不存在时返回 None
+        """
+        skill = await SkillService.get_by_id(db, skill_id)
+        if not skill:
+            return None
+
+        # 仅允许 0/1 两种状态，避免非法值
+        skill.status = 1 if status == 1 else 0
+        await db.commit()
+        await db.refresh(skill)
+        return skill
 
     @staticmethod
     async def get_by_ids(db: AsyncSession, skill_ids: List[int]) -> List[SkillLibrary]:

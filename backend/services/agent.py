@@ -39,19 +39,30 @@ class AgentService(BaseService):
         Returns:
             PageResult[Agent]: 分页结果
         """
+        # 基础查询语句
         query = select(Agent)
         conditions = []
         
+        # 按名称模糊查询
         if params.name:
             conditions.append(Agent.name.like(f"%{params.name}%"))
+        
+        # 按状态筛选
         if params.status is not None:
             conditions.append(Agent.status == params.status)
         
+        # 按智能体模式筛选（0-普通模式, 1-Skill 组装模式）
+        # agent_mode 字段为服务端内部字段，这里通过查询参数进行映射
+        if getattr(params, "agentMode", None) is not None:
+            conditions.append(Agent.agent_mode == params.agentMode)
+        
+        # 统一拼接 where 条件
         if conditions:
             query = query.where(and_(*conditions))
         
         query = query.order_by(asc(Agent.sort_order), desc(Agent.created_at))
         
+        # 统计总数查询（需要与列表查询条件保持一致）
         count_query = select(func.count(Agent.id))
         if conditions:
             count_query = count_query.where(and_(*conditions))

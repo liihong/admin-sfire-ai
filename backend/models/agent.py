@@ -109,12 +109,6 @@ class Agent(BaseModel):
         comment="0-普通模式, 1-Skill组装模式",
     )
     
-    persona_id: Mapped[Optional[int]] = mapped_column(
-        BigInteger,
-        nullable=True,
-        comment="关联IP基因库ID",
-    )
-    
     skill_ids: Mapped[Optional[list]] = mapped_column(
         JSON,
         nullable=True,

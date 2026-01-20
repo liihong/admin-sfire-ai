@@ -57,8 +57,8 @@ class RequestHttp {
         const userStore = useUserStore();
         const mpUserStore = useMPUserStore();
 
-        // 判断是Admin还是Client请求
-        const isClientRequest = config.url && config.url.includes("/v1/client");
+        // 判断是Admin还是Client请求（支持v1和v2版本）
+        const isClientRequest = config.url && (config.url.includes("/v1/client") || config.url.includes("/v2/client"));
         const store = isClientRequest ? mpUserStore : userStore;
 
         // Token自动刷新逻辑
@@ -104,10 +104,10 @@ class RequestHttp {
         config.loading && showFullScreenLoading();
 
         // 根据请求 URL 判断使用哪个 store 的 token
-        // 如果请求的是小程序接口（/v1/client），使用小程序用户 token
+        // 如果请求的是小程序接口（/v1/client 或 /v2/client），使用小程序用户 token
         // 否则使用 admin 用户 token
         let token = "";
-        if (config.url && config.url.includes("/v1/client")) {
+        if (config.url && (config.url.includes("/v1/client") || config.url.includes("/v2/client"))) {
           // 小程序接口，使用小程序用户 token
           token = mpUserStore?.token || "";
         } else {
@@ -142,8 +142,8 @@ class RequestHttp {
         config.loading && tryHideFullScreenLoading();
         // 登录失效
         if (data.code == ResultEnum.OVERDUE) {
-          // 根据请求 URL 判断是哪个模块的 token 失效
-          if (config.url && config.url.includes("/v1/client")) {
+          // 根据请求 URL 判断是哪个模块的 token 失效（支持v1和v2版本）
+          if (config.url && (config.url.includes("/v1/client") || config.url.includes("/v2/client"))) {
             // 小程序用户 token 失效
             if (mpUserStore) {
               mpUserStore.resetUser();

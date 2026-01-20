@@ -122,10 +122,39 @@ async def delete_skill(
     db: AsyncSession = Depends(_get_db),
 ):
     """
-    删除技能（软删除）
+    删除技能（物理删除）
+
+    注意：
+        - 此接口会直接从数据库中移除技能记录
+        - 如果只是希望在页面上不展示，请使用单独的禁用接口
     """
     result = await SkillService.delete(db, skill_id)
     if not result:
         raise NotFoundException(msg="技能不存在")
     logger.info(f"删除技能成功: ID={skill_id}")
     return success(msg="删除成功")
+
+
+@router.put("/{skill_id}/status")
+async def update_skill_status(
+    skill_id: int,
+    status: int,
+    db: AsyncSession = Depends(_get_db),
+):
+    """
+    更新技能状态（启用/禁用）
+
+    前端可以通过该接口实现“禁用/启用”功能，而不是复用删除接口：
+        - status = 1: 启用
+        - status = 0: 禁用
+    """
+    skill = await SkillService.update_status(db, skill_id, status)
+    if not skill:
+        raise NotFoundException(msg="技能不存在")
+
+    action = "启用" if skill.status == 1 else "禁用"
+    logger.info(f"{action}技能成功: ID={skill_id}")
+    return success(
+        data=SkillResponse.model_validate(skill).model_dump(),
+        msg=f"{action}成功",
+    )
