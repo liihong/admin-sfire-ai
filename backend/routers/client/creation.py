@@ -332,7 +332,10 @@ async def list_agents(
     
     result = await db.execute(
         select(Agent).where(
-            Agent.status == 1  # 只返回上架的智能体
+            and_(
+                Agent.status == 1,  # 只返回上架的智能体
+                Agent.is_system == 0  # 过滤掉系统自用智能体
+            )
         ).order_by(Agent.sort_order, Agent.created_at)
     )
     db_agents = result.scalars().all()

@@ -13,6 +13,8 @@
  */
 
 /* 颜色变量 */
+// 必须放在最前面，引入 uView-plus 的核心主题变量
+@import 'uview-plus/theme.scss';
 
 /* 行为相关颜色 */
 $uni-color-primary: #007aff;

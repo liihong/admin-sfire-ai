@@ -134,6 +134,14 @@ class Agent(BaseModel):
         comment="是否启用智能路由：0-否 1-是",
     )
     
+    # === 系统自用标识 ===
+    is_system: Mapped[int] = mapped_column(
+        Integer,
+        nullable=False,
+        default=0,
+        comment="是否为系统自用智能体：0-否，1-是",
+    )
+    
     def __repr__(self) -> str:
         return f"<Agent(id={self.id}, name={self.name}, status={self.status})>"
     

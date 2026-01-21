@@ -15,7 +15,21 @@
         </el-col>
         <el-col :span="12">
           <el-form-item label="图标" prop="icon">
-            <el-input v-model="formData.icon" placeholder="请输入图标URL或图标标识" />
+           <IconPicker v-model="formData.icon" />
+          </el-form-item>
+        </el-col>
+      </el-row>
+
+      <el-row :gutter="24">
+        <el-col :span="12">
+          <el-form-item label="运行模式" prop="agentMode">
+            <el-radio-group v-model="formData.agentMode">
+              <el-radio :label="0">普通模式</el-radio>
+              <el-radio :label="1">技能组装模式</el-radio>
+            </el-radio-group>
+            <div class="form-tip">
+              {{ formData.agentMode === 0 ? '直接编辑系统提示词' : '通过技能组装生成提示词' }}
+            </div>
           </el-form-item>
         </el-col>
       </el-row>
@@ -31,23 +45,33 @@
         />
       </el-form-item>
 
-      <el-form-item label="系统提示词" prop="systemPrompt">
-        <div class="prompt-wrapper">
-          <el-input
-            v-model="formData.systemPrompt"
-            type="textarea"
-            :rows="10"
-            placeholder="请输入系统提示词（System Prompt）"
-            maxlength="5000"
-            show-word-limit
-          />
-          <div class="template-actions">
-            <el-button type="primary" link :icon="Document" @click="showTemplateDialog = true">
-              选择预设模板
-            </el-button>
+    <!-- 技能组装模式专属 -->
+      <template v-if="formData.agentMode === 1">
+        <el-divider content-position="left">技能组装配置</el-divider>
+
+        <!-- 技能选择器 -->
+        <el-form-item label="选择技能">
+          <SkillSelector :model-value="formData.skillIds || []" :variables="formData.skillVariables || {}"
+            @update:model-value="(val: number[]) => { formData.skillIds = val; }"
+            @update:variables="(val: Record<number, Record<string, string>>) => { formData.skillVariables = val; }"
+            @change="handleSkillChange" />
+        </el-form-item>
+      </template>
+
+      <!-- 普通模式专属 -->
+      <template v-else>
+       <el-form-item label="系统提示词" prop="systemPrompt">
+          <div class="prompt-wrapper">
+           <el-input v-model="formData.systemPrompt" type="textarea" :rows="10" placeholder="请输入系统提示词（System Prompt）"
+              maxlength="5000" show-word-limit />
+            <div class="template-actions">
+              <el-button type="primary" link :icon="Document" @click="showTemplateDialog = true">
+                选择预设模板
+              </el-button>
+            </div>
           </div>
-        </div>
-      </el-form-item>
+        </el-form-item>
+     </template>
 
       <el-row :gutter="24">
         <el-col :span="12">
@@ -198,6 +222,8 @@ import { ElMessage, FormInstance, FormRules } from "element-plus";
 import { Document } from "@element-plus/icons-vue";
 import { Agent } from "@/api/interface";
 import { createAgent, updateAgent, getPromptTemplates, getAvailableModels } from "@/api/modules/agent";
+import IconPicker from "@/components/IconPicker/index.vue";
+import SkillSelector from "@/views/skill-assembly/components/SkillSelector.vue";
 
 interface Props {
   formData?: Partial<Agent.ResAgentItem>;
@@ -235,15 +261,32 @@ const formData = reactive<Agent.ReqAgentForm>({
     presencePenalty: 0.0,
   },
   sortOrder: 0,
-  status: 1,
+  status: 0, // 新增智能体默认下架，调试通过后才能上架
+  agentMode: 0, // 默认普通模式
+  skillIds: [] as number[],
+  skillVariables: {} as Record<number, Record<string, string>>,
+  isSystem: 0, // 默认非系统自用
 });
 
 // 表单验证规则
 const rules: FormRules = {
   name: [{ required: true, message: "请输入智能体名称", trigger: "blur" }],
   icon: [{ required: true, message: "请输入图标", trigger: "blur" }],
-  systemPrompt: [{ required: true, message: "请输入系统提示词", trigger: "blur" }],
+  systemPrompt: [
+    {
+      validator: (rule, value, callback) => {
+        // 普通模式下必须填写系统提示词
+        if (formData.agentMode === 0 && !value) {
+          callback(new Error("请输入系统提示词"));
+        } else {
+          callback();
+        }
+      },
+      trigger: "blur",
+    },
+  ],
   model: [{ required: true, message: "请选择AI模型", trigger: "change" }],
+  agentMode: [{ required: true, message: "请选择运行模式", trigger: "change" }],
 };
 
 // 初始化表单数据
@@ -264,8 +307,16 @@ const initFormData = () => {
         presencePenalty: props.formData.config?.presencePenalty ?? 0.0,
       },
       sortOrder: props.formData.sortOrder ?? 0,
-      status: props.formData.status ?? 1,
+      status: props.formData.status ?? 0, // 编辑时保持原状态，新增时默认下架
+      agentMode: props.formData.agentMode ?? 0, // 编辑时保持原模式，新增时默认普通模式
+      skillIds: (props.formData.skillIds || []) as number[], // 编辑时加载已配置的技能
+      skillVariables: (props.formData.skillVariables || {}) as Record<number, Record<string, string>>, // 编辑时加载已配置的技能变量
+      isSystem: props.formData.isSystem ?? 0, // 编辑时保持原值，新增时默认非系统自用
     });
+  } else {
+    // 新增时确保字段有默认值
+    formData.skillIds = [];
+    formData.skillVariables = {};
   }
 };
 
@@ -304,19 +355,41 @@ const handleSelectTemplate = (template: Agent.PromptTemplate) => {
   ElMessage.success(`已应用模板：${template.name}`);
 };
 
+// 技能变化时
+const handleSkillChange = (skills: any[]) => {
+  console.log("技能变化:", skills);
+};
+
 // 提交表单
 const handleSubmit = async () => {
   if (!formRef.value) return;
+
+  // 技能组装模式下验证技能
+  if (formData.agentMode === 1) {
+    if (!formData.skillIds || formData.skillIds.length === 0) {
+      ElMessage.warning("技能组装模式下必须至少选择一个技能");
+      return;
+    }
+  }
 
   await formRef.value.validate();
   submitting.value = true;
 
   try {
+    // 准备提交数据
+    const submitData: Agent.ReqAgentForm = {
+      ...formData,
+      // 普通模式下，skillIds 和 skillVariables 可以为空或 undefined
+      // 技能组装模式下，必须提供 skillIds
+      skillIds: formData.agentMode === 1 ? formData.skillIds : undefined,
+      skillVariables: formData.agentMode === 1 ? formData.skillVariables : undefined,
+    };
+
     if (props.isEdit && formData.id) {
-      await updateAgent(formData as Agent.ReqAgentForm);
+      await updateAgent(submitData);
       ElMessage.success("更新成功");
     } else {
-      await createAgent(formData);
+      await createAgent(submitData);
       ElMessage.success("创建成功");
     }
     emit("submit");
@@ -374,6 +447,7 @@ onMounted(() => {
     font-size: 12px;
     color: var(--el-text-color-secondary);
     margin-left: 12px;
+    margin-top: 8px;
   }
 }
 </style>

@@ -252,7 +252,10 @@ class SkillEmbeddingService:
                     if skill_id is not None:
                         skill_results.append((skill_id, similarity, metadata))
 
-            logger.info(f"搜索到 {len(skill_results)} 个相似技能（阈值={threshold}）")
+            if threshold == 0.0:
+                logger.debug(f"搜索到 {len(skill_results)} 个相似技能（未应用阈值）")
+            else:
+                logger.info(f"搜索到 {len(skill_results)} 个相似技能（阈值={threshold}）")
             return skill_results
 
         except Exception as e:

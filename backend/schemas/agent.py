@@ -32,6 +32,27 @@ class AgentBase(BaseModel):
     config: AgentConfig = Field(default_factory=AgentConfig, description="配置参数")
     sortOrder: int = Field(default=0, ge=0, description="排序顺序")
     status: StatusType = Field(default=0, description="状态：0-下架, 1-上架")
+    # 技能组装模式字段（向后兼容，可选）
+    agentMode: Optional[int] = Field(
+        default=0,
+        ge=0,
+        le=1,
+        description="运行模式：0-普通模式, 1-Skill组装模式"
+    )
+    skillIds: Optional[List[int]] = Field(
+        default=None,
+        description="技能ID数组（按顺序），仅在技能组装模式下使用"
+    )
+    skillVariables: Optional[dict] = Field(
+        default=None,
+        description="技能变量配置 {skill_id: {var: value}}，仅在技能组装模式下使用"
+    )
+    isSystem: Optional[int] = Field(
+        default=0,
+        ge=0,
+        le=1,
+        description="是否为系统自用智能体：0-否，1-是"
+    )
 
 
 class AgentCreate(AgentBase):
@@ -49,6 +70,11 @@ class AgentUpdate(BaseModel):
     config: Optional[AgentConfig] = None
     sortOrder: Optional[int] = Field(None, ge=0)
     status: Optional[StatusType] = None
+    # 技能组装模式字段（向后兼容，可选）
+    agentMode: Optional[int] = Field(None, ge=0, le=1, description="运行模式：0-普通模式, 1-Skill组装模式")
+    skillIds: Optional[List[int]] = Field(None, description="技能ID数组（按顺序）")
+    skillVariables: Optional[dict] = Field(None, description="技能变量配置 {skill_id: {var: value}}")
+    isSystem: Optional[int] = Field(None, ge=0, le=1, description="是否为系统自用智能体：0-否，1-是")
 
 
 class AgentResponse(BaseModel):
@@ -68,6 +94,11 @@ class AgentResponse(BaseModel):
     usageCount: int = Field(default=0, description="使用次数")
     createTime: str = Field(..., description="创建时间")
     updateTime: str = Field(..., description="更新时间")
+    # 技能组装模式字段（向后兼容）
+    agentMode: int = Field(default=0, description="运行模式：0-普通模式, 1-Skill组装模式")
+    skillIds: Optional[List[int]] = Field(default=None, description="技能ID数组（按顺序）")
+    skillVariables: Optional[dict] = Field(default=None, description="技能变量配置")
+    isSystem: int = Field(default=0, description="是否为系统自用智能体：0-否，1-是")
 
     class Config:
         from_attributes = True

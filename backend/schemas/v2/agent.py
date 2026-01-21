@@ -51,6 +51,7 @@ class AgentCreateV2(BaseModel):
         return v
     routing_description: Optional[str] = Field(None, description="路由特征描述")
     is_routing_enabled: int = Field(default=0, description="是否启用智能路由：0-否 1-是")
+    is_system: int = Field(default=0, ge=0, le=1, description="是否为系统自用智能体：0-否，1-是")
 
 
 class AgentUpdateV2(BaseModel):
@@ -70,6 +71,7 @@ class AgentUpdateV2(BaseModel):
     skill_variables: Optional[Dict[int, Dict[str, str]]] = None
     routing_description: Optional[str] = None
     is_routing_enabled: Optional[int] = None
+    is_system: Optional[int] = Field(None, ge=0, le=1, description="是否为系统自用智能体：0-否，1-是")
 
 
 class AgentResponseV2(BaseModel):
@@ -91,6 +93,7 @@ class AgentResponseV2(BaseModel):
     skill_variables: Optional[Dict[int, Dict[str, str]]] = Field(None, description="技能变量")
     routing_description: Optional[str] = Field(None, description="路由特征描述")
     is_routing_enabled: int = Field(default=0, description="是否启用智能路由")
+    is_system: int = Field(default=0, description="是否为系统自用智能体：0-否，1-是")
 
     # 关联的技能详情(仅在详情接口返回)
     skills_detail: Optional[List[SkillResponse]] = Field(None, description="关联的技能详情")

@@ -29,6 +29,11 @@ def agent_to_response(agent: Agent) -> dict:
         "usageCount": agent.usage_count,
         "createTime": agent.created_at.strftime("%Y-%m-%d %H:%M:%S"),
         "updateTime": agent.updated_at.strftime("%Y-%m-%d %H:%M:%S") if agent.updated_at else "",
+        # 技能组装模式字段（向后兼容）
+        "skillIds": agent.skill_ids,
+        "skillVariables": agent.skill_variables,
+        # 系统自用标识
+        "isSystem": agent.is_system,
     }
 
 

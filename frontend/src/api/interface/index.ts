@@ -434,7 +434,10 @@ export namespace Agent {
     config: AgentConfig;
     sortOrder: number;
     status: StatusType;
-    agentMode?: number;
+    agentMode?: number; // 0-普通模式, 1-Skill组装模式
+    skillIds?: number[]; // 技能ID数组（按顺序）
+    skillVariables?: Record<number, Record<string, string>>; // 技能变量配置
+    isSystem?: number; // 是否为系统自用智能体：0-否，1-是
     usageCount?: number;
     createdAt?: string;
     updatedAt?: string;
@@ -459,6 +462,10 @@ export namespace Agent {
     config: AgentConfig;
     sortOrder?: number;
     status: StatusType;
+    agentMode?: number; // 0-普通模式, 1-Skill组装模式
+    skillIds?: number[]; // 技能ID数组（按顺序）
+    skillVariables?: Record<number, Record<string, string>>; // 技能变量配置
+    isSystem?: number; // 是否为系统自用智能体：0-否，1-是
   }
 
   // 预设模板
@@ -565,6 +572,7 @@ export namespace AgentV2 {
     skill_variables?: Record<number, Record<string, string>>;
     routing_description?: string;
     is_routing_enabled: number;
+    is_system?: number; // 是否为系统自用智能体：0-否，1-是
     skills_detail?: ResSkillItem[];
     created_at: string;
     updated_at?: string;

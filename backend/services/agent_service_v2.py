@@ -188,6 +188,7 @@ class AgentServiceV2:
             "skill_variables": agent.skill_variables,
             "routing_description": agent.routing_description,
             "is_routing_enabled": agent.is_routing_enabled,
+            "is_system": agent.is_system,
             "skills_detail": [
                 {
                     "id": s.id,

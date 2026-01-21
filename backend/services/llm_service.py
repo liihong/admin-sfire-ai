@@ -7,8 +7,9 @@ This module provides a unified interface for different LLM providers:
 - Doubao (Volcengine/火山引擎 API)
 """
 from abc import ABC, abstractmethod
-from typing import Optional, Dict, Any, AsyncGenerator
+from typing import Optional, Dict, Any, AsyncGenerator, Union
 import httpx
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from core.config import settings
 
@@ -64,12 +65,12 @@ class DeepSeekLLM(BaseLLM):
         base_url: Optional[str] = None,
         model: Optional[str] = None
     ):
-        super().__init__(api_key or settings.DEEPSEEK_API_KEY)
+        # 移除环境变量fallback，必须明确传入api_key
+        if not api_key:
+            raise ValueError("DeepSeek API key is required. Must be explicitly provided.")
+        super().__init__(api_key)
         self.base_url = base_url or self.DEFAULT_BASE_URL
         self.model = model or self.DEFAULT_MODEL
-        
-        if not self.api_key:
-            raise ValueError("DeepSeek API key is required. Set DEEPSEEK_API_KEY environment variable.")
     
     async def generate_text(self, prompt: str, **kwargs) -> str:
         """Generate text using DeepSeek API (OpenAI compatible format)."""
@@ -181,13 +182,13 @@ class ClaudeLLM(BaseLLM):
         base_url: Optional[str] = None,
         model: Optional[str] = None
     ):
-        super().__init__(api_key or settings.ANTHROPIC_API_KEY)
+        # 移除环境变量fallback，必须明确传入api_key
+        if not api_key:
+            raise ValueError("Claude API key is required. Must be explicitly provided.")
+        super().__init__(api_key)
         self.base_url = base_url or self.DEFAULT_BASE_URL
         self.model = model or self.DEFAULT_MODEL
         self.use_openai_format = False
-        
-        if not self.api_key:
-            raise ValueError("Claude API key is required. Set ANTHROPIC_API_KEY environment variable.")
     
     async def generate_text(self, prompt: str, **kwargs) -> str:
         """Generate text using Claude API."""
@@ -412,12 +413,12 @@ class DoubaoLLM(BaseLLM):
         base_url: Optional[str] = None,
         model: Optional[str] = None
     ):
-        super().__init__(api_key or settings.DOUBAO_API_KEY)
+        # 移除环境变量fallback，必须明确传入api_key
+        if not api_key:
+            raise ValueError("Doubao API key is required. Must be explicitly provided.")
+        super().__init__(api_key)
         self.base_url = base_url or self.DEFAULT_BASE_URL
         self.model = model or self.DEFAULT_MODEL
-        
-        if not self.api_key:
-            raise ValueError("Doubao API key is required. Set DOUBAO_API_KEY environment variable.")
     
     async def generate_text(self, prompt: str, **kwargs) -> str:
         """Generate text using Volcengine Doubao API."""
@@ -570,4 +571,80 @@ class LLMFactory:
     def get_supported_models(cls) -> list:
         """Return a list of supported model types."""
         return list(cls._registry.keys())
+    
+    @classmethod
+    async def create_from_db(
+        cls,
+        db: AsyncSession,
+        model_id_or_name: Union[int, str]
+    ) -> BaseLLM:
+        """
+        从数据库创建LLM实例
+        
+        Args:
+            db: 异步数据库会话
+            model_id_or_name: 模型ID（数据库主键）或模型标识（model_id字段）
+        
+        Returns:
+            BaseLLM: LLM实例
+        
+        Raises:
+            ValueError: 如果模型不存在、未启用或未配置API Key
+        """
+        from services.llm_model import LLMModelService
+        
+        llm_model_service = LLMModelService(db)
+        
+        # 尝试通过ID查询
+        if isinstance(model_id_or_name, int):
+            try:
+                llm_model = await llm_model_service.get_llm_model_by_id(model_id_or_name)
+            except Exception:
+                llm_model = None
+        else:
+            # 尝试通过model_id字段查询
+            llm_model = await llm_model_service.get_llm_model_by_model_id(model_id_or_name)
+            
+            # 如果还是找不到，尝试通过provider查询
+            if not llm_model:
+                from sqlalchemy import select
+                from models.llm_model import LLMModel
+                result = await db.execute(
+                    select(LLMModel).where(
+                        LLMModel.provider == model_id_or_name.lower(),
+                        LLMModel.is_enabled == True
+                    ).order_by(LLMModel.sort_order).limit(1)
+                )
+                llm_model = result.scalar_one_or_none()
+        
+        if not llm_model:
+            # 查询所有可用的模型ID，用于错误提示
+            from sqlalchemy import select, func
+            from models.llm_model import LLMModel
+            try:
+                all_ids_result = await db.execute(select(LLMModel.id).order_by(LLMModel.id))
+                all_ids = [row[0] for row in all_ids_result.all()]
+                available_ids_str = ", ".join(map(str, all_ids)) if all_ids else "无"
+                raise ValueError(
+                    f"模型 {model_id_or_name} 不存在。"
+                    f"数据库中可用的模型ID: [{available_ids_str}]。"
+                    f"请检查配置或创建对应的模型。"
+                )
+            except Exception:
+                # 如果查询失败，使用简单错误信息
+                raise ValueError(f"模型 {model_id_or_name} 不存在")
+        
+        if not llm_model.is_enabled:
+            raise ValueError(f"模型 {llm_model.name} 未启用")
+        
+        if not llm_model.api_key:
+            raise ValueError(f"模型 {llm_model.name} 未配置 API Key")
+        
+        # 根据provider创建对应的LLM实例
+        return cls.create(
+            model_type=llm_model.provider,
+            api_key=llm_model.api_key,
+            base_url=llm_model.base_url,
+            model=llm_model.model_id
+        )
 

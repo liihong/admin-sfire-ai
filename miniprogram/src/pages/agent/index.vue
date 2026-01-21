@@ -28,15 +28,13 @@
       </view>
 
       <!-- 智能体列表 -->
-      <view 
-        v-for="(item, index) in featureList" 
-:key="item.id"
+      <view
+        v-for="(item, index) in featureList"
+        :key="item.id"
         class="feature-card"
         @click="handleFeatureClick(item)"
       >
-        <view class="feature-icon" :style="{ backgroundColor: getAgentBgColor(index) }">
-          <text class="icon-text">{{ item.icon }}</text>
-        </view>
+        <AgentIcon :iconName="item.icon" />
         <view class="feature-content">
           <text class="feature-title">{{ item.name }}</text>
           <text class="feature-desc">{{ item.description }}</text>
@@ -58,6 +56,7 @@
 import { ref, onMounted } from 'vue'
 import { useAuthStore } from '@/stores/auth'
 import { getAgentList, type Agent } from '@/api/agent'
+import AgentIcon from '@/components/AgentIcon.vue'
 
 const authStore = useAuthStore()
 
@@ -229,20 +228,6 @@ onMounted(() => {
 .feature-card:active {
   transform: scale(0.98);
   box-shadow: 0 2rpx 12rpx rgba(0, 0, 0, 0.06);
-}
-
-.feature-icon {
-  width: 96rpx;
-  height: 96rpx;
-  border-radius: 20rpx;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-}
-
-.icon-text {
-  font-size: 44rpx;
 }
 
 .feature-content {

@@ -244,7 +244,13 @@ onHide(() => {
 });
 </script>
 
-<style>
+<style lang="scss">
+/* 加上这一行，解决 common.scss 找不到变量的问题 */
+  @import 'uview-plus/theme.scss'; 
+  
+  /* 引入基础样式 */
+  @import 'uview-plus/index.scss';
+
 /* 全局样式 */
 page {
   background-color: #f5f5f5;

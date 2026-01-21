@@ -32,10 +32,10 @@
       <el-card v-for="agent in agentList" :key="agent.id" class="agent-card" shadow="hover" :body-style="{ padding: '20px' }">
         <div class="card-header">
           <div class="agent-info">
-            <div class="agent-icon">
+            <div class="agent-icon" :style="{ background: isImageUrl(agent.icon) ? 'none' : getIconGradient(agent.icon) }">
               <!-- 如果是图片URL，显示图片；否则显示图标组件 -->
               <img v-if="isImageUrl(agent.icon)" :src="agent.icon" class="icon-img" alt="agent icon" />
-              <el-icon v-else :size="40">
+              <el-icon v-else :size="32">
                 <component :is="getIconComponent(agent.icon)" />
               </el-icon>
             </div>
@@ -121,7 +121,74 @@
 <script setup lang="ts" name="agentManage">
 import { ref, reactive, onMounted } from "vue";
 import { ElMessage, ElMessageBox } from "element-plus";
-import { Search, Refresh, Plus, EditPen, Delete, ChatDotRound, Cpu, Document, MagicStick } from "@element-plus/icons-vue";
+import {
+  Search,
+  Refresh,
+  Plus,
+  EditPen,
+  Delete,
+  ChatDotRound,
+  ChatLineRound,
+  ChatLineSquare,
+  Cpu,
+  Document,
+  DocumentCopy,
+  Files,
+  Notebook,
+  Reading,
+  Tools,
+  Setting,
+  Operation,
+  Management,
+  Monitor,
+  User,
+  UserFilled,
+  Avatar,
+  Star,
+  Brush,
+  Picture,
+  Film,
+  ShoppingCart,
+  Box,
+  Present,
+  Trophy,
+  Coin,
+  DataBoard,
+  PieChart,
+  Histogram,
+  TrendCharts,
+  Odometer,
+  Cloudy,
+  Upload,
+  Download,
+  Folder,
+  FolderOpened,
+  Lock,
+  Unlock,
+  Key,
+  Message,
+  Phone,
+  Cellphone,
+  VideoCamera,
+  Notification,
+  Bell,
+  House,
+  Filter,
+  Clock,
+  Timer,
+  Calendar,
+  Flag,
+  CollectionTag,
+  Sunny,
+  Moon,
+  InfoFilled,
+  WarningFilled,
+  SuccessFilled,
+  MagicStick,
+  Connection,
+  DataAnalysis,
+  Platform
+} from "@element-plus/icons-vue";
 import { useRouter } from "vue-router";
 import { Agent } from "@/api/interface";
 import { getAgentList, deleteAgent, changeAgentStatus, updateAgentSort } from "@/api/modules/agent";
@@ -182,19 +249,91 @@ const getIconComponent = (iconName: string) => {
     return ChatDotRound;
   }
 
-  // Element Plus 图标映射表
+  // Element Plus 图标映射表 - 支持更多图标
   const iconMap: Record<string, any> = {
-    // 常用图标
+    // AI/智能类
     ChatDotRound,
-    Document,
+    ChatLineRound,
+    ChatLineSquare,
+    MagicStick,
     Cpu,
-    // 自定义标识映射
+    Connection,
+    DataAnalysis,
+    Platform,
+    // 文档类
+    Document,
+    DocumentCopy,
+    Files,
+    Notebook,
+    Reading,
+    // 工具类
+    Tools,
+    Setting,
+    Operation,
+    Management,
+    Monitor,
+    // 用户类
+    User,
+    UserFilled,
+    Avatar,
+    // 创意类
+    Star,
+    EditPen,
+    Brush,
+    Picture,
+    Film,
+    // 业务类
+    ShoppingCart,
+    Box,
+    Present,
+    Trophy,
+    Coin,
+    // 数据类
+    DataBoard,
+    PieChart,
+    Histogram,
+    TrendCharts,
+    Odometer,
+    // 云服务类
+    Cloudy,
+    Upload,
+    Download,
+    Folder,
+    FolderOpened,
+    // 安全类
+    Lock,
+    Unlock,
+    Key,
+    // 通信类
+    Message,
+    Phone,
+    Cellphone,
+    VideoCamera,
+    Notification,
+    Bell,
+    // 常用类
+    House,
+    Search,
+    Filter,
+    Clock,
+    Timer,
+    Calendar,
+    Flag,
+    CollectionTag,
+    Sunny,
+    Moon,
+    Link: ChatDotRound,
+    Avatar,
+    InfoFilled,
+    WarningFilled,
+    SuccessFilled,
+    // 自定义标识映射（兼容旧数据）
     viral_copy_default: Document, // 文案类
     script_default: ChatDotRound, // 脚本类
     marketing_default: ChatDotRound, // 营销类
     chat: ChatDotRound, // 聊天类
     document: Document, // 文档类
-    cpu: Cpu // 计算类
+    cpu: Cpu, // 计算类
   };
 
   // 如果在映射表中找到，返回对应图标
@@ -204,6 +343,101 @@ const getIconComponent = (iconName: string) => {
 
   // 默认返回 ChatDotRound
   return ChatDotRound;
+};
+
+/**
+ * 获取图标渐变背景色
+ * 根据图标名称返回对应的渐变色
+ */
+const getIconGradient = (iconName: string): string => {
+  if (!iconName) return "linear-gradient(135deg, #667eea 0%, #764ba2 100%)";
+
+  const gradientMap: Record<string, string> = {
+    // AI/智能类 - 紫色、蓝色系
+    ChatDotRound: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+    ChatLineRound: "linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)",
+    ChatLineSquare: "linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)",
+    MagicStick: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+    Cpu: "linear-gradient(135deg, #89f7fe 0%, #66a6ff 100%)",
+    Connection: "linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)",
+    DataAnalysis: "linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)",
+    Platform: "linear-gradient(135deg, #434343 0%, #000000 100%)",
+
+    // 文档类 - 蓝色系
+    Document: "linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)",
+    DocumentCopy: "linear-gradient(135deg, #89f7fe 0%, #66a6ff 100%)",
+    Files: "linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)",
+    Notebook: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+    Reading: "linear-gradient(135deg, #fa709a 0%, #fee140 100%)",
+
+    // 工具类 - 橙色、深色系
+    Tools: "linear-gradient(135deg, #fa709a 0%, #fee140 100%)",
+    Setting: "linear-gradient(135deg, #434343 0%, #000000 100%)",
+    Operation: "linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)",
+    Management: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+    Monitor: "linear-gradient(135deg, #89f7fe 0%, #66a6ff 100%)",
+
+    // 创意类 - 金色、彩色系
+    Star: "linear-gradient(135deg, #f5af19 0%, #f12711 100%)",
+    EditPen: "linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)",
+    Brush: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+    Picture: "linear-gradient(135deg, #fa709a 0%, #fee140 100%)",
+    Film: "linear-gradient(135deg, #f093fb 0%, #f5576c 100%)",
+
+    // 业务类 - 橙色、金色系
+    ShoppingCart: "linear-gradient(135deg, #fa709a 0%, #fee140 100%)",
+    Box: "linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)",
+    Present: "linear-gradient(135deg, #f093fb 0%, #f5576c 100%)",
+    Trophy: "linear-gradient(135deg, #f5af19 0%, #f12711 100%)",
+    Coin: "linear-gradient(135deg, #fa709a 0%, #fee140 100%)",
+
+    // 数据类 - 彩色系
+    DataBoard: "linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)",
+    PieChart: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+    Histogram: "linear-gradient(135deg, #89f7fe 0%, #66a6ff 100%)",
+    TrendCharts: "linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)",
+    Odometer: "linear-gradient(135deg, #434343 0%, #000000 100%)",
+
+    // 云服务类 - 蓝绿色系
+    Cloudy: "linear-gradient(135deg, #89f7fe 0%, #66a6ff 100%)",
+    Upload: "linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)",
+    Download: "linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)",
+    Folder: "linear-gradient(135deg, #fa709a 0%, #fee140 100%)",
+    FolderOpened: "linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)",
+
+    // 安全类 - 深色、金色系
+    Lock: "linear-gradient(135deg, #434343 0%, #000000 100%)",
+    Unlock: "linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)",
+    Key: "linear-gradient(135deg, #f5af19 0%, #f12711 100%)",
+    User: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+    UserFilled: "linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)",
+    Avatar: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+
+    // 通信类 - 彩色系
+    Message: "linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)",
+    Phone: "linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)",
+    Cellphone: "linear-gradient(135deg, #89f7fe 0%, #66a6ff 100%)",
+    VideoCamera: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+    Notification: "linear-gradient(135deg, #f093fb 0%, #f5576c 100%)",
+    Bell: "linear-gradient(135deg, #f5af19 0%, #f12711 100%)",
+
+    // 常用类 - 各种颜色
+    House: "linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)",
+    Search: "linear-gradient(135deg, #89f7fe 0%, #66a6ff 100%)",
+    Filter: "linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)",
+    Clock: "linear-gradient(135deg, #434343 0%, #000000 100%)",
+    Timer: "linear-gradient(135deg, #fa709a 0%, #fee140 100%)",
+    Calendar: "linear-gradient(135deg, #f093fb 0%, #f5576c 100%)",
+    Flag: "linear-gradient(135deg, #f5af19 0%, #f12711 100%)",
+    CollectionTag: "linear-gradient(135deg, #fa709a 0%, #fee140 100%)",
+    Sunny: "linear-gradient(135deg, #f5af19 0%, #f12711 100%)",
+    Moon: "linear-gradient(135deg, #434343 0%, #000000 100%)",
+    InfoFilled: "linear-gradient(135deg, #89f7fe 0%, #66a6ff 100%)",
+    WarningFilled: "linear-gradient(135deg, #fa709a 0%, #fee140 100%)",
+    SuccessFilled: "linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)",
+  };
+
+  return gradientMap[iconName] || "linear-gradient(135deg, #667eea 0%, #764ba2 100%)";
 };
 
 // 获取智能体列表
@@ -284,7 +518,7 @@ const handleDelete = async (agent: Agent.ResAgentItem) => {
 
 // 状态切换
 const handleStatusChange = async (agent: Agent.ResAgentItem) => {
-  const newStatus = agent.status === 1 ? 0 : 1;
+  const newStatus = agent.status === 1 ? 1 : 0;
   const action = newStatus === 1 ? "上架" : "下架";
 
   try {

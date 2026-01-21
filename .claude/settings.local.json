@@ -20,7 +20,10 @@
       "Bash(pnpm build:pro:*)",
       "Bash(pnpm add:*)",
       "Bash(mysql:*)",
-      "Bash(python3:*)"
-    ]
+      "Bash(python3:*)",
+      "Bash(npm run type:check:*)",
+      "Bash(tree:*)"
+    ],
+    "model": "claude-opus-4-5-20251101"
   }
 }

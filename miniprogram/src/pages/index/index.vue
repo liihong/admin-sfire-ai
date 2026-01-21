@@ -1,32 +1,33 @@
 <template>
   <view class="container">
-    <!-- 背景装饰 -->
     <view class="bg-decoration">
       <view class="deco-circle c1"></view>
       <view class="deco-circle c2"></view>
     </view>
 
-    <!-- 顶部标题栏 -->
-    <!-- <view class="header">
-      <text class="header-title">火源文案智能体</text>
-    </view> -->
+    <view class="topbar glass-card hairline" @tap="toggleTitle">
+      <view class="top-title">
+        <text class="title-strong">{{ titlePrefix }}</text>
+        <text class="title-sub">操作台</text>
+        <text class="chevron" :class="{ open: isTitleOpen }">⌄</text>
+      </view>
+      <text class="top-subtext">实时数据</text>
+      <view class="loader" />
+    </view>
 
-    <!-- Banner 轮播图 -->
-    <view class="banner-wrapper">
-      <swiper 
-        class="banner-swiper" 
-        :indicator-dots="true" 
-        :autoplay="true" 
-        :interval="4000" 
+    <view class="banner-wrapper glass-card hairline">
+      <swiper class="banner-swiper" :indicator-dots="true" :autoplay="true"
+:interval="4200"
         :duration="500"
-        indicator-color="rgba(255,255,255,0.4)"
+        indicator-color="rgba(255,255,255,0.2)"
         indicator-active-color="#ffffff"
         circular
       >
         <swiper-item v-for="(banner, index) in bannerList" :key="index">
-          <view class="banner-item" :style="{ background: banner.bgGradient }">
+          <view class="banner-item">
+            <view class="banner-overlay" :style="{ background: banner.bgGradient }"></view>
             <view class="banner-content">
-              <view class="banner-tag">
+              <view class="banner-tag" :class="{ active: index === 0 }">
                 <text class="tag-text">{{ banner.tag }}</text>
               </view>
               <view class="banner-slogan">{{ banner.slogan }}</view>
@@ -42,70 +43,63 @@
       </swiper>
     </view>
 
-    <!-- 金刚区网格导航 -->
-    <view class="nav-grid">
-      <view 
-        class="nav-item" 
-        v-for="(item, index) in navList" 
-        :key="index"
-        @tap="handleNavClick(item)"
-      >
-        <view class="nav-icon-wrapper" :style="{ background: item.bgColor }">
-          <text class="nav-icon">{{ item.icon }}</text>
-        </view>
-        <text class="nav-label">{{ item.label }}</text>
-      </view>
-    </view>
-
-    <!-- 功能卡片区 -->
-    <!-- <view class="feature-cards">
-      <view 
-        class="feature-card" 
-        v-for="(card, index) in featureCards" 
-        :key="index"
-        :style="{ background: card.bgGradient }"
-        @tap="handleFeatureClick(card)"
-      >
-        <view class="card-content">
-          <text class="card-title">{{ card.title }}</text>
-          <text class="card-desc">{{ card.desc }}</text>
-        </view>
-        <view class="card-icon-wrapper">
-          <text class="card-icon">{{ card.icon }}</text>
-        </view>
-      </view>
-    </view> -->
-
-    <!-- 数字人分类区 -->
-    <!-- <view class="category-section">
-      <view class="category-tabs">
-        <view 
-          class="category-tab" 
-          v-for="(cat, index) in categories" 
-          :key="index"
-          :class="{ active: activeCategoryIndex === index }"
-          @tap="activeCategoryIndex = index"
-        >
-          <text class="tab-text">{{ cat }}</text>
-        </view>
-      </view>
-
-     
-      <view class="avatar-grid">
-        <view 
-          class="avatar-card" 
-          v-for="(avatar, index) in avatarList" 
-          :key="index"
-          @tap="handleAvatarClick(avatar)"
-        >
-          <image class="avatar-image" :src="avatar.image" mode="aspectFill" />
-          <view class="avatar-info" v-if="avatar.name">
-            <text class="avatar-name">{{ avatar.name }}</text>
+    <view class="mission-card">
+      <view class="mission-text">
+        <text class="mission-title">一键点火 · 创作引擎</text>
+        <text class="mission-desc">深度优化的文案流程，轻盈发起任务</text>
+        <view class="mission-actions">
+          <view class="pill-btn" @tap="handleHotClick">
+            <text class="pill-text">蹭热点</text>
+          </view>
+          <view class="pill-btn ghost" @tap="handleFeatureClick(featureCards[0])">
+            <text class="pill-text">合成视频</text>
           </view>
         </view>
       </view>
-    </view> -->
+      <text class="mission-icon">🚀</text>
+    </view>
 
+    <view class="tags-card glass-card hairline">
+      <view class="tags-header">
+        <text class="section-title">趋势赛道</text>
+        <view class="pill-btn" @tap="handleHotClick">
+          <text class="pill-text">蹭热点</text>
+        </view>
+      </view>
+      <view class="tags-list">
+        <view
+class="tag-chip" v-for="(tag, index) in industryTags" :key="tag"
+          :class="{ active: activeIndustry === tag, breathing: breathingTag === tag }" @tap="selectIndustry(tag)">
+          <text class="chip-text">{{ tag }}</text>
+        </view>
+      </view>
+    </view>
+
+    <view class="nav-grid glass-card hairline">
+      <view class="nav-item" v-for="(item, index) in navList" :key="index" @tap="handleNavClick(item)">
+        <view class="nav-icon-wrapper">
+          <text class="nav-icon">{{ item.icon }}</text>
+        </view>
+        <text class="nav-label clamp">{{ item.label }}</text>
+        <view class="nav-dot" v-if="index === activeNavIndex" />
+      </view>
+    </view>
+
+    <view class="hot-card glass-card hairline">
+      <view class="hot-header">
+        <text class="section-title">热点快讯</text>
+        <text class="hot-more">更多 〉</text>
+      </view>
+      <view class="hot-list">
+        <view class="hot-item" v-for="(hot, index) in hotList" :key="hot.id">
+          <text class="hot-rank" :class="{ top: index < 2 }">{{ index + 1 }}</text>
+          <text class="hot-title clamp">{{ hot.title }}</text>
+          <text class="hot-chip">实时</text>
+        </view>
+      </view>
+    </view>
+
+    <view class="bottom-gap" />
   </view>
 </template>
 
@@ -114,19 +108,54 @@ import { ref, reactive, computed, onMounted } from 'vue'
 import { useAuthStore } from '@/stores/auth'
 import { useProjectStore } from '@/stores/project'
 import { getAgentList, type Agent } from '@/api/agent'
+import AgentIcon from '@/components/AgentIcon.vue'
 
 const authStore = useAuthStore()
 const projectStore = useProjectStore()
 
+// 顶部标题状态
+const titlePrefix = ref('创意中台')
+const isTitleOpen = ref(false)
+
+const toggleTitle = () => {
+  isTitleOpen.value = !isTitleOpen.value
+}
+
 // 金刚区导航数据
-const navList = ref<Array<{
-  icon: string
-  label: string
-  bgColor: string
-  route?: string
-  agentId?: string
-  isMore?: boolean
-}>>([])
+const navList = ref<
+  Array<{
+    icon: string
+    label: string
+    bgColor: string
+    route?: string
+    agentId?: string
+    isMore?: boolean
+  }>
+>([])
+
+// 赛道标签
+const industryTags = reactive(['商业热点', '电商大促', '娱乐风向', '科技出圈', '城市事件', '生活方式'])
+const activeIndustry = ref(industryTags[0])
+const breathingTag = ref(industryTags[0])
+
+const selectIndustry = (tag: string) => {
+  activeIndustry.value = tag
+  breathingTag.value = tag
+  // 触发呼吸灯动画重置
+  setTimeout(() => {
+    breathingTag.value = ''
+  }, 2400)
+}
+
+// 热点列表
+const hotList = reactive([
+  { id: 1, title: '短剧赛道 ROI 飙升，十步成片打法揭秘' },
+  { id: 2, title: 'AI 主播降本 60%，直播行业进入长尾爆发期' },
+  { id: 3, title: '春节档宣发提前锁量，抖音投放策略调整' },
+  { id: 4, title: '城市夜经济主题视频走红，线下店铺引流指南' }
+])
+
+const activeNavIndex = computed(() => 0)
 
 // 加载智能体列表
 const loadAgentList = async () => {
@@ -136,7 +165,7 @@ const loadAgentList = async () => {
       const agents = response.data.agents
       const maxDisplay = 7 // 最多显示7个
 
-      // 生成背景色数组（循环使用，统一为橙色系）
+      // 生成背景色数组
       const bgColors = [
         'linear-gradient(135deg, rgba(255, 136, 0, 0.15) 0%, rgba(255, 184, 77, 0.2) 100%)',
         'linear-gradient(135deg, rgba(255, 136, 0, 0.12) 0%, rgba(255, 184, 77, 0.18) 100%)',
@@ -157,7 +186,7 @@ const loadAgentList = async () => {
         agentId: agent.id
       }))
 
-      // 添加"更多"按钮（第8个位置）
+      // 添加"更多"按钮
       const moreItem = {
         icon: '⭐',
         label: '更多',
@@ -168,18 +197,16 @@ const loadAgentList = async () => {
 
       navList.value = [...agentNavItems, moreItem]
     } else {
-      // 如果接口失败，使用默认数据
       console.warn('获取智能体列表失败，使用默认数据')
       setDefaultNavList()
     }
   } catch (error) {
     console.error('加载智能体列表失败:', error)
-    // 接口失败时使用默认数据
     setDefaultNavList()
   }
 }
 
-// 设置默认导航列表（作为fallback）
+// 设置默认导航列表
 const setDefaultNavList = () => {
   const defaultBgColors = [
     'linear-gradient(135deg, rgba(255, 136, 0, 0.15) 0%, rgba(255, 184, 77, 0.2) 100%)',
@@ -257,472 +284,458 @@ const featureCards = reactive([
   }
 ])
 
-// 分类数据
-const categories = reactive(['公共数字人', '商务', '休闲', '运动', '知性', '气质'])
-const activeCategoryIndex = ref(0)
-
-// 数字人列表数据
-const avatarList = reactive([
-  { id: 1, name: '', image: '/static/default-avatar.png', category: '公共数字人' },
-  { id: 2, name: '', image: '/static/default-avatar.png', category: '公共数字人' },
-  { id: 3, name: '', image: '/static/default-avatar.png', category: '商务' },
-  { id: 4, name: '', image: '/static/default-avatar.png', category: '休闲' }
-])
-
 // 事件处理
 const handleNavClick = async (item: any) => {
-  // 登录检查
-  // const loggedIn = await authStore.requireLogin()
-  // if (!loggedIn) return
-  
   console.log('导航点击:', item.label)
-
-  // 如果是"更多"按钮，跳转到智能体列表页面
   if (item.isMore) {
     uni.navigateTo({ url: '/pages/agent/index' })
     return
   }
-
-  // 其他智能体点击，跳转到对应页面
   if (item.route) {
     uni.navigateTo({ url: item.route })
   }
 }
 
 const handleFeatureClick = async (card: any) => {
-  // 登录检查
   const loggedIn = await authStore.requireLogin()
   if (!loggedIn) return
-  
   console.log('功能卡片点击:', card.title)
-  // uni.navigateTo({ url: card.route })
 }
 
-const handleAvatarClick = async (avatar: any) => {
-  // 登录检查
-  const loggedIn = await authStore.requireLogin()
-  if (!loggedIn) return
-  
-  console.log('数字人点击:', avatar.id)
+const handleHotClick = () => {
+  console.log('蹭热点触发')
 }
 </script>
 
-<style lang="scss" scoped>
-// CSS变量 - 品牌色（与 ProjectDashboard 保持一致）
-$brand-orange: #FF8800;
-$brand-orange-alt: #F37021;
-$brand-orange-light: rgba(255, 136, 0, 0.1);
-$bg-light: #F5F7FA;
+<style scoped lang="scss">
 .container {
-  min-height: 100vh;
-  background: $bg-light;
-  padding-bottom: 120rpx;
   position: relative;
-    overflow: hidden;
-  }
-  
-  // 背景装饰（与 ProjectDashboard 风格一致）
+  min-height: 100vh;
+    padding: 48rpx 32rpx 80rpx;
+    background: linear-gradient(180deg, #f5f7fb 0%, #eef2f7 100%);
+  overflow: hidden;
+
   .bg-decoration {
-    position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    height: 500rpx;
+    position: absolute;
+      inset: 0;
     pointer-events: none;
-    overflow: hidden;
-    z-index: 0;
-  
+
     .deco-circle {
       position: absolute;
+      width: 480rpx;
+        height: 480rpx;
       border-radius: 50%;
-  
-      &.c1 {
-        width: 400rpx;
-        height: 400rpx;
-        background: radial-gradient(circle, rgba(255, 136, 0, 0.08) 0%, transparent 70%);
-        top: -150rpx;
-        right: -100rpx;
-      }
-  
-      &.c2 {
-        width: 300rpx;
-        height: 300rpx;
-        background: radial-gradient(circle, rgba(59, 130, 246, 0.06) 0%, transparent 70%);
-        top: 100rpx;
-        left: -80rpx;
-      }
-    }
-}
+      filter: blur(90rpx);
+        opacity: 0.35;
 
-/* 顶部标题栏 */
-.header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 24rpx 32rpx;
-  background: #ffffff;
-  
-  .header-title {
-    font-size: 36rpx;
-    font-weight: 600;
-    color: $brand-orange;
-    letter-spacing: 2rpx;
-  }
-  
-  .project-entry {
-    display: flex;
-    align-items: center;
-    gap: 12rpx;
-    padding: 12rpx 20rpx;
-    background: linear-gradient(135deg, #f0f4ff 0%, #e8f0ff 100%);
-    border-radius: 32rpx;
-    
-    &:active {
-      opacity: 0.8;
+      &.c1 {
+        top: -120rpx;
+          left: -140rpx;
+          background: radial-gradient(circle at 30% 30%, #ffd7b0 0%, rgba(255, 156, 75, 0) 55%);
+      }
+
+      &.c2 {
+        bottom: -180rpx;
+          right: -160rpx;
+          background: radial-gradient(circle at 60% 50%, #d7e6ff 0%, rgba(87, 140, 255, 0) 60%);
+      }
     }
-    
-    .project-avatar {
-      width: 40rpx;
-      height: 40rpx;
-      border-radius: 12rpx;
+    }
+
+    .glass-card {
+      position: relative;
+      background: rgba(255, 255, 255, 0.78);
+      border-radius: 28rpx;
+      backdrop-filter: blur(12rpx);
+      box-shadow: 0 18rpx 36rpx rgba(32, 58, 103, 0.08);
+      margin-bottom: 28rpx;
+  
+      &.hairline {
+        border: 1rpx solid rgba(255, 255, 255, 0.65);
+      }
+    }
+  
+    .topbar {
       display: flex;
       align-items: center;
-      justify-content: center;
-      
-      .avatar-letter {
-        font-size: 22rpx;
-        font-weight: 600;
-        color: #fff;
+      justify-content: space-between;
+      padding: 28rpx 26rpx;
+      margin-bottom: 32rpx;
+      box-shadow: 0 14rpx 32rpx rgba(255, 136, 0, 0.08);
+
+      .top-title {
+        display: flex;
+        align-items: center;
+        gap: 10rpx;
+        color: #1f2937;
+        font-size: 32rpx;
+        font-weight: 700;
+
+        .title-strong {
+          color: #ff8800;
+        }
+
+        .title-sub {
+          color: #111827;
+        }
+
+        .chevron {
+          display: inline-block;
+          font-size: 26rpx;
+          color: #9ca3af;
+          transition: transform 0.25s ease;
+
+          &.open {
+            transform: rotate(180deg);
+          }
+        }
+      }
+
+      .top-subtext {
+        color: #9ca3af;
+        font-size: 24rpx;
+      }
+
+      .loader {
+        width: 18rpx;
+        height: 18rpx;
+        border-radius: 50%;
+        border: 3rpx solid rgba(255, 136, 0, 0.25);
+        border-top-color: #ff8800;
+        animation: spin 1s linear infinite;
+      }
+
+      @keyframes spin {
+        to {
+          transform: rotate(360deg);
+        }
       }
     }
-    
-    .project-name {
-      font-size: 24rpx;
-      font-weight: 500;
-      color: $brand-orange;
-      max-width: 120rpx;
+
+    .banner-wrapper {
+      padding: 0;
       overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
-    }
-    
-    .project-hint {
-      font-size: 24rpx;
-      color: #999;
-    }
-    
-    .entry-arrow {
-      font-size: 28rpx;
-      color: #999;
-    }
-  }
-}
 
-/* Banner 轮播图 */
-.banner-wrapper {
-  position: relative;
-    z-index: 10;
-  padding: 24rpx;
-  
-  .banner-swiper {
-    height: 320rpx;
-    border-radius: 24rpx;
-    overflow: hidden;
-    box-shadow: 0 8rpx 32rpx rgba(255, 136, 0, 0.25);
-  }
-  
-  .banner-item {
-    height: 100%;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 32rpx;
-    position: relative;
-    overflow: hidden;
-    
-    &::before {
-      content: '';
-      position: absolute;
-      top: -50%;
-      right: -20%;
-      width: 300rpx;
-      height: 300rpx;
-      background: rgba(255, 255, 255, 0.1);
-      border-radius: 50%;
+      .banner-swiper {
+        height: 360rpx;
+      }
+
+      .banner-item {
+        position: relative;
+        height: 100%;
+        border-radius: 28rpx;
+        overflow: hidden;
+
+        .banner-overlay {
+          position: absolute;
+          inset: 0;
+          opacity: 0.85;
+        }
+
+        .banner-content {
+          position: absolute;
+          inset: 0;
+          padding: 40rpx 36rpx;
+          display: flex;
+          flex-direction: column;
+          gap: 12rpx;
+          color: #ffffff;
+          z-index: 1;
+
+          .banner-tag {
+            align-self: flex-start;
+            padding: 10rpx 20rpx;
+            border-radius: 999rpx;
+            font-size: 20rpx;
+            letter-spacing: 1rpx;
+            background: rgba(255, 255, 255, 0.22);
+            color: #ffffff;
+
+            &.active {
+              box-shadow: 0 12rpx 20rpx rgba(255, 255, 255, 0.18);
+            }
+
+            .tag-text {
+              font-size: 20rpx;
+            }
+          }
+
+          .banner-slogan {
+            font-size: 28rpx;
+            opacity: 0.9;
+          }
+
+          .banner-main {
+            display: flex;
+            gap: 10rpx;
+            font-size: 36rpx;
+            font-weight: 700;
+
+            .main-text {
+              color: #fff7ed;
+            }
+
+            .main-highlight {
+              color: #ffffff;
+            }
+          }
+
+          .banner-sub {
+            font-size: 24rpx;
+            opacity: 0.9;
+          }
+        }
+
+        .banner-image {
+          position: absolute;
+          right: 32rpx;
+          bottom: 12rpx;
+          width: 220rpx;
+          height: 220rpx;
+          opacity: 0.9;
+        }
+      }
     }
-  }
-  
-  .banner-content {
-    flex: 1;
-    z-index: 1;
-  }
-  
-  .banner-tag {
-    margin-bottom: 8rpx;
-    
-    .tag-text {
-      font-size: 20rpx;
-      color: rgba(255, 255, 255, 0.85);
-      font-weight: 500;
-      letter-spacing: 1rpx;
+
+    .mission-card {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 32rpx;
+      border-radius: 28rpx;
+      background: linear-gradient(135deg, rgba(255, 136, 0, 0.1) 0%, rgba(255, 184, 77, 0.18) 100%);
+      box-shadow: 0 16rpx 30rpx rgba(255, 136, 0, 0.12);
+      margin: 30rpx 0;
+
+      .mission-text {
+        display: flex;
+        flex-direction: column;
+        gap: 12rpx;
+        color: #1f2937;
+
+        .mission-title {
+          font-size: 34rpx;
+          font-weight: 700;
+        }
+
+        .mission-desc {
+          font-size: 26rpx;
+          color: #6b7280;
+        }
+
+        .mission-actions {
+          display: flex;
+          gap: 18rpx;
+        }
+      }
+
+      .mission-icon {
+        font-size: 64rpx;
+      }
     }
-  }
-  
-  .banner-slogan {
-    font-size: 28rpx;
-    color: rgba(255, 255, 255, 0.9);
-    font-style: italic;
-    font-family: 'Georgia', serif;
-    margin-bottom: 16rpx;
-  }
-  
-  .banner-main {
-    display: flex;
-    align-items: center;
-    margin-bottom: 12rpx;
-    
-    .main-text {
-      font-size: 40rpx;
-      font-weight: 700;
+
+    .pill-btn {
+      min-width: 156rpx;
+      padding: 16rpx 22rpx;
+      border-radius: 999rpx;
+      background: linear-gradient(135deg, #ff8800 0%, #f7a13d 100%);
       color: #ffffff;
-    }
-    
-    .main-highlight {
-      font-size: 40rpx;
-      font-weight: 700;
-      color: #ffd700;
-      text-shadow: 0 2rpx 8rpx rgba(0, 0, 0, 0.2);
-    }
-  }
-  
-  .banner-sub {
-    font-size: 24rpx;
-    color: rgba(255, 255, 255, 0.9);
-  }
-  
-  .banner-image {
-    width: 200rpx;
-    height: 240rpx;
-    border-radius: 16rpx;
-    object-fit: cover;
-    z-index: 1;
-    box-shadow: 0 8rpx 24rpx rgba(0, 0, 0, 0.2);
-  }
-}
-
-/* 金刚区网格导航 */
-.nav-grid {
-  position: relative;
-    z-index: 10;
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 24rpx 16rpx;
-  padding: 32rpx 24rpx;
-  background: rgba(255, 255, 255, 0.85);
-  margin: 0 24rpx;
-  border-radius: 24rpx;
-  box-shadow: 0 4rpx 24rpx rgba(0, 0, 0, 0.06);
-  backdrop-filter: blur(10px);
-    border: 1rpx solid rgba(255, 255, 255, 0.8);
-  
-  .nav-item {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 12rpx;
-    
-    &:active {
-      transform: scale(0.95);
-      opacity: 0.8;
-    }
-  }
-  
-  .nav-icon-wrapper {
-    width: 96rpx;
-    height: 96rpx;
-    border-radius: 24rpx;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    box-shadow: 0 4rpx 12rpx rgba(0, 0, 0, 0.08);
-    transition: all 0.3s ease;
-  }
-  
-  .nav-icon {
-    font-size: 44rpx;
-  }
-  
-  .nav-label {
-    font-size: 22rpx;
-    color: #333333;
     text-align: center;
-    font-weight: 500;
-    line-height: 1.3;
-  }
-}
+    font-size: 26rpx;
+      box-shadow: 0 14rpx 26rpx rgba(255, 136, 0, 0.18);
+    
+      &.ghost {
+        background: rgba(255, 255, 255, 0.9);
+        color: #ff8800;
+        box-shadow: none;
+        border: 1rpx solid rgba(255, 136, 0, 0.25);
+      }
 
-/* 功能卡片区 */
-.feature-cards {
-  position: relative;
-    z-index: 10;
-  display: flex;
-  gap: 20rpx;
-  padding: 32rpx 24rpx;
-  
-  .feature-card {
-    flex: 1;
-    height: 160rpx;
-    border-radius: 20rpx;
-    padding: 24rpx;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    box-shadow: 0 8rpx 24rpx rgba(0, 0, 0, 0.12);
-    position: relative;
-    overflow: hidden;
-    
-    &:active {
-      transform: scale(0.98);
-      opacity: 0.9;
-    }
-    
-    &::before {
-      content: '';
-      position: absolute;
-      top: -30%;
-      right: -15%;
-      width: 150rpx;
-      height: 150rpx;
-      background: rgba(255, 255, 255, 0.15);
-      border-radius: 50%;
-    }
-  }
-  
-  .card-content {
-    display: flex;
-    flex-direction: column;
-    gap: 8rpx;
-    z-index: 1;
-  }
-  
-  .card-title {
-    font-size: 32rpx;
-    font-weight: 700;
-    color: #ffffff;
-    letter-spacing: 1rpx;
-  }
-  
-  .card-desc {
-    font-size: 22rpx;
-    color: rgba(255, 255, 255, 0.9);
-  }
-  
-  .card-icon-wrapper {
-    width: 80rpx;
-    height: 80rpx;
-    background: rgba(255, 255, 255, 0.25);
-    border-radius: 16rpx;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    z-index: 1;
-  }
-  
-  .card-icon {
-    font-size: 40rpx;
-  }
-}
-
-/* 数字人分类区 */
-.category-section {
-  position: relative;
-    z-index: 10;
-  padding: 0 24rpx;
-  
-  .category-tabs {
-    display: flex;
-    gap: 32rpx;
-    padding: 24rpx 0;
-    border-bottom: 1rpx solid #f0f0f0;
-    overflow-x: auto;
-    white-space: nowrap;
-    
-    &::-webkit-scrollbar {
-      display: none;
-    }
-  }
-  
-  .category-tab {
-    position: relative;
-    padding-bottom: 12rpx;
-    
-    .tab-text {
-      font-size: 28rpx;
-      color: #999999;
-      font-weight: 500;
-      transition: all 0.3s ease;
-    }
-    
-    &.active {
-      .tab-text {
-        color: $brand-orange;
+      .pill-text {
+        font-size: 26rpx;
         font-weight: 600;
       }
-      
-      &::after {
-        content: '';
-        position: absolute;
-        bottom: 0;
-        left: 50%;
-        transform: translateX(-50%);
-        width: 40rpx;
-        height: 6rpx;
-        background: linear-gradient(90deg, $brand-orange 0%, $brand-orange-alt 100%);
-        border-radius: 3rpx;
+    }
+
+    .tags-card {
+      padding: 28rpx;
+
+      .tags-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 20rpx;
+
+        .section-title {
+          font-size: 30rpx;
+          font-weight: 700;
+          color: #111827;
+        }
+      }
+
+      .tags-list {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 16rpx 14rpx;
+
+        .tag-chip {
+          padding: 18rpx 24rpx;
+          border-radius: 16rpx;
+          background: rgba(255, 255, 255, 0.9);
+          color: #1f2937;
+          font-size: 24rpx;
+          border: 1rpx solid rgba(255, 136, 0, 0.12);
+          transition: all 0.2s ease;
+
+          .chip-text {
+            font-weight: 600;
+          }
+
+          &.active {
+            background: linear-gradient(135deg, #ff8800 0%, #ffb84d 100%);
+            color: #fff;
+            box-shadow: 0 12rpx 22rpx rgba(255, 136, 0, 0.18);
+
+            &.breathing {
+              animation: breathing 2.4s ease-in-out infinite;
+            }
+          }
+        }
       }
     }
-  }
-}
 
-/* 数字人列表 */
-.avatar-grid {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 20rpx;
-  padding: 24rpx 0;
-  
-  .avatar-card {
-    border-radius: 24rpx;
-    overflow: hidden;
-    background: #fff;
-      box-shadow: 0 4rpx 20rpx rgba(0, 0, 0, 0.05);
-    aspect-ratio: 1;
-    position: relative;
-    
-    &:active {
-      transform: scale(0.98);
+    @keyframes breathing {
+      0% {
+        box-shadow: 0 0 0 0 rgba(255, 136, 0, 0.18);
+      }
+        50% {
+          box-shadow: 0 0 0 12rpx rgba(255, 136, 0, 0.08);
+        }
+        100% {
+          box-shadow: 0 0 0 0 rgba(255, 136, 0, 0.18);
+        }
+        }
+
+    .nav-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 18rpx;
+      padding: 22rpx 18rpx 10rpx;
+
+      .nav-item {
+        position: relative;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 12rpx;
+        padding: 20rpx 12rpx;
+        border-radius: 20rpx;
+        background: rgba(255, 255, 255, 0.92);
+        box-shadow: inset 0 0 0 1rpx rgba(255, 136, 0, 0.05);
+
+        .nav-icon-wrapper {
+          width: 96rpx;
+          height: 96rpx;
+          border-radius: 24rpx;
+          display: grid;
+          place-items: center;
+          background: linear-gradient(135deg, rgba(255, 136, 0, 0.14) 0%, rgba(255, 184, 77, 0.22) 100%);
+          font-size: 44rpx;
+        }
+
+        .nav-label {
+          font-size: 26rpx;
+          color: #1f2937;
+          text-align: center;
+
+          &.clamp {
+            display: -webkit-box;
+            -webkit-line-clamp: 1;
+            line-clamp: 1;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+          }
+        }
+
+        .nav-dot {
+          position: absolute;
+          top: 12rpx;
+          right: 12rpx;
+          width: 10rpx;
+          height: 10rpx;
+          border-radius: 50%;
+          background: #ff8800;
+          box-shadow: 0 0 0 8rpx rgba(255, 136, 0, 0.12);
+        }
+      }
+    }
+    .hot-card {
+      padding: 26rpx 24rpx;
+
+      .hot-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 20rpx;
+
+        .hot-more {
+          color: #9ca3af;
+          font-size: 24rpx;
+        }
+      }
+
+      .hot-list {
+        display: flex;
+        flex-direction: column;
+        gap: 18rpx;
+
+        .hot-item {
+          display: grid;
+          grid-template-columns: 60rpx 1fr 100rpx;
+          align-items: center;
+          padding: 18rpx 16rpx;
+          border-radius: 18rpx;
+          background: rgba(255, 255, 255, 0.92);
+          box-shadow: 0 12rpx 22rpx rgba(17, 24, 39, 0.04);
+
+          .hot-rank {
+            font-size: 26rpx;
+            font-weight: 700;
+            color: #9ca3af;
+
+            &.top {
+              color: #ff8800;
+            }
+          }
+
+          .hot-title {
+            font-size: 26rpx;
+            color: #1f2937;
+            line-height: 1.4;
+
+            &.clamp {
+              display: -webkit-box;
+              -webkit-line-clamp: 1;
+              line-clamp: 1;
+              -webkit-box-orient: vertical;
+              overflow: hidden;
+            }
+          }
+
+          .hot-chip {
+            justify-self: end;
+            font-size: 22rpx;
+            color: #ff8800;
+            background: rgba(255, 136, 0, 0.12);
+            padding: 10rpx 16rpx;
+            border-radius: 999rpx;
+          }
+        }
+      }
+    }
+
+    .bottom-gap {
+      height: 60rpx;
     }
   }
-  
-  .avatar-image {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-  }
-  
-  .avatar-info {
-    position: absolute;
-    bottom: 0;
-    left: 0;
-    right: 0;
-    padding: 16rpx;
-    background: linear-gradient(transparent, rgba(0, 0, 0, 0.6));
-    
-    .avatar-name {
-      font-size: 24rpx;
-      color: #ffffff;
-      font-weight: 500;
-    }
-  }
-}
 </style>

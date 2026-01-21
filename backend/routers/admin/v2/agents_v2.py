@@ -6,7 +6,6 @@ from fastapi import APIRouter, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from loguru import logger
-from typing import Dict
 
 from core.deps import _get_db
 from schemas.v2.agent import (
@@ -20,8 +19,12 @@ from schemas.v2.agent import (
 )
 from services.agent_service_v2 import AgentServiceV2
 from services.prompt_builder import PromptBuilder
+from services.routing import MasterRouter, SkillRouter, PromptEngine
+from core.config import settings
 from utils.response import success, page_response
 from utils.exceptions import NotFoundException, BadRequestException
+from models.agent import Agent
+from models.skill_library import SkillLibrary
 
 router = APIRouter(prefix="/agents", tags=["Agent管理（v2）"])
 
@@ -69,6 +72,7 @@ async def get_agent_list(
                 "skill_variables": agent.skill_variables,
                 "routing_description": agent.routing_description,
                 "is_routing_enabled": agent.is_routing_enabled,
+                "is_system": agent.is_system,
                 "skills_detail": None,  # 列表接口不返回技能详情
                 "created_at": agent.created_at,
                 "updated_at": agent.updated_at,
@@ -271,31 +275,49 @@ async def preview_intelligent_routing(
         skill_variables = agent.skill_variables or {}
         routing_description = agent.routing_description or ""
 
-        # 3. 执行智能路由
-        use_vector = request_data.use_vector and agent.is_routing_enabled == 1
-
-        if use_vector:
-            # 使用向量检索
-            selected_skill_ids = await PromptBuilder.intelligent_routing(
+        # 3. 使用新的路由模块执行智能路由
+        # 从配置读取路由Agent ID和LLM模型ID
+        router_agent_id = None
+        if settings.ROUTER_AGENT_ID:
+            try:
+                router_agent_id = int(settings.ROUTER_AGENT_ID)
+            except (ValueError, TypeError):
+                logger.warning(f"ROUTER_AGENT_ID配置无效: {settings.ROUTER_AGENT_ID}")
+        
+        skill_router = SkillRouter()
+        
+        # 如果Agent启用了路由，使用SkillRouter进行路由（支持用户指定的参数）
+        if agent.is_routing_enabled == 1:
+            routing_result = await skill_router.route_skills(
                 db=db,
-                user_input=request_data.user_input,
                 agent_skill_ids=agent_skill_ids,
+                user_input=request_data.user_input,
                 routing_description=routing_description,
-                use_vector=True,
+                use_vector=request_data.use_vector,
                 top_k=request_data.top_k,
-                threshold=request_data.threshold
+                threshold=request_data.threshold,
+                router_agent_id=router_agent_id
             )
-            routing_method = "vector"
         else:
-            # 使用关键词匹配
-            selected_skill_ids = await PromptBuilder.intelligent_routing(
+            # Agent未启用路由，使用MasterRouter（会返回全部技能）
+            master_router = MasterRouter()
+            routing_result = await master_router.route(
                 db=db,
-                user_input=request_data.user_input,
-                agent_skill_ids=agent_skill_ids,
-                routing_description=routing_description,
-                use_vector=False
+                agent=agent,
+                user_input=request_data.user_input
             )
-            routing_method = "keywords"
+        
+        selected_skill_ids = routing_result.selected_skill_ids
+        routing_method = routing_result.routing_method
+        static_skill_ids = routing_result.static_skill_ids
+        dynamic_skill_ids = routing_result.dynamic_skill_ids
+        
+        logger.info(
+            f"路由结果: 选中{len(selected_skill_ids)}个技能, "
+            f"静态={len(static_skill_ids)}个, "
+            f"动态规则={len(dynamic_skill_ids)}个, "
+            f"路由方法={routing_method}"
+        )
 
         # 4. 获取所有技能详情
         all_skill_ids = agent_skill_ids
@@ -305,12 +327,12 @@ async def preview_intelligent_routing(
         all_skills = result.scalars().all()
         skills_map = {s.id: s for s in all_skills}
 
-        # 5. 构建选中和未选中的技能列表
+        # 6. 构建选中和未选中的技能列表
         selected_skills = []
         rejected_skills = []
 
         # 计算相似度（用于展示）
-        if use_vector:
+        if routing_method == "vector":
             # 使用向量相似度
             from services.skill_embedding import get_skill_embedding_service
             skill_embedding_service = get_skill_embedding_service()
@@ -322,7 +344,7 @@ async def preview_intelligent_routing(
                 threshold=0.0  # 获取所有结果的相似度
             )
             similarity_map = {skill_id: sim for skill_id, sim, _ in similar_skills}
-        else:
+        elif routing_method == "keywords":
             # 使用关键词相似度
             input_keywords = PromptBuilder._extract_keywords(request_data.user_input)
             routing_keywords = PromptBuilder._extract_keywords(routing_description)
@@ -336,8 +358,11 @@ async def preview_intelligent_routing(
                     input_keywords, skill_keywords, routing_keywords
                 )
                 similarity_map[skill.id] = score
+        else:
+            # static模式，没有相似度
+            similarity_map = {}
 
-        # 分类技能
+        # 分类技能并标记静态/动态
         for skill_id in all_skill_ids:
             skill = skills_map.get(skill_id)
             if not skill:
@@ -349,7 +374,9 @@ async def preview_intelligent_routing(
                 "name": skill.name,
                 "category": skill.category,
                 "similarity": round(similarity, 3),
-                "meta_description": skill.meta_description
+                "meta_description": skill.meta_description,
+                "is_static": skill_id in static_skill_ids,
+                "is_dynamic": skill_id in dynamic_skill_ids
             }
 
             if skill_id in selected_skill_ids:
@@ -361,19 +388,29 @@ async def preview_intelligent_routing(
         selected_skills.sort(key=lambda x: x["similarity"], reverse=True)
         rejected_skills.sort(key=lambda x: x["similarity"], reverse=True)
 
-        # 6. 组装Prompt（使用选中的技能）
-        final_prompt, token_routed, _ = await PromptBuilder.build_prompt(
+        # 7. 使用PromptEngine组装Prompt（使用选中的技能）
+        prompt_engine = PromptEngine()
+        prompt_result = await prompt_engine.assemble_prompt(
             db=db,
-            skill_ids=selected_skill_ids,
-            skill_variables=skill_variables
+            agent=agent,
+            selected_skill_ids=selected_skill_ids,
+            skill_variables=skill_variables,
+            persona_prompt=None,  # 预览接口不注入IP基因
+            user_input=request_data.user_input
         )
+        final_prompt = prompt_result.system_prompt
+        token_routed = prompt_result.token_count
 
-        # 7. 计算全量加载的Token（用于对比）
-        _, token_full, _ = await PromptBuilder.build_prompt(
+        # 8. 计算全量加载的Token（用于对比）
+        full_prompt_result = await prompt_engine.assemble_prompt(
             db=db,
-            skill_ids=agent_skill_ids,
-            skill_variables=skill_variables
+            agent=agent,
+            selected_skill_ids=agent_skill_ids,
+            skill_variables=skill_variables,
+            persona_prompt=None,
+            user_input=request_data.user_input
         )
+        token_full = full_prompt_result.token_count
 
         # 8. 计算节省比例
         saved_percent = 0.0

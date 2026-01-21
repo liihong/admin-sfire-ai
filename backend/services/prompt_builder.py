@@ -155,9 +155,7 @@ class PromptBuilder:
                     skill.content,
                     variables
                 )
-                logger.debug(f"技能 {skill.name} 渲染成功")
             except Exception as e:
-                logger.error(f"技能 {skill.name} (ID={skill_id}) 渲染失败: {e}")
                 rendered_content = skill.content  # 失败则使用原始内容
 
             prompt_parts.append(f"## {skill.name}\n{rendered_content}")
@@ -321,7 +319,7 @@ class PromptBuilder:
             user_input: 用户输入
             agent_skill_ids: Agent配置的所有技能ID
             routing_description: 路由特征描述
-            use_vector: 是否使用向量检索（默认True），False则使用关键词匹配
+            use_vector: 是否使用向量检索（默认True），False则返回全部技能
             top_k: 选择最相关的K个技能（默认3）
             threshold: 相似度阈值（默认0.7）
 
@@ -358,17 +356,13 @@ class PromptBuilder:
                     threshold=threshold
                 )
             except Exception as e:
-                logger.warning(f"向量检索失败，降级为关键词匹配: {e}")
-                # 降级到关键词匹配
-                pass
+                logger.warning(f"向量检索失败: {e}，返回全部技能")
+                # 向量检索失败，返回全部技能
+                return agent_skill_ids
 
-        # 关键词匹配方式（保留原有逻辑作为降级方案）
-        return await PromptBuilder._intelligent_routing_keywords(
-            db=db,
-            user_input=user_input,
-            agent_skill_ids=agent_skill_ids,
-            routing_description=routing_description
-        )
+        # 不使用向量检索时，直接返回全部技能
+        logger.info("未启用向量检索，返回全部技能")
+        return agent_skill_ids
 
     @staticmethod
     async def _intelligent_routing_vector(
@@ -401,112 +395,57 @@ class PromptBuilder:
         # 构建搜索查询（用户输入 + 路由描述）
         query = f"{user_input}\n{routing_description}"
 
-        # 搜索相似技能
-        similar_skills = await skill_embedding_service.search_similar_skills(
+        # 先搜索所有相似技能（不应用阈值），以便后续回退处理
+        # 搜索更多结果以确保有足够的候选
+        all_similar_skills = await skill_embedding_service.search_similar_skills(
             query_text=query,
-            top_k=top_k * 2,  # 多搜索一些，然后过滤
-            threshold=threshold
+            top_k=top_k * 3,  # 搜索更多结果
+            threshold=0.0  # 不应用阈值，获取所有结果
         )
+        
+        logger.debug(f"向量检索获取到 {len(all_similar_skills)} 个候选技能（不应用阈值）")
 
         # 过滤出Agent配置的技能ID
         agent_skill_set = set(agent_skill_ids)
         selected_skills = []
+        fallback_skills = []  # 低于阈值但可用的技能
 
-        for skill_id, similarity, metadata in similar_skills:
+        # 先尝试选择符合阈值的技能
+        for skill_id, similarity, metadata in all_similar_skills:
             if skill_id in agent_skill_set:
-                selected_skills.append((skill_id, similarity))
-                logger.debug(f"向量路由: 技能 {metadata.get('name')} (ID={skill_id}) 相似度={similarity:.3f}")
-
-            # 达到top_k个就停止
-            if len(selected_skills) >= top_k:
-                break
-
-        # 如果没有找到相关技能，回退到使用Agent配置的全部技能
-        if not selected_skills:
-            logger.warning(f"向量检索未找到相关技能（阈值={threshold}），使用全部配置的技能")
-            # 检查是否有任何相似结果（即使低于阈值）
-            for skill_id, similarity, metadata in similar_skills:
-                if skill_id in agent_skill_set:
+                if similarity >= threshold:
                     selected_skills.append((skill_id, similarity))
+                    logger.debug(f"向量路由: 技能 {metadata.get('name')} (ID={skill_id}) 相似度={similarity:.3f} (符合阈值)")
 
-            # 如果还是没有，返回全部技能ID（保证至少有技能可用）
-            if not selected_skills:
-                logger.info("向量检索无任何相似结果，返回全部Agent配置的技能")
-                return agent_skill_ids
+                    # 达到top_k个就停止
+                    if len(selected_skills) >= top_k:
+                        break
+                else:
+                    # 记录低于阈值但可用的技能（用于回退）
+                    fallback_skills.append((skill_id, similarity, metadata))
 
-        # 按相似度排序并返回ID列表
-        selected_skills.sort(key=lambda x: x[1], reverse=True)
-        selected_ids = [skill_id for skill_id, _ in selected_skills]
+        # 如果找到符合阈值的技能，直接返回
+        if selected_skills:
+            # 按相似度排序并返回ID列表
+            selected_skills.sort(key=lambda x: x[1], reverse=True)
+            selected_ids = [skill_id for skill_id, _ in selected_skills]
+            logger.info(f"向量路由完成: 从{len(agent_skill_ids)}个技能中选择了{len(selected_ids)}个（符合阈值）")
+            return selected_ids
 
-        logger.info(f"向量路由完成: 从{len(agent_skill_ids)}个技能中选择了{len(selected_ids)}个")
-        return selected_ids
+        # 如果没有找到符合阈值的技能，尝试使用低于阈值的技能
+        if fallback_skills:
+            logger.warning(f"向量检索未找到符合阈值的技能（阈值={threshold}），使用低于阈值的技能")
+            # 按相似度排序，选择top_k个
+            fallback_skills.sort(key=lambda x: x[1], reverse=True)
+            selected_skills = [(skill_id, similarity) for skill_id, similarity, _ in fallback_skills[:top_k]]
+            selected_ids = [skill_id for skill_id, _ in selected_skills]
+            logger.info(f"向量路由完成: 从{len(agent_skill_ids)}个技能中选择了{len(selected_ids)}个（低于阈值但可用）")
+            return selected_ids
 
-    @staticmethod
-    async def _intelligent_routing_keywords(
-        db: AsyncSession,
-        user_input: str,
-        agent_skill_ids: List[int],
-        routing_description: str
-    ) -> List[int]:
-        """
-        基于关键词匹配的智能路由（降级方案）
+        # 如果完全没有相似结果，返回全部技能ID（保证至少有技能可用）
+        logger.warning("向量检索无任何相似结果，返回全部Agent配置的技能")
+        return agent_skill_ids
 
-        Args:
-            db: 数据库会话
-            user_input: 用户输入
-            agent_skill_ids: Agent配置的技能ID
-            routing_description: 路由描述
-
-        Returns:
-            选中的技能ID列表
-        """
-        logger.info("使用关键词匹配进行智能路由（降级方案）")
-
-        # 获取所有候选技能（异步查询）
-        result = await db.execute(
-            select(SkillLibrary).filter(
-                SkillLibrary.id.in_(agent_skill_ids),
-                SkillLibrary.status == 1
-            )
-        )
-        skills = result.scalars().all()
-
-        if not skills:
-            logger.warning(f"智能路由: 未找到有效的技能 (IDs: {agent_skill_ids})")
-            return []
-
-        # 提取关键词
-        input_keywords = PromptBuilder._extract_keywords(user_input)
-        routing_keywords = PromptBuilder._extract_keywords(routing_description)
-
-        logger.debug(f"智能路由: 用户输入关键词={input_keywords}, 路由关键词={routing_keywords}")
-
-        # 为每个技能计算相关性得分
-        skill_scores = []
-        for skill in skills:
-            skill_keywords = PromptBuilder._extract_keywords(
-                skill.meta_description or skill.name
-            )
-
-            # 计算相关性
-            score = PromptBuilder._calculate_relevance(
-                input_keywords,
-                skill_keywords,
-                routing_keywords
-            )
-
-            if score > 0:
-                skill_scores.append((skill.id, score))
-                logger.debug(f"智能路由: 技能 {skill.name} (ID={skill.id}) 得分={score:.3f}")
-
-        # 按得分排序
-        skill_scores.sort(key=lambda x: x[1], reverse=True)
-
-        selected_ids = [skill_id for skill_id, _ in skill_scores]
-        logger.info(f"关键词路由完成: 从{len(agent_skill_ids)}个技能中选择了{len(selected_ids)}个")
-
-        # 返回得分最高的技能（如果有匹配的话）
-        return selected_ids
 
     @staticmethod
     def _extract_keywords(text: str) -> List[str]:

@@ -101,6 +101,10 @@ class AgentService(BaseService):
             config=agent_data.config.model_dump() if agent_data.config else None,
             sort_order=agent_data.sortOrder,  # 驼峰 -> 下划线
             status=agent_data.status,
+            agent_mode=getattr(agent_data, "agentMode", 0) or 0,  # 默认为普通模式
+            skill_ids=getattr(agent_data, "skillIds", None),
+            skill_variables=getattr(agent_data, "skillVariables", None),
+            is_system=getattr(agent_data, "isSystem", 0) or 0,  # 默认为非系统自用
         )
         
         self.db.add(agent)
@@ -146,6 +150,16 @@ class AgentService(BaseService):
             agent.sort_order = update_data["sortOrder"]
         if "status" in update_data:
             agent.status = update_data["status"]
+        # 技能组装模式字段
+        if "agentMode" in update_data:
+            agent.agent_mode = update_data["agentMode"]
+        if "skillIds" in update_data:
+            agent.skill_ids = update_data["skillIds"]
+        if "skillVariables" in update_data:
+            agent.skill_variables = update_data["skillVariables"]
+        # 系统自用标识
+        if "isSystem" in update_data:
+            agent.is_system = update_data["isSystem"]
         
         await self.db.flush()
         await self.db.refresh(agent)
