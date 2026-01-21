@@ -70,7 +70,8 @@ def create_access_token(
 
 def create_refresh_token(
     data: dict,
-    expires_delta: Optional[timedelta] = None
+    expires_delta: Optional[timedelta] = None,
+    long_lived: bool = False
 ) -> str:
     """
     创建刷新令牌
@@ -78,6 +79,7 @@ def create_refresh_token(
     Args:
         data: 要编码到令牌中的数据
         expires_delta: 过期时间增量
+        long_lived: 是否为长期有效的token（小程序使用，100年有效期）
     
     Returns:
         JWT 令牌字符串
@@ -86,6 +88,9 @@ def create_refresh_token(
     
     if expires_delta:
         expire = datetime.now(timezone.utc) + expires_delta
+    elif long_lived:
+        # 小程序长期token：100年有效期（用户不删除小程序则永不过期）
+        expire = datetime.now(timezone.utc) + timedelta(days=36500)
     else:
         expire = datetime.now(timezone.utc) + timedelta(
             days=settings.JWT_REFRESH_TOKEN_EXPIRE_DAYS

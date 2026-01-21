@@ -6,6 +6,7 @@ C端认证接口（小程序）
 import secrets
 import string
 import httpx
+from datetime import datetime
 from typing import Optional
 from fastapi import APIRouter, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -319,43 +320,75 @@ async def miniprogram_login(
         is_new_user = False
         
         if not user:
-            # 创建新用户
-            username = generate_username()
+            # 如果通过openid找不到，再通过手机号查找
+            if phone_number:
+                user = await user_service.get_user_by_phone(phone_number)
+                if user:
+                    # 如果通过手机号找到了用户，且openid一致（或为空），则更新用户
+                    if not user.openid or user.openid == openid:
+                        logger.info(f"User found by phone: id={user.id}, updating openid and unionid")
+                        user.openid = openid
+                        if unionid:
+                            user.unionid = unionid
+                        # 更新登录状态和时间（通过更新updated_at）
+                        user.updated_at = datetime.now()
+                        await db.commit()
+                        await db.refresh(user)
+                        logger.info(f"User updated: id={user.id}, openid={user.openid}, phone={user.phone}")
+                        is_new_user = False
+                    else:
+                        # 手机号已存在但openid不一致，说明是不同用户，创建新用户
+                        logger.warning(f"Phone {phone_number} exists but openid mismatch, creating new user")
+                        user = None
             
-            # 检查用户名是否已存在（理论上不太可能，但确保唯一性）
-            while await user_service.get_user_by_username(username):
+            # 如果都找不到，创建新用户
+            if not user:
                 username = generate_username()
-            
-            user_data = {
-                "username": username,
-                "openid": openid,
-                "unionid": unionid,
-                "nickname": "微信用户",
-                "phone": phone_number,  # 保存手机号
-                "is_active": True,
-            }
-            logger.info(f"Creating new user with phone: {phone_number}, openid: {openid}")
-            
-            user = await user_service.create_user_from_dict(user_data)
-            logger.info(f"User created: id={user.id}, phone={user.phone}, openid={user.openid}")
-            is_new_user = True
+                
+                # 检查用户名是否已存在（理论上不太可能，但确保唯一性）
+                while await user_service.get_user_by_username(username):
+                    username = generate_username()
+                
+                user_data = {
+                    "username": username,
+                    "openid": openid,
+                    "unionid": unionid,
+                    "nickname": "微信用户",
+                    "phone": phone_number,  # 保存手机号
+                    "is_active": True,
+                }
+                logger.info(f"Creating new user with phone: {phone_number}, openid: {openid}")
+                
+                user = await user_service.create_user_from_dict(user_data)
+                logger.info(f"User created: id={user.id}, phone={user.phone}, openid={user.openid}")
+                is_new_user = True
         else:
-            # 用户已存在，如果获取到手机号且用户没有手机号，则更新
-            logger.info(f"User exists: id={user.id}, current phone={user.phone}, new phone={phone_number}")
+            # 用户已存在（通过openid找到），更新微信数据和登录状态
+            logger.info(f"User exists by openid: id={user.id}, current phone={user.phone}, new phone={phone_number}")
+            
+            # 更新unionid（如果获取到）
+            if unionid and user.unionid != unionid:
+                user.unionid = unionid
+                logger.info(f"Updating unionid: {user.unionid}")
+            
+            # 如果获取到手机号且用户没有手机号，则更新
             if phone_number and not user.phone:
                 logger.info(f"Updating user phone from {user.phone} to {phone_number}")
                 user.phone = phone_number
-                await db.commit()
-                await db.refresh(user)
-                logger.info(f"User phone updated successfully: {user.phone}")
-            elif phone_number and user.phone:
-                logger.info(f"User already has phone number, skipping update")
-            elif not phone_number:
-                logger.warning(f"No phone number obtained, cannot update")
+            elif phone_number and user.phone and user.phone != phone_number:
+                # 手机号不一致，记录警告但不更新（保持原有手机号）
+                logger.warning(f"Phone number mismatch: existing={user.phone}, new={phone_number}, keeping existing")
+            
+            # 更新登录状态和时间（通过更新updated_at）
+            user.updated_at = datetime.now()
+            await db.commit()
+            await db.refresh(user)
+            logger.info(f"User login updated: id={user.id}, phone={user.phone}, openid={user.openid}")
         
         # 4. 生成 JWT token（包含 access_token 和 refresh_token）
+        # 小程序登录使用长期有效的refresh_token（100年有效期，用户不删除小程序则永不过期）
         access_token = create_access_token(data={"sub": str(user.id)})
-        refresh_token = create_refresh_token(data={"sub": str(user.id)})
+        refresh_token = create_refresh_token(data={"sub": str(user.id)}, long_lived=True)
 
         # 5. 构建用户信息
         user_info = UserInfo(

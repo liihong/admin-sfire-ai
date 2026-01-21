@@ -22,3 +22,4 @@ MODIFY COLUMN `sequence` BIGINT NOT NULL COMMENT '消息序号（用于排序，
 
 
 
+
