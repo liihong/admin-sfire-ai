@@ -1,20 +1,5 @@
 <template>
-  <view class="container">
-    <view class="bg-decoration">
-      <view class="deco-circle c1"></view>
-      <view class="deco-circle c2"></view>
-    </view>
-
-    <view class="topbar glass-card hairline" @tap="toggleTitle">
-      <view class="top-title">
-        <text class="title-strong">{{ titlePrefix }}</text>
-        <text class="title-sub">操作台</text>
-        <text class="chevron" :class="{ open: isTitleOpen }">⌄</text>
-      </view>
-      <text class="top-subtext">实时数据</text>
-      <view class="loader" />
-    </view>
-
+  <scroll-view scroll-y class="container">
     <view class="banner-wrapper glass-card hairline">
       <swiper class="banner-swiper" :indicator-dots="true" :autoplay="true"
 :interval="4200"
@@ -77,9 +62,12 @@ class="tag-chip" v-for="(tag, index) in industryTags" :key="tag"
 
     <view class="nav-grid glass-card hairline">
       <view class="nav-item" v-for="(item, index) in navList" :key="index" @tap="handleNavClick(item)">
-        <view class="nav-icon-wrapper">
+        <!-- 如果是 emoji 图标，使用原来的样式 -->
+        <view v-if="isEmojiIcon(item.icon)" class="nav-icon-wrapper">
           <text class="nav-icon">{{ item.icon }}</text>
         </view>
+        <!-- 否则使用 AgentIcon 组件 -->
+        <AgentIcon v-else :iconName="item.icon" :size="96" />
         <text class="nav-label clamp">{{ item.label }}</text>
         <view class="nav-dot" v-if="index === activeNavIndex" />
       </view>
@@ -100,7 +88,7 @@ class="tag-chip" v-for="(tag, index) in industryTags" :key="tag"
     </view>
 
     <view class="bottom-gap" />
-  </view>
+  </scroll-view>
 </template>
 
 <script setup lang="ts">
@@ -112,6 +100,16 @@ import AgentIcon from '@/components/AgentIcon.vue'
 
 const authStore = useAuthStore()
 const projectStore = useProjectStore()
+
+/**
+ * 判断是否为 emoji 图标
+ */
+const isEmojiIcon = (icon: string): boolean => {
+  if (!icon) return false
+  // emoji 通常是一个或多个 Unicode 字符
+  const emojiRegex = /^[\u{1F300}-\u{1F9FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\u{1F600}-\u{1F64F}\u{1F300}-\u{1F5FF}\u{1F680}-\u{1F6FF}\u{1F1E0}-\u{1F1FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}]+$/u
+  return emojiRegex.test(icon)
+}
 
 // 顶部标题状态
 const titlePrefix = ref('创意中台')
@@ -310,10 +308,10 @@ const handleHotClick = () => {
 <style scoped lang="scss">
 .container {
   position: relative;
-  min-height: 100vh;
+  height: 100vh;
     padding: 48rpx 32rpx 80rpx;
     background: linear-gradient(180deg, #f5f7fb 0%, #eef2f7 100%);
-  overflow: hidden;
+    box-sizing: border-box;
 
   .bg-decoration {
     position: absolute;

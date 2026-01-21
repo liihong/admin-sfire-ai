@@ -1,9 +1,9 @@
 <template>
-  <view class="agent-icon" :style="{ background: getIconGradient(iconName) }">
+  <view class="agent-icon" :style="{ width: size + 'rpx', height: size + 'rpx', borderRadius: size * 0.21 + 'rpx', background: getIconGradient(iconName) }">
     <!-- 如果是图片URL，显示图片 -->
     <image v-if="isImageUrl(iconName)" :src="iconName" class="icon-image" mode="aspectFit" />
     <!-- 否则使用 uview 图标 -->
-    <u-icon v-else :name="getUviewIconName(iconName)" color="#ffffff" :size="48"></u-icon>
+    <u-icon v-else :name="getUviewIconName(iconName)" color="#ffffff" :size="size * 0.43"></u-icon>
   </view>
 </template>
 
@@ -229,16 +229,13 @@ const getIconGradient = (iconName: string): string => {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 112rpx;
-  height: 112rpx;
-  border-radius: 24rpx;
   color: white;
   flex-shrink: 0;
 
   .icon-image {
     width: 100%;
     height: 100%;
-    border-radius: 24rpx;
+    border-radius: inherit;
   }
 }
 </style>
