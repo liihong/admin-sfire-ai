@@ -172,6 +172,53 @@ export const useAuthStore = defineStore('auth', () => {
   loadFromStorage()
   
   /**
+   * 开发环境自动登录（仅用于调试）
+   * 调用后端登录接口获取真实有效的 token
+   * 仅在开发版本(develop)中可用
+   */
+  async function devAutoLogin(): Promise<boolean> {
+    // 环境检查：仅开发版可用
+    try {
+      // @ts-ignore - uni.getAccountInfoSync 在部分平台可能不存在
+      const accountInfo = uni.getAccountInfoSync?.()
+      // miniProgram.envVersion: develop(开发版) / trial(体验版) / release(正式版)
+      if (accountInfo?.miniProgram?.envVersion !== 'develop') {
+        console.warn('[devAutoLogin] 仅开发环境可用，当前环境:', accountInfo?.miniProgram?.envVersion)
+        return false
+      }
+    } catch {
+      // 获取环境信息失败，默认不允许
+      console.warn('[devAutoLogin] 无法获取环境信息，已禁用')
+      return false
+    }
+
+    // 开发者调试账号 - 使用固定的 code 以获得相同的 mock openid
+    const DEV_CODE = 'dev_login_13261276633'
+
+    try {
+      console.log('[devAutoLogin] 开始开发环境自动登录')
+
+      // 调用后端登录接口
+      const response = await loginWithCode(DEV_CODE)
+
+      if (response.success && response.token) {
+        setToken(response.token)
+        if (response.userInfo) {
+          setUserInfo(response.userInfo)
+        }
+        console.log('[devAutoLogin] 开发环境自动登录成功')
+        return true
+      }
+
+      console.error('[devAutoLogin] 登录失败，响应:', response)
+      return false
+    } catch (error) {
+      console.error('[devAutoLogin] 登录异常:', error)
+      return false
+    }
+  }
+
+  /**
    * 检查是否需要登录，未登录时跳转到登录页面
    * @param redirectToLogin 未登录时是否跳转登录页（默认 true）
    * @returns 是否已登录
@@ -180,17 +227,17 @@ export const useAuthStore = defineStore('auth', () => {
     if (isLoggedIn.value) {
       return true
     }
-    
+
     // 未登录，直接跳转到登录页面
     if (redirectToLogin) {
       uni.navigateTo({
         url: '/pages/login/index'
       })
     }
-    
+
     return false
   }
-  
+
   return {
     // State
     token,
@@ -207,7 +254,8 @@ export const useAuthStore = defineStore('auth', () => {
     loadFromStorage,
     clearAuth,
     silentLogin,
-    requireLogin
+    requireLogin,
+    devAutoLogin
   }
 })
 

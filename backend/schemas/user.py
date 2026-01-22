@@ -30,7 +30,8 @@ class UserBase(BaseModel):
     phone: Optional[str] = Field(None, max_length=20, description="手机号")
     nickname: Optional[str] = Field(None, max_length=64, description="昵称")
     avatar: Optional[str] = Field(None, description="头像URL")
-    level: LevelType = Field(default="normal", description="用户等级")
+    level: LevelType = Field(default="normal", description="用户等级（已废弃，请使用level_code）")
+    level_code: Optional[str] = Field(None, description="用户等级代码（normal/vip/svip/max），对应user_levels表的code字段")
     remark: Optional[str] = Field(None, description="备注")
 
 
@@ -46,7 +47,8 @@ class UserUpdate(BaseModel):
     phone: Optional[str] = Field(None, max_length=20)
     nickname: Optional[str] = Field(None, max_length=64)
     avatar: Optional[str] = None
-    level: Optional[LevelType] = None
+    level: Optional[str] = Field(None, description="用户等级代码（normal/vip/svip/max），已废弃，请使用level_code")
+    level_code: Optional[str] = Field(None, description="用户等级代码（normal/vip/svip/max），对应user_levels表的code字段")
     is_active: Optional[bool] = None
     remark: Optional[str] = None
 
@@ -62,13 +64,15 @@ class UserResponse(BaseModel):
     nickname: Optional[str] = Field(None, description="昵称")
     avatar: Optional[str] = Field(None, description="头像")
     level: LevelIntType = Field(..., description="用户等级: 0-普通, 1-会员, 2-合伙人")
+    levelCode: Optional[str] = Field(None, description="等级代码（normal/vip/svip/max）")
+    levelName: Optional[str] = Field(None, description="等级名称（中文）")
     computePower: ComputePower = Field(..., description="算力明细")
     role: str = Field(default="user", description="角色")
     inviteCode: Optional[str] = Field(None, description="邀请码")
     inviterId: Optional[str] = Field(None, description="邀请人ID")
     inviterName: Optional[str] = Field(None, description="邀请人名称")
     createTime: str = Field(..., description="创建时间")
-    lastLoginTime: Optional[str] = Field(None, description="最后登录时间")
+    lastLoginTime: Optional[str] = Field(None, description="最后登录时间（对应数据库 updated_at 字段）")
     status: int = Field(..., description="状态: 1-正常, 0-封禁")
 
     class Config:
@@ -87,7 +91,7 @@ class UserQueryParams(PageParams):
     """用户查询参数"""
     username: Optional[str] = Field(None, description="用户名")
     phone: Optional[str] = Field(None, description="手机号")
-    level: Optional[LevelType] = Field(None, description="用户等级")
+    level: Optional[str] = Field(None, description="用户等级（支持level_code: normal/vip/svip/max 或旧的level枚举）")
     is_active: Optional[bool] = Field(None, description="是否激活")
     minBalance: Optional[Decimal] = Field(None, description="最小算力余额")
     maxBalance: Optional[Decimal] = Field(None, description="最大算力余额")
@@ -122,7 +126,8 @@ class DeductRequest(BaseModel):
 
 
 class ChangeLevelRequest(BaseModel):
-    """修改等级请求"""
+    """修改用户等级请求"""
     userId: str = Field(..., description="用户ID")
-    level: LevelType = Field(..., description="等级")
+    level: str = Field(..., description="等级代码：normal/vip/svip/max")
+    vip_expire_date: Optional[str] = Field(None, description="VIP到期时间（YYYY-MM-DD格式，可选）")
     remark: Optional[str] = Field(None, description="备注")

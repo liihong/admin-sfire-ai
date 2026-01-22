@@ -8,6 +8,7 @@ const WHITE_LIST = [
   '/pages/login/profile',
   '/pages/mine/index',
   '/pages/project/list',
+  '/pages/project/dashboard',
   '/pages/contact/index'
 ]
 
@@ -141,10 +142,37 @@ function setupRouteInterceptors() {
   // 拦截 redirectTo
   uni.addInterceptor('redirectTo', {
     invoke(args: { url: string }) {
+      const authStore = useAuthStore()
+      const path = args.url.split('?')[0]
+
       // 检查是否是 tabbar 页面，redirectTo 不能跳转到 tabbar 页面
       if (isTabbarPage(args.url)) {
-        console.warn('[Router] redirectTo cannot redirect to tabbar page:', args.url)
-        // 不允许使用 redirectTo 跳转到 tabbar 页面
+        console.log('[Router] redirectTo to tabbar page, using switchTab instead:', args.url)
+
+        // 先检查认证状态
+        if (!authStore.hasToken) {
+          // 游客模式：显示提示弹窗
+          if (!allowedVisitorUrls.has(path)) {
+            setTimeout(() => {
+              showMemberTip((goToLogin) => {
+                if (goToLogin) {
+                  uni.reLaunch({ url: '/pages/login/index' })
+                } else {
+                  allowedVisitorUrls.add(path)
+                  setTimeout(() => {
+                    uni.switchTab({ url: args.url })
+                  }, 100)
+                }
+              })
+            }, 0)
+            return false
+          }
+        }
+
+        // 有 token 或已选择继续浏览，直接用 switchTab
+        setTimeout(() => {
+          uni.switchTab({ url: args.url })
+        }, 0)
         return false
       }
       return handleRouteIntercept(args, 'redirectTo')
@@ -230,8 +258,9 @@ onLaunch(async () => {
   if (existingToken) {
     console.log("Token exists, skip silent login");
   } else {
-    console.log("No token found, user needs to login");
-    // 不再自动静默登录，等待用户手动登录
+    console.log("No token found, try dev auto login");
+    // 开发环境自动登录
+    await authStore.silentLogin();
   }
 });
 

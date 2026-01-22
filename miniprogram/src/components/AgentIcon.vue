@@ -3,7 +3,9 @@
     <!-- 如果是图片URL，显示图片 -->
     <image v-if="isImageUrl(iconName)" :src="iconName" class="icon-image" mode="aspectFit" />
     <!-- 否则使用 uview 图标 -->
-    <u-icon v-else :name="getUviewIconName(iconName)" color="#ffffff" :size="size * 0.43"></u-icon>
+    <u-icon v-else-if="getUviewIconName(iconName)" :name="getUviewIconName(iconName)" color="#ffffff" :size="size * 0.43"></u-icon>
+    <!-- 回退显示首字母 -->
+    <text v-else class="icon-fallback">{{ getFallbackText(iconName) }}</text>
   </view>
 </template>
 
@@ -126,7 +128,21 @@ const getUviewIconName = (iconName: string): string => {
     SuccessFilled: 'checkmark-circle'
   }
 
-  return iconMap[iconName] || 'chat'
+  return iconMap[iconName] || ''
+}
+
+/**
+ * 获取回退文本（显示图标名称的首字母）
+ */
+const getFallbackText = (iconName: string): string => {
+  if (!iconName) return '?'
+  // 取首字母或首字符
+  const firstChar = iconName.charAt(0).toUpperCase()
+  // 如果是中文，返回中文
+  if (/[\u4e00-\u9fa5]/.test(iconName)) {
+    return iconName.substring(0, 2)
+  }
+  return firstChar
 }
 
 /**
@@ -137,21 +153,21 @@ const getIconGradient = (iconName: string): string => {
 
   const gradientMap: Record<string, string> = {
     // AI/智能类 - 紫色、蓝色系
-    ChatDotRound: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+    ChatDotRound: 'linear-gradient(135deg, #A18CD1 0%, #FBC2EB 100%)',
     ChatLineRound: 'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)',
     ChatLineSquare: 'linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)',
     MagicStick: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
     Cpu: 'linear-gradient(135deg, #89f7fe 0%, #66a6ff 100%)',
     Connection: 'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)',
     DataAnalysis: 'linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)',
-    Platform: 'linear-gradient(135deg, #434343 0%, #000000 100%)',
+    Platform: 'linear-gradient(135deg, #8E2DE2 0%, #4A00E0 100%)',
 
     // 文档类 - 蓝色系
-    Document: 'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)',
+    Document: 'linear-gradient(135deg, #00C9FF 0%, #92FE9D 100%)',
     DocumentCopy: 'linear-gradient(135deg, #89f7fe 0%, #66a6ff 100%)',
     Files: 'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)',
     Notebook: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-    Reading: 'linear-gradient(135deg, #fa709a 0%, #fee140 100%)',
+    Reading: 'linear-gradient(135deg, #FF6B6B 0%, #FFE66D 100%)',
 
     // 工具类 - 橙色、深色系
     Tools: 'linear-gradient(135deg, #fa709a 0%, #fee140 100%)',
@@ -161,11 +177,11 @@ const getIconGradient = (iconName: string): string => {
     Monitor: 'linear-gradient(135deg, #89f7fe 0%, #66a6ff 100%)',
 
     // 创意类 - 金色、彩色系
-    Star: 'linear-gradient(135deg, #f5af19 0%, #f12711 100%)',
+    Star: 'linear-gradient(135deg, #FF9966 0%, #FF5E62 100%)',
     EditPen: 'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)',
     Brush: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
     Picture: 'linear-gradient(135deg, #fa709a 0%, #fee140 100%)',
-    Film: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)',
+    Film: 'linear-gradient(135deg, #F5576C 0%, #F093FB 100%)',
 
     // 业务类 - 橙色、金色系
     ShoppingCart: 'linear-gradient(135deg, #fa709a 0%, #fee140 100%)',
@@ -178,7 +194,7 @@ const getIconGradient = (iconName: string): string => {
     DataBoard: 'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)',
     PieChart: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
     Histogram: 'linear-gradient(135deg, #89f7fe 0%, #66a6ff 100%)',
-    TrendCharts: 'linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)',
+    TrendCharts: 'linear-gradient(135deg, #11998e 0%, #38ef7d 100%)',
     Odometer: 'linear-gradient(135deg, #434343 0%, #000000 100%)',
 
     // 云服务类 - 蓝绿色系
@@ -192,7 +208,7 @@ const getIconGradient = (iconName: string): string => {
     Lock: 'linear-gradient(135deg, #434343 0%, #000000 100%)',
     Unlock: 'linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)',
     Key: 'linear-gradient(135deg, #f5af19 0%, #f12711 100%)',
-    User: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+    User: 'linear-gradient(135deg, #FA8BFF 0%, #2BD2FF 52%, #2BFF88 100%)',
     UserFilled: 'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)',
     Avatar: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
 
@@ -236,6 +252,13 @@ const getIconGradient = (iconName: string): string => {
     width: 100%;
     height: 100%;
     border-radius: inherit;
+  }
+
+  .icon-fallback {
+    font-size: 32rpx;
+    font-weight: 600;
+    color: #ffffff;
+    text-align: center;
   }
 }
 </style>

@@ -73,14 +73,23 @@ export const deductUserCompute = (params: User.ReqDeduct) => {
   return http.post(PORT1 + `/users/deduct`, params);
 };
 
-// 获取用户等级选项
-export const getUserLevelOptions = () => {
-  return http.get<User.ResLevel[]>(PORT1 + `/users/level/options`);
+// 获取用户选项（状态和等级）- 统一接口
+export const getUserOptions = () => {
+  return http.get<{ levels: User.ResLevel[]; status: User.ResStatus[] }>(PORT1 + `/users/options`);
 };
 
-// 获取用户状态选项（统一使用此函数）
+// 获取用户等级选项（从统一接口提取，保持向后兼容）
+export const getUserLevelOptions = () => {
+  return http.get<User.ResLevel[]>(PORT1 + `/users/options`).then(res => {
+    return { data: res.data.levels };
+  });
+};
+
+// 获取用户状态选项（从统一接口提取，保持向后兼容）
 export const getUserStatus = () => {
-  return http.get<User.ResStatus[]>(PORT1 + `/users/status/options`);
+  return http.get<User.ResStatus[]>(PORT1 + `/users/options`).then(res => {
+    return { data: res.data.status };
+  });
 };
 
 // 获取用户状态选项（别名，保持向后兼容）

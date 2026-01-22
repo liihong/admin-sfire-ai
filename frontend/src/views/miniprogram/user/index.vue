@@ -25,8 +25,8 @@
 
       <!-- 用户等级 -->
       <template #level="scope">
-        <el-tag :type="getLevelTagType(scope.row.level)" effect="dark">
-          {{ getLevelLabel(scope.row.level) }}
+        <el-tag :type="getLevelTagType(scope.row)" effect="dark">
+          {{ getLevelLabel(scope.row) }}
         </el-tag>
       </template>
 
@@ -48,18 +48,17 @@
         </div>
       </template>
 
-      <!--AI写的bug，导致这个跟新状态会影响表显示 有时间手动调把-->
       <!-- 用户状态 -->
-      <!-- <template #status="scope">
+      <template #status="scope">
         <el-switch
           v-model="scope.row.status"
           :active-value="1"
           :inactive-value="0"
           :active-text="scope.row.status === 1 ? '正常' : '封禁'"
           :loading="statusLoading === scope.row.id"
-          @change="handleStatusChange(scope.row)"
+          @change="(val: string | number | boolean) => handleStatusChange(scope.row, Number(val))"
         />
-      </template> -->
+      </template>
 
       <!-- 表格操作 -->
       <template #operation="scope">
@@ -112,7 +111,7 @@
 </template>
 
 <script setup lang="tsx" name="miniprogramUserManage">
-import { ref, reactive } from "vue";
+import { ref, reactive, onMounted } from "vue";
 import { ElMessage, ElMessageBox, FormInstance, FormRules } from "element-plus";
 import { CirclePlus, Delete, EditPen, Download, User, Coin, InfoFilled, RefreshRight } from "@element-plus/icons-vue";
 import type { User as UserType } from "@/api/interface";
@@ -122,7 +121,6 @@ import ProTable from "@/components/ProTable/index.vue";
 import UserDrawer from "./components/UserDrawer.vue";
 import UserProfile from "./components/UserProfile.vue";
 import { ProTableInstance, ColumnProps } from "@/components/ProTable/interface";
-import { USER_LEVEL_CONFIG } from "@/config";
 import {
   getUserList,
   deleteUser,
@@ -142,6 +140,8 @@ const initParam = reactive({});
 
 // 数据回调处理
 const dataCallback = (data: any) => {
+  // 重置初始化标记，因为数据已更新
+  initializedRows.value.clear();
   return {
     list: data.list,
     total: data.total
@@ -160,19 +160,52 @@ const getTableList = (params: any) => {
 };
 
 // 等级标签类型
-const getLevelTagType = (level: UserType.LevelType): "info" | "warning" | "danger" | "success" | "primary" => {
-  const typeMap: Record<UserType.LevelType, "info" | "warning" | "danger" | "success" | "primary"> = {
-    0: "info",
-    1: "warning",
-    2: "danger"
+const getLevelTagType = (row: UserType.ResUserList): "info" | "warning" | "danger" | "success" | "primary" => {
+  const typeMap: Record<string, "info" | "warning" | "danger" | "success" | "primary"> = {
+    normal: "info",
+    vip: "warning",
+    svip: "danger",
+    max: "success"
   };
-  return typeMap[level] || "info";
+  return typeMap[row.levelCode || "normal"] || "info";
 };
 
 // 等级标签文本
-const getLevelLabel = (level: UserType.LevelType) => {
-  return USER_LEVEL_CONFIG[level]?.label || "未知";
+const getLevelLabel = (row: UserType.ResUserList) => {
+  if (row.levelName) {
+    return row.levelName;
+  }
+  if (row.levelCode && levelOptionsMap.value[row.levelCode]) {
+    return levelOptionsMap.value[row.levelCode].label;
+  }
+  return "未知";
 };
+
+// 等级选项映射（从API获取）
+const levelOptionsMap = ref<Record<string, { label: string; value: string; color?: string }>>({});
+
+// 初始化等级选项映射
+const initLevelOptions = async () => {
+  try {
+    const { data } = await getUserLevelOptions();
+    const map: Record<string, { label: string; value: string; color?: string }> = {};
+    data.forEach((item: UserType.ResLevel) => {
+      map[item.value] = {
+        label: item.label,
+        value: item.value,
+        color: item.color
+      };
+    });
+    levelOptionsMap.value = map;
+  } catch (error) {
+    console.error("获取用户等级选项失败:", error);
+  }
+};
+
+// 组件挂载时初始化等级选项
+onMounted(() => {
+  initLevelOptions();
+});
 
 // 格式化数字
 const formatNumber = (num: number) => {
@@ -204,7 +237,11 @@ const columns = reactive<ColumnProps<UserType.ResUserList>[]>([
     width: 100,
     enum: getUserLevelOptions,
     fieldNames: { label: "label", value: "value" },
-    search: { el: "select", props: { filterable: true } }
+    search: {
+      el: "select",
+      props: { filterable: true },
+      key: "level" // 搜索参数使用level字段，后端会自动处理level_code
+    }
   },
   {
     prop: "computePower",
@@ -245,9 +282,17 @@ const columns = reactive<ColumnProps<UserType.ResUserList>[]>([
 // 状态切换 loading
 const statusLoading = ref<string>("");
 
+// 记录已初始化的行，防止初始化时触发 change 事件
+const initializedRows = ref<Set<string>>(new Set());
+
 // 切换用户状态
-const handleStatusChange = async (row: UserType.ResUserList) => {
-  const newStatus = row.status === 1 ? 0 : 1;
+const handleStatusChange = async (row: UserType.ResUserList, newStatus: number) => {
+  // 如果该行还未初始化，标记为已初始化并跳过
+  if (!initializedRows.value.has(row.id)) {
+    initializedRows.value.add(row.id);
+    return;
+  }
+
   const action = newStatus === 1 ? "解封" : "封禁";
 
   try {
@@ -260,7 +305,8 @@ const handleStatusChange = async (row: UserType.ResUserList) => {
     ElMessage.success(`${action}成功`);
     proTable.value?.getTableList();
   } catch {
-    row.status = row.status === 1 ? 1 : 0; // 恢复原状态
+    // 恢复原状态
+    row.status = newStatus === 1 ? 0 : 1;
   } finally {
     statusLoading.value = "";
   }
@@ -289,14 +335,14 @@ const downloadFile = async () => {
 // ==================== 用户编辑抽屉 ====================
 const drawerRef = ref<InstanceType<typeof UserDrawer> | null>(null);
 
-const openDrawer = (title: string, row: Partial<UserType.ResUserList> = {}) => {
+const openDrawer = async (title: string, row: Partial<UserType.ResUserList> = {}) => {
   const params = {
     title,
     isView: title === "查看",
     row: { ...row },
     getTableList: proTable.value?.getTableList
   };
-  drawerRef.value?.acceptParams(params);
+  await drawerRef.value?.acceptParams(params);
 };
 
 // ==================== 算力充值 ====================

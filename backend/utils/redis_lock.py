@@ -16,10 +16,12 @@ class RedisLock:
     CONVERSATION_LOCK_PREFIX = "lock:conversation:"
     USER_CONVERSATION_COUNT_PREFIX = "user:conversation:count:"
     CONVERSATION_DUPLICATE_PREFIX = "conversation:duplicate:"
+    USER_DOWNGRADE_LOCK_PREFIX = "lock:user_downgrade:"
     
     # 默认超时时间（秒）
     DEFAULT_LOCK_TIMEOUT = 60
     DUPLICATE_CHECK_TTL = 300  # 5分钟
+    USER_DOWNGRADE_LOCK_TIMEOUT = 30  # 用户降级锁超时时间
     
     @staticmethod
     async def acquire_conversation_lock(
@@ -270,6 +272,87 @@ class RedisLock:
             return True
         except Exception as e:
             logger.error(f"设置会话去重标记异常: {e}")
+            return False
+    
+    @staticmethod
+    async def acquire_user_downgrade_lock(
+        user_id: int,
+        timeout: int = USER_DOWNGRADE_LOCK_TIMEOUT
+    ) -> Optional[str]:
+        """
+        获取用户降级锁（防止并发降级处理）
+        
+        Args:
+            user_id: 用户ID
+            timeout: 锁超时时间（秒），默认30秒
+        
+        Returns:
+            锁标识符（用于释放锁），如果获取失败返回None
+        """
+        redis = await get_redis()
+        if not redis:
+            logger.warning("Redis不可用，跳过降级锁检查")
+            return None
+        
+        lock_key = f"{RedisLock.USER_DOWNGRADE_LOCK_PREFIX}{user_id}"
+        lock_value = str(uuid.uuid4())  # 唯一标识符，用于安全释放锁
+        
+        try:
+            # 使用SET NX EX实现原子操作
+            result = await redis.set(lock_key, lock_value, nx=True, ex=timeout)
+            
+            if result:
+                logger.debug(f"获取用户降级锁成功: user_id={user_id}")
+                return lock_value
+            else:
+                logger.warning(f"获取用户降级锁失败（已被占用）: user_id={user_id}")
+                return None
+                
+        except Exception as e:
+            logger.error(f"获取用户降级锁异常: {e}")
+            return None
+    
+    @staticmethod
+    async def release_user_downgrade_lock(
+        user_id: int,
+        lock_value: str
+    ) -> bool:
+        """
+        释放用户降级锁
+        
+        Args:
+            user_id: 用户ID
+            lock_value: 锁标识符（必须匹配才能释放）
+        
+        Returns:
+            是否成功释放
+        """
+        redis = await get_redis()
+        if not redis:
+            return False
+        
+        lock_key = f"{RedisLock.USER_DOWNGRADE_LOCK_PREFIX}{user_id}"
+        
+        try:
+            # 使用Lua脚本确保原子性：只有锁值匹配时才删除
+            lua_script = """
+            if redis.call("get", KEYS[1]) == ARGV[1] then
+                return redis.call("del", KEYS[1])
+            else
+                return 0
+            end
+            """
+            result = await redis.eval(lua_script, 1, lock_key, lock_value)
+            
+            if result:
+                logger.debug(f"释放用户降级锁成功: user_id={user_id}")
+                return True
+            else:
+                logger.warning(f"释放用户降级锁失败（锁值不匹配或已过期）: user_id={user_id}")
+                return False
+                
+        except Exception as e:
+            logger.error(f"释放用户降级锁异常: {e}")
             return False
 
 

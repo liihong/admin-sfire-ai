@@ -9,6 +9,7 @@ from loguru import logger
 
 from services.coin.account import CoinAccountService
 from services.coin.calculator import CoinCalculatorService
+from services.system.permission import PermissionService
 from utils.exceptions import BadRequestException
 
 
@@ -19,6 +20,7 @@ class BalanceCheckerMiddleware:
         self.db = db
         self.account_service = CoinAccountService(db)
         self.calculator = CoinCalculatorService(db)
+        self.permission_service = PermissionService(db)
 
     async def check_and_freeze(
         self,
@@ -46,8 +48,15 @@ class BalanceCheckerMiddleware:
             预冻结信息字典
 
         Raises:
-            BadRequestException: 余额不足时
+            BadRequestException: 余额不足或VIP过期时
         """
+        # 0. 检查VIP状态（如果VIP过期，拒绝使用算力）
+        permission = await self.permission_service.get_user_permission(user_id)
+        if permission.get("is_vip_expired"):
+            raise BadRequestException(
+                "您的会员已过期，无法使用算力。请续费会员后再试。"
+            )
+        
         # 1. 估算最大消耗
         estimated_cost = await self.calculator.estimate_max_cost(
             model_id=model_id,

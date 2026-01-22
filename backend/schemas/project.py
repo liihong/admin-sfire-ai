@@ -89,6 +89,8 @@ class ProjectResponse(BaseModel):
     avatar_letter: str = Field(default="", description="项目首字母")
     avatar_color: str = Field(default="#3B82F6", description="头像背景色")
     persona_settings: PersonaSettings = Field(..., description="人设配置")
+    status: int = Field(default=1, description="状态：1-正常, 2-已冻结")
+    is_frozen: bool = Field(default=False, description="是否已冻结")
     created_at: datetime = Field(..., description="创建时间")
     updated_at: datetime = Field(..., description="更新时间")
     is_active: bool = Field(default=False, description="是否为当前激活项目")
@@ -101,6 +103,8 @@ class ProjectResponse(BaseModel):
         persona_dict = project.get_persona_settings_dict()
         persona_settings = PersonaSettings(**persona_dict) if persona_dict else PersonaSettings()
         
+        from models.project import ProjectStatus
+        
         return cls(
             id=str(project.id),
             user_id=project.user_id,
@@ -109,6 +113,8 @@ class ProjectResponse(BaseModel):
             avatar_letter=project.avatar_letter or "",
             avatar_color=project.avatar_color or "#3B82F6",
             persona_settings=persona_settings,
+            status=project.status,
+            is_frozen=project.status == ProjectStatus.FROZEN.value,
             created_at=project.created_at,
             updated_at=project.updated_at or project.created_at,
             is_active=is_active,

@@ -20,6 +20,10 @@ from loguru import logger
 queue_workers = []
 worker_stop_event = asyncio.Event()
 
+# 定时任务Worker管理
+scheduled_task_workers = []
+scheduled_task_stop_event = asyncio.Event()
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -48,6 +52,17 @@ async def lifespan(app: FastAPI):
             logger.info(f"✅ [队列] 已启动 {worker_count} 个Worker处理会话保存任务")
         except Exception as e:
             logger.warning(f"⚠️ [队列] Worker启动失败: {e}")
+    
+    # 启动定时任务Worker
+    try:
+        from tasks.vip_checker_task import vip_checker_worker
+        vip_task = asyncio.create_task(
+            vip_checker_worker(scheduled_task_stop_event)
+        )
+        scheduled_task_workers.append(vip_task)
+        logger.info("✅ [定时任务] 已启动VIP过期检查任务")
+    except Exception as e:
+        logger.warning(f"⚠️ [定时任务] VIP检查任务启动失败: {e}")
 
     # 开发环境：自动创建缺失的表
     if settings.DEBUG:
@@ -70,8 +85,19 @@ async def lifespan(app: FastAPI):
         queue_workers.clear()
 
         logger.info("✅ [队列] 所有Worker已停止")
+    
+    # 2. 停止所有定时任务Worker
+    if scheduled_task_workers:
+        logger.info("正在停止定时任务Worker...")
+        scheduled_task_stop_event.set()
+        
+        # 等待所有定时任务Worker完成
+        await asyncio.gather(*scheduled_task_workers, return_exceptions=True)
+        scheduled_task_workers.clear()
+        
+        logger.info("✅ [定时任务] 所有Worker已停止")
 
-    # 2. 关闭Redis和数据库连接
+    # 3. 关闭Redis和数据库连接
     await close_redis()
     await close_db()
 

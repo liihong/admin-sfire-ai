@@ -100,6 +100,10 @@ async def get_current_admin(
     return current_user
 
 
+# 别名：保持向后兼容
+get_current_admin_user = get_current_admin
+
+
 async def get_current_miniprogram_user(
     authorization: Optional[str] = Header(None, description="Bearer Token"),
     db: AsyncSession = Depends(_get_db),

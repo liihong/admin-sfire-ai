@@ -50,8 +50,8 @@
       </view>
 
       <!-- 今天拍点啥 - 分类网格 -->
-      <view class="section-header">
-        <text class="section-title">今天拍点啥</text>
+      <view class="section-header section-header-accent">
+        <text class="section-title section-title-accent">今天拍点啥</text>
       </view>
       <view class="category-grid">
         <view class="category-item" @tap="handleCategoryClick('story')">
@@ -537,6 +537,16 @@ async function savePersonaSettings() {
     font-weight: 500;
     color: #6C757D;
   }
+
+  &.section-header-accent {
+    padding: 32rpx 0 20rpx;
+
+    .section-title-accent {
+      font-size: 32rpx;
+      font-weight: 700;
+      color: #FF9500;
+    }
+  }
 }
 
 // ========== 人设卡片 ==========
@@ -696,16 +706,22 @@ async function savePersonaSettings() {
     flex-direction: column;
     align-items: center;
     gap: 12rpx;
+    padding: 8rpx 0;
     transition: transform 0.2s ease;
 
     &:active {
       transform: scale(0.92);
     }
+
+    :deep(.agent-icon) {
+      box-shadow: 0 4rpx 12rpx rgba(0, 0, 0, 0.1);
+    }
   }
 
   .category-label {
-    font-size: 22rpx;
-    color: #6C757D;
+    font-size: 24rpx;
+    font-weight: 500;
+    color: #495057;
     text-align: center;
   }
 }
@@ -725,10 +741,15 @@ async function savePersonaSettings() {
     align-items: center;
     gap: 16rpx;
     transition: all 0.2s ease;
+    box-shadow: 0 2rpx 8rpx rgba(0, 0, 0, 0.04);
 
     &:active {
       transform: scale(0.98);
       background: #E9ECEF;
+    }
+
+    :deep(.agent-icon) {
+      box-shadow: 0 2rpx 8rpx rgba(0, 0, 0, 0.15);
     }
 
     .command-content {
@@ -775,10 +796,15 @@ async function savePersonaSettings() {
     text-align: center;
     gap: 12rpx;
     transition: all 0.2s ease;
+    box-shadow: 0 2rpx 8rpx rgba(0, 0, 0, 0.04);
 
     &:active {
       transform: scale(0.98);
       background: #E9ECEF;
+    }
+
+    :deep(.agent-icon) {
+      box-shadow: 0 2rpx 8rpx rgba(0, 0, 0, 0.15);
     }
 
     .feature-title {

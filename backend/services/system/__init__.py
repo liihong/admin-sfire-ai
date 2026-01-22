@@ -9,6 +9,9 @@ from .role import RoleService
 from .dictionary import DictionaryService
 from .dashboard import DashboardService
 from .home_config import HomeConfigService
+from .permission import PermissionService
+from .membership import MembershipService
+from .user_level import UserLevelService
 
 __all__ = [
     "AuthService",
@@ -18,5 +21,8 @@ __all__ = [
     "DictionaryService",
     "DashboardService",
     "HomeConfigService",
+    "PermissionService",
+    "MembershipService",
+    "UserLevelService",
 ]
 

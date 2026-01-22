@@ -62,25 +62,36 @@ async def get_users(
     )
 
 
-@router.get("/status/options", summary="获取状态选项")
-async def get_status_options():
-    """获取用户状态选项"""
-    options = [
+@router.get("/options", summary="获取用户选项（状态和等级）")
+async def get_user_options(db: AsyncSession = Depends(get_db)):
+    """获取用户相关的所有选项（状态和等级）"""
+    from services.system.user_level import UserLevelService
+    
+    # 获取用户等级选项（从数据库查询）
+    user_level_service = UserLevelService(db)
+    levels = await user_level_service.get_all_enabled_levels()
+    
+    # 转换为前端需要的格式
+    level_options = [
+        {
+            "label": level.name,
+            "value": level.code,
+            "code": level.code,
+            "color": "#909399" if level.code == "normal" else "#E6A23C" if level.code == "vip" else "#F56C6C"
+        }
+        for level in levels
+    ]
+    
+    # 状态选项（固定值）
+    status_options = [
         {"userLabel": "正常", "userValue": 1},
         {"userLabel": "封禁", "userValue": 0},
     ]
-    return success(data=options)
-
-
-@router.get("/level/options", summary="获取等级选项")
-async def get_level_options():
-    """获取用户等级选项"""
-    options = [
-        {"label": "普通用户", "value": 0, "color": "#909399"},
-        {"label": "会员", "value": 1, "color": "#E6A23C"},
-        {"label": "合伙人", "value": 2, "color": "#F56C6C"},
-    ]
-    return success(data=options)
+    
+    return success(data={
+        "levels": level_options,
+        "status": status_options
+    })
 
 
 @router.get("/{user_id}", summary="获取用户详情")
@@ -176,10 +187,29 @@ async def change_user_level(
     db: AsyncSession = Depends(get_db),
 ):
     """修改用户等级"""
+    from datetime import datetime
+    
     user_service = UserService(db)
+    
+    # 解析VIP到期时间（设置为UTC时区，时间设为23:59:59）
+    vip_expire_date = None
+    if request.vip_expire_date:
+        try:
+            from datetime import timezone
+            # 解析日期并设置为当天的23:59:59 UTC
+            date_obj = datetime.strptime(request.vip_expire_date, "%Y-%m-%d")
+            vip_expire_date = datetime.combine(
+                date_obj.date(),
+                datetime.max.time()
+            ).replace(tzinfo=timezone.utc)
+        except ValueError:
+            from utils.exceptions import BadRequestException
+            raise BadRequestException("VIP到期时间格式错误，请使用YYYY-MM-DD格式")
+    
     await user_service.change_level(
         user_id=int(request.userId),
         level=request.level,
+        vip_expire_date=vip_expire_date,
         remark=request.remark,
     )
     return success(msg="等级修改成功")

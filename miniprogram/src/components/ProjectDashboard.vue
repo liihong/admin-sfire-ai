@@ -1,156 +1,116 @@
 <template>
   <view class="dashboard-page">
-    <!-- 背景装饰 -->
-    <view class="bg-decoration">
-      <view class="deco-circle c1"></view>
-      <view class="deco-circle c2"></view>
-    </view>
-
-    <!-- 顶部导航栏 -->
-    <view class="nav-bar">
-      <view class="nav-left">
-        <view class="back-btn" @tap="goBack">
-          <text class="back-icon">←</text>
-        </view>
-        <text class="nav-title">操盘控制台</text>
+    <!-- 顶部用户信息栏 -->
+    <view class="top-bar">
+      <view class="user-info-left">
+        <view class="user-dot"></view>
+        <text class="user-name">{{ activeProject?.name || userName || '创作者' }}</text>
       </view>
-      <view class="nav-right">
-        <view class="switch-btn" @tap="goToProjectList">
-          <text class="switch-icon">🔄</text>
-          <text class="switch-text">切换</text>
-        </view>
+      <view class="user-info-right">
+        <view class="points-icon">💎</view>
+        <text class="user-points">{{ userPoints || 1280 }} 点数</text>
       </view>
     </view>
 
     <!-- 主内容区 -->
     <scroll-view class="main-scroll" scroll-y>
-      <!-- 项目信息卡片 (通栏) -->
-      <view class="project-card" @tap="showPersonaDrawer = true">
-        <view class="project-card-content">
-          <view class="project-info">
-            <view class="project-label">当前项目</view>
-            <view class="project-name">{{ activeProject?.name || '选择项目' }}</view>
-            <view class="project-tags">
-              <view class="tag industry-tag" v-if="activeProject?.industry">
-                <text class="tag-icon">🎯</text>
-                <text class="tag-text">{{ activeProject.industry }}</text>
+      <!-- 当前活跃人设卡片 -->
+      <view class="persona-card" @tap="showPersonaDrawer = true">
+        <view class="persona-card-content">
+          <view class="persona-left">
+            <view class="persona-icon-wrapper">
+              <view class="icon-circle">
+                <AgentIcon iconName="Star" :size="48" />
               </view>
-              <view class="tag tone-tag" v-if="activeProject?.persona_settings?.tone">
-                <text class="tag-icon">💬</text>
-                <text class="tag-text">{{ activeProject.persona_settings.tone }}</text>
-              </view>
+              <view class="active-dot"></view>
+            </view>
+            <view class="persona-info">
+              <text class="persona-label">当前活跃人设</text>
+              <text class="persona-name">{{ activeProject?.name || '选择人设' }}</text>
+              <text class="persona-desc">{{ activeProject?.persona_settings?.tone || DEFAULT_PERSONA_SETTINGS.tone
+              }}·智囊型</text>
             </view>
           </view>
-          <view class="project-action">
-            <view class="action-icon-3d">
-              <view class="icon-face front">⚙️</view>
-              <view class="icon-face shadow"></view>
-            </view>
-            <text class="action-hint">编辑人设</text>
+          <view class="persona-toggle">
+            <u-icon name="setting" color="#6C757D" size="32"></u-icon>
           </view>
-        </view>
-        <view class="project-card-decoration">
-          <view class="deco-dot d1"></view>
-          <view class="deco-dot d2"></view>
-          <view class="deco-dot d3"></view>
         </view>
       </view>
 
-      <!-- Bento Grid 功能区 -->
-      <view class="bento-grid">
-        <!-- 左侧大卡片：智能文案创作 (跨2行) -->
-        <view class="bento-card card-large card-copywriting" @tap="handleNavigate('/pages/copywriting/index')">
-          <view class="card-header">
-            <view class="card-icon-wrapper gradient-blue">
-              <text class="card-icon">📝</text>
+      <!-- 灵感输入区 -->
+      <view class="input-section">
+        <view class="input-card">
+          <input class="inspiration-input" placeholder="记录此刻灵感瞬间..." placeholder-class="input-placeholder" />
+          <view class="input-actions">
+            <view class="action-icon mic-icon">
+              <u-icon name="mic" color="#6C757D" size="40"></u-icon>
             </view>
-            <view class="card-badge">核心功能</view>
-          </view>
-          <view class="card-body">
-            <text class="card-title">智能文案创作</text>
-            <text class="card-desc">AI 驱动的高质量内容生成，支持多种风格和场景</text>
-          </view>
-          <view class="card-illustration">
-            <view class="illust-line l1"></view>
-            <view class="illust-line l2"></view>
-            <view class="illust-line l3"></view>
-            <view class="illust-cursor"></view>
-          </view>
-          <view class="card-arrow">
-            <text class="arrow-icon">→</text>
-          </view>
-        </view>
-
-        <!-- 右上小卡片：数字人定制 -->
-        <view class="bento-card card-small card-digital" @tap="handleNavigate('')">
-          <view class="card-icon-wrapper gradient-purple">
-            <text class="card-icon">🧑‍💻</text>
-          </view>
-          <text class="card-title">数字人定制</text>
-          <text class="card-desc">打造专属数字形象</text>
-          <view class="card-status">
-            <text class="status-dot"></text>
-            <text class="status-text">即将上线</text>
-          </view>
-        </view>
-
-        <!-- 右下小卡片：爆款选题 -->
-        <view class="bento-card card-small card-topics" @tap="handleNavigate('')">
-          <view class="card-icon-wrapper gradient-orange">
-            <text class="card-icon">💡</text>
-          </view>
-          <text class="card-title">爆款选题</text>
-          <text class="card-desc">热点追踪与选题策划</text>
-          <view class="card-status">
-            <text class="status-dot"></text>
-            <text class="status-text">即将上线</text>
-          </view>
-        </view>
-
-        <!-- 底部通栏卡片：对标账号分析 -->
-        <view class="bento-card card-wide card-benchmark" @tap="handleNavigate('')">
-          <view class="card-left">
-            <view class="card-icon-wrapper gradient-green">
-              <text class="card-icon">📊</text>
-            </view>
-            <view class="card-text">
-              <text class="card-title">对标账号分析</text>
-              <text class="card-desc">竞品研究与策略优化</text>
-            </view>
-          </view>
-          <view class="card-right">
-            <view class="mini-chart">
-              <view class="chart-bar" style="height: 40%"></view>
-              <view class="chart-bar" style="height: 70%"></view>
-              <view class="chart-bar" style="height: 55%"></view>
-              <view class="chart-bar" style="height: 85%"></view>
-              <view class="chart-bar" style="height: 60%"></view>
-            </view>
-            <view class="card-status">
-              <text class="status-dot"></text>
-              <text class="status-text">即将上线</text>
+            <view class="action-icon send-btn">
+              <u-icon name="arrow-right" color="#FFFFFF" size="32"></u-icon>
             </view>
           </view>
         </view>
+        <text class="input-hint">每一个灵感瞬间都将成为你的优秀选题</text>
+      </view>
 
-        <!-- 额外功能卡片行 -->
-        <view class="bento-card card-half card-hotspot" @tap="handleNavigate('')">
-          <view class="card-icon-wrapper gradient-red">
-            <text class="card-icon">🔥</text>
+      <!-- 今天拍点啥 - 分类网格 -->
+      <view class="section-header section-header-accent">
+        <text class="section-title section-title-accent">今天拍点啥</text>
+      </view>
+      <view class="category-grid">
+        <view class="category-item" @tap="handleCategoryClick('story')">
+          <view class="category-icon-wrapper">
+            <AgentIcon iconName="Reading" :size="64" />
           </view>
-          <text class="card-title">热点追踪</text>
-          <view class="card-status inline">
-            <text class="status-text">即将上线</text>
+          <text class="category-label">讲故事</text>
+        </view>
+        <view class="category-item" @tap="handleCategoryClick('opinion')">
+          <view class="category-icon-wrapper">
+            <AgentIcon iconName="ChatDotRound" :size="64" />
+          </view>
+          <text class="category-label">聊观点</text>
+        </view>
+        <view class="category-item" @tap="handleCategoryClick('process')">
+          <view class="category-icon-wrapper">
+            <AgentIcon iconName="Film" :size="64" />
+          </view>
+          <text class="category-label">晒过程</text>
+        </view>
+        <view class="category-item" @tap="handleCategoryClick('knowledge')">
+          <view class="category-icon-wrapper">
+            <AgentIcon iconName="Document" :size="64" />
+          </view>
+          <text class="category-label">教知识</text>
+        </view>
+        <view class="category-item" @tap="handleCategoryClick('hotspot')">
+          <view class="category-icon-wrapper">
+            <AgentIcon iconName="TrendCharts" :size="64" />
+          </view>
+          <text class="category-label">蹭热点</text>
+        </view>
+      </view>
+
+      <!-- 快捷指令库 -->
+      <view class="section-header">
+        <text class="section-title">快捷指令库</text>
+      </view>
+      <view class="quick-command-grid">
+        <view class="command-card" @tap="handleNavigate('/pages/copywriting/index')">
+          <view class="command-icon-wrapper">
+            <AgentIcon iconName="User" :size="48" />
+          </view>
+          <view class="command-content">
+            <text class="command-title">我在起号</text>
+            <text class="command-desc">需要人设故事</text>
           </view>
         </view>
-
-        <view class="bento-card card-half card-data" @tap="handleNavigate('')">
-          <view class="card-icon-wrapper gradient-cyan">
-            <text class="card-icon">📈</text>
+        <view class="command-card" @tap="handleNavigate('')">
+          <view class="command-icon-wrapper">
+            <AgentIcon iconName="Platform" :size="48" />
           </view>
-          <text class="card-title">数据看板</text>
-          <view class="card-status inline">
-            <text class="status-text">即将上线</text>
+          <view class="command-content">
+            <text class="command-title">我在同城</text>
+            <text class="command-desc">需要泛流话题</text>
           </view>
         </view>
       </view>
@@ -317,6 +277,7 @@
 import { ref, computed, reactive, onMounted, watch } from 'vue'
 import { useProjectStore, INDUSTRY_OPTIONS, TONE_OPTIONS, DEFAULT_PERSONA_SETTINGS, type PersonaSettings } from '@/stores/project'
 import { fetchProjects, updateProject } from '@/api/project'
+import AgentIcon from '@/components/AgentIcon.vue'
 
 // Store
 const projectStore = useProjectStore()
@@ -327,6 +288,8 @@ const showPersonaDrawer = ref(false)
 const isSaving = ref(false)
 const newKeyword = ref('')
 const newTaboo = ref('')
+const userName = ref('创作者')
+const userPoints = ref(1280)
 
 // 选项
 const industryOptions = INDUSTRY_OPTIONS
@@ -445,6 +408,18 @@ function handleNavigate(route: string) {
   uni.navigateTo({ url: route })
 }
 
+function handleCategoryClick(category: string) {
+  const categoryMap: Record<string, string> = {
+    story: '讲故事',
+    opinion: '聊观点',
+    process: '晒过程',
+    knowledge: '教知识',
+    hotspot: '蹭热点'
+  }
+  uni.showToast({ title: `已选择：${categoryMap[category] || category}`, icon: 'none' })
+  // TODO: 导航到对应的分类页面
+}
+
 function addKeyword() {
   const keyword = newKeyword.value.trim()
   if (keyword && !editForm.persona.keywords.includes(keyword)) {
@@ -500,528 +475,450 @@ async function savePersonaSettings() {
 </script>
 
 <style lang="scss" scoped>
+// ========== 基础样式 ==========
 .dashboard-page {
   min-height: 100vh;
-  background: #F5F7FA;
+  background: linear-gradient(180deg, #FAFBFC 0%, #F5F7FA 100%);
   position: relative;
-}
-
-// 背景装饰
-.bg-decoration {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 500rpx;
-  pointer-events: none;
-  overflow: hidden;
   
-  .deco-circle {
-    position: absolute;
-    border-radius: 50%;
-    
-    &.c1 {
-      width: 400rpx;
-      height: 400rpx;
-      background: radial-gradient(circle, rgba(59, 130, 246, 0.08) 0%, transparent 70%);
-      top: -150rpx;
-      right: -100rpx;
-    }
-    
-    &.c2 {
-      width: 300rpx;
-      height: 300rpx;
-      background: radial-gradient(circle, rgba(249, 115, 22, 0.06) 0%, transparent 70%);
-      top: 100rpx;
-      left: -80rpx;
-    }
+  // 优雅的背景装饰
+    &::before {
+      content: '';
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+    bottom: 0;
+      background:
+        radial-gradient(circle at 20% 20%, rgba(255, 149, 0, 0.03) 0%, transparent 50%),
+        radial-gradient(circle at 80% 80%, rgba(59, 130, 246, 0.03) 0%, transparent 50%);
+      pointer-events: none;
+    z-index: 0;
   }
 }
 
-// 顶部导航栏
-.nav-bar {
-  position: sticky;
-  top: 0;
-  z-index: 100;
+// ========== 顶部用户信息栏 ==========
+.top-bar {
   display: flex;
-  align-items: center;
   justify-content: space-between;
-  padding: 60rpx 32rpx 24rpx;
-  background: linear-gradient(180deg, #F5F7FA 0%, rgba(245, 247, 250, 0.9) 100%);
-  backdrop-filter: blur(10px);
+  align-items: center;
+  padding: 24rpx 32rpx 20rpx;
+    background: #FFFFFF;
+    position: relative;
+    z-index: 10;
+    box-shadow: 0 2rpx 12rpx rgba(0, 0, 0, 0.04);
   
-  .nav-left {
-    display: flex;
-    align-items: center;
-    gap: 16rpx;
-    
-    .back-btn {
-      width: 64rpx;
-      height: 64rpx;
-      background: #fff;
-      border-radius: 16rpx;
+    .user-info-left {
       display: flex;
       align-items: center;
-      justify-content: center;
-      box-shadow: 0 2rpx 12rpx rgba(0, 0, 0, 0.06);
-      
-      &:active {
-        transform: scale(0.95);
+    gap: 12rpx;
+    .user-dot {
+        width: 10rpx;
+        height: 10rpx;
+        border-radius: 50%;
+        background: linear-gradient(135deg, #FF9500 0%, #FFB84D 100%);
+        box-shadow: 0 0 8rpx rgba(255, 149, 0, 0.4);
+        animation: pulse 2s ease-in-out infinite;
       }
-      
-      .back-icon {
-        font-size: 32rpx;
-        color: #333;
-      }
-    }
-    
-    .nav-title {
-      font-size: 36rpx;
+        .user-name {
+          font-size: 32rpx;
       font-weight: 600;
-      color: #1a1a2e;
+      color: #1A1A1A;
+        letter-spacing: -0.5rpx;
     }
   }
   
-  .nav-right {
-    .switch-btn {
+    .user-info-right {
       display: flex;
       align-items: center;
       gap: 8rpx;
-      padding: 14rpx 24rpx;
-      background: #fff;
-      border-radius: 32rpx;
-      box-shadow: 0 2rpx 12rpx rgba(0, 0, 0, 0.06);
-      
-      &:active {
-        transform: scale(0.95);
-      }
-      
-      .switch-icon {
+    padding: 10rpx 20rpx;
+      background: linear-gradient(135deg, #F8F9FA 0%, #F1F3F5 100%);
+      border-radius: 24rpx;
+      border: 1rpx solid rgba(0, 0, 0, 0.05);
+    .points-icon {
         font-size: 24rpx;
-      }
-      
-      .switch-text {
-        font-size: 24rpx;
-        color: #666;
-      }
+      opacity: 0.8;
+    
+        .user-points {
+          font-size: 24rpx;
+      color: #495057;
+        font-weight: 500;
     }
   }
 }
 
-// 主滚动区域
+// ========== 主滚动区域 ==========
 .main-scroll {
-  height: calc(100vh - 150rpx);
-  padding: 0 24rpx;
+  height: calc(100vh - 100rpx);
+    padding: 0 32rpx 32rpx;
+    position: relative;
+    z-index: 1;
 }
 
-// 项目信息卡片
-.project-card {
-  background: linear-gradient(135deg, #EFF6FF 0%, #DBEAFE 100%);
+// ========== 分区标题 ==========
+.section-header {
+  padding: 32rpx 0 16rpx;
+
+  .section-title {
+    font-size: 28rpx;
+    font-weight: 500;
+    color: #6C757D;
+  }
+
+  &.section-header-accent {
+    padding: 32rpx 0 20rpx;
+
+    .section-title-accent {
+      font-size: 32rpx;
+      font-weight: 700;
+      background: linear-gradient(135deg, #FF9500 0%, #FFB84D 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+  }
+}
+
+// ========== 人设卡片 ==========
+.persona-card {
+  background: #FFFFFF;
   border-radius: 24rpx;
   padding: 32rpx;
-  margin-bottom: 24rpx;
-  position: relative;
-  overflow: hidden;
-  box-shadow: 0 4rpx 24rpx rgba(59, 130, 246, 0.1);
+  margin-bottom: 32rpx;
+    box-shadow:
+      0 4rpx 20rpx rgba(0, 0, 0, 0.06),
+      0 1rpx 3rpx rgba(0, 0, 0, 0.04);
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    border: 1rpx solid rgba(0, 0, 0, 0.04);
   
   &:active {
     transform: scale(0.98);
+    box-shadow:
+        0 2rpx 12rpx rgba(0, 0, 0, 0.08),
+        0 1rpx 2rpx rgba(0, 0, 0, 0.06);
   }
   
-  .project-card-content {
+    .persona-card-content {
     display: flex;
+    align-items: center;
     justify-content: space-between;
-    align-items: center;
-    position: relative;
-    z-index: 2;
   }
   
-  .project-info {
-    flex: 1;
-    
-    .project-label {
-      font-size: 24rpx;
-      color: #64748B;
-      margin-bottom: 8rpx;
-    }
-    
-    .project-name {
-      font-size: 40rpx;
-      font-weight: 700;
-      color: #1E40AF;
-      margin-bottom: 16rpx;
-    }
-    
-    .project-tags {
+    .persona-left {
       display: flex;
-      gap: 12rpx;
-      flex-wrap: wrap;
-      
-      .tag {
-        display: flex;
-        align-items: center;
-        gap: 6rpx;
-        padding: 8rpx 16rpx;
-        background: rgba(255, 255, 255, 0.7);
-        border-radius: 20rpx;
-        
-        .tag-icon {
-          font-size: 20rpx;
-        }
-        
-        .tag-text {
-          font-size: 22rpx;
-          color: #475569;
-        }
-      }
-    }
-  }
-  
-  .project-action {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 8rpx;
+      align-items: center;
+      gap: 20rpx;
     
-    .action-icon-3d {
-      position: relative;
-      width: 80rpx;
-      height: 80rpx;
+    .persona-icon-wrapper {
+        position: relative;
+      display: flex;
+      align-items: center;
+        justify-content: center;
       
-      .icon-face {
-        position: absolute;
-        width: 100%;
-        height: 100%;
+      .icon-circle {
+          width: 96rpx;
+          height: 96rpx;
+          border-radius: 50%;
+          background: linear-gradient(135deg, #F0F4FF 0%, #E8F0FE 100%);
         display: flex;
         align-items: center;
         justify-content: center;
-        font-size: 40rpx;
+          border: 2rpx solid rgba(59, 130, 246, 0.1);
+          box-shadow:
+            0 4rpx 16rpx rgba(59, 130, 246, 0.08),
+            inset 0 1rpx 0 rgba(255, 255, 255, 0.8);
+          position: relative;
         
-        &.front {
-          background: #fff;
-          border-radius: 20rpx;
-          box-shadow: 0 4rpx 16rpx rgba(0, 0, 0, 0.1);
-          z-index: 2;
-        }
-        
-        &.shadow {
-          background: rgba(59, 130, 246, 0.2);
-          border-radius: 20rpx;
-          top: 8rpx;
-          left: 8rpx;
-          z-index: 1;
+        :deep(.agent-icon) {
+            filter: drop-shadow(0 2rpx 8rpx rgba(59, 130, 246, 0.2));
         }
       }
-    }
-    
-    .action-hint {
-      font-size: 20rpx;
-      color: #64748B;
-    }
-  }
-  
-  .project-card-decoration {
-    position: absolute;
-    top: 0;
-    right: 0;
-    bottom: 0;
-    width: 200rpx;
-    pointer-events: none;
-    
-    .deco-dot {
-      position: absolute;
-      border-radius: 50%;
-      background: rgba(59, 130, 246, 0.1);
-      
-      &.d1 {
-        width: 120rpx;
-        height: 120rpx;
-        top: -40rpx;
-        right: -40rpx;
+            .active-dot {
+              position: absolute;
+              top: -2rpx;
+              right: -2rpx;
+              width: 20rpx;
+              height: 20rpx;
+              background: linear-gradient(135deg, #10B981 0%, #34D399 100%);
+              border-radius: 50%;
+              border: 3rpx solid #FFFFFF;
+              box-shadow:
+                0 0 12rpx rgba(16, 185, 129, 0.5),
+                0 2rpx 8rpx rgba(0, 0, 0, 0.15);
+              animation: pulse-dot 2s ease-in-out infinite;
       }
-      
-      &.d2 {
-        width: 60rpx;
-        height: 60rpx;
-        top: 60rpx;
-        right: 80rpx;
-      }
-      
-      &.d3 {
-        width: 40rpx;
-        height: 40rpx;
-        bottom: 20rpx;
-        right: 40rpx;
-      }
-    }
-  }
-}
-
-// Bento Grid 布局
-.bento-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 16rpx;
-  margin-bottom: 24rpx;
-}
-
-// 通用卡片样式
-.bento-card {
-  background: #fff;
-  border-radius: 20rpx;
-  padding: 24rpx;
-  box-shadow: 0 4rpx 20rpx rgba(0, 0, 0, 0.05);
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
-  
-  &:active {
-    transform: scale(0.98);
-    box-shadow: 0 2rpx 12rpx rgba(0, 0, 0, 0.08);
-  }
-  
-  .card-icon-wrapper {
-    width: 72rpx;
-    height: 72rpx;
-    border-radius: 18rpx;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    margin-bottom: 16rpx;
-    
-    &.gradient-blue {
-      background: linear-gradient(135deg, #3B82F6 0%, #60A5FA 100%);
-    }
-    
-    &.gradient-purple {
-      background: linear-gradient(135deg, #8B5CF6 0%, #A78BFA 100%);
-    }
-    
-    &.gradient-orange {
-      background: linear-gradient(135deg, #F97316 0%, #FB923C 100%);
-    }
-    
-    &.gradient-green {
-      background: linear-gradient(135deg, #10B981 0%, #34D399 100%);
-    }
-    
-    &.gradient-red {
-      background: linear-gradient(135deg, #EF4444 0%, #F87171 100%);
-    }
-    
-    &.gradient-cyan {
-      background: linear-gradient(135deg, #06B6D4 0%, #22D3EE 100%);
-    }
-    
-    .card-icon {
-      font-size: 36rpx;
+        .persona-info {
+          display: flex;
+          flex-direction: column;
+      gap: 8rpx;
+      .persona-label {
+          font-size: 24rpx;
+          color: #94A3B8;
+          font-weight: 400;
+        }
+            .persona-name {
+              font-size: 36rpx;
+              font-weight: 700;
+              color: #1A1A1A;
+              line-height: 1.2;
+              letter-spacing: -0.5rpx;
+            }
+            .persona-desc {
+              font-size: 26rpx;
+              color: #64748B;
+        line-height: 1.2;
+        }
     }
   }
   
-  .card-title {
-    font-size: 30rpx;
-    font-weight: 600;
-    color: #1a1a2e;
-    display: block;
-    margin-bottom: 8rpx;
-  }
-  
-  .card-desc {
-    font-size: 24rpx;
-    color: #94A3B8;
-    display: block;
-    line-height: 1.4;
-  }
-  
-  .card-status {
-    display: flex;
-    align-items: center;
-    gap: 8rpx;
-    margin-top: 12rpx;
-    
-    &.inline {
-      margin-top: 8rpx;
-    }
-    
-    .status-dot {
-      width: 12rpx;
-      height: 12rpx;
-      border-radius: 50%;
-      background: #F59E0B;
-    }
-    
-    .status-text {
-      font-size: 20rpx;
-      color: #F59E0B;
-    }
-  }
-}
-
-// 大卡片 (跨两行)
-.card-large {
-  grid-row: span 2;
-  display: flex;
-  flex-direction: column;
-  position: relative;
-  overflow: hidden;
-  
-  .card-header {
-    display: flex;
-    align-items: flex-start;
-    justify-content: space-between;
-    
-    .card-badge {
-      padding: 6rpx 14rpx;
-      background: linear-gradient(135deg, #EEF2FF 0%, #E0E7FF 100%);
-      border-radius: 16rpx;
-      font-size: 20rpx;
-      color: #6366F1;
-      font-weight: 500;
-    }
-  }
-  
-  .card-body {
-    flex: 1;
-    padding-top: 16rpx;
-    
-    .card-title {
-      font-size: 36rpx;
-      margin-bottom: 12rpx;
-    }
-    
-    .card-desc {
-      font-size: 26rpx;
-      line-height: 1.5;
-    }
-  }
-  
-  .card-illustration {
-    position: relative;
-    height: 120rpx;
-    margin: 20rpx 0;
-    padding: 16rpx;
-    background: #F8FAFC;
-    border-radius: 12rpx;
-    
-    .illust-line {
-      height: 16rpx;
-      background: linear-gradient(90deg, #E2E8F0 0%, #CBD5E1 100%);
-      border-radius: 8rpx;
-      margin-bottom: 12rpx;
-      
-      &.l1 { width: 80%; }
-      &.l2 { width: 60%; }
-      &.l3 { width: 40%; }
-    }
-    
-    .illust-cursor {
-      position: absolute;
-      right: 24rpx;
-      bottom: 24rpx;
-      width: 4rpx;
-      height: 24rpx;
-      background: #3B82F6;
-      border-radius: 2rpx;
-      animation: blink 1s infinite;
-    }
-  }
-  
-  .card-arrow {
-    display: flex;
-    justify-content: flex-end;
-    
-    .arrow-icon {
+    .persona-toggle {
       width: 56rpx;
       height: 56rpx;
-      background: linear-gradient(135deg, #3B82F6 0%, #60A5FA 100%);
-      border-radius: 50%;
       display: flex;
       align-items: center;
       justify-content: center;
-      font-size: 28rpx;
-      color: #fff;
-    }
-  }
-}
-
-// 小卡片
-.card-small {
-  min-height: 200rpx;
-}
-
-// 宽卡片 (通栏)
-.card-wide {
-  grid-column: span 2;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 28rpx 32rpx;
-  
-  .card-left {
-    display: flex;
-    align-items: center;
-    gap: 20rpx;
-    
-    .card-icon-wrapper {
-      margin-bottom: 0;
-    }
-    
-    .card-text {
-      .card-title {
-        margin-bottom: 4rpx;
+      background: #F8F9FA;
+      border-radius: 50%;
+    border: 1rpx solid rgba(0, 0, 0, 0.05);
+      transition: all 0.3s ease;
+    &:active {
+        background: #F1F3F5;
+        transform: rotate(90deg) scale(0.95);
       }
     }
-  }
-  
-  .card-right {
+    }
+// ========== 灵感输入区 ==========
+.input-section {
+  margin-bottom: 32rpx;
+
+  .input-card {
     display: flex;
     align-items: center;
-    gap: 20rpx;
-    
-    .mini-chart {
-      display: flex;
-      align-items: flex-end;
-      gap: 6rpx;
-      height: 60rpx;
+    justify-content: space-between;
+    background: #FFFFFF;
+    border-radius: 20rpx;
+    padding: 20rpx 24rpx;
+    margin-bottom: 12rpx;
+    border: 1rpx solid rgba(0, 0, 0, 0.06);
+    box-shadow: 0 2rpx 8rpx rgba(0, 0, 0, 0.04);
+    transition: all 0.3s ease;
+
+    &:focus-within {
+      border-color: rgba(59, 130, 246, 0.3);
+      box-shadow:
+        0 4rpx 16rpx rgba(59, 130, 246, 0.12),
+        0 0 0 4rpx rgba(59, 130, 246, 0.05);
       
-      .chart-bar {
-        width: 12rpx;
-        background: linear-gradient(180deg, #10B981 0%, #34D399 100%);
-        border-radius: 6rpx 6rpx 0 0;
-        opacity: 0.6;
+            .inspiration-input {
+              flex: 1;
+              font-size: 28rpx;
+              color: #1A1A1A;
+              background: transparent;
+            }
+            .input-placeholder {
+              color: #ADB5BD;
+            }
+            .input-actions {
+              display: flex;
+              align-items: center;
+              gap: 12rpx;
+      
+              .action-icon {
+                width: 48rpx;
+                height: 48rpx;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+          border-radius: 50%;
+            transition: all 0.3s ease;
+          &.mic-icon {
+              background: #F8F9FA;
+            &:active {
+                background: #F1F3F5;
+                transform: scale(0.9);
+              }
+                    }
+                    &.send-btn {
+                      background: linear-gradient(135deg, #FF9500 0%, #FFB84D 100%);
+                      box-shadow:
+                        0 4rpx 16rpx rgba(255, 149, 0, 0.3),
+                        0 0 0 0 rgba(255, 149, 0, 0.2);
+            &:active {
+                transform: scale(0.9);
+                box-shadow: 0 2rpx 8rpx rgba(255, 149, 0, 0.25);
+              }
+                    }
+                }
+                }
+        }
+        .input-hint {
+          font-size: 22rpx;
+          color: #94A3B8;
+          display: block;
+      padding-left: 8rpx;
       }
     }
-  }
-}
-
-// 半宽卡片
-.card-half {
-  display: flex;
-  align-items: center;
-  gap: 16rpx;
-  padding: 20rpx 24rpx;
   
-  .card-icon-wrapper {
-    width: 56rpx;
-    height: 56rpx;
-    margin-bottom: 0;
-    flex-shrink: 0;
+    // ========== 分类网格 ==========
+    .category-grid {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 16rpx;
+      margin-bottom: 32rpx;
+  
+  .category-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12rpx;
+      padding: 20rpx 12rpx;
+      border-radius: 20rpx;
+      background: #FFFFFF;
+      border: 1rpx solid rgba(0, 0, 0, 0.06);
+      box-shadow: 0 2rpx 8rpx rgba(0, 0, 0, 0.04);
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      position: relative;
+      overflow: hidden;
     
-    .card-icon {
-      font-size: 28rpx;
+    &::before {
+        content: '';
+        position: absolute;
+        inset: 0;
+        background: linear-gradient(135deg, rgba(255, 149, 0, 0.05), rgba(59, 130, 246, 0.05));
+        opacity: 0;
+        transition: opacity 0.3s ease;
     }
-  }
-  
-  .card-title {
-    flex: 1;
-    margin-bottom: 0;
-    font-size: 28rpx;
-  }
-  
-  .card-status {
-    margin-top: 0;
+    
+        &:active {
+          transform: translateY(-2rpx) scale(0.97);
+          box-shadow: 0 4rpx 16rpx rgba(0, 0, 0, 0.08);
+      &::before {
+          opacity: 1;
+        }
+      }
+        .category-icon-wrapper {
+          position: relative;
+      z-index: 1;
+        width: 88rpx;
+        height: 88rpx;
+        border-radius: 20rpx;
+        background: linear-gradient(135deg, #F8F9FA 0%, #F1F3F5 100%);
+        display: flex;
+      align-items: center;
+        justify-content: center;
+        border: 1rpx solid rgba(0, 0, 0, 0.04);
+        transition: all 0.3s ease;
+      :deep(.agent-icon) {
+          filter: drop-shadow(0 2rpx 6rpx rgba(0, 0, 0, 0.1));
+          transition: all 0.3s ease;
+        }
+      }
+    
+        &:active .category-icon-wrapper {
+          background: linear-gradient(135deg, #FFF5E6 0%, #FFE8CC 100%);
+          border-color: rgba(255, 149, 0, 0.2);
+          transform: scale(1.05);
+      :deep(.agent-icon) {
+          filter: drop-shadow(0 4rpx 12rpx rgba(255, 149, 0, 0.3));
+        }
+      }
+        .category-label {
+          font-size: 24rpx;
+          font-weight: 500;
+          color: #495057;
+          text-align: center;
+          position: relative;
+      z-index: 1;
+    
+    }
+    }
+// ========== 快捷指令网格 ==========
+.quick-command-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16rpx;
+  margin-bottom: 32rpx;
+  .command-card {
+      background: #FFFFFF;
+      border-radius: 20rpx;
+      padding: 24rpx;
+      display: flex;
+      align-items: center;
+    gap: 16rpx;
+      border: 1rpx solid rgba(0, 0, 0, 0.06);
+      box-shadow: 0 2rpx 8rpx rgba(0, 0, 0, 0.04);
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      position: relative;
+      overflow: hidden;
+    &::before {
+        content: '';
+        position: absolute;
+        inset: 0;
+        background: linear-gradient(135deg, rgba(255, 149, 0, 0.03), rgba(59, 130, 246, 0.03));
+        opacity: 0;
+        transition: opacity 0.3s ease;
+      }
+    
+        &:active {
+          transform: translateY(-2rpx) scale(0.98);
+          box-shadow: 0 4rpx 16rpx rgba(0, 0, 0, 0.08);
+          border-color: rgba(59, 130, 246, 0.2);
+      &::before {
+          opacity: 1;
+        }
+      }
+        .command-icon-wrapper {
+          position: relative;
+          z-index: 1;
+          width: 72rpx;
+          height: 72rpx;
+          border-radius: 16rpx;
+          background: linear-gradient(135deg, #F0F4FF 0%, #E8F0FE 100%);
+          display: flex;
+          align-items: center;
+      justify-content: center;
+        border: 1rpx solid rgba(59, 130, 246, 0.1);
+        flex-shrink: 0;
+        transition: all 0.3s ease;
+      
+      :deep(.agent-icon) {
+          filter: drop-shadow(0 2rpx 6rpx rgba(59, 130, 246, 0.2));
+      }
+    }
+        &:active .command-icon-wrapper {
+          background: linear-gradient(135deg, #E8F0FE 0%, #DBEAFE 100%);
+          transform: scale(1.05) rotate(5deg);
+          border-color: rgba(59, 130, 246, 0.3);
+        }
+        .command-content {
+          flex: 1;
+          display: flex;
+      flex-direction: column;
+        gap: 4rpx;
+        min-width: 0;
+        position: relative;
+        z-index: 1;
+      .command-title {
+          font-size: 28rpx;
+        font-weight: 600;
+          color: #1A1A1A;
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
+        }
+            .command-desc {
+              font-size: 22rpx;
+              color: #6C757D;
+              white-space: nowrap;
+              overflow: hidden;
+              text-overflow: ellipsis;
+            }
+        }
   }
 }
 
-// 底部安全区
+// ========== 底部安全区 ==========
 .bottom-safe-area {
   height: calc(40rpx + env(safe-area-inset-bottom));
 }
@@ -1139,7 +1036,7 @@ async function savePersonaSettings() {
   }
 }
 
-// 设置区块
+// ========== 设置区块 ==========
 .setting-section {
   margin-bottom: 32rpx;
   
@@ -1152,7 +1049,7 @@ async function savePersonaSettings() {
   }
 }
 
-// 设置项
+// ========== 设置项 ==========
 .setting-item {
   margin-bottom: 24rpx;
   
@@ -1205,7 +1102,7 @@ async function savePersonaSettings() {
   }
 }
 
-// 语气选项
+// ========== 语气选项 ==========
 .tone-options {
   display: flex;
   flex-wrap: wrap;
@@ -1235,7 +1132,7 @@ async function savePersonaSettings() {
   }
 }
 
-// 关键词
+// ========== 关键词 ==========
 .keywords-wrapper {
   display: flex;
   flex-wrap: wrap;
@@ -1286,7 +1183,7 @@ async function savePersonaSettings() {
   }
 }
 
-// 动画
+// ========== 动画 ==========
 @keyframes fadeIn {
   from { opacity: 0; }
   to { opacity: 1; }
@@ -1310,5 +1207,34 @@ async function savePersonaSettings() {
 @keyframes blink {
   0%, 50% { opacity: 1; }
   51%, 100% { opacity: 0; }
+}
+@keyframes pulse {
+
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+
+  50% {
+    opacity: 0.8;
+    transform: scale(1.05);
+  }
+}
+
+@keyframes pulse-dot {
+
+  0%,
+  100% {
+    box-shadow:
+      0 0 12rpx rgba(16, 185, 129, 0.5),
+      0 2rpx 8rpx rgba(0, 0, 0, 0.15);
+  }
+
+  50% {
+    box-shadow:
+      0 0 20rpx rgba(16, 185, 129, 0.7),
+      0 2rpx 8rpx rgba(0, 0, 0, 0.15);
+  }
 }
 </style>

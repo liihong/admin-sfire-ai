@@ -12,7 +12,7 @@ from sqlalchemy.orm import selectinload
 from sqlalchemy.orm.attributes import flag_modified
 from loguru import logger
 
-from models.project import Project
+from models.project import Project, ProjectStatus
 from models.user import User
 from schemas.project import (
     ProjectCreate,
@@ -24,6 +24,7 @@ from utils.exceptions import (
     NotFoundException,
     BadRequestException,
 )
+from services.system.permission import PermissionService
 
 
 class ProjectService:
@@ -58,6 +59,27 @@ class ProjectService:
         projects = result.scalars().all()
         
         return list(projects)
+    
+    async def get_active_ip_count(self, user_id: int) -> int:
+        """
+        统计用户活跃IP数量（排除冻结和删除的）
+        
+        Args:
+            user_id: 用户ID
+        
+        Returns:
+            活跃IP数量
+        """
+        query = select(Project).where(
+            Project.user_id == user_id,
+            Project.is_deleted == False,
+            Project.status == ProjectStatus.ACTIVE.value
+        )
+        
+        result = await self.db.execute(query)
+        projects = result.scalars().all()
+        
+        return len(projects)
     
     async def get_project_by_id(
         self,
@@ -95,11 +117,15 @@ class ProjectService:
         data: ProjectCreate
     ) -> Project:
         """
-        创建新项目
+        创建新项目（带权限检查和并发控制）
         
         支持两种传参方式：
         1. 嵌套方式: persona_settings: { tone: "xxx", introduction: "xxx" }
         2. 扁平方式: 直接传递人设字段（与 persona_settings 字段一一对应）
+        
+        并发安全：
+        - 使用数据库事务+SELECT FOR UPDATE锁定用户记录
+        - 在事务内检查权限并创建，确保原子性
         
         Args:
             user_id: 用户ID
@@ -107,7 +133,39 @@ class ProjectService:
         
         Returns:
             创建的项目对象
+        
+        Raises:
+            BadRequestException: 权限检查失败（IP数量超限）
         """
+        # 1. 检查用户是否可以创建IP（实时检查VIP状态）
+        permission_service = PermissionService(self.db)
+        can_create, error_msg = await permission_service.check_can_create_ip(user_id)
+        
+        if not can_create:
+            raise BadRequestException(error_msg)
+        
+        # 2. 使用SELECT FOR UPDATE锁定用户记录，防止并发创建IP
+        # 锁定用户记录（SELECT FOR UPDATE），确保在检查权限和创建项目之间不会有其他请求插入
+        from sqlalchemy import select
+        from sqlalchemy.orm import with_for_update
+        
+        user_query = select(User).where(
+            User.id == user_id,
+            User.is_deleted == False
+        ).with_for_update()
+        
+        user_result = await self.db.execute(user_query)
+        user = user_result.scalar_one_or_none()
+        
+        if not user:
+            raise NotFoundException("用户不存在")
+        
+        # 再次检查权限（在锁内检查，确保准确性）
+        can_create, error_msg = await permission_service.check_can_create_ip(user_id)
+        if not can_create:
+            raise BadRequestException(error_msg)
+        
+        # 3. 创建项目
         # 提取首字母作为头像显示
         avatar_letter = data.name[0].upper() if data.name else 'P'
         
@@ -132,6 +190,7 @@ class ProjectService:
             avatar_letter=avatar_letter,
             avatar_color=avatar_color,
             persona_settings=persona_settings,
+            status=ProjectStatus.ACTIVE.value,  # 新创建的项目默认为正常状态
         )
         
         self.db.add(project)

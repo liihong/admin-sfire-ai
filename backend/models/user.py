@@ -26,6 +26,7 @@ if TYPE_CHECKING:
     from models.compute import ComputeLog
     from models.project import Project
     from models.conversation import Conversation
+    from models.user_level import UserLevel as UserLevelModel
 
 
 class UserLevel(enum.Enum):
@@ -65,7 +66,8 @@ class User(BaseModel):
         Index("ix_users_username", "username"),        # username 索引
         Index("ix_users_openid", "openid"),            # openid 索引（小程序查询优化）
         Index("ix_users_parent_id", "parent_id"),      # parent_id 索引（分销查询优化）
-        Index("ix_users_level", "level"),              # level 索引（按等级筛选）
+        Index("ix_users_level", "level"),              # level 索引（按等级筛选，保留兼容）
+        Index("ix_users_level_code", "level_code"),    # level_code 索引（按等级筛选）
         Index("ix_users_is_deleted", "is_deleted"),   # is_deleted 索引（查询优化）
         Index("ix_users_created_at", "created_at"),    # created_at 索引（排序优化）
         Index("ix_users_is_active", "is_active"),      # is_active 索引（筛选优化）
@@ -91,7 +93,14 @@ class User(BaseModel):
         default=UserLevel.NORMAL,
         server_default="normal",
         nullable=False,
-        comment="用户等级: normal-普通用户, member-会员, partner-合伙人",
+        comment="用户等级: normal-普通用户, member-会员, partner-合伙人（保留兼容，新系统使用level_code）",
+    )
+    
+    level_code: Mapped[Optional[str]] = mapped_column(
+        String(32),
+        ForeignKey("user_levels.code", ondelete="RESTRICT"),
+        nullable=True,
+        comment="用户等级代码（外键关联user_levels表）：normal/vip/svip/max",
     )
     
     balance: Mapped[Decimal] = mapped_column(
@@ -234,6 +243,13 @@ class User(BaseModel):
         lazy="dynamic",
     )
     
+    # 用户等级关系
+    user_level: Mapped[Optional["UserLevelModel"]] = relationship(
+        "UserLevel",
+        primaryjoin="User.level_code == UserLevel.code",
+        lazy="selectin",
+    )
+    
     def __repr__(self) -> str:
         return f"<User(id={self.id}, username='{self.username}', level={self.level.value})>"
     
@@ -244,7 +260,11 @@ class User(BaseModel):
     
     @property
     def level_name(self) -> str:
-        """获取等级中文名称"""
+        """获取等级中文名称（优先使用user_level，兼容旧level字段）"""
+        if self.user_level:
+            return self.user_level.name
+        
+        # 兼容旧数据
         level_names = {
             UserLevel.NORMAL: "普通用户",
             UserLevel.MEMBER: "会员",

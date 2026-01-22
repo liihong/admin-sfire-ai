@@ -173,6 +173,11 @@ async def switch_project(
     if not project:
         raise NotFoundException("项目不存在或无权访问")
     
+    # 检查项目状态，冻结的项目不能切换
+    from models.project import ProjectStatus
+    if project.status == ProjectStatus.FROZEN.value:
+        raise BadRequestException("该项目已冻结，无法切换。请续费会员以解锁。")
+    
     await project_service.set_active_project(current_user.id, project_id)
     
     return success(

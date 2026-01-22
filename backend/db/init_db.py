@@ -323,6 +323,84 @@ async def init_roles(session: AsyncSession) -> None:
     logger.info("角色数据初始化完成")
 
 
+async def init_user_levels(session: AsyncSession) -> None:
+    """
+    初始化用户等级数据
+    
+    Args:
+        session: 数据库会话
+    """
+    from models.user_level import UserLevel as UserLevelModel
+    from sqlalchemy import select
+    
+    logger.info("开始初始化用户等级数据...")
+    
+    # 检查是否已有数据
+    query = select(UserLevelModel)
+    result = await session.execute(query)
+    existing_levels = result.scalars().all()
+    
+    if existing_levels:
+        logger.info(f"用户等级数据已存在（{len(existing_levels)}条），跳过初始化")
+        return
+    
+    # 初始化4个等级
+    levels_data = [
+        {
+            "code": "normal",
+            "name": "观望者",
+            "max_ip_count": 1,
+            "ip_type": "temporary",
+            "daily_tokens_limit": 3,
+            "can_use_advanced_agent": False,
+            "unlimited_conversations": False,
+            "is_enabled": True,
+            "sort_order": 1,
+        },
+        {
+            "code": "vip",
+            "name": "个人创作者",
+            "max_ip_count": 1,
+            "ip_type": "permanent",
+            "daily_tokens_limit": None,
+            "can_use_advanced_agent": True,
+            "unlimited_conversations": True,
+            "is_enabled": True,
+            "sort_order": 2,
+        },
+        {
+            "code": "svip",
+            "name": "小工作室",
+            "max_ip_count": 5,
+            "ip_type": "permanent",
+            "daily_tokens_limit": None,
+            "can_use_advanced_agent": True,
+            "unlimited_conversations": True,
+            "is_enabled": True,
+            "sort_order": 3,
+        },
+        {
+            "code": "max",
+            "name": "矩阵大佬/B端",
+            "max_ip_count": None,
+            "ip_type": "permanent",
+            "daily_tokens_limit": None,
+            "can_use_advanced_agent": True,
+            "unlimited_conversations": True,
+            "is_enabled": True,
+            "sort_order": 4,
+        },
+    ]
+    
+    for level_data in levels_data:
+        level = UserLevelModel(**level_data)
+        session.add(level)
+    
+    await session.flush()
+    
+    logger.info(f"用户等级数据初始化完成，共创建 {len(levels_data)} 个等级")
+
+
 async def main():
     """
     主函数：执行数据库初始化
@@ -350,6 +428,9 @@ async def main():
                 
                 # 初始化菜单数据
                 await init_menus(session)
+                
+                # 初始化用户等级数据
+                await init_user_levels(session)
                 
                 logger.info("=" * 60)
                 logger.info("数据库初始化完成！")

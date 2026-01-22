@@ -71,12 +71,19 @@ export namespace User {
     email?: string;
     address?: string;
     createTime: string;
+    lastLoginTime?: string; // 最后登录时间（对应数据库 updated_at 字段）
     status: number;
     avatar?: string;
     photo?: any[];
     phone?: string;
     nickname?: string;
-    level?: LevelType | "normal" | "member" | "partner";
+    level?: LevelType | "normal" | "member" | "partner"; // 保留兼容旧字段
+    levelCode?: string; // 新增：等级代码（normal/vip/svip/max）
+    levelName?: string; // 新增：等级名称（中文）
+    role?: string; // 角色：user/admin
+    inviteCode?: string; // 邀请码
+    inviterId?: string; // 邀请人ID
+    inviterName?: string; // 邀请人名称
     remark?: string;
     computePower?: {
       balance: number;
@@ -159,8 +166,10 @@ export namespace User {
   // 用户等级选项响应
   export interface ResLevel {
     label: string;
-    value: "normal" | "member" | "partner";
-    level: LevelType;
+    value: string; // 等级代码（normal/vip/svip/max）
+    code?: string; // 等级代码（与value相同）
+    color?: string; // 等级颜色
+    level?: LevelType; // 兼容旧字段
   }
 
   // 用户算力活动记录

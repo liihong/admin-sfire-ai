@@ -40,6 +40,9 @@ const BASE_URL = __API_BASE_URL__
 // 请求超时时间（毫秒）
 const TIMEOUT = 100000
 
+// 防止重复处理 401 错误的标志
+let isHandling401 = false
+
 /**
  * 请求拦截器 - 处理请求前的逻辑
  */
@@ -73,16 +76,35 @@ function requestInterceptor(config: RequestConfig): RequestConfig {
  * 处理401未授权错误：清除认证信息并跳转到登录页
  */
 function handleUnauthorized() {
+  // 防止重复处理
+  if (isHandling401) {
+    return
+  }
+  isHandling401 = true
+
   const authStore = useAuthStore()
+
+  // 只有当真正有 token 时才清空并跳转
+  // 游客模式下没有 token，不需要处理
+  if (!authStore.getToken()) {
+    console.warn('[401] No token found, skipping auth clear')
+    isHandling401 = false
+    return
+  }
+
   authStore.clearAuth()
-  
+
   console.warn('Token expired or invalid, redirecting to login')
-  
+
   // 延迟跳转，避免在请求回调中直接跳转
   setTimeout(() => {
     uni.reLaunch({
       url: '/pages/login/index'
     })
+    // 重置标志（虽然跳转后这个页面会被销毁，但为了保险）
+    setTimeout(() => {
+      isHandling401 = false
+    }, 500)
   }, 0)
 }
 

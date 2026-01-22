@@ -11,7 +11,7 @@ from .admin_user import AdminUser
 from .llm_model import LLMModel
 from .banner import Banner, LinkType, BannerPosition
 from .home_config import HomeConfig
-from .project import Project
+from .project import Project, ProjectStatus
 from .conversation import (
     Conversation,
     ConversationMessage,
@@ -23,6 +23,7 @@ from .conversation import (
 from .admin_debug_log import AdminDebugLog
 from .dictionary import Dictionary, DictionaryItem
 from .skill_library import SkillLibrary
+from .user_level import UserLevel as UserLevelModel
 
 __all__ = [
     "BaseModel",
@@ -41,6 +42,7 @@ __all__ = [
     "BannerPosition",
     "HomeConfig",
     "Project",
+    "ProjectStatus",
     "Conversation",
     "ConversationMessage",
     "ConversationChunk",
@@ -51,4 +53,5 @@ __all__ = [
     "Dictionary",
     "DictionaryItem",
     "SkillLibrary",
+    "UserLevelModel",
 ]

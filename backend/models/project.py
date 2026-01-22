@@ -5,15 +5,18 @@ Project Model - 项目（IP）数据模型
 支持与 User 模型的关联
 """
 import json
+import enum
 from typing import Optional, List, TYPE_CHECKING
 from sqlalchemy import (
     String,
     BigInteger,
     Boolean,
+    Integer,
     ForeignKey,
     Index,
     JSON,
     Text,
+    Enum as SQLEnum,
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -21,6 +24,12 @@ from models.base import BaseModel
 
 if TYPE_CHECKING:
     from models.user import User
+
+
+class ProjectStatus(enum.Enum):
+    """项目状态枚举"""
+    ACTIVE = 1      # 正常使用
+    FROZEN = 2      # 已冻结（降级导致）
 
 
 class Project(BaseModel):
@@ -34,6 +43,7 @@ class Project(BaseModel):
         Index("ix_projects_user_id", "user_id"),              # user_id 索引
         Index("ix_projects_updated_at", "updated_at"),        # updated_at 索引（排序优化）
         Index("ix_projects_is_deleted", "is_deleted"),        # is_deleted 索引（查询优化）
+        Index("ix_projects_status", "status"),                # status 索引（状态筛选）
         {"comment": "项目/IP表"},
     )
     
@@ -86,6 +96,14 @@ class Project(BaseModel):
     )
     
     # === 状态字段 ===
+    status: Mapped[int] = mapped_column(
+        Integer,
+        nullable=False,
+        default=ProjectStatus.ACTIVE.value,
+        server_default="1",
+        comment="状态：1-正常, 2-已冻结",
+    )
+    
     is_deleted: Mapped[bool] = mapped_column(
         Boolean,
         default=False,
@@ -114,4 +132,14 @@ class Project(BaseModel):
             except json.JSONDecodeError:
                 return {}
         return {}
+    
+    @property
+    def is_frozen(self) -> bool:
+        """是否已冻结"""
+        return self.status == ProjectStatus.FROZEN.value
+    
+    @property
+    def is_active_status(self) -> bool:
+        """是否正常状态"""
+        return self.status == ProjectStatus.ACTIVE.value
 

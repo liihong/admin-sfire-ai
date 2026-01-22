@@ -26,8 +26,8 @@
       <el-form-item label="昵称" prop="nickname">
         <el-input v-model="drawerProps.row!.nickname" placeholder="请输入昵称" clearable />
       </el-form-item>
-      <el-form-item label="用户等级" prop="level">
-        <el-select v-model="drawerProps.row!.level" placeholder="请选择用户等级" style="width: 100%">
+      <el-form-item label="用户等级" prop="levelCode">
+        <el-select v-model="drawerProps.row!.levelCode" placeholder="请选择用户等级" style="width: 100%">
           <el-option
             v-for="item in levelOptions"
             :key="item.value"
@@ -63,18 +63,28 @@
 </template>
 
 <script setup lang="ts" name="UserDrawer">
-import { ref, reactive } from "vue";
+import { ref, reactive, onMounted } from "vue";
 import { ElMessage, FormInstance, FormRules } from "element-plus";
 import type { User } from "@/api/interface";
-import { addUser, editUser } from "@/api/modules/user";
-import { USER_LEVEL_CONFIG } from "@/config";
+import { addUser, editUser, getUserLevelOptions } from "@/api/modules/user";
 
-// 等级选项
-const levelOptions = Object.entries(USER_LEVEL_CONFIG).map(([key, value]) => ({
-  value: Number(key) as User.LevelType,
-  label: value.label,
-  color: value.color
-}));
+// 等级选项（从API获取）
+const levelOptions = ref<Array<{ label: string; value: string; color?: string }>>([]);
+
+// 初始化等级选项
+const initLevelOptions = async () => {
+  try {
+    const { data } = await getUserLevelOptions();
+    levelOptions.value = data.map((item: User.ResLevel) => ({
+      label: item.label,
+      value: item.value,
+      color: item.color
+    }));
+  } catch (error) {
+    console.error("获取用户等级选项失败:", error);
+    ElMessage.error("获取用户等级选项失败");
+  }
+};
 
 interface DrawerProps {
   title: string;
@@ -106,18 +116,21 @@ const rules = reactive<FormRules>({
   phone: [
     { pattern: /^1[3-9]\d{9}$/, message: "请输入正确的手机号", trigger: "blur" }
   ],
-  level: [{ required: true, message: "请选择用户等级", trigger: "change" }]
+  levelCode: [{ required: true, message: "请选择用户等级", trigger: "change" }]
 });
 
 // 接收父组件传递的参数
-const acceptParams = (params: DrawerProps) => {
+const acceptParams = async (params: DrawerProps) => {
+  // 每次打开抽屉时重新加载等级选项，确保数据最新
+  await initLevelOptions();
+  
   // 初始化表单数据
   const rowData: any = {
     username: params.row?.username || "",
     phone: params.row?.phone || "",
     nickname: params.row?.nickname || "",
     remark: params.row?.remark || "",
-    level: params.row?.level !== undefined ? params.row.level : 0,
+    levelCode: params.row?.levelCode || "normal", // 使用levelCode，默认为normal
     status: params.row?.status !== undefined ? params.row.status : 1,
   };
   
@@ -159,22 +172,11 @@ const handleSubmit = async () => {
     if (isNew) {
       // 新增用户：需要密码和等级
       submitData.password = drawerProps.value.row!.password;
-      // 将前端数字等级转换为后端字符串等级
-      const levelMap: Record<number, string> = {
-        0: "normal",
-        1: "member",
-        2: "partner"
-      };
-      submitData.level = levelMap[drawerProps.value.row!.level as number] || "normal";
+      submitData.level_code = drawerProps.value.row!.levelCode || "normal";
     } else {
       // 编辑用户：可以更新等级和状态
-      if (drawerProps.value.row!.level !== undefined) {
-        const levelMap: Record<number, string> = {
-          0: "normal",
-          1: "member",
-          2: "partner"
-        };
-        submitData.level = levelMap[drawerProps.value.row!.level as number];
+      if (drawerProps.value.row!.levelCode) {
+        submitData.level_code = drawerProps.value.row!.levelCode;
       }
       if (drawerProps.value.row!.status !== undefined) {
         submitData.is_active = drawerProps.value.row!.status === 1;
