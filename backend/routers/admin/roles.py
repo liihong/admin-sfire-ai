@@ -6,7 +6,7 @@ from fastapi import APIRouter, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from db import get_db
-from services.role import RoleService
+from services.system import RoleService
 from schemas.role import RoleCreate, RoleUpdate
 from utils.response import success, ResponseMsg
 

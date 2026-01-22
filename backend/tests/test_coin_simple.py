@@ -16,9 +16,9 @@ from db import async_session_maker, init_db, close_db
 from models.user import User
 from models.llm_model import LLMModel
 from models.compute import ComputeLog
-from services.coin_calculator import CoinCalculatorService
-from services.coin_account import CoinAccountService
-from services.content_moderation import ContentModerationService
+from services.coin.calculator import CoinCalculatorService
+from services.coin.account import CoinAccountService
+from services.content import ContentModerationService
 
 
 async def get_session():
@@ -174,7 +174,7 @@ async def test_compute_logs():
     logger.info("========== 测试4: 流水记录查询 ==========")
 
     async with async_session_maker() as db:
-        from services.compute import ComputeService
+        from services.resource import ComputeService
 
         compute_service = ComputeService(db)
 

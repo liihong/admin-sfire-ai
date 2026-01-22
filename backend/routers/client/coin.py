@@ -9,9 +9,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from db import get_db
 from models.user import User
 from core.deps import get_current_miniprogram_user
-from services.coin_account import CoinAccountService
-from services.coin_calculator import CoinCalculatorService
-from services.compute import ComputeService
+from services.coin.account import CoinAccountService
+from services.coin.calculator import CoinCalculatorService
+from services.resource import ComputeService
 from schemas.coin import (
     CoinBalanceResponse,
     CoinCostRequest,

@@ -6,7 +6,7 @@ from fastapi import APIRouter, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from db import get_db
-from services.menu import MenuService
+from services.system import MenuService
 from schemas.menu import MenuCreate, MenuUpdate
 from utils.response import success, ResponseMsg
 

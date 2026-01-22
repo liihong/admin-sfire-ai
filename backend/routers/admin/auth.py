@@ -9,8 +9,8 @@ from pydantic import BaseModel, Field
 
 from db import get_db
 from schemas import LoginRequest, LoginResponse
-from services.auth import AuthService
-from services.menu import MenuService
+from services.system import AuthService
+from services.system import MenuService
 from utils.response import success, ResponseMsg
 from core.security import decode_token, create_access_token, create_refresh_token
 from core.config import settings

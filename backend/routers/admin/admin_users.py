@@ -12,7 +12,7 @@ from schemas.admin_user import (
     AdminUserUpdate,
     AdminUserQueryParams,
 )
-from services.admin_user import AdminUserService
+from services.user import AdminUserService
 from utils.response import success, page_response, ResponseMsg
 
 router = APIRouter()

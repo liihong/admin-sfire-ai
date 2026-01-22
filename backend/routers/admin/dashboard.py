@@ -6,7 +6,7 @@ from fastapi import APIRouter, Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from db import get_db
-from services.dashboard import DashboardService
+from services.system import DashboardService
 from utils.response import success
 
 router = APIRouter()

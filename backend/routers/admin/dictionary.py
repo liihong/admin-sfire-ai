@@ -18,7 +18,7 @@ from schemas.dictionary import (
     DictItemQueryParams,
     DictItemResponse,
 )
-from services.dictionary import DictionaryService
+from services.system import DictionaryService
 from utils.response import success, page_response
 
 router = APIRouter()
@@ -260,6 +260,9 @@ async def delete_dict_item(
     await db.commit()
     
     return success(msg="删除成功")
+
+
+
 
 
 

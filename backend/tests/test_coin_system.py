@@ -11,9 +11,9 @@ from db.session import get_async_session
 from models.user import User
 from models.llm_model import LLMModel
 from models.compute import ComputeLog, ComputeType
-from services.coin_calculator import CoinCalculatorService
-from services.coin_account import CoinAccountService
-from services.content_moderation import ContentModerationService
+from services.coin.calculator import CoinCalculatorService
+from services.coin.account import CoinAccountService
+from services.content import ContentModerationService
 from utils.response import success
 
 
@@ -260,7 +260,7 @@ async def test_compute_logs():
     logger.info("========== 测试流水记录查询 ==========")
 
     async with get_async_session() as db:
-        from services.compute import ComputeService
+        from services.resource import ComputeService
 
         compute_service = ComputeService(db)
 

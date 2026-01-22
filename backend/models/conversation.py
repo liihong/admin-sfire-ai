@@ -36,6 +36,17 @@ class EmbeddingStatus(enum.Enum):
     FAILED = "failed"           # 失败
 
 
+class MessageStatus(enum.Enum):
+    """消息状态枚举"""
+    PENDING = "pending"                    # 待处理（用户消息刚保存）
+    PROCESSING = "processing"              # 处理中（LLM调用中）
+    SUCCESS = "success"                    # 成功（正常完成）
+    ERROR = "error"                        # 错误（LLM调用失败）
+    INSUFFICIENT_BALANCE = "insufficient_balance"  # 余额不足
+    CONTENT_VIOLATION = "content_violation"        # 内容违规
+    LLM_ERROR = "llm_error"                # LLM调用错误（超时、网络错误等）
+
+
 class Conversation(BaseModel):
     """
     对话会话模型
@@ -166,6 +177,8 @@ class ConversationMessage(BaseModel):
         Index("ix_conversation_messages_conversation_id", "conversation_id"),
         Index("ix_conversation_messages_sequence", "conversation_id", "sequence"),
         Index("ix_conversation_messages_embedding_status", "embedding_status"),
+        Index("ix_conversation_messages_status", "status"),
+        Index("ix_conversation_messages_role_status", "role", "status"),
         {"comment": "对话消息表"},
     )
     
@@ -210,6 +223,20 @@ class ConversationMessage(BaseModel):
         nullable=False,
         default=EmbeddingStatus.PENDING.value,
         comment="向量化状态：pending-待处理, processing-处理中, completed-已完成, failed-失败",
+    )
+    
+    # === 消息状态 ===
+    status: Mapped[str] = mapped_column(
+        String(30),
+        nullable=False,
+        default=MessageStatus.PENDING.value,
+        comment="消息状态：pending-待处理, processing-处理中, success-成功, error-错误, insufficient_balance-余额不足, content_violation-内容违规, llm_error-LLM错误",
+    )
+    
+    error_message: Mapped[Optional[str]] = mapped_column(
+        Text,
+        nullable=True,
+        comment="错误信息（仅错误状态时使用）",
     )
     
     # === 关系定义 ===

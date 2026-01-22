@@ -9,7 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from loguru import logger
 
 from db import get_db
-from services.security import SecurityService
+from services.system import SecurityService
 from utils.response import success
 from utils.exceptions import BadRequestException, ServerErrorException
 

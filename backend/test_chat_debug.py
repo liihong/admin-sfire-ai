@@ -83,7 +83,7 @@ async def debug_chat():
         # 4. 测试 API 调用
         print(f"\n[3] 测试调用 AI 服务...")
         try:
-            from services.ai import AIService
+            from services.content import AIService
 
             ai_service = AIService(db)
 

@@ -14,7 +14,7 @@ from schemas.banner import (
     BannerSortRequest,
     BannerStatusRequest,
 )
-from services.banner import BannerService
+from services.resource import BannerService
 from utils.response import success, page_response, ResponseMsg
 
 router = APIRouter()

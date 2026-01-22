@@ -7,7 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from loguru import logger
 
 from models.agent import Agent
-from services.prompt_builder import PromptBuilder
+from services.shared.prompt_builder import PromptBuilder
 from .types import PromptAssemblyResult
 
 

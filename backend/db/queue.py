@@ -193,7 +193,7 @@ async def conversation_queue_worker(worker_id: str, stop_event: asyncio.Event):
     logger.info(f"🚀 [队列Worker-{worker_id}] 启动")
 
     from db.session import async_session_maker
-    from services.conversation import ConversationService
+    from services.conversation.dao import ConversationDAO
     from sqlalchemy import select, desc
     from models.conversation import ConversationMessage
 
@@ -209,9 +209,9 @@ async def conversation_queue_worker(worker_id: str, stop_event: asyncio.Event):
 
             # 2. 处理保存任务
             async with async_session_maker() as db:
-                service = ConversationService(db)
+                dao = ConversationDAO(db)
 
-                await service.save_conversation_async(
+                await dao.save_conversation_async(
                     conversation_id=task_data["conversation_id"],
                     user_message=task_data["user_message"],
                     assistant_message=task_data["assistant_message"],

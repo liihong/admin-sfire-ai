@@ -16,7 +16,7 @@ from schemas.agent import (
     BatchSortRequest,
 )
 from services.agent import AgentService
-from services.llm_model import LLMModelService
+from services.resource import LLMModelService
 from utils.response import success, page_response
 from utils.serializers import agent_to_response
 from constants.agent import PROMPT_TEMPLATES

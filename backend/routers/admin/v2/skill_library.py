@@ -13,7 +13,7 @@ from schemas.v2.skill import (
     SkillResponse,
     SkillCategoryResponse,
 )
-from services.skill_service import SkillService
+from services.skill import SkillService
 from utils.response import success, page_response, ResponseMsg
 from utils.exceptions import NotFoundException, BadRequestException
 

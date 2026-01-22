@@ -56,6 +56,7 @@ from .dictionary import (
     DictItemSimple,
     DictItemQueryParams,
 )
+from .agent import v2 as agent_v2  # v2版本Schema命名空间
 
 __all__ = [
     # Common
@@ -107,6 +108,8 @@ __all__ = [
     "DictItemResponse",
     "DictItemSimple",
     "DictItemQueryParams",
+    # Agent v2
+    "agent_v2",
 ]
 
 

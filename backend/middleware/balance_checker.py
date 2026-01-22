@@ -7,8 +7,8 @@ from typing import Optional
 from sqlalchemy.ext.asyncio import AsyncSession
 from loguru import logger
 
-from services.coin_account import CoinAccountService
-from services.coin_calculator import CoinCalculatorService
+from services.coin.account import CoinAccountService
+from services.coin.calculator import CoinCalculatorService
 from utils.exceptions import BadRequestException
 
 

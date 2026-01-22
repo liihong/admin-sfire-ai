@@ -12,9 +12,9 @@ from loguru import logger
 from models.skill_library import SkillLibrary
 from models.agent import Agent
 from models.llm_model import LLMModel
-from services.prompt_builder import PromptBuilder
-from services.llm_service import LLMFactory
-from services.llm_model import LLMModelService
+from services.shared.prompt_builder import PromptBuilder
+from services.shared.llm_service import LLMFactory
+from services.resource import LLMModelService
 from sqlalchemy import select
 from .types import RoutingResult
 

@@ -14,14 +14,14 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from db import get_db
 from models.user import User
 from core.deps import get_current_miniprogram_user
-from services.project import ProjectService
-from services.llm_service import LLMFactory
-from services.llm_model import LLMModelService
+from services.resource import ProjectService
+from services.shared.llm_service import LLMFactory
+from services.resource import LLMModelService
 from services.agent import AgentService
-from services.conversation import ConversationService
-from services.ai import AIService
-from services.coin_account import CoinAccountService
-from services.coin_calculator import CoinCalculatorService
+from services.conversation.business import ConversationBusinessService
+from services.content import AIService
+from services.coin.account import CoinAccountService
+from services.coin.calculator import CoinCalculatorService
 from middleware.balance_checker import BalanceCheckerMiddleware
 from constants.agent import get_agent_config, get_all_agents, AgentType, AGENT_CONFIGS
 from utils.response import success
@@ -48,12 +48,12 @@ async def embed_conversation_background_task(
         assistant_message_id: AI回复消息ID
     """
     from db.session import async_session_maker
-    from services.conversation import ConversationService
+    from services.conversation.dao import ConversationDAO
 
     try:
         async with async_session_maker() as db:
-            service = ConversationService(db)
-            await service.embed_conversation_async(
+            dao = ConversationDAO(db)
+            await dao.embed_conversation_async(
                 conversation_id=conversation_id,
                 user_message_id=user_message_id,
                 assistant_message_id=assistant_message_id
@@ -148,15 +148,15 @@ async def save_conversation_fallback(
         assistant_tokens: AI回复token数
     """
     from db.session import async_session_maker
-    from services.conversation import ConversationService
+    from services.conversation.dao import ConversationDAO
     from sqlalchemy import select, desc
     from models.conversation import ConversationMessage
 
     try:
         # 1. 保存对话消息
         async with async_session_maker() as db:
-            service = ConversationService(db)
-            await service.save_conversation_async(
+            dao = ConversationDAO(db)
+            await dao.save_conversation_async(
                 conversation_id=conversation_id,
                 user_message=user_message,
                 assistant_message=assistant_message,
@@ -371,7 +371,7 @@ async def generate_chat(
     """对话式创作接口（支持向量检索和异步保存）"""
     try:
         # 0. 初始化会话服务
-        conversation_service = ConversationService(db)
+        conversation_service = ConversationBusinessService(db)
 
         # 0.1. 获取智能体配置和模型类型（提前获取，避免重复查询）
         agent_config = None
@@ -473,7 +473,7 @@ async def generate_chat(
         else:
             # 验证会话是否属于当前用户
             try:
-                await conversation_service.get_conversation_by_id(
+                await conversation_service.get_conversation(
                     conversation_id=conversation_id,
                     user_id=current_user.id
                 )

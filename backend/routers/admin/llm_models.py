@@ -13,7 +13,7 @@ from schemas.llm_model import (
     AvailableModelItem,
     BalanceRefreshResponse,
 )
-from services.llm_model import LLMModelService
+from services.resource import LLMModelService
 from utils.response import success, page_response
 from utils.serializers import llm_model_to_response
 

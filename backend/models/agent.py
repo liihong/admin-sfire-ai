@@ -12,6 +12,7 @@ from sqlalchemy import (
     DECIMAL,
     Index,
     JSON,
+    ForeignKey,
 )
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -140,6 +141,21 @@ class Agent(BaseModel):
         nullable=False,
         default=0,
         comment="是否为系统自用智能体：0-否，1-是",
+    )
+    
+    # === 备用模型和超时配置 ===
+    fallback_model_id: Mapped[Optional[int]] = mapped_column(
+        BigInteger,
+        ForeignKey("llm_models.id", ondelete="SET NULL"),
+        nullable=True,
+        comment="备用模型ID（当主模型超时或失败时使用）",
+    )
+    
+    timeout_seconds: Mapped[int] = mapped_column(
+        Integer,
+        nullable=False,
+        default=120,
+        comment="LLM调用超时时间（秒），默认120秒",
     )
     
     def __repr__(self) -> str:

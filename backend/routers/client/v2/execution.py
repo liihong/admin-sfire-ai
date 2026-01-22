@@ -16,9 +16,9 @@ from schemas.v2.agent import (
 )
 from models.agent import Agent
 from models.project import Project
-from services.agent_execution import AgentExecutionService
+from services.agent.business import AgentBusinessService
 from services.routing import MasterRouter, PromptEngine
-from services.prompt_builder import PromptBuilder
+from services.shared.prompt_builder import PromptBuilder
 from utils.response import success
 from utils.exceptions import NotFoundException, BadRequestException
 
@@ -36,7 +36,7 @@ async def execute_agent(
     
     执行流程：
     1. 参数校验
-    2. 调用AgentExecutionService执行完整流程
+    2. 调用AgentBusinessService执行完整流程
     3. 返回流式响应（SSE格式）
     
     注意：此接口返回流式响应，前端需要处理SSE格式
@@ -45,13 +45,13 @@ async def execute_agent(
     if not request_data.input_text or not request_data.input_text.strip():
         raise BadRequestException(msg="用户输入不能为空")
     
-    # 创建Agent执行服务
-    execution_service = AgentExecutionService(db)
+    # 创建Agent业务服务
+    execution_service = AgentBusinessService(db)
     
     # 流式响应生成器
     async def generate_response():
         try:
-            async for chunk in execution_service.execute(
+            async for chunk in execution_service.execute_agent(
                 agent_id=agent_id,
                 user_id=request_data.user_id,
                 project_id=request_data.project_id,

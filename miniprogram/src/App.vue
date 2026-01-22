@@ -259,4 +259,9 @@ page {
 page, view, text, scroll-view, swiper, button, input, textarea, label, navigator, image {
   box-sizing: border-box;
 }
+/* 自定义tabbar图标大小 */
+.tab-bar .uni-tabbar__icon image {
+  width: 20rpx; /* 调整为你想要的宽度 */
+  height: 20rpx; /* 调整为你想要的高度 */
+}
 </style>

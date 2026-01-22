@@ -17,8 +17,8 @@ from schemas.v2.agent import (
     RoutingPreviewRequest,
     RoutingPreviewResponse,
 )
-from services.agent_service_v2 import AgentServiceV2
-from services.prompt_builder import PromptBuilder
+from services.agent.admin import AgentServiceV2
+from services.shared.prompt_builder import PromptBuilder
 from services.routing import MasterRouter, SkillRouter, PromptEngine
 from core.config import settings
 from utils.response import success, page_response
@@ -334,7 +334,7 @@ async def preview_intelligent_routing(
         # 计算相似度（用于展示）
         if routing_method == "vector":
             # 使用向量相似度
-            from services.skill_embedding import get_skill_embedding_service
+            from services.skill import get_skill_embedding_service
             skill_embedding_service = get_skill_embedding_service()
             query = f"{request_data.user_input}\n{routing_description}"
 

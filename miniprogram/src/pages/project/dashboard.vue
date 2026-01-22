@@ -1,155 +1,130 @@
 <template>
   <view class="dashboard-page">
-    <!-- 背景装饰 -->
-    <view class="bg-decoration">
-      <view class="deco-circle c1"></view>
-      <view class="deco-circle c2"></view>
-    </view>
-
-    <!-- 顶部导航栏 -->
-    <view class="nav-bar">
-      <view class="nav-left">
-        <view class="back-btn" @tap="goBack">
-          <text class="back-icon">←</text>
-        </view>
-        <text class="nav-title">操盘控制台</text>
-      </view>
-      <view class="nav-right">
-        <view class="switch-btn" @tap="goToProjectList">
-          <text class="switch-icon">🔄</text>
-          <text class="switch-text">切换</text>
-        </view>
+    <!-- 顶部用户信息栏 -->
+    <view class="top-bar">
+      <view class="user-info">
+        <text class="user-name">{{ userName || '创作者' }}</text>
+        <text class="user-points">{{ userPoints || 0 }} 点数</text>
       </view>
     </view>
 
     <!-- 主内容区 -->
     <scroll-view class="main-scroll" scroll-y>
-      <!-- 项目信息卡片 (通栏) -->
-      <view class="project-card" @tap="showPersonaDrawer = true">
-        <view class="project-card-content">
-          <view class="project-info">
-            <view class="project-label">当前项目</view>
-            <view class="project-name">{{ activeProject?.name || '选择项目' }}</view>
-            <view class="project-tags">
-              <view class="tag industry-tag" v-if="activeProject?.industry">
-                <text class="tag-icon">🎯</text>
-                <text class="tag-text">{{ activeProject.industry }}</text>
-              </view>
-              <view class="tag tone-tag" v-if="activeProject?.persona_settings?.tone">
-                <text class="tag-icon">💬</text>
-                <text class="tag-text">{{ activeProject.persona_settings.tone }}</text>
-              </view>
+      <!-- 当前活跃人设卡片 -->
+      <view class="persona-card" @tap="showPersonaDrawer = true">
+        <view class="persona-card-content">
+          <view class="persona-left">
+            <view class="persona-icon-wrapper">
+              <AgentIcon iconName="Star" :size="64" />
+              <view class="active-dot"></view>
+            </view>
+            <view class="persona-info">
+              <text class="persona-name">{{ activeProject?.name || '选择人设' }}</text>
+              <text class="persona-desc">{{ activeProject?.persona_settings?.tone || DEFAULT_PERSONA_SETTINGS.tone }}·智囊型</text>
             </view>
           </view>
-          <view class="project-action">
-            <view class="action-icon-3d">
-              <view class="icon-face front">⚙️</view>
-              <view class="icon-face shadow"></view>
-            </view>
-            <text class="action-hint">编辑人设</text>
+          <view class="persona-toggle">
+            <u-icon name="reload" color="#ADB5BD" size="32"></u-icon>
           </view>
-        </view>
-        <view class="project-card-decoration">
-          <view class="deco-dot d1"></view>
-          <view class="deco-dot d2"></view>
-          <view class="deco-dot d3"></view>
         </view>
       </view>
 
-      <!-- Bento Grid 功能区 -->
-      <view class="bento-grid">
-        <!-- 左侧大卡片：智能文案创作 (跨2行) -->
-        <view class="bento-card card-large card-copywriting" @tap="handleNavigate('/pages/copywriting/index')">
-          <view class="card-header">
-            <view class="card-icon-wrapper gradient-blue">
-              <text class="card-icon">📝</text>
+      <!-- 灵感输入区 -->
+      <view class="input-section">
+        <view class="input-card">
+          <input
+            class="inspiration-input"
+            placeholder="记录此刻灵感瞬间..."
+            placeholder-class="input-placeholder"
+          />
+          <view class="input-actions">
+            <view class="action-icon mic-icon">
+              <u-icon name="mic" color="#6C757D" size="40"></u-icon>
             </view>
-            <view class="card-badge">核心功能</view>
-          </view>
-          <view class="card-body">
-            <text class="card-title">智能文案创作</text>
-            <text class="card-desc">AI 驱动的高质量内容生成，支持多种风格和场景</text>
-          </view>
-          <view class="card-illustration">
-            <view class="illust-line l1"></view>
-            <view class="illust-line l2"></view>
-            <view class="illust-line l3"></view>
-            <view class="illust-cursor"></view>
-          </view>
-          <view class="card-arrow">
-            <text class="arrow-icon">→</text>
+            <view class="action-icon send-btn">
+              <u-icon name="arrow-right" color="#FFFFFF" size="32"></u-icon>
+            </view>
           </view>
         </view>
+        <text class="input-hint">每一个灵感瞬间都将成为你的优秀选题</text>
+      </view>
 
-        <!-- 右上小卡片：数字人定制 -->
-        <view class="bento-card card-small card-digital" @tap="handleNavigate('')">
-          <view class="card-icon-wrapper gradient-purple">
-            <text class="card-icon">🧑‍💻</text>
+      <!-- 今天拍点啥 - 分类网格 -->
+      <view class="section-header">
+        <text class="section-title">今天拍点啥</text>
+      </view>
+      <view class="category-grid">
+        <view class="category-item" @tap="handleCategoryClick('story')">
+          <AgentIcon iconName="Reading" :size="88" />
+          <text class="category-label">讲故事</text>
+        </view>
+        <view class="category-item" @tap="handleCategoryClick('opinion')">
+          <AgentIcon iconName="ChatDotRound" :size="88" />
+          <text class="category-label">聊观点</text>
+        </view>
+        <view class="category-item" @tap="handleCategoryClick('process')">
+          <AgentIcon iconName="Film" :size="88" />
+          <text class="category-label">晒过程</text>
+        </view>
+        <view class="category-item" @tap="handleCategoryClick('knowledge')">
+          <AgentIcon iconName="Document" :size="88" />
+          <text class="category-label">教知识</text>
+        </view>
+        <view class="category-item" @tap="handleCategoryClick('hotspot')">
+          <AgentIcon iconName="TrendCharts" :size="88" />
+          <text class="category-label">蹭热点</text>
+        </view>
+      </view>
+
+      <!-- 快捷指令库 -->
+      <view class="section-header">
+        <text class="section-title">快捷指令库</text>
+      </view>
+      <view class="quick-command-grid">
+        <view class="command-card" @tap="handleNavigate('/pages/copywriting/index')">
+          <AgentIcon iconName="User" :size="56" />
+          <view class="command-content">
+            <text class="command-title">我在起号</text>
+            <text class="command-desc">需要人设故事</text>
           </view>
-          <text class="card-title">数字人定制</text>
-          <text class="card-desc">打造专属数字形象</text>
-          <view class="card-status">
-            <text class="status-dot"></text>
+        </view>
+        <view class="command-card" @tap="handleNavigate('')">
+          <AgentIcon iconName="Platform" :size="56" />
+          <view class="command-content">
+            <text class="command-title">我在同城</text>
+            <text class="command-desc">需要泛流话题</text>
+          </view>
+        </view>
+      </view>
+
+      <!-- 原有功能入口 (简化版) -->
+      <view class="section-header">
+        <text class="section-title">更多功能</text>
+      </view>
+      <view class="feature-grid">
+        <view class="feature-item" @tap="handleNavigate('/pages/copywriting/index')">
+          <AgentIcon iconName="EditPen" :size="64" />
+          <text class="feature-title">智能文案创作</text>
+          <text class="feature-desc">AI 驱动的高质量内容生成</text>
+        </view>
+        <view class="feature-item" @tap="handleNavigate('')">
+          <AgentIcon iconName="MagicStick" :size="64" />
+          <text class="feature-title">数字人定制</text>
+          <view class="feature-status">
             <text class="status-text">即将上线</text>
           </view>
         </view>
-
-        <!-- 右下小卡片：爆款选题 -->
-        <view class="bento-card card-small card-topics" @tap="handleNavigate('')">
-          <view class="card-icon-wrapper gradient-orange">
-            <text class="card-icon">💡</text>
-          </view>
-          <text class="card-title">爆款选题</text>
-          <text class="card-desc">热点追踪与选题策划</text>
-          <view class="card-status">
-            <text class="status-dot"></text>
+        <view class="feature-item" @tap="handleNavigate('')">
+          <AgentIcon iconName="Star" :size="64" />
+          <text class="feature-title">爆款选题</text>
+          <view class="feature-status">
             <text class="status-text">即将上线</text>
           </view>
         </view>
-
-        <!-- 底部通栏卡片：对标账号分析 -->
-        <view class="bento-card card-wide card-benchmark" @tap="handleNavigate('')">
-          <view class="card-left">
-            <view class="card-icon-wrapper gradient-green">
-              <text class="card-icon">📊</text>
-            </view>
-            <view class="card-text">
-              <text class="card-title">对标账号分析</text>
-              <text class="card-desc">竞品研究与策略优化</text>
-            </view>
-          </view>
-          <view class="card-right">
-            <view class="mini-chart">
-              <view class="chart-bar" style="height: 40%"></view>
-              <view class="chart-bar" style="height: 70%"></view>
-              <view class="chart-bar" style="height: 55%"></view>
-              <view class="chart-bar" style="height: 85%"></view>
-              <view class="chart-bar" style="height: 60%"></view>
-            </view>
-            <view class="card-status">
-              <text class="status-dot"></text>
-              <text class="status-text">即将上线</text>
-            </view>
-          </view>
-        </view>
-
-        <!-- 额外功能卡片行 -->
-        <view class="bento-card card-half card-hotspot" @tap="handleNavigate('')">
-          <view class="card-icon-wrapper gradient-red">
-            <text class="card-icon">🔥</text>
-          </view>
-          <text class="card-title">热点追踪</text>
-          <view class="card-status inline">
-            <text class="status-text">即将上线</text>
-          </view>
-        </view>
-
-        <view class="bento-card card-half card-data" @tap="handleNavigate('')">
-          <view class="card-icon-wrapper gradient-cyan">
-            <text class="card-icon">📈</text>
-          </view>
-          <text class="card-title">数据看板</text>
-          <view class="card-status inline">
+        <view class="feature-item" @tap="handleNavigate('')">
+          <AgentIcon iconName="DataBoard" :size="64" />
+          <text class="feature-title">数据看板</text>
+          <view class="feature-status">
             <text class="status-text">即将上线</text>
           </view>
         </view>
@@ -317,6 +292,7 @@
 import { ref, computed, reactive, onMounted, watch } from 'vue'
 import { useProjectStore, INDUSTRY_OPTIONS, TONE_OPTIONS, DEFAULT_PERSONA_SETTINGS, type PersonaSettings } from '@/stores/project'
 import { fetchProjects, updateProject } from '@/api/project'
+import AgentIcon from '@/components/AgentIcon.vue'
 
 // Store
 const projectStore = useProjectStore()
@@ -327,6 +303,8 @@ const showPersonaDrawer = ref(false)
 const isSaving = ref(false)
 const newKeyword = ref('')
 const newTaboo = ref('')
+const userName = ref('创作者')
+const userPoints = ref(1280)
 
 // 选项
 const industryOptions = INDUSTRY_OPTIONS
@@ -445,6 +423,18 @@ function handleNavigate(route: string) {
   uni.navigateTo({ url: route })
 }
 
+function handleCategoryClick(category: string) {
+  const categoryMap: Record<string, string> = {
+    story: '讲故事',
+    opinion: '聊观点',
+    process: '晒过程',
+    knowledge: '教知识',
+    hotspot: '蹭热点'
+  }
+  uni.showToast({ title: `已选择：${categoryMap[category] || category}`, icon: 'none' })
+  // TODO: 导航到对应的分类页面
+}
+
 function addKeyword() {
   const keyword = newKeyword.value.trim()
   if (keyword && !editForm.persona.keywords.includes(keyword)) {
@@ -500,524 +490,315 @@ async function savePersonaSettings() {
 </script>
 
 <style lang="scss" scoped>
+// ========== 基础样式 ==========
 .dashboard-page {
   min-height: 100vh;
-  background: #F5F7FA;
-  position: relative;
+  background: #FFFFFF;
 }
 
-// 背景装饰
-.bg-decoration {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 500rpx;
-  pointer-events: none;
-  overflow: hidden;
-  
-  .deco-circle {
-    position: absolute;
-    border-radius: 50%;
-    
-    &.c1 {
-      width: 400rpx;
-      height: 400rpx;
-      background: radial-gradient(circle, rgba(59, 130, 246, 0.08) 0%, transparent 70%);
-      top: -150rpx;
-      right: -100rpx;
-    }
-    
-    &.c2 {
-      width: 300rpx;
-      height: 300rpx;
-      background: radial-gradient(circle, rgba(249, 115, 22, 0.06) 0%, transparent 70%);
-      top: 100rpx;
-      left: -80rpx;
-    }
-  }
-}
-
-// 顶部导航栏
-.nav-bar {
-  position: sticky;
-  top: 0;
-  z-index: 100;
+// 顶部用户信息栏
+.top-bar {
   display: flex;
+  justify-content: flex-end;
   align-items: center;
-  justify-content: space-between;
-  padding: 60rpx 32rpx 24rpx;
-  background: linear-gradient(180deg, #F5F7FA 0%, rgba(245, 247, 250, 0.9) 100%);
-  backdrop-filter: blur(10px);
-  
-  .nav-left {
+  padding: 24rpx 32rpx 16rpx;
+  background: #FFFFFF;
+
+  .user-info {
     display: flex;
     align-items: center;
     gap: 16rpx;
-    
-    .back-btn {
-      width: 64rpx;
-      height: 64rpx;
-      background: #fff;
-      border-radius: 16rpx;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      box-shadow: 0 2rpx 12rpx rgba(0, 0, 0, 0.06);
-      
-      &:active {
-        transform: scale(0.95);
-      }
-      
-      .back-icon {
-        font-size: 32rpx;
-        color: #333;
-      }
-    }
-    
-    .nav-title {
-      font-size: 36rpx;
+
+    .user-name {
+      font-size: 32rpx;
       font-weight: 600;
-      color: #1a1a2e;
+      color: #212529;
     }
-  }
-  
-  .nav-right {
-    .switch-btn {
-      display: flex;
-      align-items: center;
-      gap: 8rpx;
-      padding: 14rpx 24rpx;
-      background: #fff;
-      border-radius: 32rpx;
-      box-shadow: 0 2rpx 12rpx rgba(0, 0, 0, 0.06);
-      
-      &:active {
-        transform: scale(0.95);
-      }
-      
-      .switch-icon {
-        font-size: 24rpx;
-      }
-      
-      .switch-text {
-        font-size: 24rpx;
-        color: #666;
-      }
+
+    .user-points {
+      font-size: 24rpx;
+      color: #6C757D;
     }
   }
 }
 
 // 主滚动区域
 .main-scroll {
-  height: calc(100vh - 150rpx);
-  padding: 0 24rpx;
+  height: calc(100vh - 100rpx);
+  padding: 0 32rpx 32rpx;
 }
 
-// 项目信息卡片
-.project-card {
-  background: linear-gradient(135deg, #EFF6FF 0%, #DBEAFE 100%);
+// ========== 分区标题 ==========
+.section-header {
+  padding: 32rpx 0 16rpx;
+
+  .section-title {
+    font-size: 28rpx;
+    font-weight: 500;
+    color: #6C757D;
+  }
+}
+
+// ========== 人设卡片 ==========
+.persona-card {
+  background: #F8F9FA;
   border-radius: 24rpx;
-  padding: 32rpx;
-  margin-bottom: 24rpx;
-  position: relative;
-  overflow: hidden;
-  box-shadow: 0 4rpx 24rpx rgba(59, 130, 246, 0.1);
-  
-  &:active {
-    transform: scale(0.98);
-  }
-  
-  .project-card-content {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    position: relative;
-    z-index: 2;
-  }
-  
-  .project-info {
-    flex: 1;
-    
-    .project-label {
-      font-size: 24rpx;
-      color: #64748B;
-      margin-bottom: 8rpx;
-    }
-    
-    .project-name {
-      font-size: 40rpx;
-      font-weight: 700;
-      color: #1E40AF;
-      margin-bottom: 16rpx;
-    }
-    
-    .project-tags {
-      display: flex;
-      gap: 12rpx;
-      flex-wrap: wrap;
-      
-      .tag {
-        display: flex;
-        align-items: center;
-        gap: 6rpx;
-        padding: 8rpx 16rpx;
-        background: rgba(255, 255, 255, 0.7);
-        border-radius: 20rpx;
-        
-        .tag-icon {
-          font-size: 20rpx;
-        }
-        
-        .tag-text {
-          font-size: 22rpx;
-          color: #475569;
-        }
-      }
-    }
-  }
-  
-  .project-action {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 8rpx;
-    
-    .action-icon-3d {
-      position: relative;
-      width: 80rpx;
-      height: 80rpx;
-      
-      .icon-face {
-        position: absolute;
-        width: 100%;
-        height: 100%;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 40rpx;
-        
-        &.front {
-          background: #fff;
-          border-radius: 20rpx;
-          box-shadow: 0 4rpx 16rpx rgba(0, 0, 0, 0.1);
-          z-index: 2;
-        }
-        
-        &.shadow {
-          background: rgba(59, 130, 246, 0.2);
-          border-radius: 20rpx;
-          top: 8rpx;
-          left: 8rpx;
-          z-index: 1;
-        }
-      }
-    }
-    
-    .action-hint {
-      font-size: 20rpx;
-      color: #64748B;
-    }
-  }
-  
-  .project-card-decoration {
-    position: absolute;
-    top: 0;
-    right: 0;
-    bottom: 0;
-    width: 200rpx;
-    pointer-events: none;
-    
-    .deco-dot {
-      position: absolute;
-      border-radius: 50%;
-      background: rgba(59, 130, 246, 0.1);
-      
-      &.d1 {
-        width: 120rpx;
-        height: 120rpx;
-        top: -40rpx;
-        right: -40rpx;
-      }
-      
-      &.d2 {
-        width: 60rpx;
-        height: 60rpx;
-        top: 60rpx;
-        right: 80rpx;
-      }
-      
-      &.d3 {
-        width: 40rpx;
-        height: 40rpx;
-        bottom: 20rpx;
-        right: 40rpx;
-      }
-    }
-  }
-}
-
-// Bento Grid 布局
-.bento-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 16rpx;
-  margin-bottom: 24rpx;
-}
-
-// 通用卡片样式
-.bento-card {
-  background: #fff;
-  border-radius: 20rpx;
   padding: 24rpx;
-  box-shadow: 0 4rpx 20rpx rgba(0, 0, 0, 0.05);
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
-  
+  margin-bottom: 24rpx;
+  transition: all 0.2s ease;
+
   &:active {
     transform: scale(0.98);
-    box-shadow: 0 2rpx 12rpx rgba(0, 0, 0, 0.08);
+    background: #E9ECEF;
   }
-  
-  .card-icon-wrapper {
-    width: 72rpx;
-    height: 72rpx;
-    border-radius: 18rpx;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    margin-bottom: 16rpx;
-    
-    &.gradient-blue {
-      background: linear-gradient(135deg, #3B82F6 0%, #60A5FA 100%);
-    }
-    
-    &.gradient-purple {
-      background: linear-gradient(135deg, #8B5CF6 0%, #A78BFA 100%);
-    }
-    
-    &.gradient-orange {
-      background: linear-gradient(135deg, #F97316 0%, #FB923C 100%);
-    }
-    
-    &.gradient-green {
-      background: linear-gradient(135deg, #10B981 0%, #34D399 100%);
-    }
-    
-    &.gradient-red {
-      background: linear-gradient(135deg, #EF4444 0%, #F87171 100%);
-    }
-    
-    &.gradient-cyan {
-      background: linear-gradient(135deg, #06B6D4 0%, #22D3EE 100%);
-    }
-    
-    .card-icon {
-      font-size: 36rpx;
-    }
-  }
-  
-  .card-title {
-    font-size: 30rpx;
-    font-weight: 600;
-    color: #1a1a2e;
-    display: block;
-    margin-bottom: 8rpx;
-  }
-  
-  .card-desc {
-    font-size: 24rpx;
-    color: #94A3B8;
-    display: block;
-    line-height: 1.4;
-  }
-  
-  .card-status {
-    display: flex;
-    align-items: center;
-    gap: 8rpx;
-    margin-top: 12rpx;
-    
-    &.inline {
-      margin-top: 8rpx;
-    }
-    
-    .status-dot {
-      width: 12rpx;
-      height: 12rpx;
-      border-radius: 50%;
-      background: #F59E0B;
-    }
-    
-    .status-text {
-      font-size: 20rpx;
-      color: #F59E0B;
-    }
-  }
-}
 
-// 大卡片 (跨两行)
-.card-large {
-  grid-row: span 2;
-  display: flex;
-  flex-direction: column;
-  position: relative;
-  overflow: hidden;
-  
-  .card-header {
+  .persona-card-content {
     display: flex;
-    align-items: flex-start;
+    align-items: center;
     justify-content: space-between;
-    
-    .card-badge {
-      padding: 6rpx 14rpx;
-      background: linear-gradient(135deg, #EEF2FF 0%, #E0E7FF 100%);
-      border-radius: 16rpx;
-      font-size: 20rpx;
-      color: #6366F1;
-      font-weight: 500;
-    }
   }
-  
-  .card-body {
-    flex: 1;
-    padding-top: 16rpx;
-    
-    .card-title {
-      font-size: 36rpx;
-      margin-bottom: 12rpx;
-    }
-    
-    .card-desc {
-      font-size: 26rpx;
-      line-height: 1.5;
-    }
-  }
-  
-  .card-illustration {
-    position: relative;
-    height: 120rpx;
-    margin: 20rpx 0;
-    padding: 16rpx;
-    background: #F8FAFC;
-    border-radius: 12rpx;
-    
-    .illust-line {
-      height: 16rpx;
-      background: linear-gradient(90deg, #E2E8F0 0%, #CBD5E1 100%);
-      border-radius: 8rpx;
-      margin-bottom: 12rpx;
-      
-      &.l1 { width: 80%; }
-      &.l2 { width: 60%; }
-      &.l3 { width: 40%; }
-    }
-    
-    .illust-cursor {
-      position: absolute;
-      right: 24rpx;
-      bottom: 24rpx;
-      width: 4rpx;
-      height: 24rpx;
-      background: #3B82F6;
-      border-radius: 2rpx;
-      animation: blink 1s infinite;
-    }
-  }
-  
-  .card-arrow {
+
+  .persona-left {
     display: flex;
-    justify-content: flex-end;
-    
-    .arrow-icon {
-      width: 56rpx;
-      height: 56rpx;
-      background: linear-gradient(135deg, #3B82F6 0%, #60A5FA 100%);
-      border-radius: 50%;
+    align-items: center;
+    gap: 16rpx;
+
+    .persona-icon-wrapper {
+      position: relative;
       display: flex;
       align-items: center;
       justify-content: center;
-      font-size: 28rpx;
-      color: #fff;
-    }
-  }
-}
 
-// 小卡片
-.card-small {
-  min-height: 200rpx;
-}
+      :deep(.agent-icon) {
+        border-radius: 12rpx;
+      }
 
-// 宽卡片 (通栏)
-.card-wide {
-  grid-column: span 2;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 28rpx 32rpx;
-  
-  .card-left {
-    display: flex;
-    align-items: center;
-    gap: 20rpx;
-    
-    .card-icon-wrapper {
-      margin-bottom: 0;
-    }
-    
-    .card-text {
-      .card-title {
-        margin-bottom: 4rpx;
+      .active-dot {
+        position: absolute;
+        bottom: -4rpx;
+        right: -4rpx;
+        width: 20rpx;
+        height: 20rpx;
+        background: #28A745;
+        border-radius: 50%;
+        border: 4rpx solid #F8F9FA;
+        box-shadow: 0 2rpx 8rpx rgba(40, 167, 69, 0.3);
       }
     }
-  }
-  
-  .card-right {
-    display: flex;
-    align-items: center;
-    gap: 20rpx;
-    
-    .mini-chart {
+
+    .persona-info {
       display: flex;
-      align-items: flex-end;
+      flex-direction: column;
       gap: 6rpx;
-      height: 60rpx;
-      
-      .chart-bar {
-        width: 12rpx;
-        background: linear-gradient(180deg, #10B981 0%, #34D399 100%);
-        border-radius: 6rpx 6rpx 0 0;
-        opacity: 0.6;
+
+      .persona-name {
+        font-size: 32rpx;
+        font-weight: 600;
+        color: #212529;
+        line-height: 1.2;
+      }
+
+      .persona-desc {
+        font-size: 24rpx;
+        color: #6C757D;
+        line-height: 1.2;
+      }
+    }
+  }
+
+  .persona-toggle {
+    width: 48rpx;
+    height: 48rpx;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+}
+
+// ========== 灵感输入区 ==========
+.input-section {
+  margin-bottom: 32rpx;
+
+  .input-card {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: #F8F9FA;
+    border-radius: 16rpx;
+    padding: 20rpx 24rpx;
+    margin-bottom: 12rpx;
+    transition: all 0.2s ease;
+
+    &:focus-within {
+      background: #E9ECEF;
+    }
+
+    .inspiration-input {
+      flex: 1;
+      font-size: 28rpx;
+      color: #212529;
+    }
+
+    .input-placeholder {
+      color: #ADB5BD;
+    }
+
+    .input-actions {
+      display: flex;
+      align-items: center;
+      gap: 12rpx;
+
+      .action-icon {
+        width: 48rpx;
+        height: 48rpx;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 50%;
+        transition: all 0.2s ease;
+
+        &.mic-icon {
+          &:active {
+            background: #E9ECEF;
+          }
+        }
+
+        &.send-btn {
+          background: #FF9500;
+          box-shadow: 0 4rpx 12rpx rgba(255, 149, 0, 0.3);
+
+          &:active {
+            transform: scale(0.92);
+            box-shadow: 0 2rpx 8rpx rgba(255, 149, 0, 0.3);
+          }
+        }
+      }
+    }
+  }
+
+  .input-hint {
+    font-size: 22rpx;
+    color: #ADB5BD;
+    display: block;
+    padding-left: 8rpx;
+  }
+}
+
+// ========== 分类网格 ==========
+.category-grid {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 16rpx;
+  margin-bottom: 32rpx;
+
+  .category-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12rpx;
+    transition: transform 0.2s ease;
+
+    &:active {
+      transform: scale(0.92);
+    }
+  }
+
+  .category-label {
+    font-size: 22rpx;
+    color: #6C757D;
+    text-align: center;
+  }
+}
+
+// ========== 快捷指令网格 ==========
+.quick-command-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16rpx;
+  margin-bottom: 32rpx;
+
+  .command-card {
+    background: #F8F9FA;
+    border-radius: 20rpx;
+    padding: 24rpx;
+    display: flex;
+    align-items: center;
+    gap: 16rpx;
+    transition: all 0.2s ease;
+
+    &:active {
+      transform: scale(0.98);
+      background: #E9ECEF;
+    }
+
+    .command-content {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 4rpx;
+      min-width: 0;
+
+      .command-title {
+        font-size: 28rpx;
+        font-weight: 600;
+        color: #212529;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+
+      .command-desc {
+        font-size: 22rpx;
+        color: #6C757D;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
       }
     }
   }
 }
 
-// 半宽卡片
-.card-half {
-  display: flex;
-  align-items: center;
+// ========== 更多功能网格 ==========
+.feature-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
   gap: 16rpx;
-  padding: 20rpx 24rpx;
-  
-  .card-icon-wrapper {
-    width: 56rpx;
-    height: 56rpx;
-    margin-bottom: 0;
-    flex-shrink: 0;
-    
-    .card-icon {
-      font-size: 28rpx;
+  margin-bottom: 32rpx;
+
+  .feature-item {
+    background: #F8F9FA;
+    border-radius: 20rpx;
+    padding: 28rpx 24rpx;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    gap: 12rpx;
+    transition: all 0.2s ease;
+
+    &:active {
+      transform: scale(0.98);
+      background: #E9ECEF;
     }
-  }
-  
-  .card-title {
-    flex: 1;
-    margin-bottom: 0;
-    font-size: 28rpx;
-  }
-  
-  .card-status {
-    margin-top: 0;
+
+    .feature-title {
+      font-size: 26rpx;
+      font-weight: 500;
+      color: #212529;
+    }
+
+    .feature-desc {
+      font-size: 22rpx;
+      color: #6C757D;
+      line-height: 1.3;
+    }
+
+    .feature-status {
+      .status-text {
+        font-size: 20rpx;
+        color: #F59E0B;
+      }
+    }
   }
 }
 

@@ -16,6 +16,8 @@ class ConversationMessageCreate(BaseModel):
     content: str = Field(..., description="消息内容")
     tokens: Optional[int] = Field(default=0, description="token数")
     sequence: Optional[int] = Field(None, description="消息序号")
+    status: Optional[str] = Field(default="pending", description="消息状态: pending/processing/success/error等")
+    error_message: Optional[str] = Field(None, description="错误信息（仅错误状态时使用）")
 
 
 class ConversationMessageResponse(BaseModel):
@@ -27,8 +29,21 @@ class ConversationMessageResponse(BaseModel):
     tokens: int = Field(default=0, description="token数")
     sequence: int = Field(..., description="消息序号")
     embedding_status: str = Field(..., description="向量化状态")
+    status: str = Field(default="pending", description="消息状态")
+    error_message: Optional[str] = Field(None, description="错误信息")
     created_at: datetime = Field(..., description="创建时间")
     updated_at: Optional[datetime] = Field(None, description="更新时间")
+    
+    @property
+    def error_display(self) -> Optional[str]:
+        """前端显示的错误提示文本（根据status自动生成）"""
+        error_map = {
+            "insufficient_balance": "余额不足，请充值后再试",
+            "content_violation": "内容违规，不方便展示",
+            "llm_error": "服务暂时不可用，请稍后重试",
+            "error": "处理失败，请稍后重试",
+        }
+        return error_map.get(self.status)
 
     class Config:
         from_attributes = True
@@ -99,6 +114,8 @@ class ConversationChunkResponse(BaseModel):
     
     class Config:
         from_attributes = True
+
+
 
 
 

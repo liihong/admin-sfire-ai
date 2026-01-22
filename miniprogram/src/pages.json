@@ -117,7 +117,7 @@
         "selectedIconPath": "static/tab/home-active.png"
       },
       {
-        "pagePath": "pages/project/index",
+        "pagePath": "pages/project/dashboard",
         "text": "IP操作台",
         "iconPath": "static/tab/sfire.png",
         "selectedIconPath": "static/tab/sfire-active.png"

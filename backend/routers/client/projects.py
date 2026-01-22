@@ -10,8 +10,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from db import get_db
 from models.user import User
 from core.deps import get_current_miniprogram_user, get_current_miniprogram_user_optional
-from services.project import ProjectService
-from services.dictionary import DictionaryService
+from services.resource import ProjectService
+from services.system import DictionaryService
 from schemas.project import (
     ProjectCreate,
     ProjectUpdate,
@@ -27,7 +27,7 @@ from schemas.project import (
 from utils.response import success
 from utils.exceptions import NotFoundException, BadRequestException
 from constants.agent import get_agent_config, AgentType, DEFAULT_MODEL_ID
-from services.ai import AIService
+from services.content import AIService
 from schemas.ai import ChatMessage
 
 router = APIRouter()

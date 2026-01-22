@@ -8,7 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from db import get_db
 from models.user import User
 from core.deps import get_current_miniprogram_user
-from services.conversation import ConversationService
+from services.conversation.business import ConversationBusinessService
 from schemas.conversation import (
     ConversationCreate,
     ConversationUpdate,
@@ -36,7 +36,7 @@ async def create_conversation(
     - **title**: 会话标题（可选，会自动生成）
     - **model_type**: 模型类型
     """
-    service = ConversationService(db)
+    service = ConversationBusinessService(db)
     conversation = await service.create_conversation(
         user_id=current_user.id,
         conversation_data=conversation_data
@@ -68,7 +68,7 @@ async def get_conversation_list(
         keyword=keyword,
     )
     
-    service = ConversationService(db)
+    service = ConversationBusinessService(db)
     result = await service.list_conversations(
         user_id=current_user.id,
         params=params
@@ -95,14 +95,17 @@ async def get_conversation_detail(
     """
     获取会话详情（包含消息列表）
     """
-    service = ConversationService(db)
-    conversation = await service.get_conversation_by_id(
+    service = ConversationBusinessService(db)
+    conversation = await service.get_conversation(
         conversation_id=conversation_id,
         user_id=current_user.id
     )
 
     # 获取消息列表
-    messages = await service.get_conversation_messages(conversation_id)
+    messages = await service.get_conversation_messages(
+        conversation_id=conversation_id,
+        user_id=current_user.id
+    )
 
     # 构建响应 - 先转换为基础响应，再手动添加 messages
     from schemas.conversation import ConversationMessageResponse
@@ -131,7 +134,7 @@ async def update_conversation_title(
     """
     更新会话标题
     """
-    service = ConversationService(db)
+    service = ConversationBusinessService(db)
     conversation = await service.update_conversation_title(
         conversation_id=conversation_id,
         title=title,
@@ -150,7 +153,7 @@ async def delete_conversation(
     """
     删除会话（软删除）
     """
-    service = ConversationService(db)
+    service = ConversationBusinessService(db)
     await service.delete_conversation(
         conversation_id=conversation_id,
         user_id=current_user.id
@@ -168,7 +171,7 @@ async def archive_conversation(
     """
     归档会话
     """
-    service = ConversationService(db)
+    service = ConversationBusinessService(db)
     conversation = await service.archive_conversation(
         conversation_id=conversation_id,
         user_id=current_user.id

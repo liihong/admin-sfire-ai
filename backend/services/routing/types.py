@@ -42,3 +42,6 @@ class PromptAssemblyResult(BaseModel):
     token_count: int = Field(default=0, description="Token数量统计")
     skills_detail: List[Dict] = Field(default_factory=list, description="技能详情列表")
 
+
+
+

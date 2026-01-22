@@ -9,7 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from db import get_db
 from schemas.ai import ChatRequest, ChatCompletionResponse
-from services.ai import AIService
+from services.content import AIService
 from utils.response import success
 
 router = APIRouter()
@@ -117,7 +117,7 @@ async def get_models(
     
     从数据库读取启用的模型列表
     """
-    from services.llm_model import LLMModelService
+    from services.resource import LLMModelService
     
     llm_model_service = LLMModelService(db)
     models = await llm_model_service.get_enabled_models()

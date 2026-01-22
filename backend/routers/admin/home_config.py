@@ -10,7 +10,7 @@ from schemas.home_config import (
     HomeConfigUpdate,
     HomeConfigBatchUpdate,
 )
-from services.home_config import HomeConfigService
+from services.system import HomeConfigService
 from utils.response import success, ResponseMsg
 
 router = APIRouter()

@@ -18,7 +18,9 @@ from .conversation import (
     ConversationChunk,
     ConversationStatus,
     EmbeddingStatus,
+    MessageStatus,
 )
+from .admin_debug_log import AdminDebugLog
 from .dictionary import Dictionary, DictionaryItem
 from .skill_library import SkillLibrary
 
@@ -44,6 +46,8 @@ __all__ = [
     "ConversationChunk",
     "ConversationStatus",
     "EmbeddingStatus",
+    "MessageStatus",
+    "AdminDebugLog",
     "Dictionary",
     "DictionaryItem",
     "SkillLibrary",
