@@ -15,7 +15,7 @@ const WHITE_LIST = [
 // Tabbar 页面列表（不能使用 redirectTo 跳转）
 const TABBAR_PAGES = [
   '/pages/index/index',
-  '/pages/project/list',
+  '/pages/project/index',
   '/pages/mine/index'
 ]
 
@@ -93,7 +93,8 @@ function handleRouteIntercept(args: { url: string }, interceptorType: string): b
     console.log('[Router] No token, visitor mode')
     
     // 游客模式：先阻止路由跳转，显示提示弹窗
-    setTimeout(() => {
+    // 使用 Promise.resolve 确保当前拦截器调用完成后再执行
+    Promise.resolve().then(() => {
       showMemberTip((goToLogin) => {
         if (goToLogin) {
           // 用户选择去登录，跳转到登录页
@@ -105,8 +106,8 @@ function handleRouteIntercept(args: { url: string }, interceptorType: string): b
           allowedVisitorUrls.add(path)
           console.log('[Router] User continues as visitor, navigating to:', url)
 
-          // 使用 nextTick 确保拦截器状态更新后再执行跳转
-          setTimeout(() => {
+          // 使用 Promise.resolve 确保拦截器状态更新后再执行跳转
+          Promise.resolve().then(() => {
             if (interceptorType === 'navigateTo') {
               uni.navigateTo({ url })
             } else if (interceptorType === 'redirectTo') {
@@ -114,10 +115,10 @@ function handleRouteIntercept(args: { url: string }, interceptorType: string): b
             } else if (interceptorType === 'reLaunch') {
               uni.reLaunch({ url })
             }
-          }, 100)
+          })
         }
       })
-    }, 0)
+    })
     
     // 先阻止路由跳转，等待用户选择
     return false
@@ -153,26 +154,29 @@ function setupRouteInterceptors() {
         if (!authStore.hasToken) {
           // 游客模式：显示提示弹窗
           if (!allowedVisitorUrls.has(path)) {
-            setTimeout(() => {
+            // 使用 Promise.resolve 确保当前拦截器调用完成后再执行
+            Promise.resolve().then(() => {
               showMemberTip((goToLogin) => {
                 if (goToLogin) {
                   uni.reLaunch({ url: '/pages/login/index' })
                 } else {
                   allowedVisitorUrls.add(path)
-                  setTimeout(() => {
+                  // 使用 Promise.resolve 确保路由状态清理后再调用 switchTab
+                  Promise.resolve().then(() => {
                     uni.switchTab({ url: args.url })
-                  }, 100)
+                  })
                 }
               })
-            }, 0)
+            })
             return false
           }
         }
 
         // 有 token 或已选择继续浏览，直接用 switchTab
-        setTimeout(() => {
+        // 使用 Promise.resolve 确保当前拦截器调用完成后再执行 switchTab
+        Promise.resolve().then(() => {
           uni.switchTab({ url: args.url })
-        }, 0)
+        })
         return false
       }
       return handleRouteIntercept(args, 'redirectTo')
@@ -209,7 +213,8 @@ function setupRouteInterceptors() {
         console.log('[Router] No token, visitor mode')
         
         // 游客模式：先阻止路由跳转，显示提示弹窗
-        setTimeout(() => {
+        // 使用 Promise.resolve 确保当前拦截器调用完成后再执行
+        Promise.resolve().then(() => {
           showMemberTip((goToLogin) => {
             if (goToLogin) {
               // 用户选择去登录，跳转到登录页
@@ -221,13 +226,13 @@ function setupRouteInterceptors() {
               allowedVisitorUrls.add(path)
               console.log('[Router] User continues as visitor, switching to tab:', args.url)
 
-              // 使用 nextTick 确保拦截器状态更新后再执行跳转
-              setTimeout(() => {
+              // 使用 Promise.resolve 确保拦截器状态更新后再执行跳转
+              Promise.resolve().then(() => {
                 uni.switchTab({ url: args.url })
-              }, 100)
+              })
             }
           })
-        }, 0)
+        })
         
         // 先阻止路由跳转，等待用户选择
         return false

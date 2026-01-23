@@ -9,7 +9,7 @@
 
     <!-- 页面头部 -->
     <view class="page-header">
-      <view class="header-back" @tap="goBack" v-if="canGoBack">
+      <view class="header-back" @tap="goBack" v-if="canGoBack && !isInTabBar">
         <text class="back-icon">←</text>
       </view>
       <view class="header-content">
@@ -43,7 +43,7 @@
           </view>
 
           <!-- 项目头像 -->
-          <view class="project-avatar" style="background: #3B82F6;">
+          <view class="project-avatar" :style="{ background: project.avatar_color || '#FF8800' }">
             <text class="avatar-letter">{{ project.avatar_letter || project.name[0] }}</text>
           </view>
 
@@ -92,34 +92,8 @@
     </view>
 
     <!-- 创建项目弹窗 -->
-    <view class="modal-overlay" v-if="showCreateModal" @tap="showCreateModal = false">
-      <view class="modal-content create-modal" @tap.stop>
-        <view class="modal-header">
-          <text class="modal-title">创建新项目</text>
-          <view class="modal-close" @tap="showCreateModal = false">
-            <text class="close-icon">×</text>
-          </view>
-        </view>
-
-        <view class="modal-body">
-          <!-- 项目名称 -->
-          <view class="form-item">
-            <text class="form-label">项目名称</text>
-            <input class="form-input" v-model="newProjectName" placeholder="如：李医生科普IP" :maxlength="30" />
-          </view>
-
-          <!-- 赛道选择 -->
-          <view class="form-item">
-            <text class="form-label">所属赛道</text>
-            <view class="industry-grid">
-              <view class="industry-option" v-for="industry in industryOptions.slice(0, 9)" :key="industry"
-                :class="{ selected: newProjectIndustry === industry }" @tap="newProjectIndustry = industry">
-                <text class="option-text">{{ industry }}</text>
-              </view>
-            </view>
-          </view>
-        </view>
-
+    <BaseModal :visible="showCreateModal" title="创建新项目" @update:visible="showCreateModal = $event">
+      <template #footer>
         <view class="modal-footer">
           <view class="modal-btn cancel-btn" @tap="showCreateModal = false">
             <text class="btn-text">取消</text>
@@ -128,14 +102,28 @@
             <text class="btn-text">创建</text>
           </view>
         </view>
+      </template>
+      
+      <!-- 项目名称 -->
+      <view class="form-item">
+        <text class="form-label">项目名称</text>
+        <input class="form-input" v-model="newProjectName" placeholder="如：李医生科普IP" :maxlength="30" />
       </view>
-    </view>
+
+      <!-- 赛道选择 -->
+      <view class="form-item">
+        <text class="form-label">所属赛道</text>
+        <view class="industry-grid">
+          <view class="industry-option" v-for="industry in industryOptions.slice(0, 9)" :key="industry"
+            :class="{ selected: newProjectIndustry === industry }" @tap="newProjectIndustry = industry">
+            <text class="option-text">{{ industry }}</text>
+          </view>
+        </view>
+      </view>
+    </BaseModal>
 
     <!-- Loading 状态 -->
-    <view class="loading-overlay" v-if="isLoading">
-      <view class="loading-spinner"></view>
-      <text class="loading-text">加载中...</text>
-    </view>
+    <BaseLoading :visible="isLoading" text="加载中..." />
   </view>
 </template>
 
@@ -143,6 +131,19 @@
 import { ref, computed, onMounted } from 'vue'
 import { useProjectStore, INDUSTRY_OPTIONS, type Project } from '@/stores/project'
 import { fetchProjects, createProject, deleteProject } from '@/api/project'
+import { formatDate } from '@/utils/date'
+import BaseModal from '@/components/common/BaseModal.vue'
+import BaseLoading from '@/components/common/BaseLoading.vue'
+
+// Props
+const props = defineProps<{
+  isInTabBar?: boolean // 是否在 tabBar 页面中
+}>()
+
+// Emits
+const emit = defineEmits<{
+  projectSelected: [] // 项目选择后触发
+}>()
 
 // Store
 const projectStore = useProjectStore()
@@ -219,12 +220,17 @@ function handleSelectProject(project: Project) {
     icon: 'success'
   })
 
-  // 延迟跳转到控制台
-  setTimeout(() => {
-    uni.navigateTo({
-      url: '/pages/project/dashboard'
-    })
-  }, 500)
+  // 如果在 tabBar 页面中，不跳转，触发事件让父组件切换视图
+  if (props.isInTabBar) {
+    emit('projectSelected')
+  } else {
+    // 不在 tabBar 页面中，正常跳转
+    setTimeout(() => {
+      uni.navigateTo({
+        url: '/pages/project/dashboard'
+      })
+    }, 500)
+  }
 }
 
 // 编辑项目
@@ -281,11 +287,12 @@ async function handleDeleteProject(project: Project) {
   })
 }
 
-// 跳转到创建页面
+// 打开创建项目弹窗
 function navigateToCreate() {
-  uni.navigateTo({
-    url: '/pages/project/create'
-  })
+  showCreateModal.value = true
+  // 重置表单
+  newProjectName.value = ''
+  newProjectIndustry.value = '通用'
 }
 
 // 创建项目
@@ -329,71 +336,54 @@ async function handleCreateProject() {
     uni.showToast({ title: '创建失败，请重试', icon: 'none' })
   }
 }
-
-// 格式化日期
-function formatDate(dateStr: string): string {
-  if (!dateStr) return ''
-  const date = new Date(dateStr)
-  const now = new Date()
-  const diff = now.getTime() - date.getTime()
-
-  const minutes = Math.floor(diff / 60000)
-  const hours = Math.floor(diff / 3600000)
-  const days = Math.floor(diff / 86400000)
-
-  if (minutes < 1) return '刚刚'
-  if (minutes < 60) return `${minutes}分钟前`
-  if (hours < 24) return `${hours}小时前`
-  if (days < 7) return `${days}天前`
-
-  return `${date.getMonth() + 1}/${date.getDate()}`
-}
 </script>
 
 <style lang="scss" scoped>
+@import '@/styles/_variables.scss';
+@import '@/styles/_animations.scss';
+
 .project-list-page {
   min-height: 100vh;
-  background: #F5F7FA;
+  background: $bg-light;
   position: relative;
   overflow: hidden;
 }
 
-// 背景装饰
+// 背景装饰（与 ProjectDashboard 风格一致）
 .bg-decoration {
-  position: absolute;
+  position: fixed;
   top: 0;
   left: 0;
   right: 0;
-  height: 400rpx;
+  height: 500rpx;
   pointer-events: none;
   overflow: hidden;
 
   .decoration-circle {
     position: absolute;
     border-radius: 50%;
-    opacity: 0.6;
   }
 
   .circle-1 {
-    width: 300rpx;
-    height: 300rpx;
-    background: linear-gradient(135deg, rgba(59, 130, 246, 0.15) 0%, rgba(59, 130, 246, 0.05) 100%);
-    top: -100rpx;
-    right: -50rpx;
+    width: 400rpx;
+    height: 400rpx;
+    background: radial-gradient(circle, rgba(255, 136, 0, 0.08) 0%, transparent 70%);
+    top: -150rpx;
+    right: -100rpx;
   }
 
   .circle-2 {
-    width: 200rpx;
-    height: 200rpx;
-    background: linear-gradient(135deg, rgba(249, 115, 22, 0.1) 0%, rgba(249, 115, 22, 0.03) 100%);
+    width: 300rpx;
+    height: 300rpx;
+    background: radial-gradient(circle, rgba(59, 130, 246, 0.06) 0%, transparent 70%);
     top: 100rpx;
-    left: -60rpx;
+    left: -80rpx;
   }
 
   .circle-3 {
-    width: 150rpx;
-    height: 150rpx;
-    background: linear-gradient(135deg, rgba(59, 130, 246, 0.08) 0%, transparent 100%);
+    width: 200rpx;
+    height: 200rpx;
+    background: radial-gradient(circle, rgba(255, 136, 0, 0.05) 0%, transparent 70%);
     top: 200rpx;
     right: 100rpx;
   }
@@ -483,9 +473,9 @@ function formatDate(dateStr: string): string {
 
   .empty-action {
     padding: 24rpx 64rpx;
-    background: linear-gradient(135deg, #3B82F6 0%, #60A5FA 100%);
+        background: linear-gradient(135deg, $primary-orange 0%, $primary-orange-alt 100%);
     border-radius: 48rpx;
-    box-shadow: 0 8rpx 24rpx rgba(59, 130, 246, 0.3);
+    box-shadow: 0 8rpx 24rpx rgba(255, 136, 0, 0.3);
 
     .action-text {
       font-size: 30rpx;
@@ -521,9 +511,9 @@ function formatDate(dateStr: string): string {
   }
 
   &.active {
-    border-color: #3B82F6;
+    border-color: $primary-orange;
     background: rgba(255, 255, 255, 0.95);
-    box-shadow: 0 8rpx 32rpx rgba(59, 130, 246, 0.15);
+    box-shadow: 0 8rpx 32rpx rgba($primary-orange, 0.15);
   }
 
   &:active {
@@ -536,12 +526,12 @@ function formatDate(dateStr: string): string {
     right: -8rpx;
     width: 40rpx;
     height: 40rpx;
-    background: linear-gradient(135deg, #3B82F6 0%, #60A5FA 100%);
+        background: linear-gradient(135deg, $primary-orange 0%, $primary-orange-alt 100%);
     border-radius: 50%;
     display: flex;
     align-items: center;
     justify-content: center;
-    box-shadow: 0 4rpx 12rpx rgba(59, 130, 246, 0.3);
+    box-shadow: 0 4rpx 12rpx rgba(255, 136, 0, 0.3);
 
     .indicator-icon {
       font-size: 22rpx;
@@ -589,12 +579,12 @@ function formatDate(dateStr: string): string {
 
   .industry-tag {
     padding: 4rpx 16rpx;
-    background: linear-gradient(135deg, #EEF2FF 0%, #E0E7FF 100%);
+    background: linear-gradient(135deg, rgba($primary-orange, 0.1) 0%, rgba($primary-orange, 0.15) 100%);
     border-radius: 20rpx;
 
     .tag-text {
       font-size: 20rpx;
-      color: #6366F1;
+      color: $primary-orange;
       font-weight: 500;
     }
   }
@@ -620,7 +610,7 @@ function formatDate(dateStr: string): string {
 
     .preview-value {
       font-size: 22rpx;
-      color: #3B82F6;
+      color: $primary-orange;
     }
   }
 }
@@ -642,9 +632,9 @@ function formatDate(dateStr: string): string {
       background: #F5F7FA;
     }
 
-                &.delete-btn {
-                  background: #FFF5F5;
-                }
+    &.delete-btn {
+      background: #FFF5F5;
+    }
     .btn-icon {
       font-size: 28rpx;
     }
@@ -670,17 +660,17 @@ function formatDate(dateStr: string): string {
   .create-btn {
     position: relative;
     height: 100rpx;
-    background: linear-gradient(135deg, #3B82F6 0%, #60A5FA 100%);
+        background: linear-gradient(135deg, $primary-orange 0%, $primary-orange-alt 100%);
     border-radius: 50rpx;
     display: flex;
     align-items: center;
     justify-content: center;
-    box-shadow: 0 8rpx 32rpx rgba(59, 130, 246, 0.35);
+    box-shadow: 0 8rpx 32rpx rgba(255, 136, 0, 0.35);
     overflow: hidden;
 
     &:active {
       transform: scale(0.98);
-      box-shadow: 0 4rpx 16rpx rgba(59, 130, 246, 0.25);
+      box-shadow: 0 4rpx 16rpx rgba(255, 136, 0, 0.25);
     }
 
     .btn-glow {
@@ -712,141 +702,7 @@ function formatDate(dateStr: string): string {
   }
 }
 
-// 弹窗
-.modal-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(0, 0, 0, 0.5);
-  backdrop-filter: blur(4px);
-  z-index: 1000;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 32rpx;
-  animation: fadeIn 0.2s ease;
-}
-
-.modal-content {
-  width: 100%;
-  max-width: 640rpx;
-  background: #fff;
-  border-radius: 32rpx;
-  overflow: hidden;
-  animation: slideUp 0.3s ease;
-
-  .modal-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 32rpx;
-    border-bottom: 1rpx solid #f0f0f0;
-
-    .modal-title {
-      font-size: 34rpx;
-      font-weight: 600;
-      color: #1a1a2e;
-    }
-
-    .modal-close {
-      width: 56rpx;
-      height: 56rpx;
-      background: #f5f5f5;
-      border-radius: 50%;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-
-      .close-icon {
-        font-size: 40rpx;
-        color: #999;
-        line-height: 1;
-      }
-    }
-  }
-
-  .modal-body {
-    padding: 32rpx;
-
-    .form-item {
-      margin-bottom: 32rpx;
-
-      &:last-child {
-        margin-bottom: 0;
-      }
-
-      .form-label {
-        font-size: 28rpx;
-        font-weight: 500;
-        color: #333;
-        margin-bottom: 16rpx;
-        display: block;
-      }
-
-      .form-input {
-        width: 100%;
-        height: 88rpx;
-        background: #F5F7FA;
-        border-radius: 16rpx;
-        padding: 0 24rpx;
-        font-size: 30rpx;
-        color: #333;
-        border: 2rpx solid transparent;
-
-        &:focus {
-          border-color: #3B82F6;
-          background: #fff;
-        }
-      }
-    }
-  }
-
-  .modal-footer {
-    display: flex;
-    gap: 24rpx;
-    padding: 24rpx 32rpx 32rpx;
-
-    .modal-btn {
-      flex: 1;
-      height: 88rpx;
-      border-radius: 44rpx;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-
-      &.cancel-btn {
-        background: #F5F7FA;
-
-        .btn-text {
-          color: #666;
-        }
-      }
-
-      &.confirm-btn {
-        background: linear-gradient(135deg, #3B82F6 0%, #60A5FA 100%);
-
-        .btn-text {
-          color: #fff;
-          font-weight: 600;
-        }
-
-        &.disabled {
-          background: #e0e5ec;
-
-          .btn-text {
-            color: #999;
-          }
-        }
-      }
-
-      .btn-text {
-        font-size: 30rpx;
-      }
-    }
-  }
-}
+// 弹窗样式已移至 BaseModal 组件，这里只保留页面特定样式
 
 // 行业选择网格
 .industry-grid {
@@ -863,11 +719,11 @@ function formatDate(dateStr: string): string {
     transition: all 0.2s ease;
 
     &.selected {
-      background: linear-gradient(135deg, #EEF2FF 0%, #E0E7FF 100%);
-      border-color: #3B82F6;
+      background: linear-gradient(135deg, rgba($primary-orange, 0.1) 0%, rgba($primary-orange, 0.15) 100%);
+      border-color: $primary-orange;
 
       .option-text {
-        color: #3B82F6;
+        color: $primary-orange;
         font-weight: 500;
       }
     }
@@ -879,88 +735,6 @@ function formatDate(dateStr: string): string {
   }
 }
 
-// Loading
-.loading-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(255, 255, 255, 0.9);
-  backdrop-filter: blur(4px);
-  z-index: 2000;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 24rpx;
-
-  .loading-spinner {
-    width: 60rpx;
-    height: 60rpx;
-    border: 4rpx solid #e0e5ec;
-    border-top-color: #3B82F6;
-    border-radius: 50%;
-    animation: spin 0.8s linear infinite;
-  }
-
-  .loading-text {
-    font-size: 28rpx;
-    color: #666;
-  }
-}
-
-// 动画
-@keyframes slideInUp {
-  from {
-    opacity: 0;
-    transform: translateY(30rpx);
-  }
-
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-@keyframes fadeIn {
-  from {
-      opacity: 0;
-    }
-  
-    to {
-      opacity: 1;
-    }
-}
-
-@keyframes slideUp {
-  from {
-    opacity: 0;
-    transform: translateY(40rpx);
-  }
-
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-@keyframes btnGlow {
-  0% {
-      left: -100%;
-    }
-  
-    50%,
-    100% {
-      left: 100%;
-    }
-}
-
-@keyframes spin {
-  to {
-      transform: rotate(360deg);
-    }
-}
+// Loading 样式已移至 BaseLoading 组件
 </style>
-
 

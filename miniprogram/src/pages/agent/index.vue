@@ -56,7 +56,7 @@
 import { ref, onMounted } from 'vue'
 import { useAuthStore } from '@/stores/auth'
 import { getAgentList, type Agent } from '@/api/agent'
-import AgentIcon from '@/components/AgentIcon.vue'
+import { AgentIcon } from '@/components/base'
 
 const authStore = useAuthStore()
 

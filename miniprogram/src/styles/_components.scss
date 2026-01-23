@@ -1,0 +1,161 @@
+// ========== 组件通用样式 ==========
+
+// 引入变量和 Mixins
+@import './_variables';
+@import './_mixins';
+
+// ========== 抽屉通用样式 ==========
+
+.drawer-overlay {
+  @include fixed-fullscreen;
+  background: rgba(0, 0, 0, 0.4);
+  backdrop-filter: blur(4px);
+  z-index: $z-index-modal-backdrop;
+  animation: fadeIn $transition-base ease;
+}
+
+.drawer-content {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  max-height: 85vh;
+  background: $white;
+  border-radius: $radius-xl $radius-xl 0 0;
+  display: flex;
+  flex-direction: column;
+  animation: slideUp $transition-slow ease;
+  
+  .drawer-handle {
+    width: 80rpx;
+    height: 8rpx;
+    background: #e0e0e0;
+    border-radius: 4rpx;
+    margin: 20rpx auto;
+  }
+  
+  .drawer-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: $spacing-sm $spacing-lg $spacing-md;
+    border-bottom: 1rpx solid $border-color;
+    
+    .drawer-title {
+      font-size: $font-size-lg;
+      font-weight: 600;
+      color: $text-main;
+    }
+    
+    .drawer-close {
+      width: 56rpx;
+      height: 56rpx;
+      background: $bg-light;
+      border-radius: $radius-circle;
+      @include flex-center;
+      
+      .close-icon {
+        font-size: 40rpx;
+        color: $text-second;
+        line-height: 1;
+      }
+    }
+  }
+  
+  .drawer-body {
+    flex: 1;
+    overflow-y: auto;
+    padding: $spacing-md $spacing-lg;
+  }
+  
+  .drawer-footer {
+    padding: $spacing-md $spacing-lg;
+    padding-bottom: calc(#{$spacing-md} + env(safe-area-inset-bottom));
+    border-top: 1rpx solid $border-color;
+  }
+}
+
+// ========== 弹窗通用样式 ==========
+
+.modal-overlay {
+  @include fixed-fullscreen;
+  background: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(4px);
+  z-index: $z-index-modal-backdrop;
+  @include flex-center;
+  padding: $spacing-lg;
+  animation: fadeIn $transition-base ease;
+}
+
+.modal-content {
+  width: 100%;
+  max-width: 640rpx;
+  background: $white;
+  border-radius: $radius-xl;
+  overflow: hidden;
+  animation: slideUp $transition-slow ease;
+  
+  .modal-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: $spacing-lg;
+    border-bottom: 1rpx solid $border-color;
+    
+    .modal-title {
+      font-size: $font-size-lg;
+      font-weight: 600;
+      color: $text-main;
+    }
+    
+    .modal-close {
+      width: 56rpx;
+      height: 56rpx;
+      background: $bg-light;
+      border-radius: $radius-circle;
+      @include flex-center;
+      
+      .close-icon {
+        font-size: 40rpx;
+        color: $text-second;
+        line-height: 1;
+      }
+    }
+  }
+  
+  .modal-body {
+    padding: $spacing-lg;
+  }
+  
+  .modal-footer {
+    display: flex;
+    gap: $spacing-md;
+    padding: $spacing-md $spacing-lg $spacing-lg;
+  }
+}
+
+// ========== 加载动画通用样式 ==========
+
+.loading-spinner {
+  width: 60rpx;
+  height: 60rpx;
+  border: 4rpx solid $border-color;
+  border-top-color: $primary-orange;
+  border-radius: $radius-circle;
+  animation: spin 0.8s linear infinite;
+}
+
+.loading-overlay {
+  @include fixed-fullscreen;
+  background: rgba(255, 255, 255, 0.9);
+  backdrop-filter: blur(4px);
+  z-index: $z-index-modal;
+  @include flex-center;
+  @include flex-column;
+  gap: $spacing-md;
+  
+  .loading-text {
+    font-size: $font-size-md;
+    color: $text-second;
+  }
+}
