@@ -1,0 +1,82 @@
+// ========== 颜色变量 ==========
+
+// 品牌色
+$primary-orange: #FF7700;        // 爱马仕橙（主色）
+$primary-orange-alt: #F37021;     // 爱马仕橙（辅助色）
+$primary-orange-light: rgba(255, 136, 0, 0.1); // 爱马仕橙（浅色）
+$brand-orange: #FF8800;           // 品牌橙色（兼容旧代码）
+$brand-orange-alt: #F37021;       // 品牌橙色（辅助，兼容旧代码）
+
+// 背景色
+$bg-color: #F7F8FA;               // 页面底色
+$bg-light: #F5F7FA;               // 浅色背景（兼容旧代码）
+$white: #FFFFFF;                   // 白色
+$bg-dark: #1A1A2E;                // 深色背景
+$bg-card: rgba(255, 255, 255, 0.95); // 卡片背景
+
+// 文字颜色
+$text-main: #1D2129;               // 核心文字
+$text-second: #86909C;             // 次要文字
+$text-placeholder: #C9CDD4;       // 占位符文字
+$text-primary: #1A1A2E;           // 主要文字（兼容）
+$text-secondary: #666;             // 次要文字（兼容）
+$text-muted: #999;                 // 弱化文字（兼容）
+
+// 边框颜色
+$border-color: #F2F3F5;            // 分割线颜色
+$border-light: rgba(0, 0, 0, 0.06); // 浅色边框
+
+// 功能色
+$color-success: #10B981;           // 成功色（绿色）
+$color-error: #EF4444;             // 错误色（红色）
+$color-warning: #F59E0B;          // 警告色（橙色）
+$color-info: #3B82F6;              // 信息色（蓝色）
+
+// ========== 尺寸变量 ==========
+
+// 圆角
+$radius-sm: 8rpx;                  // 小圆角
+$radius-md: 16rpx;                 // 中圆角
+$radius-lg: 32rpx;                 // 大圆角
+$radius-xl: 40rpx;                 // 超大圆角
+$radius-circle: 50%;                // 圆形
+
+// 间距
+$spacing-xs: 8rpx;                 // 极小间距
+$spacing-sm: 16rpx;                // 小间距
+$spacing-md: 24rpx;                // 中间距
+$spacing-lg: 32rpx;                // 大间距
+$spacing-xl: 48rpx;                // 超大间距
+
+// 字体大小
+$font-size-xs: 20rpx;              // 极小字体
+$font-size-sm: 24rpx;              // 小字体
+$font-size-md: 28rpx;              // 中字体
+$font-size-lg: 32rpx;               // 大字体
+$font-size-xl: 36rpx;               // 超大字体
+$font-size-xxl: 44rpx;              // 特大字体
+
+// ========== 阴影变量 ==========
+
+$card-shadow: 0 4rpx 24rpx rgba(0, 0, 0, 0.04);                    // 卡片阴影
+$card-shadow-hover: 0 8rpx 32rpx rgba(0, 0, 0, 0.08);              // 卡片悬停阴影
+$shadow-sm: 0 2rpx 8rpx rgba(0, 0, 0, 0.04);                       // 小阴影
+$shadow-md: 0 4rpx 16rpx rgba(0, 0, 0, 0.06);                     // 中阴影
+$shadow-lg: 0 8rpx 24rpx rgba(0, 0, 0, 0.08);                     // 大阴影
+
+// ========== Z-index 层级 ==========
+
+$z-index-base: 1;
+$z-index-dropdown: 100;
+$z-index-sticky: 200;
+$z-index-fixed: 300;
+$z-index-modal-backdrop: 400;
+$z-index-modal: 500;
+$z-index-popover: 600;
+$z-index-tooltip: 700;
+
+// ========== 过渡动画时间 ==========
+
+$transition-fast: 0.15s;
+$transition-base: 0.2s;
+$transition-slow: 0.3s;

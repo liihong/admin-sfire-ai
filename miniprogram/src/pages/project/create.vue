@@ -267,7 +267,7 @@
 import { ref, computed, reactive } from 'vue'
 import { useProjectStore, INDUSTRY_OPTIONS, TONE_OPTIONS } from '@/stores/project'
 import { request } from '@/utils/request'
-import IPCollectDialog from '@/components/IPCollectDialog.vue'
+import { IPCollectDialog } from '@/components/business/dialog'
 import { compressIPInfo, createProject } from '@/api/project'
 
 // Store

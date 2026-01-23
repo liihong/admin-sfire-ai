@@ -67,22 +67,6 @@
       }
     },
     {
-      "path": "pages/project/list",
-      "style": {
-        "navigationBarTitleText": "选择项目",
-        "navigationStyle": "custom",
-        "disableScroll": true
-      }
-    },
-    {
-      "path": "pages/project/dashboard",
-      "style": {
-        "navigationBarTitleText": "操盘控制台",
-        "navigationStyle": "custom",
-        "disableScroll": true
-      }
-    },
-    {
       "path": "pages/project/create",
       "style": {
         "navigationBarTitleText": "创建项目",

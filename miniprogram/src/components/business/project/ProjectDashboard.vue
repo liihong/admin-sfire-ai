@@ -1,0 +1,158 @@
+<template>
+  <view class="dashboard-page">
+    <!-- 顶部用户信息栏 -->
+    <TopBar
+      :project-name="activeProject?.name"
+      :user-name="userName"
+      :user-points="userPoints"
+    />
+
+    <!-- 主内容区 -->
+    <scroll-view class="main-scroll" scroll-y>
+      <!-- 当前活跃人设卡片 -->
+      <PersonaCard
+        :project-name="activeProject?.name || '选择人设'"
+        :tone="activeProject?.persona_settings?.tone"
+        @click="showPersonaDrawer = true"
+      />
+
+      <!-- 灵感输入区 -->
+      <InspirationInput
+        v-model="inspirationText"
+        @send="handleInspirationSend"
+        @mic-click="handleMicClick"
+      />
+
+      <!-- 今天拍点啥 - 分类网格 -->
+      <BaseSection accent>今天拍点啥</BaseSection>
+      <CategoryGrid @click="handleCategoryClick" />
+
+      <!-- 快捷指令库 -->
+      <BaseSection>快捷指令库</BaseSection>
+      <QuickCommandGrid @click="handleNavigate" />
+
+      <!-- 底部安全区 -->
+      <view class="bottom-safe-area"></view>
+    </scroll-view>
+
+    <!-- 人设编辑抽屉 -->
+    <PersonaDrawer
+      :visible="showPersonaDrawer"
+      :project="activeProject"
+      @update:visible="showPersonaDrawer = $event"
+      @saved="handlePersonaSaved"
+    />
+  </view>
+</template>
+
+<script setup lang="ts">
+import { ref, computed, onMounted } from 'vue'
+import { useProjectStore, DEFAULT_PERSONA_SETTINGS } from '@/stores/project'
+import { useProject } from '@/composables/useProject'
+import { useNavigation } from '@/composables/useNavigation'
+import TopBar from '@/components/business/TopBar.vue'
+import PersonaCard from '@/components/business/PersonaCard.vue'
+import InspirationInput from '@/components/business/InspirationInput.vue'
+import CategoryGrid from '@/components/business/CategoryGrid.vue'
+import QuickCommandGrid from '@/components/business/QuickCommandGrid.vue'
+import PersonaDrawer from '@/components/business/PersonaDrawer.vue'
+import BaseSection from '@/components/base/BaseSection.vue'
+
+// Store
+const projectStore = useProjectStore()
+const activeProject = computed(() => projectStore.activeProject)
+
+// Composables
+const { initProject } = useProject({ autoLoad: false })
+const { navigateTo, handleCategoryClick } = useNavigation()
+
+// 状态
+const showPersonaDrawer = ref(false)
+const inspirationText = ref('')
+const userName = ref('创作者')
+const userPoints = ref(1280)
+
+// 初始化
+onMounted(async () => {
+  // 获取 URL 参数
+  const pages = getCurrentPages()
+  const currentPage = pages[pages.length - 1] as any
+  const urlParams = currentPage?.options || {}
+  const editMode = urlParams.edit === 'true'
+  const projectId = urlParams.id
+
+  // 初始化项目
+  await initProject(projectId)
+
+  // 如果是编辑模式，打开抽屉
+  if (editMode) {
+    showPersonaDrawer.value = true
+  }
+})
+
+// 处理灵感发送
+function handleInspirationSend(text: string) {
+  console.log('发送灵感:', text)
+  // TODO: 实现灵感发送逻辑
+  uni.showToast({ title: '灵感已记录', icon: 'success' })
+  inspirationText.value = ''
+}
+
+// 处理麦克风点击
+function handleMicClick() {
+  console.log('点击麦克风')
+  // TODO: 实现语音输入逻辑
+  uni.showToast({ title: '语音功能即将上线', icon: 'none' })
+}
+
+// 处理人设保存
+function handlePersonaSaved() {
+  // 人设保存后的回调
+  console.log('人设已保存')
+}
+
+// 处理导航
+function handleNavigate(route: string) {
+  navigateTo(route)
+}
+</script>
+
+<style lang="scss" scoped>
+@import '@/styles/_variables.scss';
+@import '@/styles/_animations.scss';
+
+// ========== 基础样式 ==========
+.dashboard-page {
+  min-height: 100vh;
+  background: linear-gradient(180deg, #FAFBFC 0%, #F5F7FA 100%);
+  position: relative;
+  
+  // 优雅的背景装饰
+  &::before {
+    content: '';
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background:
+      radial-gradient(circle at 20% 20%, rgba(255, 149, 0, 0.03) 0%, transparent 50%),
+      radial-gradient(circle at 80% 80%, rgba(59, 130, 246, 0.03) 0%, transparent 50%);
+    pointer-events: none;
+    z-index: 0;
+  }
+}
+
+// ========== 主滚动区域 ==========
+.main-scroll {
+  height: calc(100vh - 100rpx);
+  padding: 0 $spacing-lg $spacing-lg;
+  position: relative;
+  z-index: 1;
+}
+
+// ========== 底部安全区 ==========
+.bottom-safe-area {
+  height: calc(40rpx + env(safe-area-inset-bottom));
+}
+</style>

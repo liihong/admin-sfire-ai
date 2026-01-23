@@ -1,0 +1,186 @@
+// ========== 布局 Mixins ==========
+
+/**
+ * Flex 居中
+ */
+@mixin flex-center {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/**
+ * Flex 垂直居中
+ */
+@mixin flex-center-vertical {
+  display: flex;
+  align-items: center;
+}
+
+/**
+ * Flex 水平居中
+ */
+@mixin flex-center-horizontal {
+  display: flex;
+  justify-content: center;
+}
+
+/**
+ * Flex 垂直布局
+ */
+@mixin flex-column {
+  display: flex;
+  flex-direction: column;
+}
+
+// ========== 卡片样式 Mixins ==========
+
+/**
+ * 基础卡片样式
+ */
+@mixin card-style {
+  background: $white;
+  border-radius: $radius-lg;
+  box-shadow: $card-shadow;
+  padding: $spacing-lg;
+  box-sizing: border-box;
+}
+
+/**
+ * 卡片样式（可自定义圆角）
+ */
+@mixin card-style-custom($radius: $radius-lg) {
+  background: $white;
+  border-radius: $radius;
+  box-shadow: $card-shadow;
+  padding: $spacing-lg;
+  box-sizing: border-box;
+}
+
+/**
+ * 扁平卡片样式（无阴影）
+ */
+@mixin card-flat {
+  background: $white;
+  border-radius: $radius-lg;
+  padding: $spacing-lg;
+  box-sizing: border-box;
+}
+
+// ========== 文本 Mixins ==========
+
+/**
+ * 文本省略（单行）
+ */
+@mixin text-ellipsis {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/**
+ * 文本省略（多行）
+ */
+@mixin text-ellipsis-multi($lines: 2) {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: $lines;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+// ========== 定位 Mixins ==========
+
+/**
+ * 绝对定位居中
+ */
+@mixin absolute-center {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+}
+
+/**
+ * 固定定位全屏
+ */
+@mixin fixed-fullscreen {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+}
+
+// ========== 响应式 Mixins ==========
+
+/**
+ * 清除浮动
+ */
+@mixin clearfix {
+  &::after {
+    content: '';
+    display: table;
+    clear: both;
+  }
+}
+
+// ========== 按钮样式 Mixins ==========
+
+/**
+ * 按钮基础样式
+ */
+@mixin button-base {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: $radius-md;
+  font-weight: 500;
+  transition: all $transition-base;
+  border: none;
+  cursor: pointer;
+  
+  &:active {
+    transform: scale(0.98);
+  }
+}
+
+/**
+ * 按钮主要样式
+ */
+@mixin button-primary {
+  @include button-base;
+  background: linear-gradient(135deg, $primary-orange 0%, $primary-orange-alt 100%);
+  color: $white;
+  box-shadow: 0 4rpx 12rpx rgba(255, 119, 0, 0.3);
+  
+  &:active {
+    box-shadow: 0 2rpx 8rpx rgba(255, 119, 0, 0.3);
+  }
+}
+
+// ========== 输入框样式 Mixins ==========
+
+/**
+ * 输入框基础样式
+ */
+@mixin input-base {
+  width: 100%;
+  height: 88rpx;
+  background: $bg-light;
+  border-radius: $radius-md;
+  padding: 0 $spacing-md;
+  font-size: $font-size-md;
+  color: $text-main;
+  border: 2rpx solid transparent;
+  box-sizing: border-box;
+  
+  &:focus {
+    border-color: $primary-orange;
+    background: $white;
+  }
+  
+  &::placeholder {
+    color: $text-placeholder;
+  }
+}
