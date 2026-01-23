@@ -28,7 +28,7 @@
       <CategoryGrid @click="handleCategoryClick" />
 
       <!-- 快捷指令库 -->
-      <BaseSection>快捷指令库</BaseSection>
+      <BaseSection accent>快捷指令库</BaseSection>
       <QuickCommandGrid @click="handleNavigate" />
 
       <!-- 底部安全区 -->
@@ -50,12 +50,12 @@ import { ref, computed, onMounted } from 'vue'
 import { useProjectStore, DEFAULT_PERSONA_SETTINGS } from '@/stores/project'
 import { useProject } from '@/composables/useProject'
 import { useNavigation } from '@/composables/useNavigation'
-import TopBar from '@/components/business/TopBar.vue'
-import PersonaCard from '@/components/business/PersonaCard.vue'
-import InspirationInput from '@/components/business/InspirationInput.vue'
-import CategoryGrid from '@/components/business/CategoryGrid.vue'
-import QuickCommandGrid from '@/components/business/QuickCommandGrid.vue'
-import PersonaDrawer from '@/components/business/PersonaDrawer.vue'
+import TopBar from '@/pages/project/components/TopBar.vue'
+import PersonaCard from './PersonaCard.vue'
+import InspirationInput from './InspirationInput.vue'
+import CategoryGrid from './CategoryGrid.vue'
+import QuickCommandGrid from './QuickCommandGrid.vue'
+import PersonaDrawer from './PersonaDrawer.vue'
 import BaseSection from '@/components/base/BaseSection.vue'
 
 // Store
@@ -124,6 +124,7 @@ function handleNavigate(route: string) {
 // ========== 基础样式 ==========
 .dashboard-page {
   min-height: 100vh;
+  padding-top: 40rpx;
   background: linear-gradient(180deg, #FAFBFC 0%, #F5F7FA 100%);
   position: relative;
   
@@ -146,7 +147,7 @@ function handleNavigate(route: string) {
 // ========== 主滚动区域 ==========
 .main-scroll {
   height: calc(100vh - 100rpx);
-  padding: 0 $spacing-lg $spacing-lg;
+  padding:12rpx $spacing-lg $spacing-lg;
   position: relative;
   z-index: 1;
 }

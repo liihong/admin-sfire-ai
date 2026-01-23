@@ -56,6 +56,11 @@ async def get_current_user(
     payload = decode_token(token)
     if not payload:
         raise UnauthorizedException(msg="令牌无效或已过期")
+
+    # 验证 token 类型（必须是 access_token，不能是 refresh_token）
+    token_type = payload.get("type")
+    if token_type != "access":
+        raise UnauthorizedException(msg="令牌类型错误，请使用访问令牌")
     
     # 获取用户ID
     user_id = payload.get("sub")
@@ -127,6 +132,11 @@ async def get_current_miniprogram_user(
     if not payload:
         raise UnauthorizedException(msg="令牌无效或已过期")
 
+    # 验证 token 类型（必须是 access_token，不能是 refresh_token）
+    token_type = payload.get("type")
+    if token_type != "access":
+        raise UnauthorizedException(msg="令牌类型错误，请使用访问令牌")
+
     # 获取用户ID
     user_id = payload.get("sub")
     if not user_id:
@@ -172,6 +182,11 @@ async def get_current_miniprogram_user_optional(
     # 解码 token
     payload = decode_token(token)
     if not payload:
+        return None
+
+    # 验证 token 类型（必须是 access_token，不能是 refresh_token）
+    token_type = payload.get("type")
+    if token_type != "access":
         return None
 
     # 获取用户ID

@@ -168,19 +168,33 @@ const handleGetPhoneNumber = async (e: any) => {
     if (response.code === 200 && response.data) {
       const data = response.data
       
-      // 保存 Token
+      // 保存 access_token
       const tokenValue = data.token
       if (tokenValue) {
         authStore.setToken(tokenValue)
-        
-        // 安全地调用 substring，添加类型检查
-        if (typeof tokenValue === 'string' && tokenValue.length > 0) {
-          console.log('[Login] Token saved to storage:', tokenValue.substring(0, 20) + '...')
-        } else {
-          console.log('[Login] Token saved to storage (non-string type):', tokenValue)
-        }
+        console.log('[Login] Access token saved to storage')
       } else {
-        console.warn('[Login] Token is missing from response')
+        console.warn('[Login] Access token is missing from response')
+      }
+      
+      // 保存 refresh_token（长期有效，用于刷新 access_token）
+      // 注意：refresh_token 是必需的，如果没有则登录失败
+      const refreshTokenValue = data.refreshToken
+      if (refreshTokenValue) {
+        authStore.setRefreshToken(refreshTokenValue)
+        console.log('[Login] Refresh token saved to storage')
+      } else {
+        // refresh_token 缺失，这是严重错误，应该阻止登录流程
+        console.error('[Login] Refresh token is missing from response, login incomplete')
+        uni.hideLoading()
+        uni.showToast({
+          title: '登录失败：缺少刷新令牌',
+          icon: 'none',
+          duration: 3000
+        })
+        // 清除已保存的 token（如果有）
+        authStore.clearAuth()
+        return
       }
       
       // 保存用户信息（长期存储）

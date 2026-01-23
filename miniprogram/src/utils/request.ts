@@ -22,6 +22,8 @@ export interface RequestConfig {
   showLoading?: boolean
   // loading 提示文字
   loadingText?: string
+  // 内部标志：是否是重试请求（避免重试时再次刷新 token）
+  _isRetry?: boolean
 }
 
 // 响应类型（后端返回格式: {code: 200, data: {...}, msg: "..."}）
@@ -32,6 +34,8 @@ export interface ResponseData<T = any> {
   // 兼容字段（用于错误处理）
   success?: boolean
   message?: string
+  // 标记是否需要刷新 token（401 错误时使用）
+  needRefresh?: boolean
 }
 
 // API 基础地址（在 vite.config.ts 中配置）
@@ -59,10 +63,13 @@ function requestInterceptor(config: RequestConfig): RequestConfig {
   // 自动添加 Authorization Token
   if (config.needToken !== false) {
     const authStore = useAuthStore()
+    // 每次请求时都重新获取token，确保使用最新的token
     const token = authStore.getToken()
     if (token) {
       config.header['Authorization'] = `Bearer ${token}`
       config.header["X-My-Gate-Key"] = "Huoyuan2026";
+    } else {
+      console.warn('[requestInterceptor] No token available for request:', config.url)
     }
   }
   
@@ -73,39 +80,86 @@ function requestInterceptor(config: RequestConfig): RequestConfig {
 }
 
 /**
- * 处理401未授权错误：清除认证信息并跳转到登录页
+ * 处理401未授权错误：先尝试刷新 token，失败后才清除认证信息并跳转到登录页
+ * 
+ * 刷新逻辑：
+ * 1. 检查是否有 refreshToken，如果没有则直接清除认证信息并跳转登录页
+ * 2. 使用 refreshToken 刷新 access_token
+ * 3. 刷新成功后，两个 token 都会被更新，返回 true 以便重试请求
+ * 4. 刷新失败时：
+ *    - 如果是网络错误，保留当前认证状态，不跳转登录页
+ *    - 如果是 token 失效，清除所有认证信息并跳转登录页
  */
-function handleUnauthorized() {
+async function handleUnauthorized(originalConfig?: RequestConfig): Promise<boolean> {
   // 防止重复处理
   if (isHandling401) {
-    return
+    return false
   }
   isHandling401 = true
 
   const authStore = useAuthStore()
 
-  // 只有当真正有 token 时才清空并跳转
-  // 游客模式下没有 token，不需要处理
-  if (!authStore.getToken()) {
-    console.warn('[401] No token found, skipping auth clear')
+  // 检查是否有 refreshToken（刷新 token 需要 refreshToken）
+  const refreshToken = authStore.getRefreshToken()
+  if (!refreshToken) {
+    console.warn('[401] No refresh token found, cannot refresh, clearing auth')
+    authStore.clearAuth()
+
+    // 立即重置标志，避免重复处理
     isHandling401 = false
-    return
+
+    // 延迟跳转，避免在请求回调中直接跳转
+    setTimeout(() => {
+      uni.reLaunch({
+        url: '/pages/login/index'
+      })
+    }, 0)
+    return false
   }
 
+  // 尝试刷新 token（会同时更新 access_token 和 refresh_token）
+  console.log('[401] Attempting to refresh token with refreshToken')
+  const refreshResult = await authStore.refreshAccessToken()
+
+  if (refreshResult.success) {
+    console.log('[401] Token refreshed successfully, both access_token and refresh_token updated')
+    isHandling401 = false
+    return true
+  }
+
+  // 刷新失败
+  if (refreshResult.isNetworkError) {
+    // 网络错误，保留当前认证状态，不跳转登录页
+    // 但可以尝试使用当前 token 重试原请求（可能 token 仍然有效）
+    console.warn('[401] Token refresh failed due to network error, keeping current auth state')
+    isHandling401 = false
+
+    // 如果原请求存在，尝试使用当前 token 重试（不刷新 token）
+    if (originalConfig) {
+      console.log('[401] Retrying original request with current token (network error case)')
+      const retryConfig = { ...originalConfig, _isRetry: true }
+      // 注意：这里不等待重试结果，直接返回 false，让调用方处理
+      // 因为重试可能成功也可能失败，不应该阻塞
+    }
+
+    return false
+  }
+
+  // token 失效，清除认证信息并跳转到登录页
+  console.warn('[401] Token refresh failed (token invalid), clearing auth and redirecting to login')
   authStore.clearAuth()
 
-  console.warn('Token expired or invalid, redirecting to login')
+  // 立即重置标志，避免重复处理
+  isHandling401 = false
 
   // 延迟跳转，避免在请求回调中直接跳转
   setTimeout(() => {
     uni.reLaunch({
       url: '/pages/login/index'
     })
-    // 重置标志（虽然跳转后这个页面会被销毁，但为了保险）
-    setTimeout(() => {
-      isHandling401 = false
-    }, 500)
   }, 0)
+
+  return false
 }
 
 /**
@@ -198,12 +252,13 @@ function responseInterceptor<T>(response: UniApp.RequestSuccessCallbackResult): 
   const responseCode = responseData?.code
 
   // 处理401未授权（HTTP状态码401或响应数据code为401）
+  // 注意：这里不直接调用 handleUnauthorized，而是在 request 函数中处理，以便重试请求
   if (statusCode === 401 || responseCode === 401) {
-    handleUnauthorized()
     return {
       success: false,
       message: responseData?.msg || responseData?.message || '登录已过期，请重新登录',
-      code: 401
+      code: 401,
+      needRefresh: true // 标记需要刷新 token
     }
   }
   
@@ -281,7 +336,7 @@ function errorHandler(error: any): ResponseData {
  * 核心请求方法
  */
 export function request<T = any>(config: RequestConfig): Promise<ResponseData<T>> {
-  return new Promise((resolve) => {
+  return new Promise(async (resolve) => {
     // 请求拦截
     const processedConfig = requestInterceptor(config)
     
@@ -302,9 +357,24 @@ export function request<T = any>(config: RequestConfig): Promise<ResponseData<T>
       timeout: processedConfig.timeout,
       dataType: processedConfig.dataType || 'json',
       responseType: processedConfig.responseType || 'text',
-      success: (response) => {
+      success: async (response) => {
         // 响应拦截
         const result = responseInterceptor<T>(response)
+
+        // 如果是 401 错误，尝试刷新 token 并重试
+        // 注意：如果是重试请求（_isRetry=true），不再刷新，直接返回错误，避免死循环
+        if ((result as any).needRefresh && !config._isRetry) {
+          const refreshSuccess = await handleUnauthorized(config)
+          if (refreshSuccess) {
+            // 刷新成功，重新发起请求（标记为重试，避免再次刷新）
+            console.log('[request] Retrying request after token refresh')
+            const retryConfig = { ...config, _isRetry: true }
+            const retryResult = await request<T>(retryConfig)
+            resolve(retryResult)
+            return
+          }
+        }
+
         resolve(result)
       },
       fail: (error) => {

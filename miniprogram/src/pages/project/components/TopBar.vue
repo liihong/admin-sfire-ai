@@ -3,15 +3,21 @@
     <view class="user-info-left">
       <view class="user-dot"></view>
       <text class="user-name">{{ projectName || userName || '创作者' }}</text>
+      <!-- IP切换按钮 -->
+      <view class="switch-btn" @tap="handleSwitchIP" v-if="projectName">
+        <text class="switch-icon">🔄</text>
+      </view>
     </view>
-    <view class="user-info-right">
+    <!-- <view class="user-info-right">
       <view class="points-icon">💎</view>
       <text class="user-points">{{ userPoints || 1280 }} 点数</text>
-    </view>
+    </view> -->
   </view>
 </template>
 
 <script setup lang="ts">
+import { useProjectStore } from '@/stores/project'
+
 interface Props {
   projectName?: string
   userName?: string
@@ -23,6 +29,22 @@ withDefaults(defineProps<Props>(), {
   userName: '',
   userPoints: 1280
 })
+
+const projectStore = useProjectStore()
+
+/**
+ * 处理IP切换
+ * 清除当前激活项目，让页面显示项目列表
+ */
+function handleSwitchIP() {
+  // 清除激活项目
+  projectStore.clearActiveProject()
+  // 提示用户
+  uni.showToast({
+    title: '已切换到项目列表',
+    icon: 'success'
+  })
+}
 </script>
 
 <style lang="scss" scoped>
@@ -57,6 +79,29 @@ withDefaults(defineProps<Props>(), {
       font-weight: 600;
       color: $text-main;
       letter-spacing: -0.5rpx;
+    }
+    
+    // IP切换按钮
+    .switch-btn {
+      width: 48rpx;
+      height: 48rpx;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: linear-gradient(135deg, rgba($primary-orange, 0.1) 0%, rgba($primary-orange, 0.15) 100%);
+      border-radius: 50%;
+      margin-left: 8rpx;
+      transition: all 0.2s ease;
+      
+      &:active {
+        transform: scale(0.95);
+        background: linear-gradient(135deg, rgba($primary-orange, 0.2) 0%, rgba($primary-orange, 0.25) 100%);
+      }
+      
+      .switch-icon {
+        font-size: 28rpx;
+        opacity: 0.8;
+      }
     }
   }
   

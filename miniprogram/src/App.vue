@@ -7,8 +7,6 @@ const WHITE_LIST = [
   '/pages/login/index',
   '/pages/login/profile',
   '/pages/mine/index',
-  '/pages/project/list',
-  '/pages/project/dashboard',
   '/pages/contact/index'
 ]
 
@@ -73,12 +71,9 @@ function handleRouteIntercept(args: { url: string }, interceptorType: string): b
   const authStore = useAuthStore()
   const url = args.url
   const path = url.split('?')[0] // 获取路径部分，忽略参数
-  
-  console.log('[Router] Intercepting:', url)
-  
+
   // 白名单路径放行
   if (isWhiteListed(url)) {
-    console.log('[Router] Whitelist path, allow')
     return true
   }
   
@@ -86,12 +81,9 @@ function handleRouteIntercept(args: { url: string }, interceptorType: string): b
   if (!authStore.hasToken) {
     // 如果用户已经选择继续浏览过这个页面，直接放行
     if (allowedVisitorUrls.has(path)) {
-      console.log('[Router] User already chose to continue browsing this page, allow')
       return true
     }
 
-    console.log('[Router] No token, visitor mode')
-    
     // 游客模式：先阻止路由跳转，显示提示弹窗
     // 使用 Promise.resolve 确保当前拦截器调用完成后再执行
     Promise.resolve().then(() => {
@@ -257,15 +249,66 @@ onLaunch(async () => {
   // 从本地存储加载认证信息
   authStore.loadFromStorage()
   
-  // 检查是否已有 token
-  const existingToken = authStore.getToken();
-  
-  if (existingToken) {
-    console.log("Token exists, skip silent login");
+  // 检查是否有 refresh_token（长期有效，如果存在说明用户之前登录过）
+  const existingRefreshToken = authStore.getRefreshToken();
+
+  if (existingRefreshToken) {
+    // 有 refresh_token，尝试刷新 access_token
+    console.log("Refresh token found, attempting to refresh access token");
+    const refreshResult = await authStore.refreshAccessToken();
+
+    if (refreshResult.success) {
+      console.log("Token refreshed successfully from refresh_token");
+      // 刷新成功后，静默刷新用户信息（不阻塞启动流程）
+      authStore.refreshUserInfo().catch(err => {
+        console.warn("Failed to refresh user info:", err);
+        // 用户信息刷新失败不影响启动，使用缓存的用户信息
+      });
+    } else {
+      // 刷新失败
+      if (refreshResult.isNetworkError) {
+        // 网络错误，检查 access_token 是否过期
+        const existingToken = authStore.getToken();
+        if (existingToken && authStore.isTokenExpired(existingToken)) {
+          // access_token 已过期，即使网络错误也应清除认证状态
+          console.warn("Token refresh failed due to network error, but access_token is expired, clearing auth");
+          authStore.clearAuth();
+        } else {
+          // access_token 仍然有效，保留当前认证状态
+          console.warn("Token refresh failed due to network error, but access_token is still valid, keeping auth state");
+        }
+      } else {
+        // refresh_token 失效（可能是用户被封禁、用户被删除等情况）
+        console.warn("Refresh token invalid, clearing auth");
+        authStore.clearAuth();
+      }
+      // 不自动静默登录，让用户手动登录（避免频繁调用 uni.login）
+    }
   } else {
-    console.log("No token found, try dev auto login");
-    // 开发环境自动登录
-    await authStore.silentLogin();
+    // 没有 refresh_token，检查是否有 access_token
+    const existingToken = authStore.getToken();
+
+    if (existingToken) {
+      // 有 access_token 但没有 refresh_token，检查是否过期
+      const isExpired = authStore.isTokenExpired(existingToken);
+
+      if (isExpired) {
+        // token 过期且没有 refresh_token，清除认证信息
+        console.log("Access token expired and no refresh token, clearing auth");
+        authStore.clearAuth();
+        // 不自动静默登录，让用户手动登录
+      } else {
+        // token 有效但没有 refresh_token，继续使用并刷新用户信息
+        console.log("Access token exists and is valid, refreshing user info");
+        authStore.refreshUserInfo().catch(err => {
+          console.warn("Failed to refresh user info:", err);
+        });
+      }
+    } else {
+      // 没有任何 token，用户未登录
+      console.log("No token found, user needs to login");
+      // 不自动静默登录，让用户手动登录
+    }
   }
 });
 
@@ -285,10 +328,26 @@ onHide(() => {
   /* 引入基础样式 */
   @import 'uview-plus/index.scss';
 
+/* 引入 iconfont.css */
+@import '@/styles/iconfont.css';
 /* 全局样式 */
 page {
   background-color: #f5f5f5;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  font-family: -apple-system, BlinkMacSystemFont, 'Helvetica Neue', Helvetica,
+      Segoe UI, Arial, Roboto, 'PingFang SC', 'miui', 'Hiragino Sans GB', 'Microsoft Yahei',
+      sans-serif;
+  
+    /* 开启字体抗锯齿，让文字在 iOS 上更清晰 */
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    /* 1. 颜色不要用纯黑 #000，太刺眼，用深灰 */
+    color: #333333;
+  
+    /* 2. 行高设为字号的 1.5 到 1.6 倍 */
+    line-height: 1.6;
+  
+    /* 3. 适当增加字间距 */
+    letter-spacing: 1rpx;
 }
 page, view, text, scroll-view, swiper, button, input, textarea, label, navigator, image {
   box-sizing: border-box;

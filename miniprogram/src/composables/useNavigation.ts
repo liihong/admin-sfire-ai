@@ -43,7 +43,7 @@ export function useNavigation() {
    * @param editMode 是否编辑模式
    */
   function goToProjectDashboard(projectId?: string | number, editMode: boolean = false) {
-    let url = '/pages/project/dashboard'
+    let url = '/pages/project/index'
     const params: string[] = []
     
     if (projectId) {

@@ -10,10 +10,10 @@
       />
       <view class="input-actions">
         <view class="action-icon mic-icon" @tap="$emit('mic-click')">
-          <u-icon name="mic" color="#6C757D" size="40"></u-icon>
+         <u-icon name="mic" color="#6C757D" size="20"></u-icon>
         </view>
         <view class="action-icon send-btn" @tap="handleSend">
-          <u-icon name="arrow-right" color="#FFFFFF" size="32"></u-icon>
+         <u-icon name="arrow-right" color="#FFFFFF" size="20"></u-icon>
         </view>
       </view>
     </view>
@@ -88,8 +88,8 @@ function handleSend() {
       gap: $spacing-sm;
       
       .action-icon {
-        width: 72rpx;
-        height: 72rpx;
+        width: 52rpx;
+          height: 52rpx;
         border-radius: 50%;
         display: flex;
         align-items: center;

@@ -1,9 +1,12 @@
 <template>
-  <view class="agent-icon" :style="{ width: size + 'rpx', height: size + 'rpx', borderRadius: size * 0.21 + 'rpx', background: getIconGradient(iconName) }">
+ <!-- <view class="agent-icon" :style="{ width: size + 'rpx', height: size + 'rpx', borderRadius: size * 0.21 + 'rpx', background: getIconGradient(iconName) }"> -->
+
+  <view class="agent-icon">
     <!-- 如果是图片URL，显示图片 -->
     <image v-if="isImageUrl(iconName)" :src="iconName" class="icon-image" mode="aspectFit" />
     <!-- 否则使用 uview 图标 -->
-    <u-icon v-else-if="getUviewIconName(iconName)" :name="getUviewIconName(iconName)" color="#ffffff" :size="size * 0.43"></u-icon>
+   <u-icon v-else-if="getUviewIconName(iconName)" :name="getUviewIconName(iconName)" color="#ffffff"
+      :size="size"></u-icon>
     <!-- 回退显示首字母 -->
     <text v-else class="icon-fallback">{{ getFallbackText(iconName) }}</text>
   </view>
@@ -13,12 +16,17 @@
 interface Props {
   iconName: string
   size?: number
+  color?: string
 }
 
 const props = withDefaults(defineProps<Props>(), {
   iconName: '',
-  size: 56
+  size: 20,
+  color: '#ffffff'
 })
+
+// 解构 props，方便在模板中直接使用
+const { iconName, size } = props
 
 /**
  * 判断是否为图片URL
@@ -36,17 +44,21 @@ const isImageUrl = (icon: string): boolean => {
 
 /**
  * Element Plus 图标名称映射到 uview 图标名称
+ * 注意：
+ * 1. 如果 iconName 在映射表中，使用映射后的名称（用于 Element Plus 图标名称兼容）
+ * 2. 如果 iconName 不在映射表中，直接使用 iconName（支持直接使用 uview-plus 的图标名称）
  */
 const getUviewIconName = (iconName: string): string => {
+  // Element Plus 图标名称到 uview-plus 图标名称的映射表
   const iconMap: Record<string, string> = {
-    // AI/智能类
+    // AI/智能类 - 使用 message 图标
     ChatDotRound: 'chat',
     ChatLineRound: 'chat',
     ChatLineSquare: 'chat',
     MagicStick: 'star',
     Cpu: 'cpu',
     Connection: 'link',
-    DataAnalysis: 'chart',
+    DataAnalysis: 'bar-chart',
     Platform: 'grid',
 
     // 文档类
@@ -54,12 +66,11 @@ const getUviewIconName = (iconName: string): string => {
     DocumentCopy: 'file-text',
     Files: 'folder',
     Notebook: 'bookmark',
-    Reading: 'book-open',
+    Reading: 'list-dot',
 
-    // 工具类
-    Tools: 'setting',
+    // 工具类 - 注意：Tools 在 uview-plus 中直接支持，所以不映射
     Setting: 'setting',
-    Operation: 'gear',
+    Operation: 'setting',
     Management: 'setting',
     Monitor: 'desktop',
 
@@ -73,7 +84,7 @@ const getUviewIconName = (iconName: string): string => {
     EditPen: 'edit-pen',
     Brush: 'edit-pen',
     Picture: 'image',
-    Film: 'film',
+    Film: 'share',
 
     // 业务类
     ShoppingCart: 'shopping-cart',
@@ -83,10 +94,10 @@ const getUviewIconName = (iconName: string): string => {
     Coin: 'currency-circle',
 
     // 数据类
-    DataBoard: 'chart',
+    DataBoard: 'bar-chart',
     PieChart: 'pie-chart',
     Histogram: 'bar-chart',
-    TrendCharts: 'chart',
+    TrendCharts: 'order',
     Odometer: 'speedometer',
 
     // 云服务类
@@ -103,7 +114,7 @@ const getUviewIconName = (iconName: string): string => {
     Account: 'account',
 
     // 通信类
-    Message: 'message',
+    Message: 'chat',
     Phone: 'phone',
     Cellphone: 'phone',
     VideoCamera: 'camera',
@@ -128,13 +139,27 @@ const getUviewIconName = (iconName: string): string => {
     SuccessFilled: 'checkmark-circle'
   }
 
-  return iconMap[iconName] || ''
+  // 如果 iconName 在映射表中，返回映射后的名称
+  // 如果不在映射表中，直接返回 iconName（支持直接使用 uview-plus 的图标名称）
+  return iconMap[iconName] || iconName
+}
+
+/**
+ * 计算图标大小
+ * 根据容器大小动态计算，确保图标大小合适
+ */
+const getIconSize = (): number => {
+  // 图标大小应该是容器大小的 50-60%，确保图标清晰可见
+  const calculatedSize = size * 0.55
+  // 最小尺寸为 20rpx，最大尺寸为 80rpx
+  return Math.max(20, Math.min(80, calculatedSize))
 }
 
 /**
  * 获取回退文本（显示图标名称的首字母）
  */
 const getFallbackText = (iconName: string): string => {
+  console.log(iconName)
   if (!iconName) return '?'
   // 取首字母或首字符
   const firstChar = iconName.charAt(0).toUpperCase()
@@ -245,7 +270,6 @@ const getIconGradient = (iconName: string): string => {
   display: flex;
   align-items: center;
   justify-content: center;
-  color: white;
   flex-shrink: 0;
 
   .icon-image {

@@ -223,20 +223,13 @@ function handleSelectProject(project: Project) {
   // 如果在 tabBar 页面中，不跳转，触发事件让父组件切换视图
   if (props.isInTabBar) {
     emit('projectSelected')
-  } else {
-    // 不在 tabBar 页面中，正常跳转
-    setTimeout(() => {
-      uni.navigateTo({
-        url: '/pages/project/dashboard'
-      })
-    }, 500)
   }
 }
 
 // 编辑项目
 function handleEditProject(project: Project) {
   uni.navigateTo({
-    url: `/pages/project/dashboard?id=${project.id}&edit=true`
+    url: `/pages/project/index?id=${project.id}&edit=true`
   })
 }
 
@@ -328,7 +321,7 @@ async function handleCreateProject() {
     // 跳转到控制台编辑人设
     setTimeout(() => {
       uni.navigateTo({
-        url: `/pages/project/dashboard?id=${project.id}&edit=true`
+        url: `/pages/project/index?id=${project.id}&edit=true`
       })
     }, 500)
   } catch (error) {

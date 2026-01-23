@@ -15,7 +15,7 @@
         </view>
       </view>
       <view class="persona-toggle">
-        <u-icon name="setting" color="#6C757D" size="32"></u-icon>
+        <u-icon name="setting" color="#6C757D" size="22"></u-icon>
       </view>
     </view>
   </view>

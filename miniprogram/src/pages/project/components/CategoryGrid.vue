@@ -7,20 +7,23 @@
       @tap="handleClick(item.key)"
     >
       <view class="category-icon-wrapper">
-        <AgentIcon :iconName="item.icon" :size="64" />
+        <!-- <u-icon :name="item.icon" :size="34" color="#f69c0e" /> -->
+        <SvgIcon :name="item.icon" :size="40" :color="item.color" />
       </view>
       <text class="category-label">{{ item.label }}</text>
+
     </view>
   </view>
 </template>
 
 <script setup lang="ts">
-import { AgentIcon } from '@/components/base'
+import SvgIcon from '@/components/base/SvgIcon.vue'
 
 interface CategoryItem {
   key: string
   label: string
-  icon: string
+  icon: string,
+  color: string
 }
 
 interface Props {
@@ -30,11 +33,11 @@ interface Props {
 // 在 withDefaults 中直接使用内联数组，避免引用局部变量
 const props = withDefaults(defineProps<Props>(), {
   categories: () => [
-    { key: 'story', label: '讲故事', icon: 'Reading' },
-    { key: 'opinion', label: '聊观点', icon: 'ChatDotRound' },
-    { key: 'process', label: '晒过程', icon: 'Film' },
-    { key: 'knowledge', label: '教知识', icon: 'Document' },
-    { key: 'hotspot', label: '蹭热点', icon: 'TrendCharts' }
+    { key: 'story', label: '讲故事', icon: 'book', color: '#F69C0E' },
+    { key: 'opinion', label: '聊观点', icon: 'point', color: '#397FF6' },
+    { key: 'process', label: '晒过程', icon: 'process', color: '#397FF6' },
+    { key: 'knowledge', label: '教知识', icon: 'knowledge', color: '#00B781' },
+    { key: 'hotspot', label: '蹭热点', icon: 'hotspot', color: '#F53C5E' }
   ]
 })
 
@@ -61,14 +64,16 @@ function handleClick(key: string) {
     flex-direction: column;
     align-items: center;
     gap: $spacing-sm;
-    padding: 8rpx 0;
     transition: transform $transition-base;
-    
     &:active {
       transform: scale(0.92);
     }
     
     .category-icon-wrapper {
+      border-radius: 20rpx;
+      padding: 8rpx 20rpx;
+      border: 1rpx solid #e5e7eb;
+      box-shadow: 0 2rpx 8rpx rgba(0, 0, 0, 0.1);
       :deep(.agent-icon) {
         box-shadow: 0 4rpx 12rpx rgba(0, 0, 0, 0.1);
       }
@@ -76,7 +81,7 @@ function handleClick(key: string) {
     
     .category-label {
       font-size: $font-size-sm;
-      font-weight: 500;
+      font-weight: 900;
       color: $text-main;
       text-align: center;
     }

@@ -30,7 +30,7 @@ withDefaults(defineProps<Props>(), {
   
   &__title {
     font-size: $font-size-md;
-    font-weight: 500;
+    font-weight: 900;
     color: $text-second;
     
     &--accent {

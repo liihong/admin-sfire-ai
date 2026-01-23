@@ -674,9 +674,17 @@ async def refresh_token(
         if not user_id:
             raise BadRequestException("令牌数据无效")
 
-        # 4. 查询用户
-        user_service = UserService(db)
-        user = await user_service.get_user_by_id(int(user_id))
+        # 4. 查询用户（直接查询 User 对象，不使用 get_user_by_id 因为返回的是字典）
+        from sqlalchemy import select
+        from models.user import User
+        
+        result = await db.execute(
+            select(User).where(
+                User.id == int(user_id),
+                User.is_deleted == False
+            )
+        )
+        user = result.scalar_one_or_none()
 
         if not user:
             raise BadRequestException("用户不存在")
@@ -685,8 +693,9 @@ async def refresh_token(
             raise BadRequestException("用户已被封禁")
 
         # 5. 生成新的access_token和refresh_token
+        # 小程序刷新时也使用长期有效的refresh_token（100年有效期）
         new_access_token = create_access_token(data={"sub": str(user.id)})
-        new_refresh_token = create_refresh_token(data={"sub": str(user.id)})
+        new_refresh_token = create_refresh_token(data={"sub": str(user.id)}, long_lived=True)
 
         logger.info(f"Token refreshed successfully for user: {user.id}")
 
