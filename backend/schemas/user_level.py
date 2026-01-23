@@ -42,3 +42,4 @@ class UserLevelResponse(UserLevelBase):
     class Config:
         from_attributes = True
 
+
