@@ -10,6 +10,8 @@ from datetime import datetime
 from typing import Optional
 from fastapi import APIRouter, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
+from sqlalchemy import select
 from pydantic import BaseModel, Field
 from loguru import logger
 
@@ -33,6 +35,17 @@ class LoginRequest(BaseModel):
     phone_code: Optional[str] = Field(default=None, description="手机号授权 code，从 getPhoneNumber 获取")
 
 
+class UserLevelInfo(BaseModel):
+    """用户等级信息模型"""
+    code: str = Field(..., description="等级代码：normal/vip/svip/max")
+    name: str = Field(..., description="等级名称（中文显示）")
+    max_ip_count: Optional[int] = Field(default=None, description="最大IP数量（NULL表示不限制）")
+    ip_type: str = Field(default="permanent", description="IP类型：temporary/permanent")
+    daily_tokens_limit: Optional[int] = Field(default=None, description="每日AI能量限制（NULL表示无限制）")
+    can_use_advanced_agent: bool = Field(default=False, description="是否可使用高级智能体")
+    unlimited_conversations: bool = Field(default=False, description="是否无限制对话")
+
+
 class UserInfo(BaseModel):
     """用户信息模型"""
     openid: str = Field(..., description="用户 openid")
@@ -42,6 +55,14 @@ class UserInfo(BaseModel):
     city: Optional[str] = Field(default="", description="城市")
     province: Optional[str] = Field(default="", description="省份")
     country: Optional[str] = Field(default="", description="国家")
+    # 等级相关字段
+    level: str = Field(default="normal", description="用户等级代码（兼容旧字段）")
+    level_code: Optional[str] = Field(default=None, description="用户等级代码：normal/vip/svip/max")
+    level_name: str = Field(default="普通用户", description="等级名称（中文显示）")
+    level_info: Optional[UserLevelInfo] = Field(default=None, description="等级详细信息")
+    partner_status: str = Field(default="普通用户", description="合伙人状态：普通用户/VIP会员/合伙人")
+    vip_expire_date: Optional[str] = Field(default=None, description="会员到期时间 YYYY-MM-DD")
+    partner_balance: str = Field(default="0.00", description="合伙人资产余额")
 
 
 class LoginResponse(BaseModel):
@@ -287,6 +308,73 @@ async def generate_miniprogram_qrcode(scene: str, page: str = "") -> bytes:
         raise ServerErrorException(f"生成小程序码失败: {str(e)}")
 
 
+# ============== Helper Functions for User Info ==============
+
+def build_user_info(user: User) -> UserInfo:
+    """
+    构建用户信息对象（包含完整的等级信息）
+    
+    Args:
+        user: User对象（需要已加载user_level关系）
+    
+    Returns:
+        UserInfo对象
+    """
+    from models.user import UserLevel
+    from decimal import Decimal
+    
+    # 合伙人状态映射（兼容旧level字段）
+    level_status_map = {
+        UserLevel.NORMAL: "普通用户",
+        UserLevel.MEMBER: "VIP会员",
+        UserLevel.PARTNER: "合伙人",
+    }
+    partner_status = level_status_map.get(user.level, "普通用户")
+    
+    # 获取等级信息
+    level_code = user.level_code or user.level.value
+    level_name = user.level_name  # 使用User模型的属性方法获取等级名称
+    
+    # 构建等级详细信息
+    level_info = None
+    if user.user_level:
+        level_info = UserLevelInfo(
+            code=user.user_level.code,
+            name=user.user_level.name,
+            max_ip_count=user.user_level.max_ip_count,
+            ip_type=user.user_level.ip_type,
+            daily_tokens_limit=user.user_level.daily_tokens_limit,
+            can_use_advanced_agent=user.user_level.can_use_advanced_agent,
+            unlimited_conversations=user.user_level.unlimited_conversations,
+        )
+    
+    # 格式化会员到期时间
+    vip_expire_date = None
+    if user.vip_expire_date:
+        vip_expire_date = user.vip_expire_date.strftime("%Y-%m-%d")
+    
+    # 格式化合伙人资产余额
+    partner_balance = user.partner_balance if user.partner_balance else Decimal("0.0000")
+    partner_balance_str = f"{float(partner_balance):.2f}"
+    
+    return UserInfo(
+        openid=user.openid or "",
+        nickname=user.nickname or "微信用户",
+        avatarUrl=user.avatar or "",
+        gender=0,
+        city="",
+        province="",
+        country="",
+        level=user.level.value,  # 兼容旧字段
+        level_code=level_code,
+        level_name=level_name,
+        level_info=level_info,
+        partner_status=partner_status,
+        vip_expire_date=vip_expire_date,
+        partner_balance=partner_balance_str,
+    )
+
+
 # ============== API Endpoints ==============
 
 @router.post("/login")
@@ -385,21 +473,25 @@ async def miniprogram_login(
             await db.refresh(user)
             logger.info(f"User login updated: id={user.id}, phone={user.phone}, openid={user.openid}")
         
-        # 4. 生成 JWT token（包含 access_token 和 refresh_token）
+        # 4. 重新查询用户并加载等级关系（确保获取最新数据）
+        query = select(User).where(
+            User.id == user.id,
+            User.is_deleted == False
+        ).options(selectinload(User.user_level))
+        
+        result = await db.execute(query)
+        user_with_level = result.scalar_one_or_none()
+        
+        if not user_with_level:
+            raise ServerErrorException("用户数据异常")
+        
+        # 5. 生成 JWT token（包含 access_token 和 refresh_token）
         # 小程序登录使用长期有效的refresh_token（100年有效期，用户不删除小程序则永不过期）
-        access_token = create_access_token(data={"sub": str(user.id)})
-        refresh_token = create_refresh_token(data={"sub": str(user.id)}, long_lived=True)
+        access_token = create_access_token(data={"sub": str(user_with_level.id)})
+        refresh_token = create_refresh_token(data={"sub": str(user_with_level.id)}, long_lived=True)
 
-        # 5. 构建用户信息
-        user_info = UserInfo(
-            openid=user.openid or openid,
-            nickname=user.nickname or "微信用户",
-            avatarUrl=user.avatar or "",
-            gender=0,
-            city="",
-            province="",
-            country="",
-        )
+        # 6. 构建用户信息（包含完整的等级信息）
+        user_info = build_user_info(user_with_level)
 
         # 返回统一格式的响应，兼容前端期望的格式
         return success(
@@ -422,22 +514,29 @@ async def miniprogram_login(
 
 @router.get("/user")
 async def get_current_user_info(
-    current_user: User = Depends(get_current_miniprogram_user)
+    current_user: User = Depends(get_current_miniprogram_user),
+    db: AsyncSession = Depends(get_db)
 ):
     """
-    获取当前用户信息
+    获取当前用户信息（包含完整的等级信息）
     
     需要 Authorization header 携带 Bearer token
+    返回用户基本信息及完整的等级配置信息，方便前端根据会员级别展示不同内容
     """
-    user_info = UserInfo(
-        openid=current_user.openid or "",
-        nickname=current_user.nickname or "微信用户",
-        avatarUrl=current_user.avatar or "",
-        gender=0,
-        city="",
-        province="",
-        country="",
-    )
+    # 重新查询用户并加载等级关系（确保获取最新数据）
+    query = select(User).where(
+        User.id == current_user.id,
+        User.is_deleted == False
+    ).options(selectinload(User.user_level))
+    
+    result = await db.execute(query)
+    user = result.scalar_one_or_none()
+    
+    if not user:
+        raise BadRequestException("用户不存在")
+    
+    # 构建用户信息（包含完整的等级信息）
+    user_info = build_user_info(user)
     
     return success(
         data={
@@ -547,18 +646,21 @@ async def update_user_info(
 
     # 提交更改
     await db.commit()
-    await db.refresh(current_user)
+    
+    # 重新查询用户并加载等级关系（确保获取最新数据）
+    query = select(User).where(
+        User.id == current_user.id,
+        User.is_deleted == False
+    ).options(selectinload(User.user_level))
+    
+    result = await db.execute(query)
+    user = result.scalar_one_or_none()
+    
+    if not user:
+        raise BadRequestException("用户不存在")
 
-    # 构建响应
-    user_info = UserInfo(
-        openid=current_user.openid or "",
-        nickname=current_user.nickname or "微信用户",
-        avatarUrl=current_user.avatar or "",
-        gender=0,
-        city="",
-        province="",
-        country="",
-    )
+    # 构建响应（包含完整的等级信息）
+    user_info = build_user_info(user)
 
     return success(
         data={

@@ -8,6 +8,8 @@
 
     <!-- 页面头部 -->
     <view class="page-header">
+      <!-- iPhone 灵动岛安全区适配 -->
+      <SafeAreaTop />
       <view class="header-back" @tap="goBack">
         <text class="back-icon">←</text>
       </view>
@@ -85,6 +87,7 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { getCoinTransactions } from '@/api/coin'
+import SafeAreaTop from '@/components/common/SafeAreaTop.vue'
 
 // 交易记录类型
 interface Transaction {

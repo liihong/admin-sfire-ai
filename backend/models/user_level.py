@@ -104,3 +104,4 @@ class UserLevel(BaseModel):
         return f"<UserLevel(id={self.id}, code='{self.code}', name='{self.name}')>"
 
 
+

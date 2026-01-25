@@ -9,8 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from db import get_db
 from models.user import User
 from core.deps import get_current_miniprogram_user
-from services.coin.account import CoinAccountService
-from services.coin.calculator import CoinCalculatorService
+from services.coin import CoinServiceFactory
 from services.resource import ComputeService
 from schemas.coin import (
     CoinBalanceResponse,
@@ -44,8 +43,8 @@ async def get_balance(
         }
     """
     try:
-        service = CoinAccountService(db)
-        balance_info = await service.get_user_balance(current_user.id)
+        coin_service = CoinServiceFactory(db)
+        balance_info = await coin_service.get_balance(current_user.id)
 
         return success(data=balance_info, msg="查询成功")
     except Exception as e:
@@ -121,17 +120,17 @@ async def calculate_cost(
         }
     """
     try:
-        calculator = CoinCalculatorService(db)
+        coin_service = CoinServiceFactory(db)
 
         # 计算费用
-        cost = await calculator.calculate_cost(
+        cost = await coin_service.calculate_cost(
             input_tokens=request.input_tokens,
             output_tokens=request.output_tokens,
             model_id=request.model_id
         )
 
         # 获取费用明细
-        breakdown = calculator.get_cost_breakdown(
+        breakdown = coin_service.get_cost_breakdown(
             input_tokens=request.input_tokens,
             output_tokens=request.output_tokens,
             model_id=request.model_id
@@ -174,21 +173,21 @@ async def estimate_cost(
         }
     """
     try:
-        calculator = CoinCalculatorService(db)
+        coin_service = CoinServiceFactory(db)
 
         # 估算最大消耗
-        cost = await calculator.estimate_max_cost(
+        cost = await coin_service.estimate_max_cost(
             model_id=request.model_id,
             input_text=request.input_text,
             estimated_output_tokens=request.estimated_output_tokens
         )
 
         # 估算Token数
-        input_tokens = calculator.estimate_tokens_from_text(request.input_text)
+        input_tokens = coin_service.estimate_tokens_from_text(request.input_text)
         output_tokens = request.estimated_output_tokens or 4096
 
         # 获取费用明细
-        breakdown = calculator.get_cost_breakdown(
+        breakdown = coin_service.get_cost_breakdown(
             input_tokens=input_tokens,
             output_tokens=output_tokens,
             model_id=request.model_id

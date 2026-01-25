@@ -24,6 +24,7 @@ from .admin_debug_log import AdminDebugLog
 from .dictionary import Dictionary, DictionaryItem
 from .skill_library import SkillLibrary
 from .user_level import UserLevel as UserLevelModel
+from .quick_entry import QuickEntry, EntryType, ActionType, EntryTag
 
 __all__ = [
     "BaseModel",
@@ -54,4 +55,8 @@ __all__ = [
     "DictionaryItem",
     "SkillLibrary",
     "UserLevelModel",
+    "QuickEntry",
+    "EntryType",
+    "ActionType",
+    "EntryTag",
 ]

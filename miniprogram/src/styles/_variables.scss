@@ -1,8 +1,8 @@
 // ========== 颜色变量 ==========
 
 // 品牌色
-$primary-orange: #FF7700;        // 爱马仕橙（主色）
-$primary-orange-alt: #F37021;     // 爱马仕橙（辅助色）
+$primary-orange: #3B82F6; // 爱马仕橙（主色）
+$primary-orange-alt: #79aaf9; // 爱马仕橙（辅助色）
 $primary-orange-light: rgba(255, 136, 0, 0.1); // 爱马仕橙（浅色）
 $brand-orange: #FF8800;           // 品牌橙色（兼容旧代码）
 $brand-orange-alt: #F37021;       // 品牌橙色（辅助，兼容旧代码）
@@ -15,6 +15,7 @@ $bg-dark: #1A1A2E;                // 深色背景
 $bg-card: rgba(255, 255, 255, 0.95); // 卡片背景
 
 // 文字颜色
+$text-title: #3B82F6;
 $text-main: #1D2129;               // 核心文字
 $text-second: #86909C;             // 次要文字
 $text-placeholder: #C9CDD4;       // 占位符文字

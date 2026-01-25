@@ -8,7 +8,7 @@
     >
       <view class="category-icon-wrapper">
         <!-- <u-icon :name="item.icon" :size="34" color="#f69c0e" /> -->
-        <SvgIcon :name="item.icon" :size="40" :color="item.color" />
+       <SvgIcon :name="item.icon" :size="45" :color="item.color" />
       </view>
       <text class="category-label">{{ item.label }}</text>
 
@@ -58,27 +58,29 @@ function handleClick(key: string) {
   grid-template-columns: repeat(5, 1fr);
   gap: $spacing-sm;
   margin-bottom: $spacing-lg;
-  
+
   .category-item {
     display: flex;
     flex-direction: column;
     align-items: center;
     gap: $spacing-sm;
     transition: transform $transition-base;
+
     &:active {
       transform: scale(0.92);
     }
-    
+
     .category-icon-wrapper {
       border-radius: 20rpx;
-      padding: 8rpx 20rpx;
+      padding: 12rpx 24rpx;
       border: 1rpx solid #e5e7eb;
       box-shadow: 0 2rpx 8rpx rgba(0, 0, 0, 0.1);
+
       :deep(.agent-icon) {
         box-shadow: 0 4rpx 12rpx rgba(0, 0, 0, 0.1);
       }
     }
-    
+
     .category-label {
       font-size: $font-size-sm;
       font-weight: 900;

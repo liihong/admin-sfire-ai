@@ -1,12 +1,9 @@
 <template>
   <view class="top-bar">
-    <view class="user-info-left">
+   <view class="user-info-left" @tap="handleSwitchIP" v-if="projectName">
       <view class="user-dot"></view>
       <text class="user-name">{{ projectName || userName || '创作者' }}</text>
-      <!-- IP切换按钮 -->
-      <view class="switch-btn" @tap="handleSwitchIP" v-if="projectName">
-        <text class="switch-icon">🔄</text>
-      </view>
+     <SvgIcon name="qiehuan" :size="35" />
     </view>
     <!-- <view class="user-info-right">
       <view class="points-icon">💎</view>
@@ -17,6 +14,8 @@
 
 <script setup lang="ts">
 import { useProjectStore } from '@/stores/project'
+import SvgIcon from '@/components/base/SvgIcon.vue'
+
 
 interface Props {
   projectName?: string
@@ -39,11 +38,6 @@ const projectStore = useProjectStore()
 function handleSwitchIP() {
   // 清除激活项目
   projectStore.clearActiveProject()
-  // 提示用户
-  uni.showToast({
-    title: '已切换到项目列表',
-    icon: 'success'
-  })
 }
 </script>
 

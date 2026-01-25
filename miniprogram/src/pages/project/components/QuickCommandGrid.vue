@@ -1,54 +1,89 @@
 <template>
   <view class="quick-command-grid">
     <view
-      v-for="item in commands"
-      :key="item.key"
+v-for="entry in quickEntryList" :key="entry.id"
       class="command-card"
-      @tap="handleClick(item.route)"
+@tap="handleClick(entry)"
     >
       <view class="command-icon-wrapper">
-        <AgentIcon :iconName="item.icon" :size="48" />
+       <AgentIcon :iconName="entry.icon_class" :size="48" />
       </view>
       <view class="command-content">
-        <text class="command-title">{{ item.title }}</text>
-        <text class="command-desc">{{ item.desc }}</text>
+       <text class="command-title">{{ entry.title }}</text>
+        <text class="command-desc">{{ entry.subtitle || '' }}</text>
       </view>
     </view>
   </view>
 </template>
 
 <script setup lang="ts">
+import { ref, onMounted } from 'vue'
 import { AgentIcon } from '@/components/base'
+import { getQuickEntries, type QuickEntry } from '@/api/quickEntry'
+import { type ResponseData } from '@/utils/request'
 
-interface CommandItem {
-  key: string
-  title: string
-  desc: string
-  icon: string
-  route: string
+// 快捷入口列表数据
+const quickEntryList = ref<QuickEntry[]>([])
+
+/**
+ * 加载快捷入口列表
+ */
+async function loadQuickEntries() {
+  try {
+    const response: ResponseData<{ entries: QuickEntry[] }> = await getQuickEntries('command')
+
+    // 后端返回格式: {code: 200, data: {entries: [...]}, msg: "..."}
+    if (response.code === 200 && response.data?.entries) {
+      quickEntryList.value = response.data.entries
+    } else {
+      const errorMsg = response.msg || '获取快捷入口列表失败'
+      console.error('获取快捷入口列表失败:', errorMsg)
+      uni.showToast({
+        title: errorMsg,
+        icon: 'none'
+      })
+    }
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : '加载快捷入口列表失败'
+    console.error('加载快捷入口列表失败:', error)
+    uni.showToast({
+      title: errorMessage,
+      icon: 'none'
+    })
+  }
 }
-
-interface Props {
-  commands?: CommandItem[]
-}
-
-// 在 withDefaults 中直接使用内联数组，避免引用局部变量
-const props = withDefaults(defineProps<Props>(), {
-  commands: () => [
-    { key: 'persona', title: '我在起号', desc: '需要人设故事', icon: 'User', route: '/pages/copywriting/index' },
-    { key: 'topic', title: '我在同城', desc: '需要泛流话题', icon: 'Platform', route: '' },
-    { key: 'rewrite', title: '我有文案', desc: '需要深度改写', icon: 'Edit', route: '' },
-    { key: 'script', title: '我有选题', desc: '需要口播文案', icon: 'ChatSquare', route: '' }
-  ]
-})
 
 const emit = defineEmits<{
   click: [route: string]
 }>()
 
-function handleClick(route: string) {
-  emit('click', route)
+/**
+ * 处理点击事件，根据 action_type 跳转到相应页面
+ */
+function handleClick(entry: QuickEntry) {
+  let route = ''
+
+  // 根据 action_type 构建路由
+  if (entry.action_type === 'agent') {
+    // 跳转到 copywriting 页面并传递 agentId
+    route = `/pages/copywriting/index?agentId=${entry.action_value}`
+  } else if (entry.action_type === 'skill') {
+    // TODO: 跳转到 skill 页面
+    route = ''
+  } else if (entry.action_type === 'prompt') {
+    // TODO: 处理 prompt 类型
+    route = ''
+  }
+
+  if (route) {
+    emit('click', route)
+  }
 }
+
+// 组件挂载时加载数据
+onMounted(() => {
+  loadQuickEntries()
+})
 </script>
 
 <style lang="scss" scoped>
@@ -102,6 +137,7 @@ function handleClick(route: string) {
         white-space: nowrap;
         overflow: hidden;
         text-overflow: ellipsis;
+        max-width: 240rpx; // 设置固定最大宽度，超出显示省略号
       }
     }
   }

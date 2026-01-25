@@ -11,7 +11,7 @@ from loguru import logger
 
 from middleware.balance_checker import BalanceCheckerMiddleware
 from services.content import ContentModerationService
-from services.coin.calculator import CoinCalculatorService
+from services.coin import CoinServiceFactory
 from services.shared.llm_service import BaseLLM
 from models.llm_model import LLMModel
 from utils.exceptions import BadRequestException
@@ -45,7 +45,7 @@ class EnhancedConversationService:
         self.llm_client = llm_client
         self.balance_checker = BalanceCheckerMiddleware(db)
         self.moderation = ContentModerationService()
-        self.calculator = CoinCalculatorService(db)
+        self.coin_service = CoinServiceFactory(db)
 
     async def _get_model_name(self, model_id: int) -> str:
         """
@@ -128,7 +128,7 @@ class EnhancedConversationService:
             raise
 
         # ========== 第3步: 调用LLM并追踪 ==========
-        input_tokens = self.calculator.estimate_tokens_from_text(message)
+        input_tokens = self.coin_service.estimate_tokens_from_text(message)
         output_tokens = 0
         full_response = ""
         is_error = False
@@ -152,7 +152,7 @@ class EnhancedConversationService:
 
                 # 累积输出
                 full_response += chunk
-                output_tokens = self.calculator.estimate_tokens_from_text(full_response)
+                output_tokens = self.coin_service.estimate_tokens_from_text(full_response)
 
                 # 实时返回给前端
                 yield chunk
@@ -175,7 +175,7 @@ class EnhancedConversationService:
 
             else:
                 # 正常完成，计算实际消耗并结算
-                actual_cost = await self.calculator.calculate_cost(
+                actual_cost = await self.coin_service.calculate_cost(
                     input_tokens=input_tokens,
                     output_tokens=output_tokens,
                     model_id=model_id

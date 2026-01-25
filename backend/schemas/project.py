@@ -67,6 +67,8 @@ class ProjectUpdate(BaseModel):
     """
     name: Optional[str] = Field(None, min_length=1, max_length=50, description="项目名称")
     industry: Optional[str] = Field(None, description="赛道")
+    avatar_letter: Optional[str] = Field(None, description="项目首字母")
+    avatar_color: Optional[str] = Field(None, description="头像背景色")
     persona_settings: Optional[PersonaSettings] = Field(None, description="人设配置（嵌套方式）")
     
     # === 扁平化人设字段（与 persona_settings 字段一一对应） ===

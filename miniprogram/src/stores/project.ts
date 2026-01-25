@@ -27,7 +27,10 @@ export const DEFAULT_PERSONA_SETTINGS: PersonaSettings = {
   introduction: ''
 }
 
-  /**
+// 默认行业
+export const DEFAULT_INDUSTRY = '通用'
+
+/**
  * Project Store
  */
 export const useProjectStore = defineStore('project', () => {

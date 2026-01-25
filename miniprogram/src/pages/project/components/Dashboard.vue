@@ -11,16 +11,8 @@
     <scroll-view class="main-scroll" scroll-y>
       <!-- 当前活跃人设卡片 -->
       <PersonaCard
-        :project-name="activeProject?.name || '选择人设'"
-        :tone="activeProject?.persona_settings?.tone"
+:project="activeProject"
         @click="showPersonaDrawer = true"
-      />
-
-      <!-- 灵感输入区 -->
-      <InspirationInput
-        v-model="inspirationText"
-        @send="handleInspirationSend"
-        @mic-click="handleMicClick"
       />
 
       <!-- 今天拍点啥 - 分类网格 -->
@@ -31,6 +23,9 @@
       <BaseSection accent>快捷指令库</BaseSection>
       <QuickCommandGrid @click="handleNavigate" />
 
+    <!-- 工具库 -->
+      <BaseSection accent>工具库</BaseSection>
+      <ToolLibrary @click="handleToolClick" />
       <!-- 底部安全区 -->
       <view class="bottom-safe-area"></view>
     </scroll-view>
@@ -42,6 +37,12 @@
       @update:visible="showPersonaDrawer = $event"
       @saved="handlePersonaSaved"
     />
+   <!-- 灵感捕捉悬浮按钮 -->
+    <FloatingActionButton @click="showInspirationCard = true" />
+
+    <!-- 灵感捕捉卡片 -->
+    <InspirationCard :visible="showInspirationCard" v-model="inspirationText"
+      @update:visible="showInspirationCard = $event" @send="handleInspirationSend" @mic-click="handleMicClick" />
   </view>
 </template>
 
@@ -50,12 +51,14 @@ import { ref, computed, onMounted } from 'vue'
 import { useProjectStore, DEFAULT_PERSONA_SETTINGS } from '@/stores/project'
 import { useProject } from '@/composables/useProject'
 import { useNavigation } from '@/composables/useNavigation'
-import TopBar from '@/pages/project/components/TopBar.vue'
+import TopBar from './TopBar.vue'
 import PersonaCard from './PersonaCard.vue'
-import InspirationInput from './InspirationInput.vue'
 import CategoryGrid from './CategoryGrid.vue'
 import QuickCommandGrid from './QuickCommandGrid.vue'
 import PersonaDrawer from './PersonaDrawer.vue'
+import FloatingActionButton from './FloatingActionButton.vue'
+import InspirationCard from './InspirationCard.vue'
+import ToolLibrary from './ToolLibrary.vue'
 import BaseSection from '@/components/base/BaseSection.vue'
 
 // Store
@@ -68,6 +71,7 @@ const { navigateTo, handleCategoryClick } = useNavigation()
 
 // 状态
 const showPersonaDrawer = ref(false)
+const showInspirationCard = ref(false)
 const inspirationText = ref('')
 const userName = ref('创作者')
 const userPoints = ref(1280)
@@ -91,11 +95,12 @@ onMounted(async () => {
 })
 
 // 处理灵感发送
-function handleInspirationSend(text: string) {
-  console.log('发送灵感:', text)
+function handleInspirationSend(text: string, tags: string[]) {
+  console.log('发送灵感:', text, '标签:', tags)
   // TODO: 实现灵感发送逻辑
   uni.showToast({ title: '灵感已记录', icon: 'success' })
   inspirationText.value = ''
+  showInspirationCard.value = false
 }
 
 // 处理麦克风点击
@@ -115,6 +120,12 @@ function handlePersonaSaved() {
 function handleNavigate(route: string) {
   navigateTo(route)
 }
+
+// 处理工具点击
+function handleToolClick(tool: any) {
+  console.log('点击工具:', tool)
+  // ToolLibrary 组件内部已经处理了跳转逻辑
+}
 </script>
 
 <style lang="scss" scoped>
@@ -124,7 +135,6 @@ function handleNavigate(route: string) {
 // ========== 基础样式 ==========
 .dashboard-page {
   min-height: 100vh;
-  padding-top: 40rpx;
   background: linear-gradient(180deg, #FAFBFC 0%, #F5F7FA 100%);
   position: relative;
   
@@ -147,7 +157,7 @@ function handleNavigate(route: string) {
 // ========== 主滚动区域 ==========
 .main-scroll {
   height: calc(100vh - 100rpx);
-  padding:12rpx $spacing-lg $spacing-lg;
+  padding: 30rpx $spacing-lg $spacing-lg;
   position: relative;
   z-index: 1;
 }

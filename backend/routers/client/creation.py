@@ -20,8 +20,7 @@ from services.resource import LLMModelService
 from services.agent import AgentService
 from services.conversation.business import ConversationBusinessService
 from services.content import AIService
-from services.coin.account import CoinAccountService
-from services.coin.calculator import CoinCalculatorService
+from services.coin import CoinServiceFactory
 from middleware.balance_checker import BalanceCheckerMiddleware
 from constants.agent import get_agent_config, get_all_agents, AgentType, AGENT_CONFIGS
 from utils.response import success
@@ -679,16 +678,14 @@ async def generate_chat(
         # ========== ✅ 第一阶段：算力预冻结（极短事务，~10ms） ==========
         task_id = str(uuid.uuid4())
         request_id = f"chat_{current_user.id}_{task_id}"  # ✅ 幂等性request_id
-        balance_checker = BalanceCheckerMiddleware(db)
-        account_service = balance_checker.account_service
+        coin_service = CoinServiceFactory(db)
         estimated_output_tokens = request.max_tokens or 2048
 
         try:
             # 1️⃣ 先计算预估成本（不涉及数据库操作）
             user_input_text = user_prompt
 
-            calculator = CoinCalculatorService(db)
-            estimated_cost = await calculator.estimate_max_cost(
+            estimated_cost = await coin_service.estimate_max_cost(
                 model_id=llm_model.id,
                 input_text=user_input_text,
                 estimated_output_tokens=estimated_output_tokens
@@ -702,7 +699,7 @@ async def generate_chat(
             )
 
             # 2️⃣ 使用原子化冻结（无锁冲突）
-            freeze_result = await account_service.freeze_amount_atomic(
+            freeze_result = await coin_service.freeze_amount_atomic(
                 user_id=current_user.id,
                 amount=estimated_cost,  # ✅ 使用预估成本
                 request_id=request_id,
@@ -955,14 +952,13 @@ async def generate_chat(
                         logger.info(f"💰 [原子结算] 开始算力结算流程，request_id={freeze_info['request_id']}")
                         try:
                             # 估算实际token使用
-                            calculator = CoinCalculatorService(db)
-                            input_tokens = calculator.estimate_tokens_from_text(user_prompt)
-                            output_tokens = calculator.estimate_tokens_from_text(assistant_content)
+                            input_tokens = coin_service.estimate_tokens_from_text(user_prompt)
+                            output_tokens = coin_service.estimate_tokens_from_text(assistant_content)
 
                             logger.info(f"💰 [原子结算] Token估算完成: 输入={input_tokens}, 输出={output_tokens}")
 
                             # 计算实际消耗金额
-                            actual_cost = await calculator.calculate_cost(
+                            actual_cost = await coin_service.calculate_cost(
                                 input_tokens=input_tokens,
                                 output_tokens=output_tokens,
                                 model_id=llm_model.id
@@ -973,8 +969,8 @@ async def generate_chat(
                             # ✅ 使用原子化结算（独立事务，无锁冲突）
                             from db.session import async_session_maker
                             async with async_session_maker() as settle_db:
-                                settle_account_service = CoinAccountService(settle_db)
-                                settle_result = await settle_account_service.settle_amount_atomic(
+                                settle_coin_service = CoinServiceFactory(settle_db)
+                                settle_result = await settle_coin_service.settle_amount_atomic(
                                     user_id=current_user.id,
                                     request_id=freeze_info['request_id'],
                                     actual_cost=actual_cost,
@@ -1034,8 +1030,8 @@ async def generate_chat(
                         try:
                             from db.session import async_session_maker
                             async with async_session_maker() as refund_db:
-                                refund_account_service = CoinAccountService(refund_db)
-                                refund_result = await refund_account_service.refund_amount_atomic(
+                                refund_coin_service = CoinServiceFactory(refund_db)
+                                refund_result = await refund_coin_service.refund_amount_atomic(
                                     user_id=current_user.id,
                                     request_id=freeze_info['request_id'],
                                     reason="AI生成失败"

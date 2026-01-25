@@ -8,6 +8,8 @@
 
     <!-- 页面头部 -->
     <view class="page-header">
+      <!-- iPhone 灵动岛安全区适配 -->
+      <SafeAreaTop />
       <view class="header-back" @tap="goBack">
         <text class="back-icon">←</text>
       </view>
@@ -269,6 +271,7 @@ import { useProjectStore, INDUSTRY_OPTIONS, TONE_OPTIONS } from '@/stores/projec
 import { request } from '@/utils/request'
 import { IPCollectDialog } from '@/components/business/dialog'
 import { compressIPInfo, createProject } from '@/api/project'
+import SafeAreaTop from '@/components/common/SafeAreaTop.vue'
 
 // Store
 const projectStore = useProjectStore()

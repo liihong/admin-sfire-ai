@@ -16,8 +16,7 @@ from db import async_session_maker, init_db, close_db
 from models.user import User
 from models.llm_model import LLMModel
 from models.compute import ComputeLog
-from services.coin.calculator import CoinCalculatorService
-from services.coin.account import CoinAccountService
+from services.coin import CoinServiceFactory
 from services.content import ContentModerationService
 
 
@@ -32,10 +31,10 @@ async def test_basic_calculation():
     logger.info("========== 测试1: 基础算力计算 ==========")
 
     async with async_session_maker() as db:
-        calculator = CoinCalculatorService(db)
+        coin_service = CoinServiceFactory(db)
 
         # 测试默认配置计算
-        cost = await calculator.calculate_cost(
+        cost = await coin_service.calculate_cost(
             input_tokens=1000,
             output_tokens=500,
             model_id=1
@@ -44,11 +43,11 @@ async def test_basic_calculation():
 
         # 测试Token估算
         text = "你好,请介绍一下Python编程语言的特点和应用场景"
-        tokens = calculator.estimate_tokens_from_text(text)
+        tokens = coin_service.estimate_tokens_from_text(text)
         logger.info(f"✓ 文本 '{text[:20]}...' 估算为 {tokens} tokens")
 
         # 测试最大消耗估算
-        max_cost = await calculator.estimate_max_cost(
+        max_cost = await coin_service.estimate_max_cost(
             model_id=1,
             input_text=text
         )
@@ -84,7 +83,7 @@ async def test_database_operations():
     logger.info("========== 测试3: 数据库操作 ==========")
 
     async with async_session_maker() as db:
-        account_service = CoinAccountService(db)
+        coin_service = CoinServiceFactory(db)
 
         # 查询第一个用户
         result = await db.execute(select(User).limit(1))
@@ -102,7 +101,7 @@ async def test_database_operations():
         # 测试充值
         original_balance = user.balance
         recharge_amount = Decimal("50.0")
-        await account_service.recharge(
+        await coin_service.recharge(
             user_id=user.id,
             amount=recharge_amount,
             remark="测试充值"
@@ -113,13 +112,13 @@ async def test_database_operations():
         logger.info(f"✓ 充值 {recharge_amount} 火源币成功")
         logger.info(f"  充值前: {original_balance}, 充值后: {user.balance}")
 
-        # 测试预冻结
+        # 测试预冻结（使用原子方法）
         task_id = "test_001"
         freeze_amount = Decimal("10.0")
-        await account_service.freeze_amount(
+        freeze_result = await coin_service.freeze_amount_atomic(
             user_id=user.id,
             amount=freeze_amount,
-            task_id=task_id,
+            request_id=task_id,
             remark="测试预冻结"
         )
         await db.commit()
@@ -128,15 +127,15 @@ async def test_database_operations():
         logger.info(f"✓ 预冻结 {freeze_amount} 火源币成功")
         logger.info(f"  冻结余额: {user.frozen_balance}")
 
-        # 测试解冻并扣除
+        # 测试解冻并扣除（使用原子方法）
         actual_cost = Decimal("7.5")
-        await account_service.unfreeze_and_deduct(
+        settle_result = await coin_service.settle_amount_atomic(
             user_id=user.id,
-            task_id=task_id,
+            request_id=task_id,
             actual_cost=actual_cost,
             input_tokens=500,
             output_tokens=300,
-            model_id=1
+            model_name="测试模型"
         )
         await db.commit()
         await db.refresh(user)
@@ -145,19 +144,19 @@ async def test_database_operations():
         logger.info(f"  最终余额: {user.balance}")
         logger.info(f"  冻结余额: {user.frozen_balance}")
 
-        # 测试退款
+        # 测试退款（使用原子方法）
         task_id_2 = "test_002"
-        await account_service.freeze_amount(
+        freeze_result_2 = await coin_service.freeze_amount_atomic(
             user_id=user.id,
             amount=Decimal("5.0"),
-            task_id=task_id_2,
+            request_id=task_id_2,
             remark="测试退款"
         )
         await db.commit()
 
-        await account_service.refund_full(
+        refund_result = await coin_service.refund_amount_atomic(
             user_id=user.id,
-            task_id=task_id_2,
+            request_id=task_id_2,
             reason="测试全额退款"
         )
         await db.commit()

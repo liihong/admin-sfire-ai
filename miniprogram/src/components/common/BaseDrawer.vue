@@ -1,6 +1,6 @@
 <template>
   <view class="drawer-overlay" v-if="visible" @tap="handleClose">
-    <view class="drawer-content" @tap.stop>
+   <view class="drawer-content" :style="{ maxHeight: maxHeight }" @tap.stop>
       <view class="drawer-handle" v-if="showHandle"></view>
       
       <view class="drawer-header" v-if="title || $slots.header">
@@ -29,13 +29,15 @@ interface Props {
   title?: string
   showClose?: boolean
   showHandle?: boolean
+  maxHeight?: string // 自定义最大高度
 }
 
 const props = withDefaults(defineProps<Props>(), {
   visible: false,
   title: '',
   showClose: true,
-  showHandle: true
+  showHandle: true,
+  maxHeight: '85vh' // 默认值保持原有行为
 })
 
 const emit = defineEmits<{
@@ -68,7 +70,6 @@ function handleClose() {
   bottom: 0;
   left: 0;
   right: 0;
-  max-height: 85vh;
   background: $white;
   border-radius: $radius-xl $radius-xl 0 0;
   display: flex;
@@ -117,9 +118,7 @@ function handleClose() {
     padding: $spacing-md $spacing-lg;
   }
   
-  .drawer-footer {
-    padding: $spacing-md $spacing-lg;
-    padding-bottom: calc(#{$spacing-md} + env(safe-area-inset-bottom));
+        .drawer-footer {
     border-top: 1rpx solid $border-color;
   }
 }

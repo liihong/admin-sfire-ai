@@ -309,7 +309,7 @@ const handleHotClick = () => {
 .container {
   position: relative;
   height: 100vh;
-    padding: 48rpx 32rpx 80rpx;
+    padding: 28rpx 32rpx 10rpx;
     background: linear-gradient(180deg, #f5f7fb 0%, #eef2f7 100%);
     box-sizing: border-box;
 

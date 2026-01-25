@@ -43,7 +43,7 @@
           </view>
 
           <!-- 项目头像 -->
-          <view class="project-avatar" :style="{ background: project.avatar_color || '#FF8800' }">
+         <view class="project-avatar">
             <text class="avatar-letter">{{ project.avatar_letter || project.name[0] }}</text>
           </view>
 
@@ -543,6 +543,7 @@ async function handleCreateProject() {
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
+  background-color: $primary-orange;
 
   .avatar-letter {
     font-size: 40rpx;

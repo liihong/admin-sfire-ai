@@ -54,6 +54,9 @@ def _build_frontend_project(project_dict: dict) -> dict:
         "id": project_id_num,
         "name": project_dict.get("name", ""),
         "industry": project_dict.get("industry", ""),
+        # 头像相关字段
+        "avatar_letter": project_dict.get("avatar_letter", ""),
+        "avatar_color": project_dict.get("avatar_color", "#3B82F6"),
         # 人设字段（扁平化，与 persona_settings 一一对应）
         "introduction": persona_settings.get("introduction", ""),
         "tone": persona_settings.get("tone", ""),

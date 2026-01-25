@@ -243,6 +243,29 @@ onLaunch(async () => {
   // 设置路由拦截器
   setupRouteInterceptors()
   
+  // 初始化安全区域信息（用于动态设置 CSS 变量）
+  try {
+    const systemInfo = uni.getSystemInfoSync()
+    const safeAreaInsets = systemInfo.safeAreaInsets || {}
+    const statusBarHeight = systemInfo.statusBarHeight || 0
+    
+    // 设置全局 CSS 变量（如果 env() 不生效时使用）
+    const safeAreaTop = safeAreaInsets.top || statusBarHeight || 0
+    const safeAreaBottom = safeAreaInsets.bottom || 0
+    
+    // 将安全区域高度存储到全局，供组件使用
+    // 注意：这里存储的是 px，转换为 rpx 需要乘以 2
+    if (safeAreaTop > 0 || safeAreaBottom > 0) {
+      console.log('[App] 安全区域信息:', {
+        top: safeAreaTop,
+        bottom: safeAreaBottom,
+        statusBarHeight
+      })
+    }
+  } catch (error) {
+    console.warn('[App] 获取安全区域信息失败:', error)
+  }
+  
   // 初始化认证 Store
   const authStore = useAuthStore();
   
@@ -356,5 +379,32 @@ page, view, text, scroll-view, swiper, button, input, textarea, label, navigator
 .tab-bar .uni-tabbar__icon image {
   width: 20rpx; /* 调整为你想要的宽度 */
   height: 20rpx; /* 调整为你想要的高度 */
+}
+
+/* ========== iPhone 灵动岛适配工具类 ========== */
+/* 
+ * 注意：微信小程序中 env(safe-area-inset-top) 可能不生效
+ * 推荐使用 SafeAreaTop 组件或通过 JS 动态设置高度
+ * 这里保留 CSS 方案作为 fallback，但主要依赖 JS 动态设置
+ */
+.safe-area-top {
+  flex-shrink: 0;
+  width: 100%;
+  /* CSS 方案作为 fallback（可能不生效） */
+  height: constant(safe-area-inset-top);
+  height: env(safe-area-inset-top);
+  min-height: constant(safe-area-inset-top);
+  min-height: env(safe-area-inset-top);
+}
+
+/* 底部安全区占位 */
+.safe-area-bottom {
+  flex-shrink: 0;
+  width: 100%;
+  /* CSS 方案作为 fallback（可能不生效） */
+  height: constant(safe-area-inset-bottom);
+  height: env(safe-area-inset-bottom);
+  min-height: constant(safe-area-inset-bottom);
+  min-height: env(safe-area-inset-bottom);
 }
 </style>

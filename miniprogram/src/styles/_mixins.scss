@@ -184,3 +184,21 @@
     color: $text-placeholder;
   }
 }
+
+// ========== 安全区域 Mixins ==========
+
+/**
+ * 顶部安全区适配（用于自定义导航栏容器）
+ * 用法：@include safe-area-top-padding;
+ */
+@mixin safe-area-top-padding {
+  padding-top: env(safe-area-inset-top);
+}
+
+/**
+ * 底部安全区适配
+ * 用法：@include safe-area-bottom-padding;
+ */
+@mixin safe-area-bottom-padding {
+  padding-bottom: env(safe-area-inset-bottom);
+}

@@ -1,5 +1,6 @@
 <template>
   <view class="project-index-page">
+   <SafeAreaTop />
     <!-- 项目列表视图 - 没有激活项目时显示 -->
    <ProjectList v-if="!hasActiveProject && !isLoading" />
     <!-- 操作台视图 - 有激活项目时显示 -->
@@ -26,6 +27,8 @@ import { useProjectStore } from '@/stores/project'
 
 import ProjectList from './components/List.vue'
 import ProjectDashboard from './components/Dashboard.vue'
+import SafeAreaTop from '@/components/common/SafeAreaTop.vue'
+
 import { onShow } from '@dcloudio/uni-app'
 
 const projectStore = useProjectStore()

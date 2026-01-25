@@ -25,7 +25,7 @@ withDefaults(defineProps<Props>(), {
   padding: $spacing-lg 0 $spacing-sm;
   
   &--accent {
-    padding: $spacing-lg 0 $spacing-md;
+    padding: $spacing-sm 0 $spacing-md;
   }
   
   &__title {

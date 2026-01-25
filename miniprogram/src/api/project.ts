@@ -42,6 +42,8 @@ export interface ProjectCreateRequest {
 export interface ProjectUpdateRequest {
   name?: string
   industry?: string
+  avatar_letter?: string
+  avatar_color?: string
   persona_settings?: Partial<PersonaSettings>
 }
 
@@ -212,6 +214,7 @@ export async function deleteProject(projectId: string): Promise<boolean> {
 
   throw new Error((response as any).msg || '删除项目失败')
 }
+
 
 
 

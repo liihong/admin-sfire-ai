@@ -11,8 +11,7 @@ from db.session import get_async_session
 from models.user import User
 from models.llm_model import LLMModel
 from models.compute import ComputeLog, ComputeType
-from services.coin.calculator import CoinCalculatorService
-from services.coin.account import CoinAccountService
+from services.coin import CoinServiceFactory
 from services.content import ContentModerationService
 from utils.response import success
 
@@ -22,10 +21,10 @@ async def test_coin_calculator():
     logger.info("========== 测试算力计算服务 ==========")
 
     async with get_async_session() as db:
-        calculator = CoinCalculatorService(db)
+        coin_service = CoinServiceFactory(db)
 
         # 测试1: 基础计算
-        cost = await calculator.calculate_cost(
+        cost = await coin_service.calculate_cost(
             input_tokens=1000,
             output_tokens=500,
             model_id=1
@@ -34,18 +33,18 @@ async def test_coin_calculator():
 
         # 测试2: 文本Token估算
         text = "你好,请介绍一下Python编程语言"
-        estimated_tokens = calculator.estimate_tokens_from_text(text)
+        estimated_tokens = coin_service.estimate_tokens_from_text(text)
         logger.info(f"✓ Token估算测试: '{text}' -> {estimated_tokens} tokens")
 
         # 测试3: 最大消耗估算
-        max_cost = await calculator.estimate_max_cost(
+        max_cost = await coin_service.estimate_max_cost(
             model_id=1,
             input_text=text
         )
         logger.info(f"✓ 最大消耗估算: {max_cost} 火源币")
 
         # 测试4: 费用明细
-        breakdown = calculator.get_cost_breakdown(
+        breakdown = coin_service.get_cost_breakdown(
             input_tokens=1000,
             output_tokens=500,
             model_id=1
@@ -60,7 +59,7 @@ async def test_coin_account():
     logger.info("========== 测试算力账户管理服务 ==========")
 
     async with get_async_session() as db:
-        account_service = CoinAccountService(db)
+        coin_service = CoinServiceFactory(db)
 
         # 获取第一个测试用户
         result = await db.execute(
@@ -76,12 +75,12 @@ async def test_coin_account():
         logger.info(f"测试用户ID: {user_id}, 当前余额: {user.balance}")
 
         # 测试1: 查询余额
-        balance_info = await account_service.get_user_balance(user_id)
+        balance_info = await coin_service.get_balance(user_id)
         logger.info(f"✓ 余额查询: {balance_info}")
 
         # 测试2: 充值测试
         recharge_amount = Decimal("100.0")
-        await account_service.recharge(
+        await coin_service.recharge(
             user_id=user_id,
             amount=recharge_amount,
             remark="测试充值"
@@ -89,13 +88,13 @@ async def test_coin_account():
         await db.commit()
         logger.info(f"✓ 充值 {recharge_amount} 火源币成功")
 
-        # 测试3: 预冻结测试
+        # 测试3: 预冻结测试（使用原子方法）
         task_id = "test_task_001"
         freeze_amount = Decimal("20.0")
-        await account_service.freeze_amount(
+        freeze_result = await coin_service.freeze_amount_atomic(
             user_id=user_id,
             amount=freeze_amount,
-            task_id=task_id,
+            request_id=task_id,
             remark="测试预冻结"
         )
         await db.commit()
@@ -104,15 +103,15 @@ async def test_coin_account():
         await db.refresh(user)
         logger.info(f"✓ 预冻结 {freeze_amount} 火源币, 当前冻结余额: {user.frozen_balance}")
 
-        # 测试4: 解冻并扣除
+        # 测试4: 解冻并扣除（使用原子方法）
         actual_cost = Decimal("15.5")
-        await account_service.unfreeze_and_deduct(
+        settle_result = await coin_service.settle_amount_atomic(
             user_id=user_id,
-            task_id=task_id,
+            request_id=task_id,
             actual_cost=actual_cost,
             input_tokens=1000,
             output_tokens=500,
-            model_id=1
+            model_name="测试模型"
         )
         await db.commit()
 
@@ -120,21 +119,20 @@ async def test_coin_account():
         await db.refresh(user)
         logger.info(f"✓ 实际扣除 {actual_cost} 火源币, 当前余额: {user.balance}")
 
-        # 测试5: 退款测试
+        # 测试5: 退款测试（使用原子方法）
         task_id_2 = "test_task_002"
-        await account_service.freeze_amount(
+        freeze_result_2 = await coin_service.freeze_amount_atomic(
             user_id=user_id,
             amount=Decimal("10.0"),
-            task_id=task_id_2,
+            request_id=task_id_2,
             remark="测试退款"
         )
         await db.commit()
 
-        await account_service.refund_full(
+        refund_result = await coin_service.refund_amount_atomic(
             user_id=user_id,
-            task_id=task_id_2,
-            reason="测试全额退款",
-            error_code=500
+            request_id=task_id_2,
+            reason="测试全额退款"
         )
         await db.commit()
 
@@ -192,7 +190,7 @@ async def test_full_workflow():
         # 初始化服务
         from middleware.balance_checker import BalanceCheckerMiddleware
         balance_checker = BalanceCheckerMiddleware(db)
-        calculator = CoinCalculatorService(db)
+        coin_service = CoinServiceFactory(db)
 
         # 模拟对话流程
         task_id = "workflow_test_001"
@@ -209,11 +207,11 @@ async def test_full_workflow():
             logger.info(f"✓ 预冻结成功: {freeze_info['frozen_amount']} 火源币")
 
             # 步骤2: 模拟AI生成
-            input_tokens = calculator.estimate_tokens_from_text(message)
+            input_tokens = coin_service.estimate_tokens_from_text(message)
             output_tokens = 150  # 假设生成了150个token
 
             # 步骤3: 计算实际消耗
-            actual_cost = await calculator.calculate_cost(
+            actual_cost = await coin_service.calculate_cost(
                 input_tokens=input_tokens,
                 output_tokens=output_tokens,
                 model_id=model.id

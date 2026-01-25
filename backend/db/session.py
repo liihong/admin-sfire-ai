@@ -99,7 +99,7 @@ async def create_tables() -> None:
     from models import (
         User, ComputeLog, Menu, Agent, Role, AdminUser, LLMModel, Project,
         Conversation, ConversationMessage, ConversationChunk,
-        Dictionary, DictionaryItem, UserLevelModel  # noqa: F401
+        Dictionary, DictionaryItem, UserLevelModel, QuickEntry  # noqa: F401
     )
     
     logger.info("Creating database tables...")

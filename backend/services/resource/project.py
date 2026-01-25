@@ -267,10 +267,19 @@ class ProjectService:
         # 更新基础字段
         if data.name is not None:
             project.name = data.name
-            project.avatar_letter = data.name[0].upper() if data.name else 'P'
+            # 如果未单独指定 avatar_letter，则根据名称自动生成
+            if data.avatar_letter is None:
+                project.avatar_letter = data.name[0].upper() if data.name else 'P'
         
         if data.industry is not None:
             project.industry = data.industry
+        
+        # 更新头像相关字段
+        if data.avatar_letter is not None:
+            project.avatar_letter = data.avatar_letter
+        
+        if data.avatar_color is not None:
+            project.avatar_color = data.avatar_color
         
         # 处理人设配置（支持嵌套和扁平两种方式）
         current_persona = project.get_persona_settings_dict()

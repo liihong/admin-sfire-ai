@@ -6,12 +6,15 @@ from .project import ProjectService
 from .banner import BannerService
 from .llm_model import LLMModelService
 from .compute import ComputeService
+from .quick_entry import QuickEntryService
 
 __all__ = [
     "ProjectService",
     "BannerService",
     "LLMModelService",
     "ComputeService",
+    "QuickEntryService",
 ]
+
 
 
