@@ -22,6 +22,11 @@
           </view>
         </view>
       </view>
+      <view class="membership-btn-wrapper" v-if="userInfo.partnerStatus !== 'VIP会员'">
+        <view class="membership-btn" @tap="goToMembership">
+          <text class="membership-btn-text">开通会员</text>
+        </view>
+      </view>
     </view>
 
     <!-- 我的算力卡片 -->
@@ -241,6 +246,13 @@ const goToRecharge = () => {
   })
 }
 
+// 跳转到开通会员页面
+const goToMembership = () => {
+  uni.navigateTo({
+    url: '/pages/mine/membership'
+  })
+}
+
 // 申请提现
 const handleWithdraw = () => {
   uni.showToast({
@@ -359,6 +371,35 @@ onShow(() => {
   font-size: 24rpx;
   color: #3b82f6;
   font-weight: 500;
+}
+
+/* 开通会员按钮 */
+.membership-btn-wrapper {
+  margin-top: 24rpx;
+  padding-top: 24rpx;
+  border-top: 1rpx solid #f3f4f6;
+}
+
+.membership-btn {
+  width: 100%;
+  height: 80rpx;
+  background: linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%);
+  border-radius: 40rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 8rpx 24rpx rgba(251, 191, 36, 0.3);
+}
+
+.membership-btn-text {
+  font-size: 30rpx;
+  color: #ffffff;
+  font-weight: 700;
+}
+
+.membership-btn:active {
+  opacity: 0.9;
+  transform: scale(0.98);
 }
 
 /* 统计卡片通用样式 */
