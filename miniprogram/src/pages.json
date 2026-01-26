@@ -43,9 +43,25 @@
       }
     },
     {
-      "path": "pages/mine/power-detail",
+      "path": "pages/mine/power/index",
+      "style": {
+        "navigationBarTitleText": "我的算力",
+        "navigationStyle": "custom",
+        "disableScroll": true
+      }
+    },
+    {
+      "path": "pages/mine/power/detail",
       "style": {
         "navigationBarTitleText": "算力明细",
+        "navigationStyle": "custom",
+        "disableScroll": true
+      }
+    },
+    {
+      "path": "pages/mine/power/recharge",
+      "style": {
+        "navigationBarTitleText": "充值算力",
         "navigationStyle": "custom",
         "disableScroll": true
       }

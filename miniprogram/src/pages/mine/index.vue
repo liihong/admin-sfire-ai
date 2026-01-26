@@ -67,7 +67,8 @@
       >
         <view class="menu-left">
           <view class="menu-icon-wrapper" :style="{ background: item.iconBg }">
-            <text class="menu-icon">{{ item.icon }}</text>
+            <!-- <text class="menu-icon">{{ item.icon }}</text> -->
+            <SvgIcon :name="item.icon" size="30" color="#FFFFFF" />
           </view>
           <text class="menu-name">{{ item.name }}</text>
         </view>
@@ -82,6 +83,7 @@ import { ref, reactive, computed } from 'vue'
 import { onShow } from '@dcloudio/uni-app'
 import { getUserInfo, updateUserInfo } from '@/api/user'
 import { useAuthStore } from '@/stores/auth'
+import SvgIcon from '@/components/base/SvgIcon.vue'
 
 // 用户信息
 const userInfo = reactive({
@@ -110,14 +112,14 @@ const menuList = ref([
   {
     id: 'inspiration',
     name: '我的灵感',
-    icon: '💡',
+    icon: 'linggan',
     iconBg: 'linear-gradient(135deg, #fef3c7 0%, #fde68a 100%)',
     path: '/pages/inspiration/index'
   },
   {
     id: 'contact',
     name: '联系客服',
-    icon: '💬',
+    icon: 'service',
     iconBg: 'linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%)',
     path: '/pages/contact/index'
   }
@@ -222,7 +224,7 @@ const handleAvatarClick = () => {
 const goToDetail = (type: string) => {
   if (type === 'power') {
     uni.navigateTo({
-      url: '/pages/mine/power-detail'
+      url: '/pages/mine/power/index'
     })
   } else {
     uni.showToast({

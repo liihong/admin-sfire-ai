@@ -4,7 +4,6 @@
   src:url('/static/fonts/iconfont.ttf?t=1769161749636') format('truetype');
 }
 
-
 .iconfont {
   font-family: "iconfont" !important;
   font-size: 16px;
@@ -13,6 +12,13 @@
   -moz-osx-font-smoothing: grayscale;
 }
 
+.icon-linggan:before {
+  content: "\e6ca";
+}
+
+.icon-linggan2:before {
+  content: "\e879";
+}
 .icon-service:before {
   content: "\e66d";
 }
@@ -72,6 +78,7 @@
 .icon-add:before {
   content: "\e9c9";
 }
+
 .icon-book:before {
   content: "\e993";
 }
@@ -91,4 +98,3 @@
 .icon-process:before {
   content: "\e827";
 }
-

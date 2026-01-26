@@ -26,6 +26,7 @@ from .skill_library import SkillLibrary
 from .user_level import UserLevel as UserLevelModel
 from .quick_entry import QuickEntry, EntryType, ActionType, EntryTag
 from .inspiration import Inspiration, InspirationStatus
+from .recharge_package import RechargePackage
 
 __all__ = [
     "BaseModel",
@@ -62,4 +63,5 @@ __all__ = [
     "EntryTag",
     "Inspiration",
     "InspirationStatus",
+    "RechargePackage",
 ]

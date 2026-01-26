@@ -67,10 +67,10 @@
           <!-- 操作按钮 -->
           <view class="project-actions" @tap.stop>
             <view class="action-btn edit-btn" @tap="handleEditProject(project)">
-              <text class="btn-icon">✏️</text>
+             <SvgIcon name="edit" size="30" color="#FFFFFF" />
             </view>
             <view class="action-btn delete-btn" @tap="handleDeleteProject(project)">
-              <text class="btn-icon">🗑️</text>
+             <SvgIcon name="delete" size="30" color="#FFFFFF" />
             </view>
           </view>
         </view>
@@ -85,7 +85,7 @@
       <view class="create-btn" @tap="navigateToCreate">
         <view class="btn-glow"></view>
         <view class="btn-content">
-          <text class="btn-icon">✨</text>
+         <SvgIcon name="add" size="30" color="#FFFFFF" />
           <text class="btn-text">创建新项目</text>
         </view>
       </view>
@@ -134,6 +134,7 @@ import { fetchProjects, createProject, deleteProject } from '@/api/project'
 import { formatDate } from '@/utils/date'
 import BaseModal from '@/components/common/BaseModal.vue'
 import BaseLoading from '@/components/common/BaseLoading.vue'
+import SvgIcon from '@/components/base/SvgIcon.vue'
 
 // Props
 const props = defineProps<{

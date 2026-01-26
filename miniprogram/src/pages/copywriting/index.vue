@@ -1,11 +1,7 @@
 <template>
   <view class="chat-page">
-    <!-- 顶部导航栏 -->
     <view class="nav-header">
-      <!-- iPhone 灵动岛安全区适配 -->
-      <!-- 使用动态组件（推荐，微信小程序中更可靠） -->
       <SafeAreaTop />
-      <!-- 导航栏内容 -->
       <view class="nav-content">
         <view class="nav-left" @tap="goBack">
           <text class="back-icon">‹</text>
@@ -20,31 +16,24 @@
       </view>
     </view>
 
-    <!-- IP 档案卡片 / 无项目提示卡片 -->
     <view class="persona-card-wrapper">
       <AgentCard :project="activeProject" :persona-settings="currentPersonaSettings" />
     </view>
 
-    <!-- 聊天消息区域 -->
     <scroll-view class="chat-container" scroll-y :scroll-top="scrollTop" :scroll-with-animation="true"
       @scrolltoupper="onScrollToUpper">
 
-
-      <!-- 对话消息列表 -->
       <view v-for="msg in chatHistory" :key="`${msg.role}-${msg.timestamp}`" class="message-wrapper" :class="msg.role">
-        <!-- 用户消息 -->
         <view v-if="msg.role === 'user'" class="message-bubble user-bubble">
           <text class="bubble-text">{{ msg.content }}</text>
         </view>
 
-        <!-- AI 消息 -->
         <view v-else-if="msg.role === 'assistant'" class="message-row assistant-row">
           <view class="ai-avatar">
             <SvgIcon name="agent" size="36" color="#fff" />
           </view>
           <view class="message-bubble assistant-bubble">
             <text class="bubble-text">{{ msg.content }}</text>
-            <!-- 复制按钮 -->
             <view class="bubble-actions">
               <view class="action-item" @tap="copyMessage(msg.content)">
                 <SvgIcon name="edit" size="24" color="#999" />
@@ -54,7 +43,6 @@
           </view>
         </view>
 
-        <!-- 系统提示消息 (智能体切换等) -->
         <view v-else-if="msg.role === 'system_hint'" class="system-hint-wrapper">
           <view class="system-hint-bubble">
             <text class="hint-text">{{ msg.content }}</text>
@@ -62,7 +50,6 @@
         </view>
       </view>
 
-      <!-- 加载中状态 -->
       <view v-if="isGenerating" class="message-wrapper assistant">
         <view class="message-row assistant-row">
           <view class="ai-avatar">
@@ -79,26 +66,21 @@
         </view>
       </view>
 
-      <!-- 底部占位 -->
       <view class="scroll-bottom-spacer"></view>
     </scroll-view>
 
-    <!-- 底部输入栏 -->
     <view class="input-bar">
       <view class="input-container">
-        <!-- 清空对话按钮 -->
         <view class="clear-btn" @tap="clearChat">
           <SvgIcon name="delete" size="36" color="#666" />
         </view>
 
-        <!-- 输入框 -->
         <view class="input-wrapper">
           <textarea v-model="inputText" class="chat-input" :placeholder="inputPlaceholder" :maxlength="2000"
             :auto-height="true" :show-confirm-bar="false" :adjust-position="true" :cursor-spacing="20"
             @confirm="sendMessage" @linechange="onInputLineChange" />
         </view>
 
-        <!-- 发送按钮 -->
         <view class="send-btn" :class="{ active: canSend, disabled: !canSend || isGenerating }" @tap="sendMessage">
           <SvgIcon :name="isGenerating ? 'ready2' : 'send'" size="36"
             :color="canSend && !isGenerating ? '#fff' : '#999'" />
@@ -106,13 +88,9 @@
       </view>
     </view>
 
-    <!-- AI 生成提示 -->
     <view class="ai-disclaimer">
       <text class="disclaimer-text">本内容由 AI 生成，不代表开发者立场。</text>
     </view>
-
-
-
   </view>
 </template>
 
@@ -123,13 +101,12 @@ import { useAuthStore } from '@/stores/auth'
 import { useProjectStore } from '@/stores/project'
 import { useAgentStore } from '@/stores/agent'
 import { useQuickEntryStore } from '@/stores/quickEntry'
-import { chatStream, type ChatResponseData } from '@/api/generate'
+import { chatStream } from '@/api/generate'
 import { msgSecCheck } from '@/utils/security'
 import SvgIcon from '@/components/base/SvgIcon.vue'
 import AgentCard from './components/AgentCard.vue'
 import SafeAreaTop from '@/components/common/SafeAreaTop.vue'
 
-// ============== Store ==============
 const authStore = useAuthStore()
 const projectStore = useProjectStore()
 const agentStore = useAgentStore()
@@ -138,9 +115,8 @@ const quickEntryStore = useQuickEntryStore()
 const activeProject = computed(() => projectStore.activeProject)
 const currentPersonaSettings = computed(() => projectStore.currentPersonaSettings)
 
-// ============== 状态定义 ==============
 interface ChatMessage {
-  role: 'user' | 'assistant' | 'system_card' | 'system_hint'
+  role: 'user' | 'assistant' | 'system_hint'
   content: string
   timestamp: number
 }
@@ -149,21 +125,14 @@ const chatHistory = reactive<ChatMessage[]>([])
 const inputText = ref('')
 const isGenerating = ref(false)
 const scrollTop = ref(0)
-const ipCardMessage = ref<ChatMessage | null>(null)
 const conversationId = ref<number | undefined>(undefined)
 
-// ============== 计算属性 ==============
 const canSend = computed(() => inputText.value.trim().length > 0)
 
 const inputPlaceholder = computed(() => {
   return '向智能体发送创作指令...'
 })
 
-// ============== 方法定义 ==============
-
-/**
- * 返回上一页
- */
 function goBack() {
   uni.navigateBack({
     fail: () => {
@@ -172,26 +141,6 @@ function goBack() {
   })
 }
 
-
-/**
- * 初始化 IP 卡片消息 (Task 1)
- */
-function initIPCard() {
-  if (activeProject.value) {
-    ipCardMessage.value = {
-      role: 'system_card',
-      content: `当前智能体：${agentStore.activeAgent?.name || '未选择'}\n绑定 IP：${activeProject.value?.name || '未选择'}\n准备就绪，请告诉我你想拍什么？`,
-      timestamp: Date.now()
-    }
-  }
-}
-
-
-
-/**
- * 清空对话 (Task 3)
- * 清除除"IP 卡片"外的所有对话
- */
 function clearChat() {
   if (chatHistory.length === 0) {
     uni.showToast({
@@ -206,9 +155,7 @@ function clearChat() {
     content: '确定要清空当前对话记录吗？IP 档案卡片将保留。',
     success: (res) => {
       if (res.confirm) {
-        // 清空聊天历史，但保留 IP 卡片
         chatHistory.splice(0, chatHistory.length)
-        // 重置会话ID
         conversationId.value = undefined
         uni.showToast({
           title: '对话已清空',
@@ -219,44 +166,28 @@ function clearChat() {
   })
 }
 
-/**
- * 滚动到底部
- */
 function scrollToBottom() {
   nextTick(() => {
-    // 使用一个很大的数值确保滚动到底部
     scrollTop.value = scrollTop.value === 99999 ? 100000 : 99999
   })
 }
 
-/**
- * 滚动到顶部事件（预留：可用于加载历史消息）
- */
 function onScrollToUpper() {
-  // TODO: 实现历史消息加载功能
+  // TODO: 加载历史消息
 }
 
-/**
- * 输入框行数变化
- */
 function onInputLineChange() {
-  // 输入框高度变化时的处理（当前无需特殊处理）
+  // 输入框高度变化时的处理
 }
 
-/**
- * 发送消息 (Task 3)
- * 使用流式输出实时更新 AI 回复内容
- */
 async function sendMessage() {
   if (!canSend.value || isGenerating.value) return
 
-  // 登录检查
   const loggedIn = await authStore.requireLogin()
   if (!loggedIn) return
 
   const userMessage = inputText.value.trim()
 
-  // 内容安全检测
   const securityCheck = await msgSecCheck(userMessage, {
     showLoading: false
   })
@@ -272,7 +203,6 @@ async function sendMessage() {
 
   inputText.value = ''
 
-  // 添加用户消息
   chatHistory.push({
     role: 'user',
     content: userMessage,
@@ -282,21 +212,13 @@ async function sendMessage() {
   scrollToBottom()
   isGenerating.value = true
 
-  console.log('[copywriting] 开始发送消息，显示加载状态')
-
-  // AI 回复消息占位符，将在收到第一个内容块时创建
   let assistantMessage: ChatMessage | null = null
   let hasReceivedFirstChunk = false
-  let receivedContent = '' // 累积接收的内容
-
-  // 用于在回调中访问 assistantMessage
-  const messageRef = { current: assistantMessage }
+  let receivedContent = ''
 
   try {
-    // 获取当前激活的项目ID
     const projectId = activeProject.value?.id ? parseInt(activeProject.value.id) : undefined
 
-    // 构建消息列表（只包含 user 和 assistant 消息，排除当前正在生成的消息）
     const messages = chatHistory
       .filter(msg => (msg.role === 'user' || msg.role === 'assistant') && msg !== assistantMessage)
       .map(msg => ({
@@ -304,14 +226,12 @@ async function sendMessage() {
         content: msg.content
       }))
 
-    // 使用智能体的 ID 作为后端的 agent_type
     const agentType = agentStore.getActiveAgentId
 
     if (!agentType) {
       throw new Error('智能体ID不能为空')
     }
 
-    // 使用流式聊天接口
     await chatStream(
       {
         agent_type: agentType.toString(),
@@ -321,15 +241,9 @@ async function sendMessage() {
         stream: true
       },
       {
-        // 接收到内容块时，实时更新消息内容
         onChunk: (content: string) => {
-          console.log('[sendMessage] 收到内容块:', content, '长度:', content.length, '当前累积长度:', receivedContent.length)
-
-          // 后端返回的是增量内容（delta.content），需要累积
           receivedContent += content
-          console.log('[sendMessage] 累积内容，新长度:', receivedContent.length)
 
-          // 如果是第一个内容块，创建消息占位符
           if (!hasReceivedFirstChunk) {
             hasReceivedFirstChunk = true
             assistantMessage = {
@@ -338,30 +252,20 @@ async function sendMessage() {
               timestamp: Date.now()
             }
             chatHistory.push(assistantMessage)
-            // 隐藏加载状态，显示实际消息
             isGenerating.value = false
-            console.log('[sendMessage] 创建第一条消息，内容:', assistantMessage.content)
           } else if (assistantMessage) {
-            // 直接更新整个 content 属性，确保 Vue 响应式生效
             assistantMessage.content = receivedContent
-            console.log('[sendMessage] 更新消息内容，总长度:', assistantMessage.content.length)
           }
 
-          // 实时滚动到底部，提供流畅的体验
           nextTick(() => {
             scrollToBottom()
           })
         },
-        // 接收到会话ID时保存
         onConversationId: (id: number) => {
           conversationId.value = id
         },
-        // 流式响应完成
         onDone: () => {
-          console.log('[sendMessage] 流式响应完成')
-          // 确保加载状态已隐藏
           isGenerating.value = false
-          // 如果没有收到任何内容，创建错误消息
           if (!hasReceivedFirstChunk && !assistantMessage) {
             assistantMessage = {
               role: 'assistant',
@@ -370,14 +274,10 @@ async function sendMessage() {
             }
             chatHistory.push(assistantMessage)
           }
-          // 确保最终滚动到底部
           scrollToBottom()
         },
-        // 发生错误时处理
         onError: (error: string) => {
-          console.error('[sendMessage] 发生错误:', error)
           isGenerating.value = false
-          // 如果还没有创建消息，创建一个错误消息
           if (!assistantMessage) {
             assistantMessage = {
               role: 'assistant',
@@ -400,11 +300,9 @@ async function sendMessage() {
 
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : '生成失败，请稍后重试'
-    console.error('[sendMessage] 捕获异常:', error)
 
     isGenerating.value = false
 
-    // 如果还没有创建消息，创建一个错误消息
     if (!assistantMessage) {
       assistantMessage = {
         role: 'assistant',
@@ -413,7 +311,6 @@ async function sendMessage() {
       }
       chatHistory.push(assistantMessage)
     } else {
-      // assistantMessage 不为 null，可以安全访问 content
       const msg = assistantMessage as ChatMessage
       msg.content = `❌ 生成失败：${errorMessage}`
     }
@@ -426,14 +323,10 @@ async function sendMessage() {
       duration: 2500
     })
   } finally {
-    // 确保加载状态已隐藏
     isGenerating.value = false
   }
 }
 
-/**
- * 复制消息
- */
 function copyMessage(content: string) {
   uni.setClipboardData({
     data: content,
@@ -446,79 +339,52 @@ function copyMessage(content: string) {
   })
 }
 
-// ============== 生命周期 ==============
-// 页面加载时接收参数
 interface PageOptions {
   agentId?: string
+  content?: string
+  inspiration_id?: string
   [key: string]: any
 }
 
 onLoad(async (options?: PageOptions) => {
-  // 加载存储的快捷指令信息
   quickEntryStore.loadActiveQuickEntryFromStorage()
 
   if (options?.agentId) {
-    // 如果 store 中没有激活的智能体，或者 ID 不匹配，尝试从 storage 加载
     if (!agentStore.activeAgent || agentStore.activeAgent.id !== options.agentId) {
       agentStore.loadActiveAgentFromStorage()
-      // 如果仍然不匹配，从 API 获取真实的智能体信息
       if (!agentStore.activeAgent || agentStore.activeAgent.id !== options.agentId) {
         await agentStore.setActiveAgentById(options.agentId)
       }
     }
   } else {
-    // 如果没有传入 agentId，尝试从 store 读取
     if (!agentStore.activeAgent) {
       agentStore.loadActiveAgentFromStorage()
     }
-
-    // 如果仍然没有，提示错误
     if (!agentStore.activeAgent) {
       uni.showToast({
         title: '缺少智能体ID参数',
         icon: 'none'
       })
-      // 延迟返回上一页
-      setTimeout(() => {
-        goBack()
-      }, 1500)
+      setTimeout(() => goBack(), 1500)
     }
   }
-})
 
-// 页面加载时处理URL参数
-onLoad((options: any) => {
-  // 处理灵感参数
-  if (options.inspiration_id || options.content) {
-    if (options.content) {
-      // 预填充输入框
-      inputText.value = decodeURIComponent(options.content)
-    }
+  if (options?.content) {
+    inputText.value = decodeURIComponent(options.content)
   }
 })
 
 onMounted(async () => {
-  // Task 1: 初始化 IP 卡片
-  initIPCard()
-  // 初始化时滚动到底部
   scrollToBottom()
 
-  // 如果页面加载时已经有快捷指令且输入框为空，则填充 instructions
   if (!inputText.value.trim() && quickEntryStore.activeQuickEntry?.instructions) {
     inputText.value = quickEntryStore.activeQuickEntry.instructions
   }
 })
 
-// 监听项目变化，更新 IP 卡片
-watch(activeProject, () => {
-  initIPCard()
-}, { immediate: true })
-
-// 监听快捷指令变化，自动填充到输入框（仅在输入框为空时填充）
 watch(
   () => quickEntryStore.activeQuickEntry,
   (newEntry) => {
-    // 如果输入框为空且有快捷指令的 instructions，则自动填充
     if (!inputText.value.trim() && newEntry?.instructions) {
       inputText.value = newEntry.instructions
     }
@@ -527,7 +393,6 @@ watch(
 </script>
 
 <style lang="scss" scoped>
-// ============== 变量定义 ==============
 $primary-orange: #FF6B35;
 $primary-orange-light: #FF8C5A;
 $accent-blue: #4FACFE;
@@ -539,7 +404,6 @@ $text-secondary: #666;
 $text-muted: #999;
 $border-light: rgba(0, 0, 0, 0.06);
 
-// ============== 页面容器 ==============
 .chat-page {
   display: flex;
   flex-direction: column;
@@ -547,7 +411,6 @@ $border-light: rgba(0, 0, 0, 0.06);
   background: linear-gradient(165deg, #F8FAFF 0%, #EEF2FF 50%, #FFF5F0 100%);
 }
 
-// ============== 顶部导航栏 ==============
 .nav-header {
   display: flex;
   flex-direction: column;
@@ -557,12 +420,12 @@ $border-light: rgba(0, 0, 0, 0.06);
   position: relative;
   z-index: 100;
 
-  // 导航栏内容区域（横向布局）
-    .nav-content {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-    }
+  .nav-content {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
   .nav-left {
     width: 72rpx;
     height: 72rpx;
@@ -612,33 +475,29 @@ $border-light: rgba(0, 0, 0, 0.06);
 }
 
 @keyframes pulse {
-
   0%,
-    100% {
-      opacity: 1;
-      transform: scale(1);
-    }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
 
-    50% {
-      opacity: 0.6;
-      transform: scale(0.9);
+  50% {
+    opacity: 0.6;
+    transform: scale(0.9);
   }
 }
 
-// ============== PersonaCard 包装容器 ==============
 .persona-card-wrapper {
   flex-shrink: 0;
   overflow: visible;
 }
 
-// ============== 聊天容器 ==============
 .chat-container {
   flex: 1;
   padding: 24rpx;
   overflow: hidden;
 }
 
-// ============== 消息气泡 ==============
 .message-wrapper {
   margin-bottom: 28rpx;
 
@@ -732,7 +591,6 @@ $border-light: rgba(0, 0, 0, 0.06);
   }
 }
 
-// ============== 系统提示消息 ==============
 .system-hint-wrapper {
   display: flex;
   justify-content: center;
@@ -768,16 +626,16 @@ $border-light: rgba(0, 0, 0, 0.06);
       animation: typingBounce 1.4s infinite both;
 
       &:nth-child(1) {
-          animation-delay: 0s;
-        }
-      
-        &:nth-child(2) {
-          animation-delay: 0.2s;
-        }
-      
-        &:nth-child(3) {
-          animation-delay: 0.4s;
-        }
+        animation-delay: 0s;
+      }
+
+      &:nth-child(2) {
+        animation-delay: 0.2s;
+      }
+
+      &:nth-child(3) {
+        animation-delay: 0.4s;
+      }
     }
   }
 
@@ -788,7 +646,7 @@ $border-light: rgba(0, 0, 0, 0.06);
 }
 
 @keyframes typingBounce {
-0%,
+  0%,
   80%,
   100% {
     transform: scale(0.6);
@@ -805,7 +663,6 @@ $border-light: rgba(0, 0, 0, 0.06);
   height: 200rpx;
 }
 
-// ============== AI 生成提示 ==============
 .ai-disclaimer {
   padding: 16rpx 24rpx;
   text-align: center;
@@ -819,7 +676,6 @@ $border-light: rgba(0, 0, 0, 0.06);
   }
 }
 
-// ============== 底部输入栏 ==============
 .input-bar {
   background: rgba(255, 255, 255, 0.95);
   backdrop-filter: blur(20px);
@@ -898,6 +754,4 @@ $border-light: rgba(0, 0, 0, 0.06);
     }
   }
 }
-
 </style>
-

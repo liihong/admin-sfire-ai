@@ -1,64 +1,58 @@
 <template>
   <view class="login-container">
-    <!-- 背景装饰 -->
-    <view class="bg-decoration">
-      <view class="circle circle-1"></view>
-      <view class="circle circle-2"></view>
-      <view class="circle circle-3"></view>
+    <!-- 流体弥散背景 -->
+    <view class="bg-fluid">
+      <view class="fluid-blob fluid-blob-1"></view>
+      <view class="fluid-blob fluid-blob-2"></view>
+    </view>
+
+    <!-- 火花点缀 -->
+    <view class="sparkles">
+      <view class="sparkle sparkle-1"></view>
+      <view class="sparkle sparkle-2"></view>
+      <view class="sparkle sparkle-3"></view>
+      <view class="sparkle sparkle-4"></view>
+      <view class="sparkle sparkle-5"></view>
+      <view class="sparkle sparkle-6"></view>
     </view>
 
     <!-- Logo 区域 -->
     <view class="logo-section">
-      <view class="logo-wrapper">
-        <image class="logo" src="/static/logo.png" mode="aspectFit" />
+      <view class="logo-glass-wrapper">
+        <view class="logo-gradient-ball">
+          <image class="logo" src="/static/logo.png" mode="aspectFit" />
+        </view>
       </view>
-      <text class="app-name">火源文案</text>
-      <text class="app-slogan">AI 驱动的智能创作平台</text>
+      <text class="app-name">火源灵感火花</text>
+      <view class="ai-tip-capsule">
+        <view class="breathing-dot"></view>
+        <text class="ai-tip-text">AI 驱动的智能创作平台</text>
+      </view>
     </view>
 
     <!-- 登录按钮区域 -->
     <view class="login-section">
-      <view class="login-card">
-        <view class="card-header">
-          <text class="card-title">欢迎使用</text>
-          <text class="card-subtitle">使用微信手机号快速登录</text>
-        </view>
-
-        <!-- 手机号一键登录按钮 -->
-        <button
-          class="login-btn"
-          :class="{ disabled: !isAgreed }"
-          open-type="getPhoneNumber"
-          @getphonenumber="handleGetPhoneNumber"
-        >
-          <view class="btn-content">
-            <text class="btn-icon">📱</text>
-            <text class="btn-text">手机号一键登录</text>
+      <button
+class="login-btn-glass" :class="{ disabled: !isAgreed, shake: !isAgreed && showShake }"
+        open-type="getPhoneNumber" @getphonenumber="handleGetPhoneNumber" @tap="handleLoginTap">
+        <view class="btn-content">
+          <view class="wechat-icon-wrapper">
+            <view class="wechat-icon-dot"></view>
           </view>
-        </button>
-
-        <!-- 暂不登录按钮 -->
-        <view class="skip-login-wrapper">
-          <text class="skip-login-btn" @tap="handleSkipLogin">暂不登录</text>
+          <text class="btn-text">微信登录</text>
         </view>
+      </button>
 
-        <view class="divider">
-          <view class="divider-line"></view>
-          <text class="divider-text">安全快捷</text>
-          <view class="divider-line"></view>
-        </view>
-
-        <view class="login-tips">
-          <text class="tip-item">🔒 微信官方授权，安全可靠</text>
-          <text class="tip-item">⚡ 一键登录，无需验证码</text>
-        </view>
+      <!-- 先去逛逛 -->
+      <view class="skip-wrapper">
+        <text class="skip-text" @tap="handleSkipLogin">先去逛逛</text>
       </view>
     </view>
 
     <!-- 隐私协议区域 -->
     <view class="agreement-section">
       <view class="agreement-wrapper" @tap="toggleAgreement">
-        <view class="checkbox" :class="{ checked: isAgreed }">
+        <view class="checkbox-circle" :class="{ checked: isAgreed }">
           <text v-if="isAgreed" class="check-icon">✓</text>
         </view>
         <view class="agreement-text">
@@ -90,6 +84,9 @@ const isAgreed = ref(false)
 // 是否正在登录
 const isLogging = ref(false)
 
+// 是否显示抖动动画
+const showShake = ref(false)
+
 /**
  * 切换协议同意状态
  */
@@ -98,11 +95,28 @@ const toggleAgreement = () => {
 }
 
 /**
+ * 处理登录按钮点击（未同意协议时触发抖动）
+ */
+const handleLoginTap = () => {
+  if (!isAgreed.value) {
+    showShake.value = true
+    setTimeout(() => {
+      showShake.value = false
+    }, 500)
+    uni.showToast({
+      title: '请先同意隐私协议',
+      icon: 'none',
+      duration: 2000
+    })
+  }
+}
+
+/**
  * 处理获取手机号
  */
 const handleGetPhoneNumber = async (e: any) => {
   console.log('getPhoneNumber event:', e)
-  
+
   // 检查是否同意协议
   if (!isAgreed.value) {
     uni.showToast({
@@ -112,7 +126,7 @@ const handleGetPhoneNumber = async (e: any) => {
     })
     return
   }
-  
+
   // 检查是否用户拒绝授权
   if (e.detail.errMsg && e.detail.errMsg.includes('deny')) {
     uni.showToast({
@@ -122,7 +136,7 @@ const handleGetPhoneNumber = async (e: any) => {
     })
     return
   }
-  
+
   // 检查是否获取到 code
   const phoneCode = e.detail.code
   if (!phoneCode) {
@@ -133,24 +147,24 @@ const handleGetPhoneNumber = async (e: any) => {
     })
     return
   }
-  
+
   // 防止重复点击
   if (isLogging.value) return
   isLogging.value = true
-  
+
   try {
     uni.showLoading({
       title: '登录中...',
       mask: true
     })
-    
+
     // 获取微信登录 code
     const loginResult = await wxLogin()
-    
+
     if (!loginResult.code) {
       throw new Error('获取登录凭证失败')
     }
-    
+
     // 调用后端登录接口
     const response = await request<any>({
       url: '/api/v1/client/auth/login',
@@ -160,14 +174,14 @@ const handleGetPhoneNumber = async (e: any) => {
         phone_code: phoneCode
       }
     })
-    
+
     uni.hideLoading()
-    
+
     console.log(response)
     // 后端返回格式: {code: 200, data: {token: "...", userInfo: {...}, is_new_user: ...}, msg: "..."}
     if (response.code === 200 && response.data) {
       const data = response.data
-      
+
       // 保存 access_token
       const tokenValue = data.token
       if (tokenValue) {
@@ -176,7 +190,7 @@ const handleGetPhoneNumber = async (e: any) => {
       } else {
         console.warn('[Login] Access token is missing from response')
       }
-      
+
       // 保存 refresh_token（长期有效，用于刷新 access_token）
       // 注意：refresh_token 是必需的，如果没有则登录失败
       const refreshTokenValue = data.refreshToken
@@ -196,7 +210,7 @@ const handleGetPhoneNumber = async (e: any) => {
         authStore.clearAuth()
         return
       }
-      
+
       // 保存用户信息（长期存储）
       const userInfo = data.userInfo
       if (userInfo) {
@@ -207,13 +221,13 @@ const handleGetPhoneNumber = async (e: any) => {
         })
         console.log('[Login] User info saved to storage')
       }
-      
+
       uni.showToast({
         title: '登录成功',
         icon: 'success',
         duration: 1500
       })
-      
+
       // 登录成功后统一跳转到IP工作台
       const isNewUser = data.is_new_user ?? false
       setTimeout(() => {
@@ -267,7 +281,7 @@ function wxLogin(): Promise<{ code: string }> {
       }
     })
     // #endif
-    
+
     // #ifndef MP-WEIXIN
     // 非微信环境，使用 mock code
     console.log('[Dev] Using mock login code')
@@ -336,297 +350,333 @@ const handleSkipLogin = () => {
 </script>
 
 <style lang="scss" scoped>
-// CSS变量 - 品牌色（与 ProjectDashboard 保持一致）
-$brand-orange: #FF8800;
-$brand-orange-alt: #F37021;
-$brand-orange-light: rgba(255, 136, 0, 0.1);
-$bg-light: #F5F7FA;
+@import '@/styles/_variables.scss';
+@import '@/styles/_mixins.scss';
+@import '@/styles/_animations.scss';
+
+// 页面特定变量
+$brand-purple: #9D50FF;
+$bg-ultra-light: #FDFEFE;
+$wechat-green: #07C160;
+
 .login-container {
   min-height: 100vh;
-  background: linear-gradient(180deg, $brand-orange 0%, $brand-orange-alt 50%, $bg-light 100%);
-  display: flex;
-  flex-direction: column;
+  background: $bg-ultra-light;
+  @include flex-column;
   position: relative;
   overflow: hidden;
 }
 
-/* 背景装饰（与 ProjectDashboard 风格一致） */
-.bg-decoration {
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
+.bg-fluid {
+  @include fixed-fullscreen;
   pointer-events: none;
   overflow: hidden;
-  
-  .circle {
-    position: absolute;
-    border-radius: 50%;
-  }
-  
-  .circle-1 {
-    width: 400rpx;
-    height: 400rpx;
-    background: radial-gradient(circle, rgba(255, 255, 255, 0.15) 0%, transparent 70%);
-    top: -100rpx;
-    right: -100rpx;
-  }
-  
-  .circle-2 {
-    width: 300rpx;
-    height: 300rpx;
-    background: radial-gradient(circle, rgba(255, 255, 255, 0.12) 0%, transparent 70%);
-    top: 200rpx;
-    left: -150rpx;
-  }
-  
-  .circle-3 {
-    width: 200rpx;
-    height: 200rpx;
-    background: radial-gradient(circle, rgba(255, 255, 255, 0.1) 0%, transparent 70%);
-    bottom: 400rpx;
-    right: -50rpx;
-  }
 }
 
-/* Logo 区域 */
+.fluid-blob {
+  position: absolute;
+  border-radius: $radius-circle;
+  filter: blur(120rpx);
+  opacity: 0.4;
+  animation: float-slow 25s ease-in-out infinite;
+}
+
+.fluid-blob-1 {
+  width: 600rpx;
+  height: 600rpx;
+  background: radial-gradient(circle, rgba(255, 136, 0, 0.6) 0%, rgba(255, 136, 0, 0.2) 50%, transparent 100%);
+  top: -200rpx;
+  left: -200rpx;
+  animation-delay: 0s;
+}
+
+.fluid-blob-2 {
+  width: 500rpx;
+  height: 500rpx;
+  background: radial-gradient(circle, rgba(157, 80, 255, 0.5) 0%, rgba(157, 80, 255, 0.2) 50%, transparent 100%);
+  bottom: -150rpx;
+  right: -150rpx;
+  animation-delay: 5s;
+}
+
+.sparkles {
+  @include fixed-fullscreen;
+  pointer-events: none;
+}
+
+.sparkle {
+  position: absolute;
+  width: 8rpx;
+  height: 8rpx;
+  background: $brand-orange;
+  border-radius: $radius-circle;
+  box-shadow: 0 0 12rpx $brand-orange;
+  animation: sparkle 3s ease-in-out infinite;
+}
+
+.sparkle-1 {
+  top: 20%;
+  left: 15%;
+  animation-delay: 0s;
+}
+
+.sparkle-2 {
+  top: 35%;
+  right: 20%;
+  animation-delay: 0.5s;
+}
+
+.sparkle-3 {
+  top: 50%;
+  left: 10%;
+  animation-delay: 1s;
+}
+
+.sparkle-4 {
+  top: 65%;
+  right: 15%;
+  animation-delay: 1.5s;
+}
+
+.sparkle-5 {
+  top: 80%;
+  left: 25%;
+  animation-delay: 2s;
+}
+
+.sparkle-6 {
+  top: 25%;
+  right: 30%;
+  animation-delay: 2.5s;
+}
+
 .logo-section {
-  display: flex;
-  flex-direction: column;
+  @include flex-column;
   align-items: center;
-  padding-top: 180rpx;
-  padding-bottom: 80rpx;
-  z-index: 1;
-  
-  .logo-wrapper {
-    width: 180rpx;
-    height: 180rpx;
-    background: rgba(255, 255, 255, 0.95);
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    box-shadow: 0 16rpx 48rpx rgba(0, 0, 0, 0.2);
-    margin-bottom: 32rpx;
-  }
-  
-  .logo {
-    width: 120rpx;
-    height: 120rpx;
-  }
-  
-  .app-name {
-    font-size: 56rpx;
-    font-weight: 700;
-    color: #ffffff;
-    letter-spacing: 8rpx;
-    text-shadow: 0 4rpx 16rpx rgba(0, 0, 0, 0.2);
-    margin-bottom: 16rpx;
-  }
-  
-  .app-slogan {
-    font-size: 28rpx;
-    color: rgba(255, 255, 255, 0.85);
-    letter-spacing: 2rpx;
-  }
+  padding-top: 200rpx;
+  padding-bottom: 100rpx;
+  z-index: $z-index-base;
 }
 
-/* 登录区域 */
+.logo-glass-wrapper {
+  width: 200rpx;
+  height: 200rpx;
+  background: rgba(255, 255, 255, 0.6);
+  backdrop-filter: blur(20rpx);
+  -webkit-backdrop-filter: blur(20rpx);
+  border-radius: $radius-circle;
+  border: 2rpx solid rgba(255, 255, 255, 0.8);
+  @include flex-center;
+  box-shadow: $shadow-lg;
+  margin-bottom: $spacing-xl;
+  position: relative;
+  overflow: hidden;
+}
+
+.logo-gradient-ball {
+  width: 140rpx;
+  height: 140rpx;
+  background: linear-gradient(135deg, $brand-orange 0%, $brand-orange-alt 50%, $brand-purple 100%);
+  border-radius: $radius-circle;
+  animation: rotate-slow 20s linear infinite;
+  box-shadow: inset 0 0 40rpx rgba(255, 255, 255, 0.3);
+}
+
+.logo {
+  width: 100%;
+  height: 100%;
+}
+
+.app-name {
+  font-size: 56rpx;
+  font-weight: 700;
+  color: #595968;
+  letter-spacing: 12rpx;
+  text-shadow: 0 2rpx 8rpx rgba(0, 0, 0, 0.08);
+  margin-bottom: $spacing-lg;
+}
+
+.ai-tip-capsule {
+  @include flex-center-vertical;
+  gap: $spacing-sm;
+  padding: 12rpx $spacing-md;
+  background: rgba(255, 255, 255, 0.7);
+  backdrop-filter: blur(10rpx);
+  -webkit-backdrop-filter: blur(10rpx);
+  border-radius: 50rpx;
+  border: 1rpx solid rgba(255, 136, 0, 0.2);
+}
+
+.breathing-dot {
+  width: 16rpx;
+  height: 16rpx;
+  background: $brand-orange;
+  border-radius: $radius-circle;
+  box-shadow: 0 0 12rpx $brand-orange;
+  animation: breathing-dot 2s ease-in-out infinite;
+}
+
+.ai-tip-text {
+  font-size: $font-size-sm;
+  color: $text-secondary;
+}
+
 .login-section {
   flex: 1;
-  padding: 0 40rpx;
-  z-index: 1;
-  
-  .login-card {
-    background: #ffffff;
-    border-radius: 32rpx;
-    padding: 48rpx 40rpx;
-    box-shadow: 0 16rpx 64rpx rgba(0, 0, 0, 0.15);
-  }
-  
-  .card-header {
-    text-align: center;
-    margin-bottom: 48rpx;
-    
-    .card-title {
-      display: block;
-      font-size: 44rpx;
-      font-weight: 700;
-      color: #1a1a2e;
-      margin-bottom: 12rpx;
-    }
-    
-    .card-subtitle {
-      font-size: 28rpx;
-      color: #666666;
-    }
-  }
+  padding: 0 60rpx;
+  z-index: $z-index-base;
+  @include flex-column;
+  gap: $spacing-lg;
 }
 
-/* 登录按钮 */
-.login-btn {
+.login-btn-glass {
   width: 100%;
   height: 100rpx;
-  background: linear-gradient(135deg, $brand-orange 0%, $brand-orange-alt 100%);
+  background: rgba(255, 255, 255, 0.7);
+  backdrop-filter: blur(20rpx);
+  -webkit-backdrop-filter: blur(20rpx);
   border-radius: 50rpx;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border: none;
+  border: 2rpx solid transparent;
+  background-clip: padding-box;
+  box-shadow: $shadow-lg, 0 0 0 1rpx rgba(7, 193, 96, 0.3), 0 0 20rpx rgba(255, 136, 0, 0.2);
+  @include flex-center;
   padding: 0;
   margin: 0;
-  box-shadow: 0 8rpx 32rpx rgba(255, 136, 0, 0.4);
-  transition: all 0.3s ease;
-  
-  &::after {
-    border: none;
-  }
-  
-  &:active {
-    transform: scale(0.98);
-    opacity: 0.9;
-  }
-  
-  &.disabled {
-    opacity: 0.6;
-  }
-  
-  .btn-content {
-    display: flex;
-    align-items: center;
-    gap: 16rpx;
-  }
-  
-  .btn-icon {
-    font-size: 40rpx;
-  }
-  
-  .btn-text {
-    font-size: 32rpx;
-    font-weight: 600;
-    color: #ffffff;
-    letter-spacing: 2rpx;
-  }
+  transition: all $transition-slow ease;
+  position: relative;
 }
 
-/* 暂不登录按钮 */
-.skip-login-wrapper {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  margin-top: 32rpx;
-  
-  .skip-login-btn {
-    font-size: 28rpx;
-    color: #999999;
-    padding: 16rpx 32rpx;
-    text-decoration: underline;
-    transition: all 0.3s ease;
-    
-    &:active {
-      color: #666666;
-      opacity: 0.8;
-    }
-  }
+.login-btn-glass::after {
+  border: none;
 }
 
-/* 分隔线 */
-.divider {
-  display: flex;
-  align-items: center;
-  margin: 40rpx 0;
-  
-  .divider-line {
-    flex: 1;
-    height: 1rpx;
-    background: linear-gradient(90deg, transparent, #e0e0e0, transparent);
-  }
-  
-  .divider-text {
-    padding: 0 24rpx;
-    font-size: 24rpx;
-    color: #999999;
-  }
+.login-btn-glass:active {
+  transform: scale(0.98);
+  opacity: 0.9;
 }
 
-/* 登录提示 */
-.login-tips {
-  display: flex;
-  flex-direction: column;
-  gap: 16rpx;
-  
-  .tip-item {
-    font-size: 26rpx;
-    color: #666666;
-    text-align: center;
-  }
+.login-btn-glass.disabled {
+  opacity: 0.5;
 }
 
-/* 协议区域 */
+.login-btn-glass.shake {
+  animation: shake-anim 0.5s ease-in-out;
+}
+
+.btn-content {
+  @include flex-center-vertical;
+  gap: 20rpx;
+}
+
+.wechat-icon-wrapper {
+  width: 48rpx;
+  height: 48rpx;
+  background: $wechat-green;
+  border-radius: $radius-circle;
+  @include flex-center;
+  box-shadow: $shadow-sm;
+}
+
+.wechat-icon-dot {
+  width: 28rpx;
+  height: 28rpx;
+  background: $white;
+  border-radius: $radius-circle;
+  position: relative;
+}
+
+.wechat-icon-dot::before {
+  content: '';
+  position: absolute;
+  top: 6rpx;
+  left: 6rpx;
+  width: 16rpx;
+  height: 16rpx;
+  background: $wechat-green;
+  border-radius: $radius-circle;
+  clip-path: polygon(0 0, 100% 0, 100% 60%, 60% 60%, 60% 100%, 0 100%);
+}
+
+.btn-text {
+  font-size: $font-size-lg;
+  font-weight: 600;
+  color: $text-primary;
+  letter-spacing: 2rpx;
+}
+
+.skip-wrapper {
+  @include flex-center;
+}
+
+.skip-text {
+  font-size: $font-size-sm;
+  color: $text-muted;
+  transition: all $transition-slow ease;
+}
+
+.skip-text:active {
+  color: $text-secondary;
+  opacity: 0.8;
+}
+
 .agreement-section {
-  padding: 40rpx;
-  z-index: 1;
-  
-  .agreement-wrapper {
-    display: flex;
-    align-items: flex-start;
-    justify-content: center;
-    gap: 16rpx;
-  }
-  
-  .checkbox {
-    width: 40rpx;
-    height: 40rpx;
-    border: 3rpx solid #cccccc;
-    border-radius: 8rpx;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    flex-shrink: 0;
-    transition: all 0.3s ease;
-    margin-top: 4rpx;
-    
-    &.checked {
-      background: linear-gradient(135deg, $brand-orange 0%, $brand-orange-alt 100%);
-        border-color: $brand-orange;
-    }
-    
-    .check-icon {
-      font-size: 24rpx;
-      color: #ffffff;
-      font-weight: 700;
-    }
-  }
-  
-  .agreement-text {
-    flex: 1;
-    font-size: 26rpx;
-    line-height: 1.6;
-    text-align: center;
-  }
-  
-  .normal-text {
-    color: #666666;
-  }
-  
-  .link-text {
-    color: $brand-orange;
-    font-weight: 500;
-  }
+  padding: 40rpx 60rpx;
+  z-index: $z-index-base;
 }
 
-/* 底部版权 */
+.agreement-wrapper {
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  gap: $spacing-sm;
+}
+
+.checkbox-circle {
+  width: 36rpx;
+  height: 36rpx;
+  border: 2rpx solid #cccccc;
+  border-radius: $radius-circle;
+  @include flex-center;
+  flex-shrink: 0;
+  transition: all $transition-slow ease;
+  margin-top: 4rpx;
+}
+
+.checkbox-circle.checked {
+  background: $brand-orange;
+  border-color: $brand-orange;
+}
+
+.check-icon {
+  font-size: 22rpx;
+  color: $white;
+  font-weight: 700;
+}
+
+.agreement-text {
+  flex: 1;
+  font-size: $font-size-sm;
+  line-height: 1.6;
+  text-align: center;
+}
+
+.normal-text {
+  color: $text-secondary;
+}
+
+.link-text {
+  color: $brand-orange;
+  font-weight: 500;
+}
+
 .footer {
   padding: 40rpx;
   text-align: center;
-  z-index: 1;
-  
-  .copyright {
-    font-size: 22rpx;
-    color: #999999;
-  }
+  z-index: $z-index-base;
+}
+
+.copyright {
+  font-size: $font-size-xs;
+  color: $text-muted;
 }
 </style>
-
-

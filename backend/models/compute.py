@@ -5,6 +5,7 @@
 import enum
 from decimal import Decimal
 from typing import Optional, TYPE_CHECKING
+from datetime import datetime
 from sqlalchemy import (
     String,
     Enum as SQLEnum,
@@ -13,6 +14,7 @@ from sqlalchemy import (
     ForeignKey,
     Index,
     Text,
+    DateTime,
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -20,6 +22,7 @@ from models.base import BaseModel
 
 if TYPE_CHECKING:
     from models.user import User
+    from models.recharge_package import RechargePackage
 
 
 class ComputeType(enum.Enum):
@@ -132,6 +135,40 @@ class ComputeLog(BaseModel):
         comment="操作人ID（管理员操作时记录）",
     )
     
+    # === 支付相关字段 ===
+    payment_amount: Mapped[Optional[Decimal]] = mapped_column(
+        DECIMAL(10, 2),
+        nullable=True,
+        comment="支付金额（元）",
+    )
+    
+    payment_status: Mapped[Optional[str]] = mapped_column(
+        String(32),
+        nullable=True,
+        default="pending",
+        server_default="pending",
+        comment="支付状态：pending-待支付, paid-已支付, failed-支付失败, cancelled-已取消",
+    )
+    
+    payment_time: Mapped[Optional[datetime]] = mapped_column(
+        DateTime,
+        nullable=True,
+        comment="支付时间",
+    )
+    
+    wechat_transaction_id: Mapped[Optional[str]] = mapped_column(
+        String(64),
+        nullable=True,
+        comment="微信交易号",
+    )
+    
+    package_id: Mapped[Optional[int]] = mapped_column(
+        BigInteger,
+        ForeignKey("recharge_packages.id", ondelete="SET NULL"),
+        nullable=True,
+        comment="关联套餐ID",
+    )
+    
     # === 扩展字段（便于小程序同步）===
     source: Mapped[Optional[str]] = mapped_column(
         String(32),
@@ -151,6 +188,12 @@ class ComputeLog(BaseModel):
     user: Mapped["User"] = relationship(
         "User",
         back_populates="compute_logs",
+    )
+    
+    package: Mapped[Optional["RechargePackage"]] = relationship(
+        "RechargePackage",
+        back_populates="compute_logs",
+        foreign_keys=[package_id],
     )
     
     def __repr__(self) -> str:

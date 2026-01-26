@@ -84,7 +84,7 @@ function handleClick(key: string) {
     .category-label {
       font-size: $font-size-sm;
       font-weight: 900;
-      color: $text-main;
+      color: $text-primary;
       text-align: center;
     }
   }

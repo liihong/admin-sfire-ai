@@ -1,15 +1,17 @@
 """
 火源币算力相关API路由
-提供算力余额查询、算力计算、流水查询等接口
+提供算力余额查询、算力计算、流水查询、充值等接口
 """
-from typing import Optional
-from fastapi import APIRouter, Depends, Query
+from typing import Optional, Dict, Any
+from fastapi import APIRouter, Depends, Query, Request, Response
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from db import get_db
 from models.user import User
 from core.deps import get_current_miniprogram_user
 from services.coin import CoinServiceFactory
+from services.coin.package import RechargePackageService
+from services.coin.recharge_order import RechargeOrderService
 from services.resource import ComputeService
 from schemas.coin import (
     CoinBalanceResponse,
@@ -17,8 +19,16 @@ from schemas.coin import (
     CoinEstimateRequest,
     CoinCostResponse,
 )
+from schemas.recharge import (
+    RechargePackageResponse,
+    RechargeOrderRequest,
+    RechargeOrderResponse,
+    PaymentCallbackRequest,
+    OrderStatusResponse,
+)
 from utils.response import success, page_response, fail
 from utils.exceptions import BadRequestException
+from loguru import logger
 
 router = APIRouter()
 
@@ -229,5 +239,211 @@ async def get_statistics(
         statistics = await service.get_user_statistics(current_user.id)
 
         return success(data=statistics, msg="查询成功")
+    except Exception as e:
+        return fail(msg=f"查询失败: {str(e)}", code=500)
+
+
+@router.get("/coin/packages", summary="获取套餐列表")
+async def get_packages(
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    获取充值套餐列表（只返回启用的套餐）
+
+    Returns:
+        {
+            "code": 200,
+            "data": [
+                {
+                    "id": 1,
+                    "name": "爆款合伙人",
+                    "price": 99.00,
+                    "power_amount": 15000,
+                    ...
+                }
+            ],
+            "msg": "查询成功"
+        }
+    """
+    try:
+        package_service = RechargePackageService(db)
+        packages = await package_service.get_packages(enabled_only=True)
+        
+        # 转换为响应格式
+        package_list = []
+        for pkg in packages:
+            package_list.append({
+                "id": pkg.id,
+                "name": pkg.name,
+                "price": float(pkg.price),
+                "power_amount": float(pkg.power_amount),
+                "unit_price": pkg.unit_price,
+                "tag": pkg.tag if pkg.tag else [],
+                "description": pkg.description,
+                "article_count": pkg.article_count,
+                "sort_order": pkg.sort_order,
+                "status": pkg.status,
+                "is_popular": pkg.is_popular,
+            })
+        
+        return success(data=package_list, msg="查询成功")
+    except Exception as e:
+        return fail(msg=f"查询失败: {str(e)}", code=500)
+
+
+@router.post("/coin/recharge/order", summary="创建充值订单")
+async def create_recharge_order(
+    request: RechargeOrderRequest,
+    http_request: Request,
+    current_user: User = Depends(get_current_miniprogram_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    创建充值订单
+
+    Body:
+        {
+            "package_id": 1
+        }
+
+    Returns:
+        {
+            "code": 200,
+            "data": {
+                "order_id": "R202401011234567890",
+                "package_id": 1,
+                "package_name": "爆款合伙人",
+                "price": 99.00,
+                "power_amount": 15000,
+                "payment_status": "pending",
+                "payment_params": {...}
+            },
+            "msg": "订单创建成功"
+        }
+    """
+    try:
+        # 获取用户openid（从用户信息中获取）
+        openid = current_user.openid
+        if not openid:
+            return fail(msg="用户openid不存在，无法创建支付订单", code=400)
+        
+        # 获取客户端IP
+        client_ip = http_request.client.host if http_request.client else "127.0.0.1"
+        
+        order_service = RechargeOrderService(db)
+        order_info = await order_service.create_order(
+            user_id=current_user.id,
+            package_id=request.package_id,
+            openid=openid,
+            client_ip=client_ip
+        )
+        
+        return success(data=order_info, msg="订单创建成功")
+    except BadRequestException as e:
+        return fail(msg=str(e), code=400)
+    except Exception as e:
+        return fail(msg=f"创建订单失败: {str(e)}", code=500)
+
+
+@router.post("/coin/recharge/callback", summary="支付回调接口")
+async def payment_callback(
+    request: Request,
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    微信支付回调接口
+    
+    注意：此接口由微信支付平台调用，不需要用户认证
+    
+    Returns:
+        XML格式响应（微信支付要求）
+    """
+    from utils.security import verify_ip_whitelist
+    from core.config import settings
+    
+    try:
+        # 1. 验证IP白名单
+        client_ip = request.client.host if request.client else None
+        if not client_ip:
+            # 尝试从X-Forwarded-For获取真实IP
+            forwarded_for = request.headers.get("X-Forwarded-For")
+            if forwarded_for:
+                client_ip = forwarded_for.split(",")[0].strip()
+            else:
+                client_ip = "127.0.0.1"
+        
+        if not verify_ip_whitelist(client_ip, settings.WECHAT_PAY_IP_WHITELIST):
+            logger.warning(f"支付回调IP不在白名单: {client_ip}")
+            xml_response = _build_xml_response("FAIL", "IP验证失败")
+            return Response(content=xml_response, media_type="application/xml")
+        
+        # 2. 获取回调数据（微信支付v2使用XML格式）
+        xml_data = await request.body()
+        callback_data = _parse_xml_callback(xml_data.decode('utf-8'))
+        
+        # 3. 获取签名
+        sign = callback_data.get("sign")
+        if not sign:
+            xml_response = _build_xml_response("FAIL", "缺少签名")
+            return Response(content=xml_response, media_type="application/xml")
+        
+        # 4. 处理回调
+        order_service = RechargeOrderService(db)
+        result = await order_service.handle_payment_callback(callback_data, sign)
+        
+        xml_response = _build_xml_response("SUCCESS", "OK")
+        return Response(content=xml_response, media_type="application/xml")
+        
+    except Exception as e:
+        logger.error(f"支付回调处理失败: {e}")
+        xml_response = _build_xml_response("FAIL", f"处理失败: {str(e)}")
+        return Response(content=xml_response, media_type="application/xml")
+
+
+def _parse_xml_callback(xml_str: str) -> Dict[str, Any]:
+    """解析XML回调数据"""
+    import xml.etree.ElementTree as ET
+    try:
+        root = ET.fromstring(xml_str)
+        result = {}
+        for child in root:
+            result[child.tag] = child.text
+        return result
+    except Exception as e:
+        logger.error(f"解析XML回调失败: {e}")
+        return {}
+
+
+def _build_xml_response(return_code: str, return_msg: str) -> str:
+    """构建XML响应（微信支付v2要求）"""
+    return f"<xml><return_code><![CDATA[{return_code}]]></return_code><return_msg><![CDATA[{return_msg}]]></return_msg></xml>"
+
+
+@router.get("/coin/recharge/order/{order_id}", summary="查询订单状态")
+async def query_order_status(
+    order_id: str,
+    current_user: User = Depends(get_current_miniprogram_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    查询充值订单状态
+
+    Returns:
+        {
+            "code": 200,
+            "data": {
+                "order_id": "R202401011234567890",
+                "payment_status": "paid",
+                "payment_time": "2024-01-01T12:00:00",
+                "wechat_transaction_id": "wx1234567890"
+            },
+            "msg": "查询成功"
+        }
+    """
+    try:
+        order_service = RechargeOrderService(db)
+        order_status = await order_service.query_order_status(order_id)
+        
+        return success(data=order_status, msg="查询成功")
     except Exception as e:
         return fail(msg=f"查询失败: {str(e)}", code=500)

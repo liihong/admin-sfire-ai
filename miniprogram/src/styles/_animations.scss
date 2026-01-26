@@ -266,3 +266,76 @@
     transform: translateY(-8rpx) scale(1.05);
   }
 }
+
+/**
+ * 缓慢浮动动画（用于背景流体效果）
+ */
+@keyframes float-slow {
+  0%, 100% {
+    transform: translate(0, 0) scale(1);
+  }
+  25% {
+    transform: translate(30rpx, -30rpx) scale(1.1);
+  }
+  50% {
+    transform: translate(-20rpx, 20rpx) scale(0.9);
+  }
+  75% {
+    transform: translate(20rpx, 30rpx) scale(1.05);
+  }
+}
+
+/**
+ * 火花闪烁动画
+ */
+@keyframes sparkle {
+  0%, 100% {
+    opacity: 0.3;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.5);
+  }
+}
+
+/**
+ * 缓慢旋转动画
+ */
+@keyframes rotate-slow {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+/**
+ * 呼吸点动画（带缩放效果）
+ */
+@keyframes breathing-dot {
+  0%, 100% {
+    opacity: 0.6;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.2);
+  }
+}
+
+/**
+ * 抖动动画（用于错误提示）
+ */
+@keyframes shake-anim {
+  0%, 100% {
+    transform: translateX(0);
+  }
+  10%, 30%, 50%, 70%, 90% {
+    transform: translateX(-8rpx);
+  }
+  20%, 40%, 60%, 80% {
+    transform: translateX(8rpx);
+  }
+}

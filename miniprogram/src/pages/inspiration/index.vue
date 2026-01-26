@@ -11,7 +11,10 @@
           <text class="nav-title">我的灵感</text>
         </view>
         <view class="nav-right" @tap="showFilterMenu = !showFilterMenu">
-          <u-icon name="filter" color="#1D2129" size="20"></u-icon>
+         <!-- <u-icon name="filter" color="#1D2129" size="20"></u-icon> -->
+          <SvgIcon name="linggan" size="30" color="#1D2129" />
+
+
         </view>
       </view>
     </view>
@@ -141,7 +144,6 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
-import { onLoad } from '@dcloudio/uni-app'
 import type { Inspiration } from '@/api/inspiration'
 import {
   getInspirationList,
@@ -154,8 +156,9 @@ import {
 import { getBalance } from '@/api/coin'
 import { useProjectStore } from '@/stores/project'
 import InspirationItem from './components/InspirationItem.vue'
-import InspirationCard from '@/pages/project/components/InspirationCard.vue'
+import InspirationCard from './components/InspirationCard.vue'
 import SafeAreaTop from '@/components/common/SafeAreaTop.vue'
+import SvgIcon from '@/components/base/SvgIcon.vue'
 
 // 状态
 const inspirationList = ref<Inspiration[]>([])

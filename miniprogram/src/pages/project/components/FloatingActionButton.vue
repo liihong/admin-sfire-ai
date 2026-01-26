@@ -1,13 +1,15 @@
 <template>
   <view class="fab-container" :style="fabStyle" @tap="$emit('click')">
     <view class="fab-button">
-      <u-icon name="edit-pen" color="#FFFFFF" size="24"></u-icon>
+     <!-- <u-icon name="edit-pen" color="#FFFFFF" size="24"></u-icon> -->
+      <SvgIcon name="linggan" size="50" color="#FFFFFF" />
     </view>
   </view>
 </template>
 
 <script setup lang="ts">
 import { computed } from 'vue'
+import SvgIcon from '@/components/base/SvgIcon.vue'
 
 interface Props {
   bottom?: number // 距离底部距离（rpx）

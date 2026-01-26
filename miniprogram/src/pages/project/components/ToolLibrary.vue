@@ -160,7 +160,6 @@ function handleClick(tool: ToolItem) {
     
     .tool-label {
       font-size: $font-size-sm;
-      font-weight: 900;
       color: $text-main;
       text-align: center;
     }

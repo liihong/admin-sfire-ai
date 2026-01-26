@@ -58,7 +58,7 @@ import CategoryGrid from './CategoryGrid.vue'
 import QuickCommandGrid from './QuickCommandGrid.vue'
 import PersonaDrawer from './PersonaDrawer.vue'
 import FloatingActionButton from './FloatingActionButton.vue'
-import InspirationCard from './InspirationCard.vue'
+import InspirationCard from '@/pages/inspiration/components/InspirationCard.vue'
 import ToolLibrary from './ToolLibrary.vue'
 import BaseSection from '@/components/base/BaseSection.vue'
 

@@ -58,6 +58,12 @@ class Settings(BaseSettings):
     WECHAT_APP_ID: str = "wxd9e4d8682e6caff6"  # 微信小程序 AppID
     WECHAT_APP_SECRET: str = "8a74db18d133f00d4e6360edec9d40d9"  # 微信小程序 AppSecret
     
+    # 微信支付配置
+    WECHAT_PAY_MCH_ID: str = ""  # 微信支付商户号
+    WECHAT_PAY_API_KEY: str = ""  # 微信支付API密钥（v2 API密钥）
+    WECHAT_PAY_NOTIFY_URL: str = ""  # 微信支付回调地址
+    WECHAT_PAY_IP_WHITELIST: str = "182.254.48.0/24,140.207.54.0/24"  # 微信支付IP白名单（逗号分隔）
+    
     # LLM 配置
     DEEPSEEK_API_KEY: str = ""  # DeepSeek API Key
     DOUBAO_API_KEY: str = ""  # 火山引擎（Doubao）API Key
