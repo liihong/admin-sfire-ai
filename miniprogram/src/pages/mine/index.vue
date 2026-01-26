@@ -28,11 +28,18 @@
     <view class="stat-card">
       <view class="stat-header">
         <text class="stat-title">我的算力</text>
-        <text class="stat-link" @tap="goToDetail('power')">算力明细 ›</text>
+        <text class="stat-link" @tap="goToPowerDetail">算力明细 ›</text>
       </view>
-      <view class="stat-value-row">
-        <text class="stat-number">{{ userInfo.power }}</text>
-        <text class="stat-unit">算力</text>
+      <view class="stat-content">
+        <view class="stat-value-row">
+          <text class="stat-number">{{ userInfo.power }}</text>
+          <text class="stat-unit">算力</text>
+        </view>
+        <view class="stat-action">
+          <view class="recharge-btn" @tap="goToRecharge">
+            <text class="recharge-btn-text">充值</text>
+          </view>
+        </view>
       </view>
     </view>
 
@@ -220,18 +227,18 @@ const handleAvatarClick = () => {
   // #endif
 }
 
-// 跳转到明细页面
-const goToDetail = (type: string) => {
-  if (type === 'power') {
-    uni.navigateTo({
-      url: '/pages/mine/power/index'
-    })
-  } else {
-    uni.showToast({
-      title: '查看资产明细',
-      icon: 'none'
-    })
-  }
+// 跳转到算力明细列表
+const goToPowerDetail = () => {
+  uni.navigateTo({
+    url: '/pages/mine/power/detail'
+  })
+}
+
+// 跳转到充值页面
+const goToRecharge = () => {
+  uni.navigateTo({
+    url: '/pages/mine/power/recharge'
+  })
 }
 
 // 申请提现
@@ -383,10 +390,18 @@ onShow(() => {
   font-weight: 500;
 }
 
+.stat-content {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: 24rpx;
+}
+
 .stat-value-row {
   display: flex;
   align-items: baseline;
   gap: 8rpx;
+  flex: 1;
 }
 
 .stat-number {
@@ -400,6 +415,32 @@ onShow(() => {
   font-size: 28rpx;
   color: #6b7280;
   font-weight: 500;
+}
+
+.stat-action {
+  flex-shrink: 0;
+}
+
+.recharge-btn {
+  height: 64rpx;
+  padding: 0 32rpx;
+  background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+  border-radius: 32rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4rpx 12rpx rgba(59, 130, 246, 0.3);
+}
+
+.recharge-btn-text {
+  font-size: 28rpx;
+  color: #ffffff;
+  font-weight: 600;
+}
+
+.recharge-btn:active {
+  opacity: 0.9;
+  transform: scale(0.98);
 }
 
 /* 操作按钮 */

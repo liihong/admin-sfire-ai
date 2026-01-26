@@ -80,14 +80,22 @@ function requestInterceptor(config: RequestConfig): RequestConfig {
   
   // 自动添加 Authorization Token
   if (config.needToken !== false) {
-    const authStore = useAuthStore()
-    // 每次请求时都重新获取token，确保使用最新的token
-    const token = authStore.getToken()
-    if (token) {
-      config.header['Authorization'] = `Bearer ${token}`
-      config.header["X-My-Gate-Key"] = "Huoyuan2026";
-    } else {
-      console.warn('[requestInterceptor] No token available for request:', config.url)
+    try {
+      const authStore = useAuthStore()
+      // 每次请求时都重新获取token，确保使用最新的token
+      if (authStore && typeof authStore.getToken === 'function') {
+        const token = authStore.getToken()
+        if (token) {
+          config.header['Authorization'] = `Bearer ${token}`
+          config.header["X-My-Gate-Key"] = "Huoyuan2026";
+        } else {
+          console.warn('[requestInterceptor] No token available for request:', config.url)
+        }
+      } else {
+        console.warn('[requestInterceptor] authStore.getToken is not available')
+      }
+    } catch (error) {
+      console.error('[requestInterceptor] Failed to get token:', error)
     }
   }
   
@@ -119,8 +127,25 @@ async function handleUnauthorized(originalConfig?: RequestConfig): Promise<boole
 
   // 检查是否有 refreshToken（刷新 token 需要 refreshToken）
   const refreshToken = authStore.getRefreshToken()
+  console.log('[401] Checking refreshToken:', !!refreshToken)
   if (!refreshToken) {
-    console.warn('[401] No refresh token found, cannot refresh, clearing auth')
+    // 再次尝试从 storage 直接读取（可能内存中还没有加载）
+    try {
+      const storedRefreshToken = uni.getStorageSync('sfire_ai_refresh_token')
+      console.log('[401] Stored refreshToken exists:', !!storedRefreshToken)
+      if (storedRefreshToken) {
+        // 如果 storage 中有，更新到内存并重试
+        console.log('[401] Found refreshToken in storage, updating memory and retrying')
+        // 这里不直接清除，而是返回 false，让调用方决定如何处理
+        isHandling401 = false
+        return false
+      }
+    } catch (e) {
+      console.error('[401] Failed to check storage for refreshToken:', e)
+    }
+    
+    console.warn('[401] No refresh token found in memory or storage, cannot refresh, clearing auth')
+    console.trace('[401] Call stack when clearing auth:')
     authStore.clearAuth()
 
     // 立即重置标志，避免重复处理
@@ -164,7 +189,9 @@ async function handleUnauthorized(originalConfig?: RequestConfig): Promise<boole
   }
 
   // token 失效，清除认证信息并跳转到登录页
+  // 注意：只有在 refresh_token 真正失效时才清除（不是网络错误）
   console.warn('[401] Token refresh failed (token invalid), clearing auth and redirecting to login')
+  console.trace('[401] Call stack when clearing auth due to invalid token:')
   authStore.clearAuth()
 
   // 立即重置标志，避免重复处理

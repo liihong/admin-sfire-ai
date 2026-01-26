@@ -266,73 +266,14 @@ onLaunch(async () => {
     console.warn('[App] 获取安全区域信息失败:', error)
   }
   
-  // 初始化认证 Store
+  // 初始化认证 Store（loadFromStorage 已在 auth.ts 中自动调用）
   const authStore = useAuthStore();
   
-  // 从本地存储加载认证信息
-  authStore.loadFromStorage()
-  
-  // 检查是否有 refresh_token（长期有效，如果存在说明用户之前登录过）
-  const existingRefreshToken = authStore.getRefreshToken();
-
-  if (existingRefreshToken) {
-    // 有 refresh_token，尝试刷新 access_token
-    console.log("Refresh token found, attempting to refresh access token");
-    const refreshResult = await authStore.refreshAccessToken();
-
-    if (refreshResult.success) {
-      console.log("Token refreshed successfully from refresh_token");
-      // 刷新成功后，静默刷新用户信息（不阻塞启动流程）
-      authStore.refreshUserInfo().catch(err => {
-        console.warn("Failed to refresh user info:", err);
-        // 用户信息刷新失败不影响启动，使用缓存的用户信息
-      });
-    } else {
-      // 刷新失败
-      if (refreshResult.isNetworkError) {
-        // 网络错误，检查 access_token 是否过期
-        const existingToken = authStore.getToken();
-        if (existingToken && authStore.isTokenExpired(existingToken)) {
-          // access_token 已过期，即使网络错误也应清除认证状态
-          console.warn("Token refresh failed due to network error, but access_token is expired, clearing auth");
-          authStore.clearAuth();
-        } else {
-          // access_token 仍然有效，保留当前认证状态
-          console.warn("Token refresh failed due to network error, but access_token is still valid, keeping auth state");
-        }
-      } else {
-        // refresh_token 失效（可能是用户被封禁、用户被删除等情况）
-        console.warn("Refresh token invalid, clearing auth");
-        authStore.clearAuth();
-      }
-      // 不自动静默登录，让用户手动登录（避免频繁调用 uni.login）
-    }
-  } else {
-    // 没有 refresh_token，检查是否有 access_token
-    const existingToken = authStore.getToken();
-
-    if (existingToken) {
-      // 有 access_token 但没有 refresh_token，检查是否过期
-      const isExpired = authStore.isTokenExpired(existingToken);
-
-      if (isExpired) {
-        // token 过期且没有 refresh_token，清除认证信息
-        console.log("Access token expired and no refresh token, clearing auth");
-        authStore.clearAuth();
-        // 不自动静默登录，让用户手动登录
-      } else {
-        // token 有效但没有 refresh_token，继续使用并刷新用户信息
-        console.log("Access token exists and is valid, refreshing user info");
-        authStore.refreshUserInfo().catch(err => {
-          console.warn("Failed to refresh user info:", err);
-        });
-      }
-    } else {
-      // 没有任何 token，用户未登录
-      console.log("No token found, user needs to login");
-      // 不自动静默登录，让用户手动登录
-    }
-  }
+  // 注意：loadFromStorage() 已经在 auth.ts 初始化时自动调用
+  // 它会自动处理 token 加载和用户信息刷新
+  // 这里不需要重复调用，也不需要手动检查 token 状态
+  // 如果 token 过期，refreshUserInfo() 会自动处理 token 刷新
+  // 如果刷新失败，request 工具会自动清除认证信息
 });
 
 onShow(() => {
