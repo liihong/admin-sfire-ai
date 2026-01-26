@@ -21,7 +21,7 @@ router = APIRouter()
 @router.get("", summary="获取管理员用户列表")
 async def get_admin_users(
     pageNum: int = Query(1, ge=1, description="页码"),
-    pageSize: int = Query(10, ge=1, le=100, description="每页数量"),
+    pageSize: int = Query(10, ge=1, le=1000, description="每页数量"),
     username: Optional[str] = Query(None, description="用户名"),
     email: Optional[str] = Query(None, description="邮箱"),
     role_id: Optional[int] = Query(None, description="角色ID"),

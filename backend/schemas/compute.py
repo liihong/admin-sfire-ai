@@ -68,7 +68,7 @@ class ComputeLogListResponse(BaseModel):
 class ComputeLogQueryParams(BaseModel):
     """算力流水查询参数"""
     pageNum: int = Field(default=1, ge=1, description="页码")
-    pageSize: int = Field(default=10, ge=1, le=100, description="每页数量")
+    pageSize: int = Field(default=10, ge=1, le=1000, description="每页数量")
     userId: Optional[str] = Field(None, description="用户ID")
     username: Optional[str] = Field(None, description="用户名（模糊查询）")
     type: Optional[ComputeTypeStr] = Field(None, description="变动类型")

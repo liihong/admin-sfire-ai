@@ -20,7 +20,8 @@
         <text class="info-label">
           <SvgIcon name="agent" size="20" color="#3B82F6" /> 当前智能体
         </text>
-        <text class="info-value agent-value">{{ currentAgentName || '未选择' }}</text>
+         <text class="info-value agent-value">{{ currentAgentName }}</text>
+
       </view>
       <view class="info-row" v-if="project.industry">
         <text class="info-label">
@@ -40,10 +41,8 @@
         </text>
         <text class="info-value">{{ personaSettings.target_audience }}</text>
       </view>
-    </view>
-    <view class="card-footer">
-      <text class="footer-hint">准备就绪，请告诉我你想拍什么？</text>
-    </view>
+     </view>
+
   </view>
 
   <!-- 无项目提示卡片 -->
@@ -61,7 +60,12 @@
 </template>
 
 <script setup lang="ts">
+import { computed } from 'vue'
 import SvgIcon from '@/components/base/SvgIcon.vue'
+import { useAgentStore } from '@/stores/agent'
+
+// ============== Store ==============
+const agentStore = useAgentStore()
 
 interface Project {
   id: string
@@ -78,11 +82,13 @@ interface PersonaSettings {
 
 interface Props {
   project: Project | null
-  currentAgentName?: string
   personaSettings: PersonaSettings
 }
 
 const props = defineProps<Props>()
+
+// 从 store 获取当前智能体名称
+const currentAgentName = computed(() => agentStore.activeAgent?.name || '未选择')
 
 /**
  * 格式化风格标签
@@ -151,7 +157,6 @@ $text-muted: #999;
   .card-header {
     display: flex;
     align-items: center;
-    margin-bottom: 24rpx;
     padding-bottom: 20rpx;
     border-bottom: 1rpx dashed rgba(0, 0, 0, 0.08);
 
@@ -217,7 +222,7 @@ $text-muted: #999;
     .info-row {
       display: flex;
       align-items: center;
-      padding: 16rpx 0;
+      padding: 10rpx 0;
 
       .info-label {
         font-size: 26rpx;

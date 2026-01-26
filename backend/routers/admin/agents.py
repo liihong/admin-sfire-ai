@@ -27,7 +27,7 @@ router = APIRouter()
 @router.get("", summary="获取智能体列表")
 async def get_agents(
     pageNum: int = Query(1, ge=1, description="页码"),
-    pageSize: int = Query(10, ge=1, le=100, description="每页数量"),
+    pageSize: int = Query(10, ge=1, le=1000, description="每页数量"),
     name: Optional[str] = Query(None, description="智能体名称（模糊查询）"),
     status: Optional[int] = Query(None, description="状态：0-下架, 1-上架"),
     agentMode: Optional[int] = Query(

@@ -55,10 +55,12 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { useAuthStore } from '@/stores/auth'
+import { useAgentStore } from '@/stores/agent'
 import { getAgentList, type Agent } from '@/api/agent'
 import { AgentIcon } from '@/components/base'
 
 const authStore = useAuthStore()
+const agentStore = useAgentStore()
 
 // 智能体列表
 const featureList = ref<Agent[]>([])
@@ -113,7 +115,15 @@ const handleFeatureClick = async (item: Agent) => {
   const loggedIn = await authStore.requireLogin()
   if (!loggedIn) return
   
-  // 跳转到智能体对话页面，传递智能体ID
+  // 从列表中选择的智能体，直接设置（已有完整信息）
+  agentStore.setActiveAgent({
+    id: item.id,
+    name: item.name,
+    icon: item.icon,
+    description: item.description
+  })
+  
+  // 跳转到智能体对话页面，只传递智能体ID
   uni.navigateTo({
     url: `/pages/copywriting/index?agentId=${item.id}`
   })

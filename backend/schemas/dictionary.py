@@ -103,7 +103,7 @@ class DictQueryParams(BaseModel):
     dict_name: Optional[str] = Field(None, description="字典名称（模糊匹配）")
     is_enabled: Optional[bool] = Field(None, description="是否启用")
     pageNum: int = Field(default=1, ge=1, description="页码")
-    pageSize: int = Field(default=10, ge=1, le=100, description="每页数量")
+    pageSize: int = Field(default=10, ge=1, le=1000, description="每页数量")
 
 
 class DictItemQueryParams(BaseModel):
@@ -114,7 +114,8 @@ class DictItemQueryParams(BaseModel):
     item_label: Optional[str] = Field(None, description="显示标签（模糊匹配）")
     is_enabled: Optional[bool] = Field(None, description="是否启用")
     pageNum: int = Field(default=1, ge=1, description="页码")
-    pageSize: int = Field(default=10, ge=1, le=100, description="每页数量")
+    pageSize: int = Field(default=10, ge=1, le=1000, description="每页数量")
+
 
 
 

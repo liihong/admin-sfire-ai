@@ -51,6 +51,7 @@ import { ref, computed, onMounted } from 'vue'
 import { useProjectStore, DEFAULT_PERSONA_SETTINGS } from '@/stores/project'
 import { useProject } from '@/composables/useProject'
 import { useNavigation } from '@/composables/useNavigation'
+import { createInspiration } from '@/api/inspiration'
 import TopBar from './TopBar.vue'
 import PersonaCard from './PersonaCard.vue'
 import CategoryGrid from './CategoryGrid.vue'
@@ -95,12 +96,26 @@ onMounted(async () => {
 })
 
 // 处理灵感发送
-function handleInspirationSend(text: string, tags: string[]) {
-  console.log('发送灵感:', text, '标签:', tags)
-  // TODO: 实现灵感发送逻辑
-  uni.showToast({ title: '灵感已记录', icon: 'success' })
-  inspirationText.value = ''
-  showInspirationCard.value = false
+async function handleInspirationSend(text: string, tags: string[]) {
+  try {
+    await createInspiration({
+      content: text,
+      tags,
+      project_id: activeProject.value?.id,
+    })
+    
+    uni.showToast({ title: '灵感已保存', icon: 'success' })
+    inspirationText.value = ''
+    showInspirationCard.value = false
+    
+    // 可选：跳转到灵感列表页
+    // uni.navigateTo({ url: '/pages/inspiration/index' })
+  } catch (error: any) {
+    uni.showToast({
+      title: error.message || '保存失败',
+      icon: 'none',
+    })
+  }
 }
 
 // 处理麦克风点击

@@ -54,7 +54,7 @@ async def get_balance(
 @router.get("/coin/transactions", summary="查询算力流水")
 async def get_transactions(
     page_num: int = Query(default=1, ge=1, description="页码"),
-    page_size: int = Query(default=10, ge=1, le=100, description="每页数量"),
+    page_size: int = Query(default=10, ge=1, le=1000, description="每页数量"),
     log_type: Optional[str] = Query(default=None, description="流水类型"),
     current_user: User = Depends(get_current_miniprogram_user),
     db: AsyncSession = Depends(get_db)

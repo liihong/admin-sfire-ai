@@ -80,6 +80,12 @@ class QuickEntry(BaseModel):
         comment="副标题（描述信息）",
     )
     
+    instructions: Mapped[Optional[str]] = mapped_column(
+        Text,
+        nullable=True,
+        comment="快捷指令内容（用于自动填充到输入框）",
+    )
+    
     icon_class: Mapped[str] = mapped_column(
         String(64),
         nullable=False,
@@ -137,4 +143,5 @@ class QuickEntry(BaseModel):
     
     def __repr__(self) -> str:
         return f"<QuickEntry(id={self.id}, key='{self.unique_key}', type='{self.type.value}')>"
+
 

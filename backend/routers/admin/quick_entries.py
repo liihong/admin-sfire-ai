@@ -23,7 +23,7 @@ router = APIRouter()
 @router.get("", summary="获取快捷入口列表")
 async def get_quick_entries(
     pageNum: int = Query(1, ge=1, description="页码"),
-    pageSize: int = Query(10, ge=1, le=100, description="每页数量"),
+    pageSize: int = Query(10, ge=1, le=1000, description="每页数量"),
     type: Optional[str] = Query(None, description="入口类型筛选（category/command）"),
     status: Optional[int] = Query(None, ge=0, le=2, description="状态筛选（0-禁用, 1-启用, 2-即将上线）"),
     tag: Optional[str] = Query(None, description="标签筛选（none/new/hot）"),
@@ -122,4 +122,5 @@ async def update_quick_entry_sort(
     quick_entry_service = QuickEntryService(db)
     await quick_entry_service.update_quick_entry_sort(request.items)
     return success(msg="排序更新成功")
+
 

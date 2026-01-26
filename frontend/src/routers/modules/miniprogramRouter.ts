@@ -9,7 +9,7 @@ export const miniprogramRouter: RouteRecordRaw[] = [
   {
     path: MP_LOGIN_URL,
     name: "mpLogin",
-    component: () => import("@/views/miniprogram/login/index.vue"),
+    component: () => import("@/views/client/login/index.vue"),
     meta: {
       title: "小程序用户登录"
     }
@@ -23,7 +23,7 @@ export const miniprogramRouter: RouteRecordRaw[] = [
       {
         path: "home",
         name: "mpHome",
-        component: () => import("@/views/miniprogram/pages/home/index.vue"),
+        component: () => import("@/views/client/home/index.vue"),
         meta: {
           title: "首页"
         }
@@ -31,7 +31,7 @@ export const miniprogramRouter: RouteRecordRaw[] = [
       {
         path: "project",
         name: "mpProject",
-        component: () => import("@/views/miniprogram/pages/project/index.vue"),
+        component: () => import("@/views/client/project/index.vue"),
         meta: {
           title: "项目管理"
         }
@@ -39,7 +39,7 @@ export const miniprogramRouter: RouteRecordRaw[] = [
       {
         path: "user",
         name: "mpUser",
-        component: () => import("@/views/miniprogram/pages/user/index.vue"),
+        component: () => import("@/views/client/user/index.vue"),
         meta: {
           title: "个人中心"
         }
@@ -47,7 +47,7 @@ export const miniprogramRouter: RouteRecordRaw[] = [
       {
         path: "data",
         name: "mpData",
-        component: () => import("@/views/miniprogram/pages/data/index.vue"),
+        component: () => import("@/views/client/data/index.vue"),
         meta: {
           title: "数据统计"
         }
@@ -55,7 +55,7 @@ export const miniprogramRouter: RouteRecordRaw[] = [
       {
         path: "workspace/:projectId",
         name: "mpWorkspace",
-        component: () => import("@/views/miniprogram/pages/workspace/index.vue"),
+        component: () => import("@/views/client/workspace/index.vue"),
         meta: {
           title: "创作指挥舱",
           isFull: true

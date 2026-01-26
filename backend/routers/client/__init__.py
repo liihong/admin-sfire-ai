@@ -5,7 +5,7 @@ C端路由聚合（小程序 & PC官网）
 """
 from fastapi import APIRouter
 
-from . import auth, creation, projects, tikhub, web_auth, conversations, coin, security, permission, quick_entries
+from . import auth, creation, projects, tikhub, web_auth, conversations, coin, security, permission, quick_entries, inspirations
 
 # 创建C端路由聚合器
 client_router = APIRouter()
@@ -40,3 +40,6 @@ client_router.include_router(permission.router, prefix="/permission", tags=["C�
 
 # 快捷入口模块：今天拍点啥、快捷指令库
 client_router.include_router(quick_entries.router, prefix="/quick-entries", tags=["C端-快捷入口"])
+
+# 灵感管理模块：灵感捕获、列表、生成等
+client_router.include_router(inspirations.router, prefix="/inspirations", tags=["C端-灵感管理"])

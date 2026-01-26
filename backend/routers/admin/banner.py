@@ -23,7 +23,7 @@ router = APIRouter()
 @router.get("", summary="获取Banner列表")
 async def get_banners(
     pageNum: int = Query(1, ge=1, description="页码"),
-    pageSize: int = Query(10, ge=1, le=100, description="每页数量"),
+    pageSize: int = Query(10, ge=1, le=1000, description="每页数量"),
     title: Optional[str] = Query(None, description="标题（模糊搜索）"),
     position: Optional[str] = Query(None, description="位置筛选"),
     is_enabled: Optional[bool] = Query(None, description="是否启用"),

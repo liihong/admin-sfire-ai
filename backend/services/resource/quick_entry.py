@@ -32,6 +32,7 @@ class QuickEntryService(BaseService):
             "type": entry.type.value,
             "title": entry.title,
             "subtitle": entry.subtitle,
+            "instructions": entry.instructions,
             "icon_class": entry.icon_class,
             "bg_color": entry.bg_color,
             "action_type": entry.action_type.value,
@@ -233,4 +234,5 @@ class QuickEntryService(BaseService):
         await self.db.flush()
         
         logger.info(f"快捷入口排序更新: {len(sort_items)} 项")
+
 

@@ -108,6 +108,13 @@ const displayPhone = computed(() => formatPhone(userInfo.phone))
 // 功能菜单列表
 const menuList = ref([
   {
+    id: 'inspiration',
+    name: '我的灵感',
+    icon: '💡',
+    iconBg: 'linear-gradient(135deg, #fef3c7 0%, #fde68a 100%)',
+    path: '/pages/inspiration/index'
+  },
+  {
     id: 'contact',
     name: '联系客服',
     icon: '💬',

@@ -25,6 +25,7 @@ from .dictionary import Dictionary, DictionaryItem
 from .skill_library import SkillLibrary
 from .user_level import UserLevel as UserLevelModel
 from .quick_entry import QuickEntry, EntryType, ActionType, EntryTag
+from .inspiration import Inspiration, InspirationStatus
 
 __all__ = [
     "BaseModel",
@@ -59,4 +60,6 @@ __all__ = [
     "EntryType",
     "ActionType",
     "EntryTag",
+    "Inspiration",
+    "InspirationStatus",
 ]

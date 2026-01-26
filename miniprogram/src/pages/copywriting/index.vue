@@ -11,7 +11,7 @@
           <text class="back-icon">‹</text>
         </view>
         <view class="nav-center">
-          <text class="nav-title">{{ currentAgent?.name || '智能体' }}</text>
+          <text class="nav-title">{{ agentStore.activeAgent?.name || '智能体' }}</text>
           <view class="agent-tag">
             <text class="tag-dot"></text>
             <text class="tag-text">AI 创作助手</text>
@@ -22,8 +22,7 @@
 
     <!-- IP 档案卡片 / 无项目提示卡片 -->
     <view class="persona-card-wrapper">
-      <AgentCard :project="activeProject" :current-agent-name="currentAgent?.name"
-        :persona-settings="currentPersonaSettings" />
+      <AgentCard :project="activeProject" :persona-settings="currentPersonaSettings" />
     </view>
 
     <!-- 聊天消息区域 -->
@@ -113,32 +112,6 @@
     </view>
 
 
-    <!-- 智能体选择弹窗 -->
-    <view class="agent-modal" v-if="showAgentModal" @tap="showAgentModal = false">
-      <view class="modal-content" @tap.stop>
-        <view class="modal-header">
-          <text class="modal-title">选择智能体</text>
-          <view class="modal-close" @tap="showAgentModal = false">
-            <text>✕</text>
-          </view>
-        </view>
-        <view class="agent-list">
-          <view v-for="(agent, idx) in agentList" :key="idx" class="agent-item"
-            :class="{ active: currentAgent?.id === agent.id }" @tap="selectAgent(agent)">
-            <view class="agent-icon-wrap">
-              <SvgIcon name="agent" size="40" color="#fff" />
-            </view>
-            <view class="agent-info">
-              <text class="agent-name">{{ agent.name }}</text>
-              <text class="agent-desc">{{ agent.description }}</text>
-            </view>
-            <view class="agent-check" v-if="currentAgent?.id === agent.id">
-              <text>✓</text>
-            </view>
-          </view>
-        </view>
-      </view>
-    </view>
 
   </view>
 </template>
@@ -148,10 +121,10 @@ import { ref, reactive, computed, watch, onMounted, nextTick } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import { useAuthStore } from '@/stores/auth'
 import { useProjectStore } from '@/stores/project'
-import { chat, type ChatResponseData } from '@/api/generate'
-import { getAgentList, type Agent } from '@/api/agent'
+import { useAgentStore } from '@/stores/agent'
+import { useQuickEntryStore } from '@/stores/quickEntry'
+import { chatStream, type ChatResponseData } from '@/api/generate'
 import { msgSecCheck } from '@/utils/security'
-import { type ResponseData } from '@/utils/request'
 import SvgIcon from '@/components/base/SvgIcon.vue'
 import AgentCard from './components/AgentCard.vue'
 import SafeAreaTop from '@/components/common/SafeAreaTop.vue'
@@ -159,78 +132,11 @@ import SafeAreaTop from '@/components/common/SafeAreaTop.vue'
 // ============== Store ==============
 const authStore = useAuthStore()
 const projectStore = useProjectStore()
+const agentStore = useAgentStore()
+const quickEntryStore = useQuickEntryStore()
 
 const activeProject = computed(() => projectStore.activeProject)
 const currentPersonaSettings = computed(() => projectStore.currentPersonaSettings)
-
-// ============== 智能体配置 ==============
-interface AgentItem extends Agent {
-  systemPrompt?: string  // 可选，从数据库获取时可能没有
-}
-
-interface AgentListApiResponse {
-  agents: Agent[]
-}
-
-const agentList = reactive<AgentItem[]>([])
-const currentAgent = ref<AgentItem | null>(null)
-const pageAgentId = ref<string | null>(null) // 从页面参数获取的智能体ID
-
-/**
- * 确保默认智能体已选择
- */
-function ensureDefaultAgent() {
-  if (!currentAgent.value && agentList.length > 0) {
-    currentAgent.value = agentList[0]
-  }
-}
-
-// 加载智能体列表
-async function loadAgentList() {
-  try {
-    const response: ResponseData<AgentListApiResponse> = await getAgentList()
-
-    // 后端返回格式: {code: 200, data: {agents: [...]}, msg: "..."}
-    if (response.code === 200 && response.data?.agents) {
-      // 清空现有列表
-      agentList.length = 0
-
-      // 将接口返回的数据转换为前端需要的格式
-      response.data.agents.forEach((agent) => {
-        agentList.push({
-          ...agent,
-          systemPrompt: ''  // 数据库返回的数据中没有 systemPrompt，如果需要可以从其他地方获取
-        })
-      })
-
-      // 如果有传入的 agentId，优先选中该智能体
-      if (pageAgentId.value) {
-        const targetAgent = agentList.find(agent => agent.id === pageAgentId.value)
-        if (targetAgent) {
-          currentAgent.value = targetAgent
-        } else {
-          ensureDefaultAgent()
-        }
-      } else {
-        ensureDefaultAgent()
-      }
-    } else {
-      const errorMsg = response.msg || '获取智能体列表失败'
-      console.error('获取智能体列表失败:', errorMsg)
-      uni.showToast({
-        title: errorMsg,
-        icon: 'none'
-      })
-    }
-  } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : '加载智能体列表失败'
-    console.error('加载智能体列表错误:', error)
-    uni.showToast({
-      title: errorMessage,
-      icon: 'none'
-    })
-  }
-}
 
 // ============== 状态定义 ==============
 interface ChatMessage {
@@ -243,7 +149,6 @@ const chatHistory = reactive<ChatMessage[]>([])
 const inputText = ref('')
 const isGenerating = ref(false)
 const scrollTop = ref(0)
-const showAgentModal = ref(false)
 const ipCardMessage = ref<ChatMessage | null>(null)
 const conversationId = ref<number | undefined>(undefined)
 
@@ -251,7 +156,7 @@ const conversationId = ref<number | undefined>(undefined)
 const canSend = computed(() => inputText.value.trim().length > 0)
 
 const inputPlaceholder = computed(() => {
-  return `向${currentAgent.value?.name || '智能体'}发送创作指令...`
+  return '向智能体发送创作指令...'
 })
 
 // ============== 方法定义 ==============
@@ -275,51 +180,12 @@ function initIPCard() {
   if (activeProject.value) {
     ipCardMessage.value = {
       role: 'system_card',
-      content: `当前智能体：${currentAgent.value?.name || '未选择'}\n绑定 IP：${activeProject.value?.name || '未选择'}\n准备就绪，请告诉我你想拍什么？`,
+      content: `当前智能体：${agentStore.activeAgent?.name || '未选择'}\n绑定 IP：${activeProject.value?.name || '未选择'}\n准备就绪，请告诉我你想拍什么？`,
       timestamp: Date.now()
     }
   }
 }
 
-/**
- * 显示智能体选择器
- */
-function showAgentPicker() {
-  showAgentModal.value = true
-}
-
-/**
- * 选择智能体
- */
-function selectAgent(agent: AgentItem) {
-  if (currentAgent.value && currentAgent.value.id === agent.id) {
-    showAgentModal.value = false
-    return
-  }
-
-  currentAgent.value = agent
-  showAgentModal.value = false
-
-  // 切换智能体时重置会话ID，因为不同智能体应该有不同的会话
-  conversationId.value = undefined
-
-  // 插入系统提示消息，不清除历史记录
-  chatHistory.push({
-    role: 'system_hint',
-    content: `已切换为 [${agent.name}]，接下来的内容将按此风格生成。`,
-    timestamp: Date.now()
-  })
-
-  // 更新 IP 卡片中的智能体信息
-  initIPCard()
-
-  uni.showToast({
-    title: `已切换到 ${agent.name}`,
-    icon: 'none'
-  })
-
-  scrollToBottom()
-}
 
 
 /**
@@ -379,6 +245,7 @@ function onInputLineChange() {
 
 /**
  * 发送消息 (Task 3)
+ * 使用流式输出实时更新 AI 回复内容
  */
 async function sendMessage() {
   if (!canSend.value || isGenerating.value) return
@@ -415,74 +282,151 @@ async function sendMessage() {
   scrollToBottom()
   isGenerating.value = true
 
+  console.log('[copywriting] 开始发送消息，显示加载状态')
+
+  // AI 回复消息占位符，将在收到第一个内容块时创建
+  let assistantMessage: ChatMessage | null = null
+  let hasReceivedFirstChunk = false
+  let receivedContent = '' // 累积接收的内容
+
+  // 用于在回调中访问 assistantMessage
+  const messageRef = { current: assistantMessage }
+
   try {
     // 获取当前激活的项目ID
     const projectId = activeProject.value?.id ? parseInt(activeProject.value.id) : undefined
 
-    // 构建消息列表（只包含 user 和 assistant 消息）
+    // 构建消息列表（只包含 user 和 assistant 消息，排除当前正在生成的消息）
     const messages = chatHistory
-      .filter(msg => msg.role === 'user' || msg.role === 'assistant')
+      .filter(msg => (msg.role === 'user' || msg.role === 'assistant') && msg !== assistantMessage)
       .map(msg => ({
         role: msg.role,
         content: msg.content
       }))
 
     // 使用智能体的 ID 作为后端的 agent_type
-    const agentType = currentAgent.value?.id || ''
+    const agentType = agentStore.getActiveAgentId
 
     if (!agentType) {
-      throw new Error('请先选择一个智能体')
+      throw new Error('智能体ID不能为空')
     }
 
-    // 使用新的 chat 接口
-    const response = await chat({
-      agent_type: agentType.toString(),
-      conversation_id: conversationId.value,
-      messages: messages,
-      project_id: projectId,
-      stream: true
-    })
+    // 使用流式聊天接口
+    await chatStream(
+      {
+        agent_type: agentType.toString(),
+        conversation_id: conversationId.value,
+        messages: messages,
+        project_id: projectId,
+        stream: true
+      },
+      {
+        // 接收到内容块时，实时更新消息内容
+        onChunk: (content: string) => {
+          console.log('[sendMessage] 收到内容块:', content, '长度:', content.length, '当前累积长度:', receivedContent.length)
 
-    // 后端返回格式: {code: 200, data: {content: "...", conversation_id: 15, ...}, msg: "..."}
-    if (response.code === 200 && response.data) {
-      const responseData = response.data as ChatResponseData
+          // 后端返回的是增量内容（delta.content），需要累积
+          receivedContent += content
+          console.log('[sendMessage] 累积内容，新长度:', receivedContent.length)
 
-      // 保存 conversation_id（如果响应中包含）
-      if (responseData.conversation_id) {
-        conversationId.value = responseData.conversation_id
+          // 如果是第一个内容块，创建消息占位符
+          if (!hasReceivedFirstChunk) {
+            hasReceivedFirstChunk = true
+            assistantMessage = {
+              role: 'assistant',
+              content: receivedContent,
+              timestamp: Date.now()
+            }
+            chatHistory.push(assistantMessage)
+            // 隐藏加载状态，显示实际消息
+            isGenerating.value = false
+            console.log('[sendMessage] 创建第一条消息，内容:', assistantMessage.content)
+          } else if (assistantMessage) {
+            // 直接更新整个 content 属性，确保 Vue 响应式生效
+            assistantMessage.content = receivedContent
+            console.log('[sendMessage] 更新消息内容，总长度:', assistantMessage.content.length)
+          }
+
+          // 实时滚动到底部，提供流畅的体验
+          nextTick(() => {
+            scrollToBottom()
+          })
+        },
+        // 接收到会话ID时保存
+        onConversationId: (id: number) => {
+          conversationId.value = id
+        },
+        // 流式响应完成
+        onDone: () => {
+          console.log('[sendMessage] 流式响应完成')
+          // 确保加载状态已隐藏
+          isGenerating.value = false
+          // 如果没有收到任何内容，创建错误消息
+          if (!hasReceivedFirstChunk && !assistantMessage) {
+            assistantMessage = {
+              role: 'assistant',
+              content: '❌ 未收到任何响应内容',
+              timestamp: Date.now()
+            }
+            chatHistory.push(assistantMessage)
+          }
+          // 确保最终滚动到底部
+          scrollToBottom()
+        },
+        // 发生错误时处理
+        onError: (error: string) => {
+          console.error('[sendMessage] 发生错误:', error)
+          isGenerating.value = false
+          // 如果还没有创建消息，创建一个错误消息
+          if (!assistantMessage) {
+            assistantMessage = {
+              role: 'assistant',
+              content: `❌ 生成失败：${error}`,
+              timestamp: Date.now()
+            }
+            chatHistory.push(assistantMessage)
+          } else {
+            assistantMessage.content = `❌ 生成失败：${error}`
+          }
+          scrollToBottom()
+          uni.showToast({
+            title: error,
+            icon: 'none',
+            duration: 2500
+          })
+        }
       }
-
-      // 添加 AI 回复消息
-      if (responseData.content) {
-        chatHistory.push({
-          role: 'assistant',
-          content: responseData.content,
-          timestamp: Date.now()
-        })
-        scrollToBottom()
-      } else {
-        throw new Error('响应中未包含内容')
-      }
-    } else {
-      throw new Error(response.msg || '生成失败')
-    }
+    )
 
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : '生成失败，请稍后重试'
-    console.error('生成失败:', error)
+    console.error('[sendMessage] 捕获异常:', error)
+
+    isGenerating.value = false
+
+    // 如果还没有创建消息，创建一个错误消息
+    if (!assistantMessage) {
+      assistantMessage = {
+        role: 'assistant',
+        content: `❌ 生成失败：${errorMessage}`,
+        timestamp: Date.now()
+      }
+      chatHistory.push(assistantMessage)
+    } else {
+      // assistantMessage 不为 null，可以安全访问 content
+      const msg = assistantMessage as ChatMessage
+      msg.content = `❌ 生成失败：${errorMessage}`
+    }
+
+    scrollToBottom()
+
     uni.showToast({
       title: errorMessage,
       icon: 'none',
       duration: 2500
     })
-    // 添加错误消息
-    chatHistory.push({
-      role: 'assistant',
-      content: `❌ 生成失败：${errorMessage}`,
-      timestamp: Date.now()
-    })
-    scrollToBottom()
   } finally {
+    // 确保加载状态已隐藏
     isGenerating.value = false
   }
 }
@@ -509,25 +453,77 @@ interface PageOptions {
   [key: string]: any
 }
 
-onLoad((options?: PageOptions) => {
+onLoad(async (options?: PageOptions) => {
+  // 加载存储的快捷指令信息
+  quickEntryStore.loadActiveQuickEntryFromStorage()
+
   if (options?.agentId) {
-    pageAgentId.value = options.agentId
+    // 如果 store 中没有激活的智能体，或者 ID 不匹配，尝试从 storage 加载
+    if (!agentStore.activeAgent || agentStore.activeAgent.id !== options.agentId) {
+      agentStore.loadActiveAgentFromStorage()
+      // 如果仍然不匹配，从 API 获取真实的智能体信息
+      if (!agentStore.activeAgent || agentStore.activeAgent.id !== options.agentId) {
+        await agentStore.setActiveAgentById(options.agentId)
+      }
+    }
+  } else {
+    // 如果没有传入 agentId，尝试从 store 读取
+    if (!agentStore.activeAgent) {
+      agentStore.loadActiveAgentFromStorage()
+    }
+
+    // 如果仍然没有，提示错误
+    if (!agentStore.activeAgent) {
+      uni.showToast({
+        title: '缺少智能体ID参数',
+        icon: 'none'
+      })
+      // 延迟返回上一页
+      setTimeout(() => {
+        goBack()
+      }, 1500)
+    }
+  }
+})
+
+// 页面加载时处理URL参数
+onLoad((options: any) => {
+  // 处理灵感参数
+  if (options.inspiration_id || options.content) {
+    if (options.content) {
+      // 预填充输入框
+      inputText.value = decodeURIComponent(options.content)
+    }
   }
 })
 
 onMounted(async () => {
-  // 加载智能体列表
-  await loadAgentList()
   // Task 1: 初始化 IP 卡片
   initIPCard()
   // 初始化时滚动到底部
   scrollToBottom()
+
+  // 如果页面加载时已经有快捷指令且输入框为空，则填充 instructions
+  if (!inputText.value.trim() && quickEntryStore.activeQuickEntry?.instructions) {
+    inputText.value = quickEntryStore.activeQuickEntry.instructions
+  }
 })
 
 // 监听项目变化，更新 IP 卡片
 watch(activeProject, () => {
   initIPCard()
 }, { immediate: true })
+
+// 监听快捷指令变化，自动填充到输入框（仅在输入框为空时填充）
+watch(
+  () => quickEntryStore.activeQuickEntry,
+  (newEntry) => {
+    // 如果输入框为空且有快捷指令的 instructions，则自动填充
+    if (!inputText.value.trim() && newEntry?.instructions) {
+      inputText.value = newEntry.instructions
+    }
+  }
+)
 </script>
 
 <style lang="scss" scoped>
@@ -903,140 +899,5 @@ $border-light: rgba(0, 0, 0, 0.06);
   }
 }
 
-// ============== 模态框通用样式 ==============
-.agent-modal {
-  position: fixed;
-  inset: 0;
-  background: rgba(0, 0, 0, 0.5);
-  display: flex;
-  align-items: flex-end;
-  justify-content: center;
-  z-index: 200;
-  animation: fadeIn 0.2s ease;
-
-  .modal-content {
-    width: 100%;
-    max-height: 80vh;
-    background: #fff;
-    border-radius: 32rpx 32rpx 0 0;
-    animation: slideUp 0.3s ease;
-    overflow: hidden;
-  }
-
-  .modal-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 32rpx;
-    border-bottom: 1rpx solid $border-light;
-
-    .modal-title {
-      font-size: 34rpx;
-      font-weight: 600;
-      color: $text-primary;
-    }
-
-    .modal-close {
-      width: 56rpx;
-      height: 56rpx;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      background: #F5F7FA;
-      border-radius: 50%;
-      font-size: 28rpx;
-      color: $text-muted;
-    }
-  }
-}
-
-@keyframes fadeIn {
-  from {
-      opacity: 0;
-    }
-  
-    to {
-      opacity: 1;
-    }
-}
-
-@keyframes slideUp {
-  from {
-      transform: translateY(100%);
-    }
-  
-    to {
-      transform: translateY(0);
-    }
-}
-
-// ============== 智能体列表 ==============
-.agent-list {
-  padding: 16rpx 24rpx;
-  max-height: 60vh;
-  overflow-y: auto;
-
-  .agent-item {
-    display: flex;
-    align-items: center;
-    padding: 24rpx;
-    border-radius: 20rpx;
-    margin-bottom: 16rpx;
-    background: #F8FAFF;
-    border: 2rpx solid transparent;
-    transition: all 0.2s ease;
-
-    &.active {
-      background: linear-gradient(135deg, rgba(79, 172, 254, 0.1), rgba(0, 242, 254, 0.1));
-      border-color: $accent-blue;
-    }
-
-    &:active {
-      transform: scale(0.98);
-    }
-
-    .agent-icon-wrap {
-      width: 80rpx;
-      height: 80rpx;
-      border-radius: 50%;
-      background: linear-gradient(135deg, #667EEA, #764BA2);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-    }
-
-    .agent-info {
-      flex: 1;
-      margin-left: 20rpx;
-
-      .agent-name {
-        font-size: 30rpx;
-        font-weight: 600;
-        color: $text-primary;
-        display: block;
-      }
-
-      .agent-desc {
-        font-size: 24rpx;
-        color: $text-muted;
-        margin-top: 6rpx;
-        display: block;
-      }
-    }
-
-    .agent-check {
-      width: 48rpx;
-      height: 48rpx;
-      border-radius: 50%;
-      background: $accent-blue;
-      color: #fff;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 28rpx;
-      font-weight: 600;
-    }
-  }
-}
 </style>
 

@@ -23,7 +23,7 @@ router = APIRouter()
 @router.get("", summary="获取大模型列表")
 async def get_llm_models(
     pageNum: int = Query(1, ge=1, description="页码"),
-    pageSize: int = Query(10, ge=1, le=100, description="每页数量"),
+    pageSize: int = Query(10, ge=1, le=1000, description="每页数量"),
     name: Optional[str] = Query(None, description="模型名称（模糊查询）"),
     provider: Optional[str] = Query(None, description="提供商"),
     is_enabled: Optional[bool] = Query(None, description="是否启用"),

@@ -56,6 +56,24 @@ function requestInterceptor(config: RequestConfig): RequestConfig {
     config.url = BASE_URL + config.url
   }
   
+  // GET 请求：将 data 转换为查询参数，并过滤掉 undefined/null 值
+  if (config.method === 'GET' && config.data) {
+    const params: string[] = []
+    Object.keys(config.data).forEach(key => {
+      const value = config.data[key]
+      // 只添加非 undefined 和非 null 的值
+      if (value !== undefined && value !== null && value !== '') {
+        params.push(`${encodeURIComponent(key)}=${encodeURIComponent(String(value))}`)
+      }
+    })
+    const queryString = params.join('&')
+    if (queryString) {
+      config.url += (config.url.includes('?') ? '&' : '?') + queryString
+    }
+    // GET 请求不需要 data 字段
+    config.data = undefined
+  }
+  
   // 设置默认请求头
   config.header = config.header || {}
   config.header['Content-Type'] = config.header['Content-Type'] || 'application/json'

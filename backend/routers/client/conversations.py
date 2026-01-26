@@ -48,7 +48,7 @@ async def create_conversation(
 @router.get("/conversations", summary="获取会话列表")
 async def get_conversation_list(
     pageNum: int = Query(default=1, ge=1, description="页码"),
-    pageSize: int = Query(default=10, ge=1, le=100, description="每页数量"),
+    pageSize: int = Query(default=10, ge=1, le=1000, description="每页数量"),
     status: Optional[str] = Query(default=None, description="状态筛选: active/archived"),
     agent_id: Optional[int] = Query(default=None, description="智能体ID筛选"),
     project_id: Optional[int] = Query(default=None, description="项目ID筛选"),

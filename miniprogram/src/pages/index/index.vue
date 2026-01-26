@@ -95,11 +95,13 @@ class="tag-chip" v-for="(tag, index) in industryTags" :key="tag"
 import { ref, reactive, computed, onMounted } from 'vue'
 import { useAuthStore } from '@/stores/auth'
 import { useProjectStore } from '@/stores/project'
+import { useAgentStore } from '@/stores/agent'
 import { getAgentList, type Agent } from '@/api/agent'
 import { AgentIcon } from '@/components/base'
 
 const authStore = useAuthStore()
 const projectStore = useProjectStore()
+const agentStore = useAgentStore()
 
 /**
  * 判断是否为 emoji 图标
@@ -181,7 +183,10 @@ const loadAgentList = async () => {
         label: agent.name || '智能体',
         bgColor: bgColors[index % bgColors.length],
         route: '/pages/copywriting/index',
-        agentId: agent.id
+        agentId: agent.id,
+        agentName: agent.name,
+        agentIcon: agent.icon,
+        agentDescription: agent.description
       }))
 
       // 添加"更多"按钮
@@ -290,7 +295,21 @@ const handleNavClick = async (item: any) => {
     return
   }
   if (item.route) {
-    uni.navigateTo({ url: item.route })
+    // 如果是从 API 加载的智能体，设置到 store
+    if (item.agentId) {
+      // 从列表中选择的智能体，直接设置（已有完整信息）
+      agentStore.setActiveAgent({
+        id: item.agentId,
+        name: item.agentName || item.label,
+        icon: item.agentIcon,
+        description: item.agentDescription
+      })
+      // 跳转时只传递 agentId
+      uni.navigateTo({ url: `${item.route}?agentId=${item.agentId}` })
+    } else {
+      // 默认导航项，直接跳转
+      uni.navigateTo({ url: item.route })
+    }
   }
 }
 

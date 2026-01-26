@@ -33,3 +33,17 @@ export function getAgentList() {
   })
 }
 
+/**
+ * 智能体详情响应类型（仅基本信息，不包含 system_prompt）
+ */
+export interface AgentDetailResponse {
+  code: number
+  data: {
+    id: string
+    name: string
+    icon: string
+    description: string
+  }
+  msg: string
+}
+

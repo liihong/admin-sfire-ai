@@ -14,7 +14,7 @@ T = TypeVar("T", bound=DeclarativeBase)
 class PaginationParams(BaseModel):
     """分页参数"""
     pageNum: int = Field(default=1, ge=1, description="页码")
-    pageSize: int = Field(default=10, ge=1, le=100, description="每页数量")
+    pageSize: int = Field(default=10, ge=1, le=1000, description="每页数量")
     
     @property
     def offset(self) -> int:

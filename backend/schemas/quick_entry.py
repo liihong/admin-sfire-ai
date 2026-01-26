@@ -24,6 +24,7 @@ class QuickEntryBase(BaseModel):
     type: EntryType = Field(..., description="入口类型: category-今天拍点啥, command-快捷指令库")
     title: str = Field(..., min_length=1, max_length=128, description="标题")
     subtitle: Optional[str] = Field(None, max_length=256, description="副标题")
+    instructions: Optional[str] = Field(None, description="快捷指令内容（用于自动填充到输入框）")
     icon_class: str = Field(..., min_length=1, max_length=64, description="图标类名（RemixIcon）")
     bg_color: Optional[str] = Field(None, max_length=16, description="背景色（十六进制）")
     action_type: ActionType = Field(..., description="动作类型: agent-调用Agent, skill-调用Skill, prompt-硬编码Prompt")
@@ -44,6 +45,7 @@ class QuickEntryUpdate(BaseModel):
     type: Optional[EntryType] = None
     title: Optional[str] = Field(None, min_length=1, max_length=128)
     subtitle: Optional[str] = Field(None, max_length=256)
+    instructions: Optional[str] = Field(None, description="快捷指令内容")
     icon_class: Optional[str] = Field(None, min_length=1, max_length=64)
     bg_color: Optional[str] = Field(None, max_length=16)
     action_type: Optional[ActionType] = None
@@ -60,6 +62,7 @@ class QuickEntryResponse(BaseModel):
     type: str = Field(..., description="入口类型")
     title: str = Field(..., description="标题")
     subtitle: Optional[str] = Field(None, description="副标题")
+    instructions: Optional[str] = Field(None, description="快捷指令内容")
     icon_class: str = Field(..., description="图标类名")
     bg_color: Optional[str] = Field(None, description="背景色")
     action_type: str = Field(..., description="动作类型")
@@ -90,4 +93,5 @@ class QuickEntrySortRequest(BaseModel):
 class QuickEntryStatusRequest(BaseModel):
     """快捷入口状态更新请求"""
     status: int = Field(..., ge=0, le=2, description="状态：0-禁用, 1-启用, 2-即将上线")
+
 

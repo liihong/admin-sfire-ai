@@ -21,6 +21,12 @@ import { ref, onMounted } from 'vue'
 import { AgentIcon } from '@/components/base'
 import { getQuickEntries, type QuickEntry } from '@/api/quickEntry'
 import { type ResponseData } from '@/utils/request'
+import { useAgentStore } from '@/stores/agent'
+import { useQuickEntryStore } from '@/stores/quickEntry'
+
+// ============== Store ==============
+const agentStore = useAgentStore()
+const quickEntryStore = useQuickEntryStore()
 
 // 快捷入口列表数据
 const quickEntryList = ref<QuickEntry[]>([])
@@ -65,7 +71,11 @@ function handleClick(entry: QuickEntry) {
 
   // 根据 action_type 构建路由
   if (entry.action_type === 'agent') {
-    // 跳转到 copywriting 页面并传递 agentId
+    // 设置选中的快捷指令到 store（自动保存到 storage）
+    quickEntryStore.setActiveQuickEntry(entry)
+    // 根据 agentId 从 API 获取智能体详情并设置到 store（自动保存到 storage）
+    agentStore.setActiveAgentById(entry.action_value)
+    // 跳转到 copywriting 页面，只传递 agentId
     route = `/pages/copywriting/index?agentId=${entry.action_value}`
   } else if (entry.action_type === 'skill') {
     // TODO: 跳转到 skill 页面
@@ -76,6 +86,7 @@ function handleClick(entry: QuickEntry) {
   }
 
   if (route) {
+    console.log('route', route)
     emit('click', route)
   }
 }

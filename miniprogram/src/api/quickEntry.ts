@@ -12,6 +12,7 @@ export interface QuickEntry {
   type: 'category' | 'command'
   title: string
   subtitle: string | null
+  instructions: string | null
   icon_class: string
   bg_color: string | null
   action_type: 'agent' | 'skill' | 'prompt'

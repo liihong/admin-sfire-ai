@@ -204,7 +204,7 @@ class ChatRequest(BaseModel):
     """对话式创作请求模型"""
     conversation_id: Optional[int] = Field(default=None, description="会话ID（可选，如果不存在则创建新会话）")
     project_id: Optional[int] = Field(default=None, description="项目ID，用于获取IP人设信息")
-    agent_type: str = Field(default=AgentType.EFFICIENT_ORAL, description="智能体类型")
+    agent_type: str = Field(default=AgentType.IP_COLLECTOR, description="智能体类型")
     messages: List[ChatMessage] = Field(..., description="对话历史消息列表")
     model_type: Optional[str] = Field(default=None, description="LLM模型类型（可选，不传则使用智能体配置的模型）")
     temperature: Optional[float] = Field(default=None, ge=0.0, le=2.0, description="生成温度")
@@ -1281,7 +1281,7 @@ async def debug_chat(
 @router.post("/chat/quick")
 async def quick_generate(
     content: str = Query(..., description="创作内容/主题"),
-    agent_type: str = Query(default=AgentType.EFFICIENT_ORAL, description="智能体类型"),
+    agent_type: str = Query(default=AgentType.IP_COLLECTOR, description="智能体类型"),
     project_id: Optional[int] = Query(default=None, description="项目ID"),
     model_type: str = Query(default="deepseek", description="模型类型"),
     current_user: User = Depends(get_current_miniprogram_user),

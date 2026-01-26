@@ -29,7 +29,7 @@ router = APIRouter()
 @router.get("", summary="获取字典类型列表")
 async def get_dict_list(
     pageNum: int = Query(1, ge=1, description="页码"),
-    pageSize: int = Query(10, ge=1, le=100, description="每页数量"),
+    pageSize: int = Query(10, ge=1, le=1000, description="每页数量"),
     dict_code: Optional[str] = Query(None, description="字典编码（精确匹配）"),
     dict_name: Optional[str] = Query(None, description="字典名称（模糊查询）"),
     is_enabled: Optional[bool] = Query(None, description="是否启用"),
@@ -152,7 +152,7 @@ async def delete_dict(
 @router.get("/items/list", summary="获取字典项列表")
 async def get_dict_item_list(
     pageNum: int = Query(1, ge=1, description="页码"),
-    pageSize: int = Query(10, ge=1, le=100, description="每页数量"),
+    pageSize: int = Query(10, ge=1, le=1000, description="每页数量"),
     dict_id: Optional[int] = Query(None, description="关联字典ID"),
     dict_code: Optional[str] = Query(None, description="字典编码"),
     item_value: Optional[str] = Query(None, description="选项值（模糊查询）"),

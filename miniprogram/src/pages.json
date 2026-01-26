@@ -80,6 +80,14 @@
         "navigationBarTitleText": "联系客服",
         "disableScroll": true
       }
+    },
+    {
+      "path": "pages/inspiration/index",
+      "style": {
+        "navigationBarTitleText": "我的灵感",
+        "navigationStyle": "custom",
+        "disableScroll": true
+      }
     }
   ],
   "globalStyle": {
