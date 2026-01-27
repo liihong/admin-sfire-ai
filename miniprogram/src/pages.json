@@ -67,6 +67,14 @@
       }
     },
     {
+      "path": "pages/mine/membership",
+      "style": {
+        "navigationBarTitleText": "开通会员",
+        "navigationStyle": "custom",
+        "disableScroll": false
+      }
+    },
+    {
       "path": "pages/copywriting/index",
       "style": {
         "navigationBarTitleText": "AI 文案生成",
