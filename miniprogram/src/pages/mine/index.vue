@@ -3,28 +3,41 @@
     <!-- 用户信息卡片 -->
     <view class="user-card">
       <view class="user-info">
-        <view class="avatar-wrapper" @tap="handleAvatarClick">
-          <image 
-            class="avatar" 
-            :src="userInfo.avatar || '/static/default-avatar.png'" 
-            mode="aspectFill"
-          />
-        </view>
-        <view class="user-details">
+        <view class="avatar-container">
+          <view class="avatar-wrapper" @tap="handleAvatarClick">
+            <image 
+              class="avatar" 
+              :src="userInfo.avatar || '/static/default-avatar.png'" 
+              mode="aspectFill"
+            />
+            <!-- 皇冠图标 -->
+            <view class="crown-badge" v-if="userInfo.partnerStatus && userInfo.partnerStatus !== '普通用户'">
+              <text class="crown-text">M</text>
+            </view>
+          </view>
           <text class="phone-number">{{ displayPhone }}</text>
           <view class="tags-row">
-            <view class="vip-tag" v-if="userInfo.partnerStatus === 'VIP会员'">
-              <text class="vip-text">VIP会员</text>
-            </view>
-            <view class="expire-tag" v-if="userInfo.expireDate">
-              <text class="expire-text">{{ userInfo.expireDate }}过期</text>
-            </view>
+            <text class="vip-tag" v-if="userInfo.partnerStatus && userInfo.partnerStatus !== '普通用户'">
+              {{ userInfo.partnerStatus === 'VIP会员' ? 'VIP' : 'PRO' }} 用户
+            </text>
+            <text class="expire-tag" v-if="userInfo.expireDate">
+              {{ userInfo.expireDate }} 过期
+            </text>
           </view>
         </view>
       </view>
-      <view class="membership-btn-wrapper" v-if="userInfo.partnerStatus !== 'VIP会员'">
-        <view class="membership-btn" @tap="goToMembership">
-          <text class="membership-btn-text">开通会员</text>
+    </view>
+
+    <!-- 会员升级卡片 -->
+    <view class="upgrade-card" v-if="userInfo.partnerStatus === '普通用户' || !userInfo.partnerStatus">
+      <view class="upgrade-content">
+        <view class="upgrade-text">
+          <text class="upgrade-subtitle">UPGRADE PRIORITY</text>
+          <text class="upgrade-title">开通 更高等级会员</text>
+          <text class="upgrade-desc">解锁更多智能体与无限操盘项目</text>
+        </view>
+        <view class="upgrade-btn" @tap="goToMembership">
+          <text class="upgrade-btn-text">立即开通</text>
         </view>
       </view>
     </view>
@@ -32,13 +45,16 @@
     <!-- 我的算力卡片 -->
     <view class="stat-card">
       <view class="stat-header">
-        <text class="stat-title">我的算力</text>
+        <view class="stat-title-wrapper">
+          <SvgIcon name="suanli" size="32" color="#F37021" />
+          <text class="stat-title">我的算力</text>
+        </view>
         <text class="stat-link" @tap="goToPowerDetail">算力明细 ›</text>
       </view>
       <view class="stat-content">
         <view class="stat-value-row">
-          <text class="stat-number">{{ userInfo.power }}</text>
-          <text class="stat-unit">算力</text>
+          <text class="stat-number">{{ formatNumber(userInfo.power) }}</text>
+          <text class="stat-unit">算力点</text>
         </view>
         <view class="stat-action">
           <view class="recharge-btn" @tap="goToRecharge">
@@ -47,26 +63,6 @@
         </view>
       </view>
     </view>
-
-    <!-- 合伙人卡片 -->
-    <!-- <view class="partner-card">
-      <view class="stat-header">
-        <text class="stat-title">合伙人 - {{ userInfo.partnerStatus }}</text>
-        <text class="stat-link" @tap="goToDetail('asset')">资产明细 ›</text>
-      </view>
-      <view class="stat-value-row">
-        <text class="stat-number">{{ userInfo.balance }}</text>
-        <text class="stat-unit">元</text>
-      </view>
-      <view class="action-buttons">
-        <view class="btn-primary" @tap="handleWithdraw">
-          <text class="btn-text-primary">申请提现</text>
-        </view>
-        <view class="btn-outline" @tap="handleInvite">
-          <text class="btn-text-outline">邀请好友</text>
-        </view>
-      </view>
-    </view> -->
 
     <!-- 功能列表 -->
     <view class="menu-card">
@@ -79,10 +75,12 @@
       >
         <view class="menu-left">
           <view class="menu-icon-wrapper" :style="{ background: item.iconBg }">
-            <!-- <text class="menu-icon">{{ item.icon }}</text> -->
             <SvgIcon :name="item.icon" size="30" color="#FFFFFF" />
           </view>
-          <text class="menu-name">{{ item.name }}</text>
+          <view class="menu-text-wrapper">
+            <text class="menu-name">{{ item.name }}</text>
+            <text class="menu-desc" v-if="item.desc">{{ item.desc }}</text>
+          </view>
         </view>
         <text class="menu-arrow">›</text>
       </view>
@@ -119,20 +117,36 @@ const formatPhone = (phone: string): string => {
 // 格式化后的手机号（计算属性）
 const displayPhone = computed(() => formatPhone(userInfo.phone))
 
+// 格式化数字（添加千分位）
+const formatNumber = (num: string | number): string => {
+  const numStr = String(num || '0')
+  return numStr.replace(/\B(?=(\d{3})+(?!\d))/g, ',')
+}
+
 // 功能菜单列表
 const menuList = ref([
   {
     id: 'inspiration',
     name: '我的灵感',
+    desc: '保存的草稿与Prompt',
     icon: 'linggan',
-    iconBg: 'linear-gradient(135deg, #fef3c7 0%, #fde68a 100%)',
+    iconBg: '#F37021', // 橙色背景
     path: '/pages/inspiration/index'
+  },
+  {
+    id: 'privilege',
+    name: '会员特权',
+    desc: '查看您的等级权益',
+    icon: 'point', // 使用点图标作为盾牌图标的替代
+    iconBg: '#3B82F6', // 蓝色背景
+    path: '/pages/mine/membership'
   },
   {
     id: 'contact',
     name: '联系客服',
+    desc: '反馈建议或寻求帮助',
     icon: 'service',
-    iconBg: 'linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%)',
+    iconBg: '#10B981', // 绿色背景
     path: '/pages/contact/index'
   }
 ])
@@ -289,145 +303,205 @@ onShow(() => {
 })
 </script>
 
-<style scoped>
+<style scoped lang="scss">
+@import '@/styles/_variables.scss';
+
 .page-container {
   min-height: 100vh;
-  background: linear-gradient(180deg, #f0f5ff 0%, #f5f7fa 100%);
-  padding: 24rpx;
+  background: $white;
+  padding: 0;
   padding-bottom: 180rpx;
   box-sizing: border-box;
 }
 
 /* 用户信息卡片 */
 .user-card {
-  background: #ffffff;
-  border-radius: 24rpx;
-  padding: 32rpx;
+  background: $white;
+  padding: 48rpx 32rpx 40rpx;
   margin-bottom: 24rpx;
-  box-shadow: 0 4rpx 24rpx rgba(99, 102, 241, 0.08);
+  box-shadow: 0 2rpx 8rpx rgba(0, 0, 0, 0.04);
 }
 
 .user-info {
   display: flex;
+  flex-direction: column;
   align-items: center;
-  gap: 24rpx;
+}
+
+.avatar-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 100%;
 }
 
 .avatar-wrapper {
-  width: 120rpx;
-  height: 120rpx;
+  position: relative;
+  width: 160rpx;
+  height: 160rpx;
   border-radius: 50%;
-  background: linear-gradient(135deg, #e0e7ff 0%, #c7d2fe 100%);
+  background: #F2F3F5;
   display: flex;
   align-items: center;
   justify-content: center;
-  overflow: hidden;
-  flex-shrink: 0;
+  overflow: visible;
+  margin-bottom: 32rpx;
+  border: 2rpx solid #E5E7EB;
 }
 
 .avatar {
   width: 100%;
   height: 100%;
+  border-radius: 50%;
 }
 
-.user-details {
+.crown-badge {
+  position: absolute;
+  bottom: -4rpx;
+  right: -4rpx;
+  width: 48rpx;
+  height: 48rpx;
+  background: $primary-orange;
+  border-radius: 50%;
   display: flex;
-  flex-direction: column;
-  gap: 16rpx;
+  align-items: center;
+  justify-content: center;
+  border: 2rpx solid $white;
+  box-shadow: 0 2rpx 8rpx rgba(243, 112, 33, 0.3);
+}
+
+.crown-text {
+  font-size: 24rpx;
+  color: $white;
+  font-weight: 700;
+  line-height: 1;
 }
 
 .phone-number {
-  font-size: 40rpx;
+  font-size: 48rpx;
   font-weight: 700;
-  color: #1f2937;
+  color: #1D2129;
+  margin-bottom: 16rpx;
+  line-height: 1.2;
 }
 
 .tags-row {
   display: flex;
   align-items: center;
   gap: 16rpx;
+  justify-content: center;
 }
 
 .vip-tag {
-  background: linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%);
-  padding: 6rpx 16rpx;
-  border-radius: 8rpx;
-}
-
-.vip-text {
   font-size: 24rpx;
-  color: #ffffff;
+  color: $primary-orange;
   font-weight: 600;
 }
 
 .expire-tag {
-  border: 2rpx solid #3b82f6;
-  padding: 6rpx 16rpx;
-  border-radius: 8rpx;
-  background: rgba(59, 130, 246, 0.05);
-}
-
-.expire-text {
   font-size: 24rpx;
-  color: #3b82f6;
+  color: #86909C;
   font-weight: 500;
 }
 
-/* 开通会员按钮 */
-.membership-btn-wrapper {
-  margin-top: 24rpx;
-  padding-top: 24rpx;
-  border-top: 1rpx solid #f3f4f6;
+/* 会员升级卡片 */
+.upgrade-card {
+  background: linear-gradient(135deg, #1A1A2E 0%, #16213E 100%);
+  border-radius: 24rpx;
+  padding: 32rpx;
+  margin: 0 24rpx 24rpx;
+  box-shadow: 0 4rpx 24rpx rgba(0, 0, 0, 0.1);
 }
 
-.membership-btn {
-  width: 100%;
-  height: 80rpx;
-  background: linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%);
-  border-radius: 40rpx;
+.upgrade-content {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24rpx;
+}
+
+.upgrade-text {
+  display: flex;
+  flex-direction: column;
+  gap: 8rpx;
+  flex: 1;
+}
+
+.upgrade-subtitle {
+  font-size: 20rpx;
+  color: $primary-orange;
+  font-weight: 700;
+  letter-spacing: 1rpx;
+  text-transform: uppercase;
+}
+
+.upgrade-title {
+  font-size: 40rpx;
+  color: $white;
+  font-weight: 700;
+  line-height: 1.3;
+  margin: 8rpx 0;
+}
+
+.upgrade-desc {
+  font-size: 24rpx;
+  color: #86909C;
+  line-height: 1.4;
+}
+
+.upgrade-btn {
+  padding: 0 32rpx;
+  height: 64rpx;
+  background: $primary-orange;
+  border-radius: 32rpx;
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 8rpx 24rpx rgba(251, 191, 36, 0.3);
+  flex-shrink: 0;
 }
 
-.membership-btn-text {
-  font-size: 30rpx;
-  color: #ffffff;
-  font-weight: 700;
+.upgrade-btn-text {
+  font-size: 28rpx;
+  color: $white;
+  font-weight: 600;
 }
 
-.membership-btn:active {
+.upgrade-btn:active {
   opacity: 0.9;
   transform: scale(0.98);
 }
 
-/* 统计卡片通用样式 */
-.stat-card,
-.partner-card {
-  background: #ffffff;
+/* 算力卡片 */
+.stat-card {
+  background: $white;
   border-radius: 24rpx;
   padding: 32rpx;
-  margin-bottom: 24rpx;
-  box-shadow: 0 4rpx 24rpx rgba(99, 102, 241, 0.08);
+  margin: 0 24rpx 24rpx;
+  box-shadow: 0 2rpx 8rpx rgba(0, 0, 0, 0.04);
 }
 
 .stat-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 16rpx;
+  margin-bottom: 24rpx;
+}
+
+.stat-title-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 12rpx;
 }
 
 .stat-title {
-  font-size: 30rpx;
+  font-size: 32rpx;
   font-weight: 600;
-  color: #1f2937;
+  color: #1D2129;
 }
 
 .stat-link {
   font-size: 26rpx;
-  color: #3b82f6;
+  color: #86909C;
   font-weight: 500;
 }
 
@@ -448,13 +522,15 @@ onShow(() => {
 .stat-number {
   font-size: 64rpx;
   font-weight: 700;
-  color: #f59e0b;
+  color: #1D2129;
   font-family: 'DIN Alternate', 'Helvetica Neue', sans-serif;
+  line-height: 1;
+  letter-spacing: -1rpx;
 }
 
 .stat-unit {
   font-size: 28rpx;
-  color: #6b7280;
+  color: #1D2129;
   font-weight: 500;
 }
 
@@ -465,17 +541,16 @@ onShow(() => {
 .recharge-btn {
   height: 64rpx;
   padding: 0 32rpx;
-  background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+  background: $primary-orange;
   border-radius: 32rpx;
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 4rpx 12rpx rgba(59, 130, 246, 0.3);
 }
 
 .recharge-btn-text {
   font-size: 28rpx;
-  color: #ffffff;
+  color: $white;
   font-weight: 600;
 }
 
@@ -484,53 +559,13 @@ onShow(() => {
   transform: scale(0.98);
 }
 
-/* 操作按钮 */
-.action-buttons {
-  display: flex;
-  gap: 24rpx;
-  margin-top: 32rpx;
-}
-
-.btn-primary {
-  flex: 1;
-  height: 88rpx;
-  background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
-  border-radius: 44rpx;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  box-shadow: 0 8rpx 24rpx rgba(59, 130, 246, 0.35);
-}
-
-.btn-text-primary {
-  font-size: 30rpx;
-  color: #ffffff;
-  font-weight: 600;
-}
-
-.btn-outline {
-  flex: 1;
-  height: 88rpx;
-  background: #ffffff;
-  border: 2rpx solid #3b82f6;
-  border-radius: 44rpx;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.btn-text-outline {
-  font-size: 30rpx;
-  color: #3b82f6;
-  font-weight: 600;
-}
-
 /* 功能菜单卡片 */
 .menu-card {
-  background: #ffffff;
+  background: $white;
   border-radius: 24rpx;
   overflow: hidden;
-  box-shadow: 0 4rpx 24rpx rgba(99, 102, 241, 0.08);
+  margin: 0 24rpx;
+  box-shadow: 0 2rpx 8rpx rgba(0, 0, 0, 0.04);
 }
 
 .menu-item {
@@ -541,13 +576,14 @@ onShow(() => {
 }
 
 .menu-item-border {
-  border-bottom: 1rpx solid #f3f4f6;
+  border-bottom: 1rpx solid #F2F3F5;
 }
 
 .menu-left {
   display: flex;
   align-items: center;
   gap: 20rpx;
+  flex: 1;
 }
 
 .menu-icon-wrapper {
@@ -557,36 +593,38 @@ onShow(() => {
   display: flex;
   align-items: center;
   justify-content: center;
+  flex-shrink: 0;
 }
 
-.menu-icon {
-  font-size: 36rpx;
+.menu-text-wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 8rpx;
+  flex: 1;
 }
 
 .menu-name {
   font-size: 30rpx;
   font-weight: 500;
-  color: #1f2937;
+  color: #1D2129;
+  line-height: 1.4;
+}
+
+.menu-desc {
+  font-size: 24rpx;
+  color: #86909C;
+  line-height: 1.4;
 }
 
 .menu-arrow {
-  font-size: 36rpx;
-  color: #9ca3af;
+  font-size: 32rpx;
+  color: #C9CDD4;
   font-weight: 300;
-}
-
-/* 按钮点击效果 */
-.btn-primary:active {
-  opacity: 0.9;
-  transform: scale(0.98);
-}
-
-.btn-outline:active {
-  background: rgba(59, 130, 246, 0.05);
+  flex-shrink: 0;
 }
 
 .menu-item:active {
-  background: #f9fafb;
+  background: #F7F8FA;
 }
 </style>
 

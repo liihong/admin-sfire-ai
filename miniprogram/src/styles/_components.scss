@@ -159,3 +159,41 @@
     color: $text-second;
   }
 }
+
+// ========== 长按钮通用样式 ==========
+
+/**
+ * 长按钮样式（胶囊形按钮）
+ * 用于空状态、引导操作等场景
+ * 
+ * 使用示例：
+ * <view class="pill-button">
+ *   <SvgIcon name="add" size="40" color="#FFFFFF" />
+ *   <text class="pill-button-text">开启第一个项目</text>
+ * </view>
+ */
+.pill-button {
+  width: 100%;
+  max-width: 600rpx;
+  height: 96rpx;
+  background: #212B36; // 深蓝色/黑色背景
+  border-radius: 48rpx; // 大圆角，接近胶囊形
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12rpx;
+  box-shadow: 0 4rpx 16rpx rgba(33, 43, 54, 0.2);
+  transition: all 0.3s ease;
+
+  &:active {
+    transform: scale(0.98);
+    box-shadow: 0 2rpx 8rpx rgba(33, 43, 54, 0.15);
+  }
+
+  // 按钮文字
+  .pill-button-text {
+    font-size: 32rpx;
+    font-weight: 600;
+    color: #FFFFFF; // 白色
+  }
+}

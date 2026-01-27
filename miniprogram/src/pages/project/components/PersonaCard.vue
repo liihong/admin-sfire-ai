@@ -88,8 +88,9 @@ defineEmits<{
 @import '@/styles/_variables.scss';
 
 .persona-card {
-  background: linear-gradient(135deg, #EFF6FF 0%, #DBEAFE 100%);
+  background-color: rgb(255 247 237 / 0.5);
   border-radius: $radius-lg;
+  border-color: rgb(255 237 213 / 0.5);
   padding: $spacing-lg;
   margin-bottom: $spacing-lg;
   box-shadow: 0 4rpx 24rpx rgba(59, 130, 246, 0.1);
