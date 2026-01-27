@@ -54,3 +54,4 @@ CREATE TABLE IF NOT EXISTS inspirations (
 -- 如果已有灵感数据需要迁移，可以在这里添加迁移脚本
 -- 例如：从其他表导入数据、转换格式等
 
+

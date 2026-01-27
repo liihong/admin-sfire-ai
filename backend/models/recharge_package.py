@@ -122,3 +122,4 @@ class RechargePackage(BaseModel):
         """是否启用"""
         return self.status == 1
 
+

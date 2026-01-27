@@ -55,3 +55,4 @@ INSERT INTO recharge_packages (name, price, power_amount, unit_price, tag, descr
 ('爆款合伙人', 99.00, 15000, '1:151', '["最划算", "80%用户选择"]', '主推款。价格在百元内，性价比最高。', 500, 3, 1, TRUE),
 ('专业工作室', 199.00, 35000, '1:175', '[]', '针对有 6 人以上小团队的同行。', 1166, 4, 1, FALSE);
 
+

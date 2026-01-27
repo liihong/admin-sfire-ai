@@ -128,3 +128,4 @@ class OrderStatusResponse(BaseModel):
     payment_time: Optional[datetime] = Field(default=None, description="支付时间")
     wechat_transaction_id: Optional[str] = Field(default=None, description="微信交易号")
 
+
