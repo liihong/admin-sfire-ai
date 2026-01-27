@@ -2,7 +2,6 @@
 微信支付服务
 用于处理微信支付统一下单、签名验证等
 """
-import json
 import httpx
 import hashlib
 import random
@@ -12,10 +11,20 @@ from typing import Dict, Any, Optional
 from decimal import Decimal
 from loguru import logger
 
+# 使用安全的XML解析库，防止XXE攻击
+try:
+    from defusedxml import ElementTree as SafeET
+    XML_PARSER_AVAILABLE = True
+except ImportError:
+    # Fallback: 使用标准库但禁用实体
+    import xml.etree.ElementTree as ET
+    from xml.etree.ElementTree import XMLParser
+    XML_PARSER_AVAILABLE = False
+    logger.warning("defusedxml未安装，使用标准XML解析器（已禁用外部实体）")
+
 from core.config import settings
 from utils.payment import generate_wechat_sign, verify_wechat_sign, format_amount
 from utils.exceptions import BadRequestException, ServerErrorException
-from utils.security import verify_ip_whitelist
 
 
 class WeChatPayService:
@@ -80,7 +89,7 @@ class WeChatPayService:
             "nonce_str": self._generate_nonce_str(),
             "body": description,
             "out_trade_no": order_id,
-            "total_fee": format_amount(float(amount)),  # 转换为分
+            "total_fee": format_amount(amount),  # 转换为分（amount是Decimal类型）
             "spbill_create_ip": client_ip,
             "notify_url": self.notify_url,
             "trade_type": "JSAPI",
@@ -92,9 +101,6 @@ class WeChatPayService:
         params["sign"] = sign
         
         try:
-            # 调用微信统一下单API（v2 API使用XML格式）
-            import xml.etree.ElementTree as ET
-            
             # 转换为XML格式
             xml_data = self._dict_to_xml(params)
             
@@ -209,9 +215,25 @@ class WeChatPayService:
         return xml
     
     def _xml_to_dict(self, xml_str: str) -> Dict[str, Any]:
-        """将XML格式转换为字典"""
+        """
+        将XML格式转换为字典（安全解析，防止XXE攻击）
+        
+        Args:
+            xml_str: XML字符串
+        
+        Returns:
+            解析后的字典
+        """
         try:
-            root = ET.fromstring(xml_str)
+            if XML_PARSER_AVAILABLE:
+                # 使用defusedxml库，自动禁用外部实体
+                root = SafeET.fromstring(xml_str)
+            else:
+                # Fallback: 使用标准库但禁用实体
+                parser = XMLParser()
+                parser.entity = {}  # 禁用实体引用
+                root = ET.fromstring(xml_str, parser=parser)
+            
             result = {}
             for child in root:
                 result[child.tag] = child.text
@@ -239,7 +261,17 @@ class WeChatPayService:
             logger.warning("微信支付API密钥未配置，无法验证签名")
             return False
         
-        return verify_wechat_sign(params, self.api_key, sign)
+        # 记录验证信息（不记录敏感值）
+        order_id = params.get("out_trade_no", "未知")
+        result = verify_wechat_sign(params, self.api_key, sign)
+        
+        if not result:
+            logger.warning(
+                f"支付回调签名验证失败: 订单号={order_id}, "
+                f"回调参数keys={list(params.keys())}"
+            )
+        
+        return result
     
     def parse_callback_data(self, callback_data: Dict[str, Any]) -> Dict[str, Any]:
         """
@@ -249,7 +281,7 @@ class WeChatPayService:
             callback_data: 回调数据字典
         
         Returns:
-            解析后的订单信息
+            解析后的订单信息（金额使用Decimal类型确保精度）
         """
         # 提取关键信息
         order_id = callback_data.get("out_trade_no")
@@ -257,10 +289,20 @@ class WeChatPayService:
         total_fee = callback_data.get("total_fee")
         time_end = callback_data.get("time_end")
         
+        # 分转元，使用Decimal确保精度
+        amount = None
+        if total_fee:
+            try:
+                # 将字符串或数字转换为Decimal，然后除以100
+                amount = Decimal(str(total_fee)) / Decimal("100")
+            except (ValueError, TypeError) as e:
+                logger.warning(f"解析支付金额失败: total_fee={total_fee}, 错误={e}")
+                amount = None
+        
         return {
             "order_id": order_id,
             "transaction_id": transaction_id,
-            "amount": total_fee / 100.0 if total_fee else None,  # 分转元
+            "amount": amount,  # Decimal类型，确保精度
             "payment_time": time_end,
         }
 

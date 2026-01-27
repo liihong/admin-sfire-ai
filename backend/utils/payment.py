@@ -6,7 +6,8 @@ import time
 import random
 import hashlib
 import hmac
-from typing import Dict, Any
+from typing import Dict, Any, Union
+from decimal import Decimal, ROUND_HALF_UP
 from loguru import logger
 
 
@@ -97,17 +98,24 @@ def verify_wechat_sign(params: Dict[str, Any], api_key: str, sign: str) -> bool:
     return calculated_sign == sign.upper()
 
 
-def format_amount(amount: float) -> int:
+def format_amount(amount: Union[float, Decimal]) -> int:
     """
     格式化金额（元转分）
     
+    使用Decimal确保精度，避免浮点数精度丢失问题
+    
     Args:
-        amount: 金额（元）
+        amount: 金额（元），支持float或Decimal
     
     Returns:
         金额（分）
     """
-    return int(amount * 100)
+    if isinstance(amount, Decimal):
+        # 使用Decimal确保精度
+        return int((amount * Decimal("100")).quantize(Decimal("1"), rounding=ROUND_HALF_UP))
+    else:
+        # float类型转换为Decimal再计算
+        return int((Decimal(str(amount)) * Decimal("100")).quantize(Decimal("1"), rounding=ROUND_HALF_UP))
 
 
 def parse_amount(amount: int) -> float:

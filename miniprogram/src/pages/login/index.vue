@@ -478,7 +478,6 @@ $wechat-green: #07C160;
   height: 140rpx;
   background: linear-gradient(135deg, $brand-orange 0%, $brand-orange-alt 50%, $brand-purple 100%);
   border-radius: $radius-circle;
-  animation: rotate-slow 20s linear infinite;
   box-shadow: inset 0 0 40rpx rgba(255, 255, 255, 0.3);
 }
 

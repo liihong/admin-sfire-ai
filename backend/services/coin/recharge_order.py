@@ -109,8 +109,6 @@ class RechargeOrderService:
         await self.db.flush()
         
         # 5. 调用支付服务创建统一下单
-        # 注意：如果支付服务调用失败，订单记录已创建但状态为pending
-        # 可以通过定时任务清理超时的pending订单
         try:
             payment_params = await self.payment_service.create_unified_order(
                 order_id=order_id,
@@ -120,9 +118,15 @@ class RechargeOrderService:
                 client_ip=client_ip
             )
         except Exception as e:
-            # 支付服务调用失败，记录错误
-            # 订单记录保留，用户可以重试支付
-            logger.error(f"创建支付订单失败: {e}")
+            # 支付服务调用失败，更新订单状态为失败并记录错误
+            # 订单记录保留，用户可以重试支付或联系客服
+            logger.error(
+                f"创建支付订单失败: 订单号={order_id}, "
+                f"用户ID={user_id}, 套餐ID={package_id}, 错误={e}"
+            )
+            order_log.payment_status = "failed"
+            order_log.remark = f"{order_log.remark}（支付服务调用失败: {str(e)}）"
+            await self.db.flush()
             raise ServerErrorException(f"创建支付订单失败: {str(e)}")
         
         # 注意：事务提交由路由层的get_db依赖管理
@@ -174,13 +178,19 @@ class RechargeOrderService:
         """
         # 1. 验证签名
         if not self.payment_service.verify_callback_signature(callback_data, sign):
-            logger.warning(f"支付回调签名验证失败: {callback_data}")
+            # 签名验证失败，记录订单号（如果存在）但不记录完整回调数据（可能包含敏感信息）
+            order_id_hint = callback_data.get("out_trade_no", "未知")
+            logger.warning(
+                f"支付回调签名验证失败: 订单号={order_id_hint}, "
+                f"回调参数keys={list(callback_data.keys())}"
+            )
             raise BadRequestException("支付回调签名验证失败")
         
         # 2. 解析回调数据
         parsed_data = self.payment_service.parse_callback_data(callback_data)
         order_id = parsed_data.get("order_id")
         transaction_id = parsed_data.get("transaction_id")
+        callback_amount = parsed_data.get("amount")  # Decimal类型
         payment_time_str = parsed_data.get("payment_time")
         
         if not order_id:
@@ -212,6 +222,30 @@ class RechargeOrderService:
         
         if order_log.payment_status not in ["pending", "failed"]:
             raise BadRequestException(f"订单状态异常，无法处理: {order_log.payment_status}")
+        
+        # 4.5. 验证支付金额（防止金额篡改攻击）
+        if order_log.payment_amount and callback_amount:
+            # 转换为Decimal进行比较，允许0.01元的误差（微信支付精度）
+            expected_amount = Decimal(str(order_log.payment_amount))
+            callback_amount_decimal = Decimal(str(callback_amount))
+            
+            # 计算金额差异
+            amount_diff = abs(callback_amount_decimal - expected_amount)
+            
+            if amount_diff > Decimal("0.01"):
+                logger.error(
+                    f"支付金额不匹配: 订单号={order_id}, "
+                    f"订单金额={expected_amount}元, "
+                    f"回调金额={callback_amount_decimal}元, "
+                    f"差异={amount_diff}元"
+                )
+                raise BadRequestException(
+                    f"支付金额不匹配，订单异常。订单金额：{expected_amount}元，"
+                    f"回调金额：{callback_amount_decimal}元"
+                )
+        elif not callback_amount:
+            logger.warning(f"回调数据缺少支付金额: 订单号={order_id}")
+            # 如果订单有金额但回调没有，记录警告但继续处理（可能是测试环境）
         
         # 5. 充值算力（使用账户服务的充值方法）
         try:

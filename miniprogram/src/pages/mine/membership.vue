@@ -43,6 +43,29 @@
       </view>
     </view>
 
+    <!-- 会员专属权益区 -->
+      <view class="section-container">
+        <view class="section-header">
+          <view class="section-indicator"></view>
+          <text class="section-title">会员专属权益</text>
+        </view>
+        <view class="benefits-list">
+          <view v-for="(benefit, index) in benefitsList" :key="index" class="benefit-item">
+            <view class="benefit-icon-wrapper">
+              <text class="benefit-number">{{ index + 1 }}</text>
+              <view class="benefit-glow"></view>
+            </view>
+            <view class="benefit-content">
+              <text class="benefit-title">{{ benefit.title }}</text>
+              <text class="benefit-desc">{{ benefit.desc }}</text>
+            </view>
+          </view>
+        </view>
+      </view>
+
+
+
+
     <!-- 选择会员套餐区 -->
     <view class="section-container">
       <view class="section-header">
@@ -82,33 +105,12 @@
           <view class="qr-pattern"></view>
         </view>
         <text class="qr-hint">扫一扫上面的二维码图案，加我为朋友。</text>
-        <text class="qr-action">长按二维码添加小猫导师微信</text>
+         <text class="qr-action">长按二维码添加隔壁老陈导师微信</text>
+
       </view>
     </view>
 
-    <!-- 会员专属权益区 -->
-    <view class="section-container">
-      <view class="section-header">
-        <view class="section-indicator"></view>
-        <text class="section-title">会员专属权益</text>
-      </view>
-      <view class="benefits-list">
-        <view 
-          v-for="(benefit, index) in benefitsList" 
-          :key="index" 
-          class="benefit-item"
-        >
-          <view class="benefit-icon-wrapper">
-            <text class="benefit-number">{{ index + 1 }}</text>
-            <view class="benefit-glow"></view>
-          </view>
-          <view class="benefit-content">
-            <text class="benefit-title">{{ benefit.title }}</text>
-            <text class="benefit-desc">{{ benefit.desc }}</text>
-          </view>
-        </view>
-      </view>
-    </view>
+
 
       <view class="bottom-gap"></view>
     </scroll-view>
@@ -136,11 +138,7 @@ const selectPackage = (type: 'annual') => {
 const benefitsList = ref([
   {
     title: '赠送超值算力',
-    desc: '算力可用于AI视频、AI创作等'
-  },
-  {
-    title: '无限生成实景数字人',
-    desc: '无限次克隆你的数字人分身'
+    desc: '算力可用于IP定位、AI创作等'
   },
   {
     title: '爆款AI导师',
@@ -287,7 +285,6 @@ const benefitsList = ref([
 .vip-hero-section {
   position: relative;
   margin: 32rpx 24rpx 40rpx;
-  padding: 60rpx 40rpx;
   border-radius: 32rpx;
   overflow: hidden;
   background: linear-gradient(135deg, rgba(59, 130, 246, 0.15) 0%, rgba(139, 92, 246, 0.2) 100%);

@@ -361,6 +361,10 @@ async def payment_callback(
     from utils.security import verify_ip_whitelist
     from core.config import settings
     
+    # 初始化变量
+    client_ip = "未知"
+    order_id_hint = "未知"
+    
     try:
         # 1. 验证IP白名单
         client_ip = request.client.host if request.client else None
@@ -373,7 +377,10 @@ async def payment_callback(
                 client_ip = "127.0.0.1"
         
         if not verify_ip_whitelist(client_ip, settings.WECHAT_PAY_IP_WHITELIST):
-            logger.warning(f"支付回调IP不在白名单: {client_ip}")
+            logger.warning(
+                f"支付回调IP不在白名单: IP={client_ip}, "
+                f"白名单={settings.WECHAT_PAY_IP_WHITELIST}"
+            )
             xml_response = _build_xml_response("FAIL", "IP验证失败")
             return Response(content=xml_response, media_type="application/xml")
         
@@ -381,9 +388,39 @@ async def payment_callback(
         xml_data = await request.body()
         callback_data = _parse_xml_callback(xml_data.decode('utf-8'))
         
+        # 提取订单号用于错误日志
+        order_id_hint = callback_data.get("out_trade_no", "未知")
+        
+        # 2.5. 验证微信支付返回状态码（必须验证）
+        return_code = callback_data.get("return_code")
+        result_code = callback_data.get("result_code")
+        
+        # 如果通信失败，直接返回失败
+        if return_code != "SUCCESS":
+            return_msg = callback_data.get("return_msg", "未知错误")
+            logger.warning(
+                f"微信支付回调通信失败: 订单号={order_id_hint}, "
+                f"return_code={return_code}, return_msg={return_msg}, IP={client_ip}"
+            )
+            xml_response = _build_xml_response("FAIL", f"通信失败: {return_msg}")
+            return Response(content=xml_response, media_type="application/xml")
+        
+        # 如果业务失败，记录日志但返回成功（避免微信重复回调）
+        if result_code != "SUCCESS":
+            err_code = callback_data.get("err_code", "未知错误码")
+            err_code_des = callback_data.get("err_code_des", "未知错误")
+            logger.warning(
+                f"微信支付回调业务失败: 订单号={order_id_hint}, "
+                f"err_code={err_code}, err_code_des={err_code_des}, IP={client_ip}"
+            )
+            # 返回SUCCESS避免微信重复回调，但不会处理订单
+            xml_response = _build_xml_response("SUCCESS", "OK")
+            return Response(content=xml_response, media_type="application/xml")
+        
         # 3. 获取签名
         sign = callback_data.get("sign")
         if not sign:
+            logger.warning(f"支付回调缺少签名: 订单号={order_id_hint}, IP={client_ip}")
             xml_response = _build_xml_response("FAIL", "缺少签名")
             return Response(content=xml_response, media_type="application/xml")
         
@@ -395,16 +432,39 @@ async def payment_callback(
         return Response(content=xml_response, media_type="application/xml")
         
     except Exception as e:
-        logger.error(f"支付回调处理失败: {e}")
+        # 记录详细的错误信息（包含订单号、IP等，便于排查）
+        logger.error(
+            f"支付回调处理失败: 订单号={order_id_hint}, "
+            f"IP={client_ip}, 错误={e}",
+            exc_info=True  # 记录完整堆栈信息
+        )
         xml_response = _build_xml_response("FAIL", f"处理失败: {str(e)}")
         return Response(content=xml_response, media_type="application/xml")
 
 
 def _parse_xml_callback(xml_str: str) -> Dict[str, Any]:
-    """解析XML回调数据"""
-    import xml.etree.ElementTree as ET
+    """
+    解析XML回调数据（安全解析，防止XXE攻击）
+    
+    Args:
+        xml_str: XML字符串
+    
+    Returns:
+        解析后的字典
+    """
+    # 使用安全的XML解析库，防止XXE攻击
     try:
-        root = ET.fromstring(xml_str)
+        from defusedxml import ElementTree as SafeET
+        root = SafeET.fromstring(xml_str)
+    except ImportError:
+        # Fallback: 使用标准库但禁用实体
+        import xml.etree.ElementTree as ET
+        from xml.etree.ElementTree import XMLParser
+        parser = XMLParser()
+        parser.entity = {}  # 禁用实体引用
+        root = ET.fromstring(xml_str, parser=parser)
+    
+    try:
         result = {}
         for child in root:
             result[child.tag] = child.text

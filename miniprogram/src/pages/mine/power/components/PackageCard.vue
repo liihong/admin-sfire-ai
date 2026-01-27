@@ -1,5 +1,9 @@
 <template>
-  <view class="package-card" :class="{ 'is-popular': package.is_popular }" @tap="handleClick">
+ <view class="package-card" :class="{ 'is-popular': package.is_popular, 'is-selected': selected }" @tap="handleClick">
+    <!-- 选中标识 -->
+    <view class="selected-badge" v-if="selected">
+      <text class="selected-icon">✓</text>
+    </view>
     <!-- 主推标签 -->
     <view class="popular-badge" v-if="package.is_popular">
       <text class="popular-text">🏆 爆款推荐</text>
@@ -21,41 +25,34 @@
         </view>
       </view>
       
-      <view class="package-price-row">
-        <text class="price-symbol">¥</text>
-        <text class="price-value">{{ package.price }}</text>
+<view class="package-price-power-row">
+       <view class="package-price-row">
+          <text class="price-symbol">¥</text>
+          <text class="price-value">{{ package.price }}</text>
+        </view>
+       <view class="package-power-row">
+          <text class="power-value">{{ formatPower(package.power_amount) }}</text>
+          <text class="power-unit">算力</text>
+        </view>
       </view>
       
-      <view class="package-power-row">
-        <text class="power-value">{{ formatPower(package.power_amount) }}</text>
-        <text class="power-unit">算力</text>
-      </view>
-      
-      <view class="package-unit-price" v-if="package.unit_price">
-        实际单价：{{ package.unit_price }}
-      </view>
-      
-      <view class="package-article-count" v-if="package.article_count">
-        约可生成 {{ package.article_count }} 篇高质量爆款文案
-      </view>
-      
-      <view class="package-description" v-if="package.description">
+<!-- <view class="package-description" v-if="package.description">
         {{ package.description }}
-      </view>
+     </view> -->
     </view>
   </view>
 </template>
 
 <script setup lang="ts">
-import { defineProps, defineEmits } from 'vue'
 import type { Package } from '@/api/recharge'
 
 const props = defineProps<{
   package: Package
+  selected?: boolean
 }>()
 
 const emit = defineEmits<{
-  click: [package: Package]
+  click: [pkg: Package]
 }>()
 
 // 格式化算力数量（添加千分位）
@@ -74,7 +71,7 @@ function handleClick() {
   position: relative;
   background: #ffffff;
   border-radius: 24rpx;
-  padding: 32rpx;
+  padding: 24rpx;
   margin-bottom: 24rpx;
   box-shadow: 0 2rpx 12rpx rgba(0, 0, 0, 0.04);
   border: 2rpx solid transparent;
@@ -86,16 +83,42 @@ function handleClick() {
     box-shadow: 0 4rpx 20rpx rgba(249, 115, 22, 0.15);
   }
 
+                                &.is-selected {
+                                  border-color: #3b82f6;
+                                  border-width: 3rpx;
+                                  background: linear-gradient(135deg, #eff6ff 0%, #ffffff 100%);
+                                  box-shadow: 0 4rpx 20rpx rgba(59, 130, 246, 0.2);
+                                }
   &:active {
     transform: scale(0.98);
     opacity: 0.9;
   }
 }
 
+.selected-badge {
+  position: absolute;
+  top: 24rpx;
+  right: 24rpx;
+  width: 48rpx;
+  height: 48rpx;
+  background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4rpx 12rpx rgba(59, 130, 246, 0.3);
+  z-index: 10;
+}
+
+.selected-icon {
+  font-size: 28rpx;
+  color: #ffffff;
+  font-weight: 700;
+}
 .popular-badge {
   position: absolute;
-  top: -12rpx;
-  right: 32rpx;
+  top: -30rpx;
+    right: 0rpx;
   background: linear-gradient(135deg, #f97316 0%, #ea580c 100%);
   padding: 8rpx 20rpx;
   border-radius: 20rpx;
@@ -111,14 +134,14 @@ function handleClick() {
 .package-content {
   display: flex;
   flex-direction: column;
-  gap: 12rpx;
+  gap: 8rpx;
 }
 
 .package-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 8rpx;
+  margin-bottom: 4rpx;
 }
 
 .package-name {
@@ -147,11 +170,16 @@ function handleClick() {
   }
 }
 
+.package-price-power-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  margin-top: 8rpx;
+}
 .package-price-row {
   display: flex;
   align-items: baseline;
   gap: 4rpx;
-  margin-top: 8rpx;
 }
 
 .price-symbol {
@@ -171,7 +199,6 @@ function handleClick() {
   display: flex;
   align-items: baseline;
   gap: 8rpx;
-  margin-top: 4rpx;
 }
 
 .power-value {
@@ -187,25 +214,10 @@ function handleClick() {
   font-weight: 500;
 }
 
-.package-unit-price {
-  font-size: 24rpx;
-  color: #9ca3af;
-  margin-top: 4rpx;
-}
-
-.package-article-count {
-  font-size: 24rpx;
-  color: #6b7280;
-  margin-top: 8rpx;
-  padding: 12rpx;
-  background: #f9fafb;
-  border-radius: 12rpx;
-}
-
 .package-description {
   font-size: 24rpx;
   color: #9ca3af;
-  margin-top: 8rpx;
+  margin-top: 4rpx;
   line-height: 1.5;
 }
 </style>
