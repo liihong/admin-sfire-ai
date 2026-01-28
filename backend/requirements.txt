@@ -20,3 +20,4 @@ faiss-cpu
 numpy
 jinja2
 defusedxml
+greenlet

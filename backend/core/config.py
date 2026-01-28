@@ -29,14 +29,14 @@ class Settings(BaseSettings):
     PORT: int = 8000
 
     # MySQL 数据库配置
-    MYSQL_HOST: str = "localhost"
+    MYSQL_HOST: str = "47.110.80.238"
     MYSQL_PORT: int = 3306
     MYSQL_USER: str = "root"
     MYSQL_PASSWORD: str = "Sfire@2026"
     MYSQL_DATABASE: str = "sfire_admin"
 
     # Redis 配置
-    REDIS_HOST: str = "localhost"
+    REDIS_HOST: str = "47.110.80.238"
     REDIS_PORT: int = 6379
     REDIS_PASSWORD: str = ""
     REDIS_DB: int = 0

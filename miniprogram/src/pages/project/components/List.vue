@@ -22,14 +22,7 @@
     <scroll-view class="project-list-wrapper" scroll-y :refresher-enabled="true" @refresherrefresh="onRefresh"
       :refresher-triggered="isRefreshing">
       <!-- 空状态 -->
-      <view class="empty-state" v-if="!isLoading && projectList.length === 0">
-        <view class="empty-icon">🚀</view>
-        <text class="empty-title">还没有项目</text>
-        <text class="empty-desc">创建你的第一个 IP 项目，开启智能创作之旅</text>
-        <view class="empty-action" @tap="navigateToCreate">
-          <text class="action-text">立即创建</text>
-        </view>
-      </view>
+      <EmptyState v-if="!isLoading && projectList.length === 0" @action="navigateToCreate" />
 
       <!-- 项目卡片列表 -->
       <view class="project-cards" v-else>
@@ -80,17 +73,6 @@
       <view class="list-footer-spacer"></view>
     </scroll-view>
 
-    <!-- 底部创建按钮 -->
-    <view class="create-btn-wrapper">
-      <view class="create-btn" @tap="navigateToCreate">
-        <view class="btn-glow"></view>
-        <view class="btn-content">
-         <SvgIcon name="add" size="30" color="#FFFFFF" />
-          <text class="btn-text">创建新项目</text>
-        </view>
-      </view>
-    </view>
-
     <!-- 创建项目弹窗 -->
     <BaseModal :visible="showCreateModal" title="创建新项目" @update:visible="showCreateModal = $event">
       <template #footer>
@@ -135,6 +117,7 @@ import { formatDate } from '@/utils/date'
 import BaseModal from '@/components/common/BaseModal.vue'
 import BaseLoading from '@/components/common/BaseLoading.vue'
 import SvgIcon from '@/components/base/SvgIcon.vue'
+import EmptyState from './EmptyState.vue'
 
 // Props
 const props = defineProps<{
@@ -438,46 +421,7 @@ async function handleCreateProject() {
   padding: 0 32rpx;
 }
 
-// 空状态
-.empty-state {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  padding: 120rpx 40rpx;
-
-  .empty-icon {
-    font-size: 100rpx;
-    margin-bottom: 32rpx;
-  }
-
-  .empty-title {
-    font-size: 36rpx;
-    font-weight: 600;
-    color: #333;
-    margin-bottom: 16rpx;
-  }
-
-  .empty-desc {
-    font-size: 28rpx;
-    color: #999;
-    text-align: center;
-    line-height: 1.6;
-    margin-bottom: 48rpx;
-  }
-
-  .empty-action {
-    padding: 24rpx 64rpx;
-        background: linear-gradient(135deg, $primary-orange 0%, $primary-orange-alt 100%);
-    border-radius: 48rpx;
-    box-shadow: 0 8rpx 24rpx rgba(255, 136, 0, 0.3);
-
-    .action-text {
-      font-size: 30rpx;
-      font-weight: 600;
-      color: #fff;
-    }
-  }
-}
+// 空状态样式已移至 EmptyState 组件
 
 // 项目卡片列表
 .project-cards {
@@ -544,8 +488,11 @@ async function handleCreateProject() {
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
-  background-color: $primary-orange;
+  background-color: rgb(15 23 42 / var(--tw-bg-opacity, 1));
 
+  &:hover {
+    background-color: $primary-orange;
+  }
   .avatar-letter {
     font-size: 40rpx;
     font-weight: 700;
@@ -639,62 +586,6 @@ async function handleCreateProject() {
 // 列表底部占位
 .list-footer-spacer {
   height: 200rpx;
-}
-
-// 创建按钮
-.create-btn-wrapper {
-  position: fixed;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  padding: 32rpx;
-  padding-bottom: calc(32rpx + env(safe-area-inset-bottom));
-  background: linear-gradient(180deg, transparent 0%, #F5F7FA 40%);
-  z-index: 100;
-
-  .create-btn {
-    position: relative;
-    height: 100rpx;
-        background: linear-gradient(135deg, $primary-orange 0%, $primary-orange-alt 100%);
-    border-radius: 50rpx;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    box-shadow: 0 8rpx 32rpx rgba(255, 136, 0, 0.35);
-    overflow: hidden;
-
-    &:active {
-      transform: scale(0.98);
-      box-shadow: 0 4rpx 16rpx rgba(255, 136, 0, 0.25);
-    }
-
-    .btn-glow {
-      position: absolute;
-      top: 0;
-      left: -100%;
-      width: 100%;
-      height: 100%;
-      background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
-      animation: btnGlow 3s infinite;
-    }
-
-    .btn-content {
-      display: flex;
-      align-items: center;
-      gap: 12rpx;
-      z-index: 1;
-
-      .btn-icon {
-        font-size: 36rpx;
-      }
-
-      .btn-text {
-        font-size: 32rpx;
-        font-weight: 600;
-        color: #fff;
-      }
-    }
-  }
 }
 
 // 弹窗样式已移至 BaseModal 组件，这里只保留页面特定样式
