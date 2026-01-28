@@ -1,26 +1,38 @@
 <template>
-  <view class="notification-bar" @tap="handleClick">
+ <view class="notification-bar" v-if="announcements && announcements.length > 0">
     <view class="notification-left">
-      <!-- <u-icon name="flash" color="#FF8800" size="32" /> -->
-     <SvgIcon name="agent" size="32" color="#FF8800" />
-      <text class="notification-label">智能体动态</text>
+     <SvgIcon name="notice" size="32" color="#FF8800" />
+      <text class="notification-label">上新</text>
       <view class="divider"></view>
     </view>
     <view class="notification-content">
-      <text class="notification-text">{{ notificationText }}</text>
-    </view>
-    <u-icon name="arrow-right" color="#C9CDD4" size="20" />
+     <text class="notification-text">{{ latestAnnouncement?.title || '暂无公告' }}</text>
+   </view>
   </view>
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
+import { computed } from 'vue'
+import type { ArticleItem } from '@/api/home'
 import SvgIcon from '@/components/base/SvgIcon.vue'
 
-const notificationText = ref('火源 AI 算力节点已完成扩容')
+// 接收父组件传递的公告数据
+const props = defineProps<{
+  announcements?: ArticleItem[]
+}>()
+
+// 获取最新公告
+const latestAnnouncement = computed(() => {
+  if (props.announcements && props.announcements.length > 0) {
+    return props.announcements[0]
+  }
+  return null
+})
 
 const handleClick = () => {
-  console.log('点击通知栏')
+  if (latestAnnouncement.value && latestAnnouncement.value.id) {
+    uni.navigateTo({ url: `/pages/article/detail?id=${latestAnnouncement.value.id}` })
+  }
 }
 </script>
 

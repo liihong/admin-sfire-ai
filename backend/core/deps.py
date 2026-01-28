@@ -143,13 +143,41 @@ async def get_current_miniprogram_user(
         raise UnauthorizedException(msg="令牌数据无效")
 
     # 从数据库获取用户（小程序用户使用 User 表，不是 AdminUser）
-    result = await db.execute(
-        select(User).where(
-            User.id == int(user_id),
-            User.is_deleted == False
+    # 使用原始 SQL 查询避免枚举值转换错误
+    try:
+        result = await db.execute(
+            select(User).where(
+                User.id == int(user_id),
+                User.is_deleted == False
+            )
         )
-    )
-    user = result.scalar_one_or_none()
+        user = result.scalar_one_or_none()
+    except Exception as e:
+        # 处理查询异常（兼容旧数据）
+        from loguru import logger
+        
+        logger.error(f"查询用户失败: {str(e)}, user_id={user_id}")
+        
+        # 尝试修复：使用原始 SQL 更新用户的 level_code 字段为默认值
+        try:
+            await db.execute(
+                update(User)
+                .where(User.id == int(user_id))
+                .values(level_code="normal")
+            )
+            await db.commit()
+            
+            # 重新查询
+            result = await db.execute(
+                select(User).where(
+                    User.id == int(user_id),
+                    User.is_deleted == False
+                )
+            )
+            user = result.scalar_one_or_none()
+        except Exception as fix_error:
+            logger.error(f"修复用户等级失败: {str(fix_error)}")
+            raise UnauthorizedException(msg="用户数据异常，请联系管理员")
 
     if not user:
         raise UnauthorizedException(msg="用户不存在")

@@ -132,7 +132,8 @@ class ConversationDAO:
         """
         获取会话列表（分页，数据访问层）
         
-        过滤规则：只显示至少有一条status=success的assistant消息的会话
+        过滤规则：只显示至少有一条消息的会话（不限制消息状态）
+        这样可以显示所有有对话记录的会话，包括处理中、失败等状态的会话
         
         Args:
             user_id: 用户ID
@@ -160,14 +161,15 @@ class ConversationDAO:
         if params.keyword:
             conditions.append(Conversation.title.like(f"%{params.keyword}%"))
         
-        # 过滤：只显示至少有一条success的assistant消息的会话
+        # 过滤：只显示至少有一条消息的会话（不限制消息状态和角色）
+        # 这样可以显示所有有对话记录的会话，包括：
+        # - pending（待处理）状态的会话
+        # - processing（处理中）状态的会话
+        # - success（成功）状态的会话
+        # - error（失败）状态的会话
         # 使用EXISTS子查询优化性能
         exists_subquery = select(1).where(
-            and_(
-                ConversationMessage.conversation_id == Conversation.id,
-                ConversationMessage.role == "assistant",
-                ConversationMessage.status == MessageStatus.SUCCESS.value
-            )
+            ConversationMessage.conversation_id == Conversation.id
         ).exists()
         conditions.append(exists_subquery)
         

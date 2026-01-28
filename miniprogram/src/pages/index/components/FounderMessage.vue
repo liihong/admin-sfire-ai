@@ -11,8 +11,7 @@
       circular
     >
       <swiper-item v-for="(item, index) in messageList" :key="index">
-        <view class="message-card">
-          <view class="message-tag">FOUNDER'S MESSAGE</view>
+       <view class="message-card">
           <view class="message-title">{{ item.title }}</view>
           <view class="message-desc">{{ item.desc }}</view>
           <view class="message-btn" @tap="handleViewStory">
@@ -25,17 +24,35 @@
 </template>
 
 <script setup lang="ts">
-import { reactive } from 'vue'
+import { computed } from 'vue'
+import type { ArticleItem } from '@/api/home'
 
-const messageList = reactive([
-  {
+// 接收父组件传递的创始人故事数据
+const props = defineProps<{
+  founderStories?: ArticleItem[]
+}>()
+
+// 转换为组件需要的格式
+const messageList = computed(() => {
+  if (props.founderStories && props.founderStories.length > 0) {
+    return props.founderStories.map(item => ({
+      id: item.id,
+      title: item.title,
+      desc: item.summary || item.title
+    }))
+  }
+  // 默认数据
+  return [{
+    id: 0,
     title: '武峥:火源AI创始人',
     desc: '10年北京代码生涯,回乡做AI,只想帮你每天多省出一杯茶的时间。'
-  }
-])
+  }]
+})
 
 const handleViewStory = () => {
-  console.log('查看故事')
+  if (messageList.value.length > 0 && messageList.value[0].id > 0) {
+    uni.navigateTo({ url: `/pages/article/detail?id=${messageList.value[0].id}` })
+  }
 }
 </script>
 
@@ -47,7 +64,7 @@ const handleViewStory = () => {
   padding: 0 $spacing-md;
 
   .founder-swiper {
-    height: 400rpx;
+    height: 350rpx;
   }
 
   .message-card {
@@ -88,13 +105,13 @@ const handleViewStory = () => {
 
     .message-btn {
       align-self: flex-start;
-      padding: 10rpx 20rpx;
+      padding: 0 10rpx;
       background: $white;
       border-radius: 100rpx;
       border: 2rpx solid $white;
 
       .btn-text {
-        font-size: 28rpx;
+        font-size: 20rpx;
         font-weight: 600;
         color: #1A1A2E;
       }

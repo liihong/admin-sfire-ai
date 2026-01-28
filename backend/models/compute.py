@@ -75,6 +75,8 @@ class ComputeLog(BaseModel):
         Index("ix_compute_logs_order_id", "order_id"),         # order_id 索引
         Index("ix_compute_logs_task_id", "task_id"),           # task_id 索引
         Index("ix_compute_logs_user_type", "user_id", "type"), # 复合索引
+        # 订单号唯一索引（充值订单的order_id必须唯一）
+        # 注意：需要在数据库迁移脚本中添加唯一约束：UNIQUE KEY `uk_compute_logs_order_id` (`order_id`) WHERE `type` = 'recharge' AND `order_id` IS NOT NULL
         {"comment": "算力变动记录表"},
     )
     
@@ -160,6 +162,12 @@ class ComputeLog(BaseModel):
         String(64),
         nullable=True,
         comment="微信交易号",
+    )
+    
+    order_expire_at: Mapped[Optional[datetime]] = mapped_column(
+        DateTime,
+        nullable=True,
+        comment="订单过期时间（待支付订单超过此时间后自动失效）",
     )
     
     package_id: Mapped[Optional[int]] = mapped_column(

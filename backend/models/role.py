@@ -1,6 +1,6 @@
 """
 角色模型
-基于users表的level字段，存储角色信息（名称、描述、排序等）
+后台管理员角色，关联admin_users表的role_id字段
 """
 from typing import Optional, List, TYPE_CHECKING
 from sqlalchemy import String, Integer, Index
@@ -14,12 +14,9 @@ if TYPE_CHECKING:
 
 class Role(BaseModel):
     """
-    角色模型
+    角色模型（后台管理员角色）
     
-    角色代码（code）对应users表的level字段：
-    - normal: 普通用户
-    - member: 会员用户
-    - partner: 合伙人
+    用于后台管理系统的角色权限管理，关联admin_users表
     """
     __tablename__ = "roles"
     __table_args__ = (
@@ -31,7 +28,7 @@ class Role(BaseModel):
         String(32),
         unique=True,
         nullable=False,
-        comment="角色代码（normal/member/partner），对应users表的level字段",
+        comment="角色代码（normal/member/partner），用于后台管理员角色",
     )
     
     name: Mapped[str] = mapped_column(

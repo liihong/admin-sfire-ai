@@ -7,6 +7,8 @@ from .banner import BannerService
 from .llm_model import LLMModelService
 from .compute import ComputeService
 from .quick_entry import QuickEntryService
+from .article import ArticleService
+from .home import HomeService
 
 __all__ = [
     "ProjectService",
@@ -14,6 +16,8 @@ __all__ = [
     "LLMModelService",
     "ComputeService",
     "QuickEntryService",
+    "ArticleService",
+    "HomeService",
 ]
 
 

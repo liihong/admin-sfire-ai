@@ -60,7 +60,7 @@ class Settings(BaseSettings):
     
     # 微信支付配置
     WECHAT_PAY_MCH_ID: str = "1724342908"  # 微信支付商户号
-    WECHAT_PAY_API_KEY: str = "sfire_prod_8TiDSimxwIT26wk7bLxeOGkk4YRI8IPbqYw1mkvhtA_b8db"  # 微信支付API密钥（v2 API密钥），仅支持32个字符，数字和大小写字母的组合
+    WECHAT_PAY_API_KEY: str = "sfire_prod_8TiDSimxwIT26wk7bLxeO"  # 微信支付API密钥（v2 API密钥），仅支持32个字符，数字和大小写字母的组合
     WECHAT_PAY_NOTIFY_URL: str = "https://sourcefire.cn/api/v1/client/coin/recharge/callback"  # 微信支付回调地址
     WECHAT_PAY_IP_WHITELIST: str = "182.254.48.0/24,140.207.54.0/24"  # 微信支付IP白名单（逗号分隔）
     

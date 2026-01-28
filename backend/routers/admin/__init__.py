@@ -6,7 +6,7 @@ from fastapi import APIRouter
 
 from . import (
     auth, dashboard, agents, admin_users, banner, 
-    home_config, llm_models, menu, users, dictionary, user_levels, quick_entries
+    home_config, llm_models, menu, users, dictionary, user_levels, quick_entries, article
 )
 
 # 尝试导入可选的路由
@@ -39,6 +39,7 @@ admin_router.include_router(users.router, prefix="/users", tags=["用户"])
 admin_router.include_router(dictionary.router, prefix="/dictionary", tags=["数据字典"])
 admin_router.include_router(user_levels.router, prefix="/user-levels", tags=["用户等级"])
 admin_router.include_router(quick_entries.router, prefix="/quick-entries", tags=["快捷入口"])
+admin_router.include_router(article.router, prefix="/articles", tags=["文章管理"])
 
 if roles_available and hasattr(roles, "router"):
     admin_router.include_router(roles.router, prefix="/roles", tags=["角色"])

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { onLaunch, onShow, onHide } from "@dcloudio/uni-app";
 import { useAuthStore } from "@/stores/auth";
+import { setConfig } from "uview-plus";
 
 // ============== 路由白名单 ==============
 const WHITE_LIST = [
@@ -239,6 +240,12 @@ function setupRouteInterceptors() {
 
 onLaunch(async () => {
   console.log("App Launch");
+  
+  // 配置 uview-plus 使用本地字体，避免请求阿里云 CDN
+  // 注意：需要先将字体文件下载到 /static/fonts/uview-iconfont.ttf
+  setConfig({
+    iconUrl: '/static/fonts/uview-iconfont.ttf'
+  });
   
   // 设置路由拦截器
   setupRouteInterceptors()

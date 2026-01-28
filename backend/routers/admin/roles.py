@@ -1,6 +1,6 @@
 """
 Role Endpoints
-角色管理接口（基于roles表和users表的level字段）
+角色管理接口（后台管理员角色）
 """
 from fastapi import APIRouter, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -56,7 +56,7 @@ async def create_role(
     """
     创建新角色
     
-    注意：角色代码（code）必须是normal/member/partner之一，对应UserLevel枚举
+    注意：角色代码（code）必须是normal/member/partner之一
     如果角色代码已存在，则更新现有角色
     """
     role_service = RoleService(db)

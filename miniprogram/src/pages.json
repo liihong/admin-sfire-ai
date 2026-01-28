@@ -112,6 +112,22 @@
         "navigationStyle": "custom",
         "disableScroll": true
       }
+    },
+    {
+      "path": "pages/article/detail",
+      "style": {
+        "navigationBarTitleText": "文章详情",
+        "navigationStyle": "custom",
+        "disableScroll": false
+      }
+    },
+    {
+      "path": "pages/article/list",
+      "style": {
+        "navigationBarTitleText": "文章列表",
+        "navigationStyle": "custom",
+        "disableScroll": false
+      }
     }
   ],
   "globalStyle": {

@@ -229,12 +229,6 @@ const handleSubmit = async () => {
     uni.hideLoading()
     console.error('Update profile error:', error)
     
-    // 开发环境模拟成功
-    // #ifdef H5
-    mockUpdateProfile()
-    return
-    // #endif
-    
     uni.showToast({
       title: error.message || '保存失败，请重试',
       icon: 'none'
@@ -242,31 +236,6 @@ const handleSubmit = async () => {
   } finally {
     isSubmitting.value = false
   }
-}
-
-/**
- * 开发环境模拟更新
- */
-const mockUpdateProfile = () => {
-  // 更新本地用户信息
-  authStore.setUserInfo({
-    ...authStore.userInfo!,
-    nickname: formData.nickname.trim(),
-    avatarUrl: formData.avatarUrl,
-    gender: formData.gender
-  })
-  
-  uni.showToast({
-    title: '保存成功',
-    icon: 'success',
-    duration: 1500
-  })
-  
-  setTimeout(() => {
-    uni.switchTab({
-      url: '/pages/project/list'
-    })
-  }, 1500)
 }
 
 /**

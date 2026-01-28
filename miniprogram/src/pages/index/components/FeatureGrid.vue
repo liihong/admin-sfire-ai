@@ -2,7 +2,7 @@
   <view class="feature-grid">
     <view
       class="feature-item"
-      v-for="(item, index) in featureList"
+v-for="(item, index) in displayFeatureList"
       :key="index"
       @tap="handleFeatureClick(item)"
     >
@@ -15,6 +15,9 @@
 </template>
 
 <script setup lang="ts">
+import { computed } from 'vue'
+import type { FeaturedModuleItem } from '@/api/home'
+
 export interface FeatureItem {
   icon: string
   label: string
@@ -23,23 +26,33 @@ export interface FeatureItem {
 }
 
 interface Props {
-  featureList?: FeatureItem[]
+  featureList?: FeaturedModuleItem[]
 }
 
+// 默认功能列表（当没有从数据库获取到数据时使用）
+const defaultFeatureList: FeatureItem[] = [
+  { icon: 'edit-pen', label: '脚本洗稿', route: '/pages/copywriting/index', iconSize: 20 },
+  { icon: 'folder', label: '图文封面', route: '/pages/cover/index', iconSize: 20 },
+  { icon: 'star', label: '爆款标题', route: '/pages/title/index', iconSize: 20 },
+  { icon: 'chat', label: '全能对话', route: '/pages/chat/index', iconSize: 20 }
+]
+
 const props = withDefaults(defineProps<Props>(), {
-  featureList: () => [
-    { icon: 'edit-pen', label: '脚本洗稿', route: '/pages/copywriting/index', iconSize: 20 },
-    { icon: 'folder', label: '图文封面', route: '/pages/cover/index', iconSize: 20 },
-    { icon: 'star', label: '爆款标题', route: '/pages/title/index', iconSize: 20 },
-    { icon: 'chat', label: '全能对话', route: '/pages/chat/index', iconSize: 20 }
-  ]
+  featureList: () => []
+})
+
+// 使用传入的数据，如果没有则使用默认数据
+const displayFeatureList = computed(() => {
+  return props.featureList && props.featureList.length > 0
+    ? props.featureList
+    : defaultFeatureList
 })
 
 const emit = defineEmits<{
   featureClick: [item: FeatureItem]
 }>()
 
-const handleFeatureClick = (item: FeatureItem) => {
+const handleFeatureClick = (item: FeaturedModuleItem | FeatureItem) => {
   emit('featureClick', item)
   if (item.route) {
     uni.navigateTo({ url: item.route })

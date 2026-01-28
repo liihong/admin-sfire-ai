@@ -100,11 +100,20 @@ class WeChatPayService:
         sign = generate_wechat_sign(params, self.api_key)
         params["sign"] = sign
         
+        # 调试日志：记录签名相关信息（不记录敏感信息如API密钥）
+        logger.debug(
+            f"微信支付统一下单参数: 订单号={order_id}, "
+            f"金额={amount}元({format_amount(amount)}分), "
+            f"appid={self.app_id}, mch_id={self.mch_id}, "
+            f"参数keys={list(params.keys())}"
+        )
+        
         try:
             # 转换为XML格式
             xml_data = self._dict_to_xml(params)
             
-            async with httpx.AsyncClient(timeout=10.0) as client:
+            # 注意：微信支付回调超时时间为5秒，这里设置为3秒确保及时响应
+            async with httpx.AsyncClient(timeout=3.0) as client:
                 response = await client.post(
                     self.UNIFIED_ORDER_URL,
                     content=xml_data.encode('utf-8'),

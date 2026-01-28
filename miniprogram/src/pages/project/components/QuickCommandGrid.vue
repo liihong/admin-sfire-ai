@@ -1,15 +1,11 @@
 <template>
   <view class="quick-command-grid">
-    <view
-v-for="entry in quickEntryList" :key="entry.id"
-      class="command-card"
-@tap="handleClick(entry)"
-    >
+    <view v-for="entry in quickEntryList" :key="entry.id" class="command-card" @tap="handleClick(entry)">
       <view class="command-icon-wrapper">
-       <AgentIcon :iconName="entry.icon_class" :size="48" />
+        <SvgIcon :name="entry.icon_class" :size="48" />
       </view>
       <view class="command-content">
-       <text class="command-title">{{ entry.title }}</text>
+        <text class="command-title">{{ entry.title }}</text>
         <text class="command-desc">{{ entry.subtitle || '' }}</text>
       </view>
     </view>
@@ -18,7 +14,7 @@ v-for="entry in quickEntryList" :key="entry.id"
 
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
-import { AgentIcon } from '@/components/base'
+import SvgIcon from '@/components/base/SvgIcon.vue'
 import { getQuickEntries, type QuickEntry } from '@/api/quickEntry'
 import { type ResponseData } from '@/utils/request'
 import { useAgentStore } from '@/stores/agent'
@@ -106,7 +102,7 @@ onMounted(() => {
   grid-template-columns: repeat(2, 1fr);
   gap: $spacing-md;
   margin-bottom: $spacing-lg;
-  
+
   .command-card {
     @include card-style;
     padding: $spacing-md;
@@ -114,25 +110,25 @@ onMounted(() => {
     align-items: center;
     gap: 20rpx;
     transition: all $transition-base;
-    
+
     &:active {
       transform: scale(0.98);
       background: $bg-light;
     }
-    
+
     .command-icon-wrapper {
       :deep(.agent-icon) {
         box-shadow: 0 2rpx 8rpx rgba(0, 0, 0, 0.15);
       }
     }
-    
+
     .command-content {
       display: flex;
       flex-direction: column;
       gap: 6rpx;
       flex: 1;
       min-width: 0;
-      
+
       .command-title {
         font-size: $font-size-md;
         font-weight: 600;
@@ -141,7 +137,7 @@ onMounted(() => {
         overflow: hidden;
         text-overflow: ellipsis;
       }
-      
+
       .command-desc {
         font-size: $font-size-xs;
         color: $text-second;

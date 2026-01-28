@@ -1,13 +1,13 @@
 """
 Role Service
-角色管理服务（基于roles表和users表的level字段）
+角色管理服务（基于roles表和admin_users表的role_id字段）
 """
 from typing import List, Dict, Any
 from sqlalchemy import select, func, and_
 from sqlalchemy.ext.asyncio import AsyncSession
 from loguru import logger
 
-from models.user import User, UserLevel
+from models.admin_user import AdminUser
 from models.role import Role
 from schemas.role import RoleCreate, RoleUpdate, RoleResponse
 from utils.exceptions import NotFoundException, BadRequestException
@@ -15,28 +15,28 @@ from services.base import BaseService
 
 
 class RoleService(BaseService):
-    """角色管理服务类"""
+    """角色管理服务类（后台管理员角色）"""
     
-    # 允许的角色代码（对应UserLevel枚举）
+    # 允许的角色代码
     ALLOWED_CODES = {"normal", "member", "partner"}
     
     def __init__(self, db: AsyncSession):
         super().__init__(db, Role, "角色", check_soft_delete=False)
     
-    async def _get_user_count_by_level(self, level: UserLevel) -> int:
+    async def _get_admin_user_count_by_role(self, role_id: int) -> int:
         """
-        统计指定等级的用户数量
+        统计指定角色的管理员用户数量
         
         Args:
-            level: 用户等级枚举
+            role_id: 角色ID
             
         Returns:
-            用户数量
+            管理员用户数量
         """
-        count_query = select(func.count(User.id)).where(
+        count_query = select(func.count(AdminUser.id)).where(
             and_(
-                User.level == level,
-                User.is_deleted == False
+                AdminUser.role_id == role_id,
+                AdminUser.is_deleted == False
             )
         )
         result = await self.db.execute(count_query)
@@ -44,7 +44,7 @@ class RoleService(BaseService):
     
     async def _role_to_dict(self, role: Role) -> Dict[str, Any]:
         """
-        将Role模型转换为字典，包含用户数量统计
+        将Role模型转换为字典，包含管理员用户数量统计
         
         Args:
             role: Role模型实例
@@ -52,15 +52,8 @@ class RoleService(BaseService):
         Returns:
             角色信息字典
         """
-        # 将角色代码转换为UserLevel枚举
-        try:
-            level_enum = UserLevel(role.code)
-        except ValueError:
-            logger.warning(f"角色代码 {role.code} 不是有效的UserLevel值")
-            user_count = 0
-        else:
-            # 统计该角色的用户数量
-            user_count = await self._get_user_count_by_level(level_enum)
+        # 统计该角色的管理员用户数量
+        user_count = await self._get_admin_user_count_by_role(role.id)
         
         return {
             "id": role.id,
@@ -128,7 +121,7 @@ class RoleService(BaseService):
         """
         创建角色
         
-        注意：角色代码必须是normal/member/partner之一，对应UserLevel枚举
+        注意：角色代码必须是normal/member/partner之一
         如果角色代码已存在，则更新现有角色
         
         Args:
@@ -209,20 +202,13 @@ class RoleService(BaseService):
             role_id: 角色ID
         """
         async def check_users_before_delete(role: Role):
-            """删除前的钩子函数：检查是否有用户使用该角色"""
-            # 将角色代码转换为UserLevel枚举
-            try:
-                level_enum = UserLevel(role.code)
-            except ValueError:
-                logger.warning(f"角色代码 {role.code} 不是有效的UserLevel值，允许删除")
-                user_count = 0
-            else:
-                # 检查是否有用户使用该角色
-                user_count = await self._get_user_count_by_level(level_enum)
+            """删除前的钩子函数：检查是否有管理员用户使用该角色"""
+            # 检查是否有管理员用户使用该角色
+            user_count = await self._get_admin_user_count_by_role(role.id)
             
             if user_count > 0:
                 raise BadRequestException(
-                    msg=f"该角色下有 {user_count} 个用户，无法删除。请先将这些用户的角色修改为其他角色后再删除"
+                    msg=f"该角色下有 {user_count} 个管理员用户，无法删除。请先将这些用户的角色修改为其他角色后再删除"
                 )
         
         await super().delete(role_id, hard_delete=True, before_delete=check_users_before_delete)

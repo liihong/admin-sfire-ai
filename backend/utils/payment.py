@@ -5,7 +5,6 @@
 import time
 import random
 import hashlib
-import hmac
 from typing import Dict, Any, Union
 from decimal import Decimal, ROUND_HALF_UP
 from loguru import logger
@@ -41,9 +40,13 @@ async def generate_order_id(prefix: str = "R") -> str:
         except Exception as e:
             logger.warning(f"Redis订单号生成失败，使用随机数: {e}")
     
-    # Fallback: 使用时间戳+随机数
+    # Fallback: 使用时间戳+随机数（增加随机性，降低碰撞概率）
+    # 使用微秒时间戳的后3位 + 6位随机数，提高唯一性
+    import time as time_module
+    microsecond_suffix = int(time_module.time() * 1000000) % 1000  # 微秒后3位
     random_suffix = random.randint(100000, 999999)  # 6位随机数
-    return f"{prefix}{timestamp}{random_suffix}"
+    # 组合：时间戳(10位) + 微秒后3位 + 随机数6位 = 19位
+    return f"{prefix}{timestamp}{microsecond_suffix:03d}{random_suffix}"
 
 
 def generate_wechat_sign(params: Dict[str, Any], api_key: str) -> str:
@@ -63,11 +66,15 @@ def generate_wechat_sign(params: Dict[str, Any], api_key: str) -> str:
     Returns:
         签名字符串（大写）
     """
-    # 过滤空值和sign字段
-    filtered_params = {
-        k: v for k, v in params.items()
-        if v is not None and v != "" and k != "sign"
-    }
+    # 过滤空值和sign字段，并确保所有值都是字符串（微信支付要求）
+    filtered_params = {}
+    for k, v in params.items():
+        if k == "sign":
+            continue
+        if v is None or v == "":
+            continue
+        # 确保值转换为字符串（微信支付要求）
+        filtered_params[k] = str(v)
     
     # 按键名排序
     sorted_params = sorted(filtered_params.items())
@@ -118,15 +125,17 @@ def format_amount(amount: Union[float, Decimal]) -> int:
         return int((Decimal(str(amount)) * Decimal("100")).quantize(Decimal("1"), rounding=ROUND_HALF_UP))
 
 
-def parse_amount(amount: int) -> float:
+def parse_amount(amount: int) -> Decimal:
     """
     解析金额（分转元）
+    
+    使用Decimal确保精度，避免浮点数精度丢失问题
     
     Args:
         amount: 金额（分）
     
     Returns:
-        金额（元）
+        金额（元），Decimal类型
     """
-    return amount / 100.0
+    return Decimal(amount) / Decimal("100")
 

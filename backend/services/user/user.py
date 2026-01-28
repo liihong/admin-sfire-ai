@@ -14,7 +14,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 from loguru import logger
 
-from models.user import User, UserLevel
+from models.user import User
 from models.compute import ComputeLog, ComputeType
 from schemas.user import (
     UserCreate,
@@ -30,18 +30,6 @@ from utils.pagination import paginate, build_order_by, PageResult
 from services.base import BaseService
 
 
-# 等级映射
-LEVEL_MAP = {
-    "normal": 0,
-    "member": 1,
-    "partner": 2,
-}
-
-LEVEL_REVERSE_MAP = {
-    0: UserLevel.NORMAL,
-    1: UserLevel.MEMBER,
-    2: UserLevel.PARTNER,
-}
 
 
 class UserService(BaseService):
@@ -50,18 +38,11 @@ class UserService(BaseService):
     def __init__(self, db: AsyncSession):
         super().__init__(db, User, "用户", check_soft_delete=True)
     
-    def _level_to_int(self, level: UserLevel) -> int:
-        """将 UserLevel 枚举转为整数"""
-        return LEVEL_MAP.get(level.value, 0)
     
     def _format_response(self, user: User) -> dict:
-        """格式化用户响应数据（兼容前端接口）"""
-        # 优先使用level_code（新系统），如果没有则使用旧的level字段
-        level_code = user.level_code or (user.level.value if hasattr(user.level, "value") else str(user.level))
+        """格式化用户响应数据"""
+        level_code = user.level_code or "normal"
         level_name = user.user_level.name if user.user_level else None
-        
-        # 兼容旧的level字段（0/1/2）
-        level_int = self._level_to_int(user.level)
         
         return {
             "id": str(user.id),
@@ -69,9 +50,8 @@ class UserService(BaseService):
             "phone": user.phone,
             "nickname": user.nickname,
             "avatar": user.avatar,
-            "level": level_int,  # 保留旧的level字段用于兼容
-            "levelCode": level_code,  # 新增：等级代码（normal/vip/svip/max）
-            "levelName": level_name,  # 新增：等级名称（中文）
+            "levelCode": level_code,
+            "levelName": level_name,
             "computePower": {
                 "balance": float(user.balance),
                 "frozen": float(user.frozen_balance),
@@ -79,12 +59,12 @@ class UserService(BaseService):
                 "totalRecharged": 0,  # TODO: 从 compute_logs 统计
                 "lastRechargeTime": None,
             },
-            "role": "admin" if user.level == UserLevel.PARTNER else "user",
+            "role": "admin" if level_code in ["svip", "max"] else "user",
             "inviteCode": None,  # TODO: 生成邀请码逻辑
             "inviterId": str(user.parent_id) if user.parent_id else None,
-            "inviterName": user.parent.username if user.parent else None,  # 使用预加载的 parent 关系
+            "inviterName": user.parent.username if user.parent else None,
             "createTime": user.created_at.isoformat() if user.created_at else None,
-            "lastLoginTime": user.updated_at.isoformat() if user.updated_at else None,  # 使用 updated_at 作为最后登录时间
+            "lastLoginTime": user.updated_at.isoformat() if user.updated_at else None,
             "status": 1 if user.is_active else 0,
         }
     
@@ -111,18 +91,8 @@ class UserService(BaseService):
             conditions.append(User.phone.like(f"%{params.phone}%"))
         
         if params.level:
-            # 支持按level_code查询（新系统）或旧的level枚举查询
-            # 如果level是level_code格式（normal/vip/svip/max），则按level_code查询
-            if params.level in ["normal", "vip", "svip", "max"]:
-                conditions.append(User.level_code == params.level)
-            else:
-                # 兼容旧的level枚举查询
-                try:
-                    level_enum = UserLevel(params.level)
-                    conditions.append(User.level == level_enum)
-                except ValueError:
-                    # 如果无法解析，尝试按level_code查询
-                    conditions.append(User.level_code == params.level)
+            # 按level_code查询
+            conditions.append(User.level_code == params.level)
         
         if params.is_active is not None:
             conditions.append(User.is_active == params.is_active)
@@ -194,15 +164,8 @@ class UserService(BaseService):
             """创建前的钩子函数"""
             # 处理密码哈希
             user.password_hash = hash_password(data.password)
-            # 优先使用level_code（新系统）
-            if data.level_code:
-                user.level_code = data.level_code
-            # 兼容旧的level字段
-            elif data.level:
-                user.level = UserLevel(data.level)
-            else:
-                user.level = UserLevel.NORMAL
-                user.level_code = "normal"
+            # 设置level_code
+            user.level_code = data.level_code or "normal"
         
         user = await super().create(
             data=user_data,
@@ -237,15 +200,7 @@ class UserService(BaseService):
             
             # 优先使用level_code（新系统）
             if "level_code" in update_data and update_data["level_code"]:
-                # 直接设置level_code，验证将在数据库层面通过外键约束完成
                 user.level_code = update_data["level_code"]
-            # 兼容旧的level字段（向后兼容，但建议使用level_code）
-            elif "level" in update_data and update_data["level"]:
-                try:
-                    user.level = UserLevel(update_data["level"])
-                except ValueError:
-                    from utils.exceptions import BadRequestException
-                    raise BadRequestException(f"无效的用户等级: {update_data['level']}，请使用level_code字段")
         
         user = await super().update(
             obj_id=user_id,
@@ -356,23 +311,9 @@ class UserService(BaseService):
         
         user = await super().get_by_id(user_id)
         
-        old_level_code = user.level_code or (user.level.value if hasattr(user.level, "value") else str(user.level))
-        old_level = user.level
+        old_level_code = user.level_code or "normal"
         
-        # 更新等级（兼容旧字段）
-        try:
-            user.level = UserLevel(level)
-        except ValueError:
-            # 如果level不在旧枚举中，尝试映射
-            level_mapping = {
-                "vip": "member",
-                "svip": "partner",
-                "max": "partner",  # max映射为partner（旧系统最高等级）
-            }
-            mapped_level = level_mapping.get(level, "normal")
-            user.level = UserLevel(mapped_level)
-        
-        # 更新level_code（新系统）
+        # 更新level_code
         user.level_code = level
         
         # 更新VIP到期时间
@@ -492,8 +433,6 @@ class UserService(BaseService):
         Returns:
             创建的用户对象
         """
-        from models.user import UserLevel
-        
         # 检查用户名是否已存在
         if user_data.get("username"):
             existing = await self.get_user_by_username(user_data["username"])
@@ -506,10 +445,6 @@ class UserService(BaseService):
             if existing:
                 return existing
         
-        # 转换等级
-        level = user_data.get("level", "normal")
-        level_enum = UserLevel(level) if isinstance(level, str) else level
-        
         # 创建用户
         user = User(
             username=user_data.get("username") or f"user_{secrets.token_hex(4)}",
@@ -519,7 +454,7 @@ class UserService(BaseService):
             phone=user_data.get("phone"),
             nickname=user_data.get("nickname"),
             avatar=user_data.get("avatar"),
-            level=level_enum,
+            level_code=user_data.get("level_code", "normal"),
             parent_id=user_data.get("parent_id"),
             is_active=user_data.get("is_active", True),
         )

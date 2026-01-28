@@ -1,19 +1,24 @@
 <template>
-  <view :class="['base-section', { 'base-section--accent': accent }, customClass]">
-    <text :class="['base-section__title', { 'base-section__title--accent': accent }]">
-      <slot></slot>
-    </text>
+ <view :class="['base-section', customClass]">
+    <view class="base-section__header">
+      <view class="base-section__header-left">
+        <text class="base-section__title">
+          <slot></slot>
+        </text>
+      </view>
+     <view v-if="$slots.right" class="base-section__header-right">
+        <slot name="right"></slot>
+      </view>
+    </view>
   </view>
 </template>
 
 <script setup lang="ts">
 interface Props {
-  accent?: boolean
   customClass?: string
 }
 
 withDefaults(defineProps<Props>(), {
-  accent: false,
   customClass: ''
 })
 </script>
@@ -22,25 +27,22 @@ withDefaults(defineProps<Props>(), {
 @import '@/styles/_variables.scss';
 
 .base-section {
-  padding: $spacing-lg 0 $spacing-sm;
+  padding: $spacing-sm 0 $spacing-sm;
   
-  &--accent {
-    padding: $spacing-sm 0 $spacing-md;
+  &__header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 24rpx;
   }
   
-  &__title {
-    font-size: $font-size-md;
-    font-weight: 900;
-    color: $text-second;
-    
-    &--accent {
-      font-size: $font-size-lg;
-      font-weight: 700;
-      background: linear-gradient(135deg, $primary-orange 0%, $primary-orange-alt 100%);
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
-      background-clip: text;
-    }
-  }
+                                                                                                                                &__header-left {
+                                                                                                                                  .base-section__title {
+                                                                                                                                    font-size: $font-size-sm;
+                                                                                                                                    font-weight: 700;
+                                                                    color: $text-main;
+                                                                    }
+                                                                    }
+                                
 }
 </style>

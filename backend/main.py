@@ -63,6 +63,17 @@ async def lifespan(app: FastAPI):
         logger.info("✅ [定时任务] 已启动VIP过期检查任务")
     except Exception as e:
         logger.warning(f"⚠️ [定时任务] VIP检查任务启动失败: {e}")
+    
+    # 启动订单过期清理任务
+    try:
+        from tasks.order_expiry_task import order_expiry_worker
+        order_expiry_task = asyncio.create_task(
+            order_expiry_worker(scheduled_task_stop_event)
+        )
+        scheduled_task_workers.append(order_expiry_task)
+        logger.info("✅ [定时任务] 已启动订单过期清理任务")
+    except Exception as e:
+        logger.warning(f"⚠️ [定时任务] 订单过期清理任务启动失败: {e}")
 
     # 开发环境：自动创建缺失的表
     if settings.DEBUG:
@@ -130,7 +141,7 @@ def create_app() -> FastAPI:
     register_exception_handlers(app)
 
     # 注册 API 路由
-    # C端接口（小程序 & PC官网）：包括认证、项目管理、内容生成、抖音分析等功能
+    # C端接口（小程序 & PC官网）：包括认证、项目管理、内容生成、抖音分析、文章等功能
     app.include_router(client_router, prefix="/api/v1/client", tags=["C端接口"])
     # B端接口（管理后台）：包括管理员认证、用户管理、系统配置等功能
     app.include_router(admin_router, prefix="/api/v1/admin", tags=["B端接口"])

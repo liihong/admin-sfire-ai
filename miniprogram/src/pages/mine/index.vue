@@ -12,7 +12,7 @@
             />
             <!-- 皇冠图标 -->
             <view class="crown-badge" v-if="userInfo.partnerStatus && userInfo.partnerStatus !== '普通用户'">
-              <text class="crown-text">M</text>
+             <text class="crown-text">V</text>
             </view>
           </view>
           <text class="phone-number">{{ displayPhone }}</text>
@@ -34,7 +34,7 @@
         <view class="upgrade-text">
           <text class="upgrade-subtitle">UPGRADE PRIORITY</text>
           <text class="upgrade-title">开通 更高等级会员</text>
-          <text class="upgrade-desc">解锁更多智能体与无限操盘项目</text>
+         <text class="upgrade-desc">解锁更多IP席位和无限智能体</text>
         </view>
         <view class="upgrade-btn" @tap="goToMembership">
           <text class="upgrade-btn-text">立即开通</text>
@@ -92,7 +92,6 @@
 import { ref, reactive, computed } from 'vue'
 import { onShow } from '@dcloudio/uni-app'
 import { getUserInfo, updateUserInfo } from '@/api/user'
-import { useAuthStore } from '@/stores/auth'
 import SvgIcon from '@/components/base/SvgIcon.vue'
 
 // 用户信息
@@ -132,14 +131,6 @@ const menuList = ref([
     icon: 'linggan',
     iconBg: '#F37021', // 橙色背景
     path: '/pages/inspiration/index'
-  },
-  {
-    id: 'privilege',
-    name: '会员特权',
-    desc: '查看您的等级权益',
-    icon: 'point', // 使用点图标作为盾牌图标的替代
-    iconBg: '#3B82F6', // 蓝色背景
-    path: '/pages/mine/membership'
   },
   {
     id: 'contact',
@@ -267,22 +258,6 @@ const goToMembership = () => {
   })
 }
 
-// 申请提现
-const handleWithdraw = () => {
-  uni.showToast({
-    title: '申请提现功能开发中',
-    icon: 'none'
-  })
-}
-
-// 邀请好友
-const handleInvite = () => {
-  uni.showToast({
-    title: '邀请好友功能开发中',
-    icon: 'none'
-  })
-}
-
 // 菜单点击
 const handleMenuClick = (item: any) => {
   if (item.path) {
@@ -316,7 +291,8 @@ onShow(() => {
 
 /* 用户信息卡片 */
 .user-card {
-  background: $white;
+  // background: #1a1a2ea1;
+    background-color: rgba(255, 247, 237, 0.5);
   padding: 48rpx 32rpx 40rpx;
   margin-bottom: 24rpx;
   box-shadow: 0 2rpx 8rpx rgba(0, 0, 0, 0.04);

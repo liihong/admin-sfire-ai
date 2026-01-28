@@ -320,20 +320,20 @@ def build_user_info(user: User) -> UserInfo:
     Returns:
         UserInfo对象
     """
-    from models.user import UserLevel
     from decimal import Decimal
     
-    # 合伙人状态映射（兼容旧level字段）
-    level_status_map = {
-        UserLevel.NORMAL: "普通用户",
-        UserLevel.MEMBER: "VIP会员",
-        UserLevel.PARTNER: "合伙人",
-    }
-    partner_status = level_status_map.get(user.level, "普通用户")
-    
     # 获取等级信息
-    level_code = user.level_code or user.level.value
-    level_name = user.level_name  # 使用User模型的属性方法获取等级名称
+    level_code = user.level_code or "normal"
+    level_name = user.level_name
+    
+    # 合伙人状态映射
+    level_status_map = {
+        "normal": "普通用户",
+        "vip": "VIP会员",
+        "svip": "合伙人",
+        "max": "合伙人",
+    }
+    partner_status = level_status_map.get(level_code, "普通用户")
     
     # 构建等级详细信息
     level_info = None
@@ -365,7 +365,7 @@ def build_user_info(user: User) -> UserInfo:
         city="",
         province="",
         country="",
-        level=user.level.value,  # 兼容旧字段
+        level=level_code,  # 兼容旧字段（保留用于前端兼容）
         level_code=level_code,
         level_name=level_name,
         level_info=level_info,
@@ -523,28 +523,56 @@ async def get_current_user_info(
     需要 Authorization header 携带 Bearer token
     返回用户基本信息及完整的等级配置信息，方便前端根据会员级别展示不同内容
     """
-    # 重新查询用户并加载等级关系（确保获取最新数据）
-    query = select(User).where(
-        User.id == current_user.id,
-        User.is_deleted == False
-    ).options(selectinload(User.user_level))
-    
-    result = await db.execute(query)
-    user = result.scalar_one_or_none()
-    
-    if not user:
-        raise BadRequestException("用户不存在")
-    
-    # 构建用户信息（包含完整的等级信息）
-    user_info = build_user_info(user)
-    
-    return success(
-        data={
-            "success": True,
-            "userInfo": user_info.model_dump()
-        },
-        msg="获取成功"
-    )
+    try:
+        # 重新查询用户并加载等级关系（确保获取最新数据）
+        query = select(User).where(
+            User.id == current_user.id,
+            User.is_deleted == False
+        ).options(selectinload(User.user_level))
+        
+        result = await db.execute(query)
+        user = result.scalar_one_or_none()
+        
+        if not user:
+            raise BadRequestException("用户不存在")
+        
+        # 构建用户信息（包含完整的等级信息）
+        user_info = build_user_info(user)
+        
+        return success(
+            data={
+                "success": True,
+                "userInfo": user_info.model_dump()
+            },
+            msg="获取成功"
+        )
+    except LookupError as e:
+        # 处理无效的枚举值（如数据库中存储了'vip'等无效值）
+        logger.error(f"用户等级枚举值无效: {str(e)}, user_id={current_user.id}")
+        # 尝试修复：将用户的level_code重置为默认值
+        try:
+            current_user.level_code = "normal"
+            await db.commit()
+            await db.refresh(current_user)
+            # 重新查询
+            query = select(User).where(
+                User.id == current_user.id,
+                User.is_deleted == False
+            ).options(selectinload(User.user_level))
+            result = await db.execute(query)
+            user = result.scalar_one_or_none()
+            if user:
+                user_info = build_user_info(user)
+                return success(
+                    data={
+                        "success": True,
+                        "userInfo": user_info.model_dump()
+                    },
+                    msg="获取成功"
+                )
+        except Exception as fix_error:
+            logger.error(f"修复用户等级失败: {str(fix_error)}")
+        raise ServerErrorException("用户数据异常，请联系管理员")
 
 
 class UserDetailInfo(BaseModel):
@@ -568,16 +596,17 @@ async def get_user_detail_info(
     需要 Authorization header 携带 Bearer token
     返回字段：phone、avatar、nickname、power（算力余额）、partnerBalance（合伙人资产余额）、partnerStatus（合伙人状态）、expireDate（会员到期时间）
     """
-    from models.user import UserLevel
     from decimal import Decimal
     
     # 合伙人状态映射
+    level_code = current_user.level_code or "normal"
     level_status_map = {
-        UserLevel.NORMAL: "普通用户",
-        UserLevel.MEMBER: "VIP会员",
-        UserLevel.PARTNER: "合伙人",
+        "normal": "普通用户",
+        "vip": "VIP会员",
+        "svip": "合伙人",
+        "max": "合伙人",
     }
-    partner_status = level_status_map.get(current_user.level, "普通用户")
+    partner_status = level_status_map.get(level_code, "普通用户")
     
     # 格式化算力余额
     power = str(int(current_user.balance)) if current_user.balance else "0"

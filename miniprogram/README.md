@@ -221,7 +221,7 @@ interface PersonaSettings {
 
 ### 3. 登录认证模块 (`pages/login`)
 
-支持微信小程序授权登录和 Mock 登录（开发调试）。
+支持微信小程序授权登录。
 
 **登录流程：**
 1. 调用 `uni.login` 获取微信登录 code
@@ -323,7 +323,6 @@ const res = await post('/api/generate', data, {
 | `showLoading` | boolean | false | 是否显示 Loading |
 | `loadingText` | string | '加载中...' | Loading 提示文字 |
 | `timeout` | number | 30000 | 超时时间（毫秒） |
-| `useMock` | boolean | false | 是否使用 Mock 数据 |
 
 ### 响应拦截
 

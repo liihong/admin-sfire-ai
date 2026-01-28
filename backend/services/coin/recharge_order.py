@@ -2,7 +2,7 @@
 充值订单服务
 用于处理充值订单的创建、支付回调、状态查询等
 """
-from datetime import datetime
+from datetime import datetime, timedelta
 from decimal import Decimal
 from typing import Optional, Dict, Any
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -50,12 +50,21 @@ class RechargeOrderService:
         """
         创建充值订单
         
-        流程：
+        流程说明：
         1. 验证套餐是否存在且启用
-        2. 生成唯一订单号
-        3. 创建 ComputeLog 记录（状态：pending）
-        4. 调用支付服务创建统一下单
-        5. 返回支付参数给前端
+        2. 获取用户信息（用于记录余额）
+        3. 生成唯一订单号
+        4. 创建订单记录（ComputeLog，状态为pending）
+           【重要】先插入数据库再调用支付，便于统计"点击支付但未支付"的用户数据
+           - pending状态：用户点击支付，创建了订单，但还未完成支付
+           - failed状态：支付服务调用失败或用户取消支付
+        5. 调用支付服务创建统一下单
+        6. 返回支付参数给前端
+        
+        注意：
+        - 订单记录在创建时即插入数据库，即使支付服务调用失败也会保留记录
+        - 这样可以统计所有点击支付的请求，包括未完成支付的用户数据
+        - 支付成功后，回调会更新订单状态为paid并充值算力
         
         Args:
             user_id: 用户ID
@@ -77,7 +86,8 @@ class RechargeOrderService:
         if package.status != 1:
             raise BadRequestException("套餐未启用，无法购买")
         
-        # 2. 获取用户信息（用于记录余额）
+        # 2. 获取用户信息（用于记录订单创建时的余额）
+        # 注意：只查询一次用户信息，获取余额用于记录订单创建时的状态
         user_result = await self.db.execute(
             select(User).where(User.id == user_id)
         )
@@ -88,25 +98,69 @@ class RechargeOrderService:
         
         before_balance = user.balance
         
-        # 3. 生成订单号（异步函数）
-        order_id = await generate_order_id("R")
+        # 3. 生成订单号（带重试机制，处理重复订单号）
+        max_retries = 5
+        order_id = None
+        order_log = None
         
-        # 4. 创建订单记录（ComputeLog，状态为pending）
-        order_log = ComputeLog(
-            user_id=user_id,
-            type=ComputeType.RECHARGE,
-            amount=package.power_amount,  # 充值算力数量
-            before_balance=before_balance,
-            after_balance=before_balance,  # 待支付，余额不变
-            remark=f"充值订单：{package.name}",
-            order_id=order_id,
-            package_id=package_id,
-            payment_amount=package.price,  # 支付金额（元）
-            payment_status="pending",  # 待支付
-            source="miniapp"
-        )
-        self.db.add(order_log)
-        await self.db.flush()
+        for attempt in range(max_retries):
+            try:
+                order_id = await generate_order_id("R")
+                
+                # 检查订单号是否已存在（防止重复）
+                existing_order = await self.db.execute(
+                    select(ComputeLog).where(
+                        and_(
+                            ComputeLog.order_id == order_id,
+                            ComputeLog.type == ComputeType.RECHARGE
+                        )
+                    )
+                )
+                if existing_order.scalar_one_or_none():
+                    if attempt < max_retries - 1:
+                        logger.warning(f"订单号重复，重试生成: {order_id}, 尝试次数={attempt + 1}")
+                        continue
+                    else:
+                        raise ServerErrorException("订单号生成失败，请稍后重试")
+                
+                # 4. 创建订单记录（先插入数据库，便于统计）
+                # 注意：先插入数据库再调用支付，可以统计所有点击支付的请求
+                # 即使支付服务调用失败，订单记录也会保留，用于数据分析和统计
+                # 设置订单过期时间（30分钟后过期）
+                order_expire_at = datetime.now() + timedelta(minutes=30)
+                
+                order_log = ComputeLog(
+                    user_id=user_id,
+                    type=ComputeType.RECHARGE,
+                    amount=package.power_amount,  # 充值算力数量
+                    before_balance=before_balance,
+                    after_balance=before_balance,  # 待支付，余额不变
+                    remark=f"充值订单：{package.name}",
+                    order_id=order_id,
+                    package_id=package_id,
+                    payment_amount=package.price,  # 支付金额（元）
+                    payment_status="pending",  # 待支付
+                    source="miniapp",
+                    order_expire_at=order_expire_at  # 订单过期时间
+                )
+                self.db.add(order_log)
+                await self.db.flush()
+                break  # 成功创建，退出重试循环
+                
+            except Exception as e:
+                # 如果是唯一约束冲突，重试
+                if "Duplicate entry" in str(e) or "unique constraint" in str(e).lower():
+                    if attempt < max_retries - 1:
+                        logger.warning(f"订单号唯一约束冲突，重试生成: {order_id}, 尝试次数={attempt + 1}")
+                        continue
+                    else:
+                        raise ServerErrorException("订单号生成失败，请稍后重试")
+                else:
+                    # 其他异常直接抛出
+                    raise
+        
+        if not order_log or not order_id:
+            raise ServerErrorException("订单创建失败，请稍后重试")
         
         # 5. 调用支付服务创建统一下单
         try:
@@ -119,7 +173,8 @@ class RechargeOrderService:
             )
         except Exception as e:
             # 支付服务调用失败，更新订单状态为失败并记录错误
-            # 订单记录保留，用户可以重试支付或联系客服
+            # 订单记录保留，用于统计"点击支付但未支付"的数据
+            # 用户可以重试支付或联系客服
             logger.error(
                 f"创建支付订单失败: 订单号={order_id}, "
                 f"用户ID={user_id}, 套餐ID={package_id}, 错误={e}"
@@ -223,6 +278,16 @@ class RechargeOrderService:
         if order_log.payment_status not in ["pending", "failed"]:
             raise BadRequestException(f"订单状态异常，无法处理: {order_log.payment_status}")
         
+        # 检查订单是否过期（仅对pending状态的订单）
+        if order_log.payment_status == "pending" and order_log.order_expire_at:
+            if datetime.now() > order_log.order_expire_at:
+                logger.warning(f"订单已过期: {order_id}, 过期时间={order_log.order_expire_at}")
+                # 更新订单状态为已取消
+                order_log.payment_status = "cancelled"
+                order_log.remark = f"{order_log.remark}（订单已过期）"
+                await self.db.flush()
+                raise BadRequestException("订单已过期，无法处理支付回调")
+        
         # 4.5. 验证支付金额（防止金额篡改攻击）
         if order_log.payment_amount and callback_amount:
             # 转换为Decimal进行比较，允许0.01元的误差（微信支付精度）
@@ -278,7 +343,9 @@ class RechargeOrderService:
         else:
             order_log.payment_time = datetime.now()
         
-        # 获取更新后的余额（从recharge方法已更新的用户余额）
+        # 获取更新后的余额（充值成功后查询）
+        # 注意：recharge方法已经更新了用户余额，这里只需要查询余额用于记录
+        # 使用select(User.balance)只查询余额字段，减少数据传输量
         user_result = await self.db.execute(
             select(User.balance).where(User.id == order_log.user_id)
         )
@@ -327,10 +394,22 @@ class RechargeOrderService:
         if not order_log:
             raise NotFoundException(f"订单 {order_id} 不存在")
         
+        # 检查订单是否过期（仅对pending状态的订单）
+        is_expired = False
+        if order_log.payment_status == "pending" and order_log.order_expire_at:
+            if datetime.now() > order_log.order_expire_at:
+                is_expired = True
+                # 自动更新订单状态为已取消
+                order_log.payment_status = "cancelled"
+                order_log.remark = f"{order_log.remark}（订单已过期）"
+                await self.db.flush()
+        
         return {
             "order_id": order_id,
             "payment_status": order_log.payment_status or "pending",
             "payment_time": order_log.payment_time.isoformat() if order_log.payment_time else None,
             "wechat_transaction_id": order_log.wechat_transaction_id,
+            "is_expired": is_expired,
+            "expire_at": order_log.order_expire_at.isoformat() if order_log.order_expire_at else None,
         }
 

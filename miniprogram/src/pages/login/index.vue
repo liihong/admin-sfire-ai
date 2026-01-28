@@ -283,9 +283,8 @@ function wxLogin(): Promise<{ code: string }> {
     // #endif
 
     // #ifndef MP-WEIXIN
-    // 非微信环境，使用 mock code
-    console.log('[Dev] Using mock login code')
-    resolve({ code: `mock_${Date.now()}` })
+    // 非微信环境，登录失败
+    reject(new Error('当前仅支持微信小程序环境'))
     // #endif
   })
 }

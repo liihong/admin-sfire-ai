@@ -16,16 +16,16 @@
       />
 
       <!-- 今天拍点啥 - 分类网格 -->
-      <BaseSection accent>今天拍点啥</BaseSection>
+     <BaseSection>今天拍点啥</BaseSection>
       <CategoryGrid @click="handleCategoryClick" />
 
       <!-- 快捷指令库 -->
-      <BaseSection accent>快捷指令库</BaseSection>
+     <BaseSection>快捷指令库</BaseSection>
       <QuickCommandGrid @click="handleNavigate" />
 
-    <!-- 工具库 -->
-      <BaseSection accent>工具库</BaseSection>
-      <ToolLibrary @click="handleToolClick" />
+    <!-- 历史对话 -->
+      <BaseSection>历史对话</BaseSection>
+      <ConversationHistory @click="handleConversationClick" />
       <!-- 底部安全区 -->
       <view class="bottom-safe-area"></view>
     </scroll-view>
@@ -59,8 +59,9 @@ import QuickCommandGrid from './QuickCommandGrid.vue'
 import PersonaDrawer from './PersonaDrawer.vue'
 import FloatingActionButton from './FloatingActionButton.vue'
 import InspirationCard from '@/pages/inspiration/components/InspirationCard.vue'
-import ToolLibrary from './ToolLibrary.vue'
+import ConversationHistory from './ConversationHistory.vue'
 import BaseSection from '@/components/base/BaseSection.vue'
+import type { Conversation } from '@/api/conversation'
 
 // Store
 const projectStore = useProjectStore()
@@ -101,7 +102,7 @@ async function handleInspirationSend(text: string, tags: string[]) {
     await createInspiration({
       content: text,
       tags,
-      project_id: activeProject.value?.id,
+      project_id: activeProject.value?.id ? parseInt(activeProject.value.id) : undefined,
     })
     
     uni.showToast({ title: '灵感已保存', icon: 'success' })
@@ -136,10 +137,34 @@ function handleNavigate(route: string) {
   navigateTo(route)
 }
 
-// 处理工具点击
-function handleToolClick(tool: any) {
-  console.log('点击工具:', tool)
-  // ToolLibrary 组件内部已经处理了跳转逻辑
+// 处理历史对话点击
+function handleConversationClick(conversation: Conversation) {
+  // 构建跳转参数
+  const params: Record<string, string> = {
+    conversationId: String(conversation.id),
+  }
+
+  // 如果有智能体ID，传递智能体ID
+  if (conversation.agent_id) {
+    params.agentId = String(conversation.agent_id)
+  }
+
+  // 构建查询字符串
+  const queryString = Object.entries(params)
+    .map(([key, value]) => `${key}=${encodeURIComponent(value)}`)
+    .join('&')
+
+  // 跳转到对话详情页面
+  uni.navigateTo({
+    url: `/pages/copywriting/index?${queryString}`,
+    fail: (err) => {
+      console.error('页面跳转失败:', err)
+      uni.showToast({
+        title: '页面跳转失败',
+        icon: 'none'
+      })
+    }
+  })
 }
 </script>
 

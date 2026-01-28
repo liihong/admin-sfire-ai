@@ -2,7 +2,7 @@
  * Request 请求封装
  * 
  * 封装 uni.request，自动在 Header 中带上 Authorization: Bearer {token}
- * 支持请求/响应拦截、错误处理、Mock 数据等
+ * 支持请求/响应拦截、错误处理等
  */
 
 import { useAuthStore } from '@/stores/auth'

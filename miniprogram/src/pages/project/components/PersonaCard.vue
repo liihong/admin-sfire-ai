@@ -23,9 +23,9 @@
       </view>
       <view class="persona-edit-btn">
         <view class="edit-icon-wrapper">
-          <u-icon name="setting" color="#6C757D" size="28"></u-icon>
+         <u-icon name="setting" color="#6C757D" size="20"></u-icon>
         </view>
-        <text class="edit-label">编辑人设</text>
+       <text class="edit-label">微调人设</text>
       </view>
     </view>
   </view>
@@ -203,8 +203,8 @@ defineEmits<{
     flex-shrink: 0;
 
     .edit-icon-wrapper {
-      width: 96rpx;
-      height: 96rpx;
+      width: 70rpx;
+        height: 70rpx;
       background: $white;
       border-radius: $radius-md;
       display: flex;

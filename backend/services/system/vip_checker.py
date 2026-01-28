@@ -7,7 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from datetime import datetime, timezone
 from loguru import logger
 
-from models.user import User, UserLevel
+from models.user import User
 from services.system.membership import MembershipService
 
 
@@ -25,20 +25,10 @@ async def check_expired_vips(db: AsyncSession) -> int:
     """
     membership_service = MembershipService(db)
     
-    # 优化：只查询VIP/SVIP/MAX用户（使用level_code过滤）
-    # 同时兼容旧数据（level字段为member或partner的用户）
-    from sqlalchemy import or_
-    
-    # 构建查询条件：新系统level_code或旧系统level字段
-    conditions = [
-        User.level_code.in_(["vip", "svip", "max"]),
-        # 兼容旧数据：level字段为member或partner
-        User.level.in_([UserLevel.MEMBER, UserLevel.PARTNER]),
-    ]
-    
+    # 查询VIP/SVIP/MAX用户（使用level_code过滤）
     query = select(User).where(
         User.is_deleted == False,
-        or_(*conditions),
+        User.level_code.in_(["vip", "svip", "max"]),
         # 只查询有VIP到期时间的用户（没有到期时间的视为永久有效）
         User.vip_expire_date.isnot(None)
     )

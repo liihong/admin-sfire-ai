@@ -300,6 +300,8 @@ async def create_recharge_order(
 ):
     """
     创建充值订单
+    
+    频率限制：每分钟最多创建10个订单（防止恶意刷单）
 
     Body:
         {
@@ -321,14 +323,59 @@ async def create_recharge_order(
             "msg": "订单创建成功"
         }
     """
+    from middleware.rate_limiter import RateLimiter
+    
     try:
+        # 频率限制：创建订单接口使用更严格的限制（每分钟10次）
+        ORDER_RATE_LIMIT_WINDOW = 60  # 1分钟
+        ORDER_RATE_LIMIT_MAX = 10     # 最多10次
+        
+        # 获取客户端IP
+        client_ip = http_request.client.host if http_request.client else "127.0.0.1"
+        forwarded_for = http_request.headers.get("X-Forwarded-For")
+        if forwarded_for:
+            client_ip = forwarded_for.split(",")[0].strip()
+        
+        # 检查订单创建频率
+        from db.redis import get_redis
+        redis = await get_redis()
+        if redis:
+            try:
+                import time
+                rate_limit_key = f"order:rate_limit:{current_user.id}"
+                current_time = int(time.time())
+                window_start = current_time - ORDER_RATE_LIMIT_WINDOW
+                
+                # 使用Redis Pipeline保证原子性
+                async with redis.pipeline() as pipe:
+                    # 移除过期的调用记录
+                    await pipe.zremrangebyscore(rate_limit_key, 0, window_start)
+                    # 添加当前调用记录
+                    await pipe.zadd(rate_limit_key, {str(current_time * 1000): current_time})
+                    # 获取当前窗口内的调用次数
+                    await pipe.zcard(rate_limit_key)
+                    # 设置键的过期时间
+                    await pipe.expire(rate_limit_key, ORDER_RATE_LIMIT_WINDOW + 10)
+                    
+                    results = await pipe.execute()
+                    call_count = results[2]  # zcard 的结果
+                
+                if call_count > ORDER_RATE_LIMIT_MAX:
+                    logger.warning(
+                        f"订单创建频率超限: user_id={current_user.id}, "
+                        f"calls={call_count}, limit={ORDER_RATE_LIMIT_MAX}"
+                    )
+                    return fail(
+                        msg=f"订单创建过于频繁，请稍后再试。当前1分钟内已创建 {call_count} 个订单，限制 {ORDER_RATE_LIMIT_MAX} 个。",
+                        code=429
+                    )
+            except Exception as e:
+                logger.warning(f"订单频率限制检查失败: {e}，继续处理请求")
+        
         # 获取用户openid（从用户信息中获取）
         openid = current_user.openid
         if not openid:
             return fail(msg="用户openid不存在，无法创建支付订单", code=400)
-        
-        # 获取客户端IP
-        client_ip = http_request.client.host if http_request.client else "127.0.0.1"
         
         order_service = RechargeOrderService(db)
         order_info = await order_service.create_order(

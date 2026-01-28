@@ -138,22 +138,14 @@ class PermissionService:
                     return "normal"
             return user.level_code
         
-        # 兼容旧数据：从level枚举映射到level_code
-        level_mapping = {
-            "normal": "normal",
-            "member": "vip",      # member映射为vip
-            "partner": "svip",    # partner映射为svip
-        }
-        
-        old_level_code = user.level.value if hasattr(user.level, "value") else str(user.level)
-        mapped_code = level_mapping.get(old_level_code, "normal")
+        level_code = user.level_code or "normal"
         
         # 检查VIP是否过期
-        if mapped_code in ["vip", "svip", "max"]:
+        if level_code in ["vip", "svip", "max"]:
             if self._is_vip_expired(user):
                 return "normal"
         
-        return mapped_code
+        return level_code
     
     def _is_vip_expired(self, user: User) -> bool:
         """

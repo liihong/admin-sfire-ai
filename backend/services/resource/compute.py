@@ -192,6 +192,21 @@ class ComputeService:
             compute_type = ComputeType(log_type)
             conditions.append(ComputeLog.type == compute_type)
         
+        # 过滤掉充值失败的订单（payment_status 为 failed 或 cancelled 的充值订单）
+        # 条件：不是充值类型，或者是充值类型但支付状态不是失败或取消
+        conditions.append(
+            or_(
+                ComputeLog.type != ComputeType.RECHARGE,  # 不是充值类型，保留
+                and_(
+                    ComputeLog.type == ComputeType.RECHARGE,  # 是充值类型
+                    or_(
+                        ComputeLog.payment_status.is_(None),  # payment_status 为 None（兼容旧数据）
+                        ComputeLog.payment_status.notin_(["failed", "cancelled"])  # 支付状态不是失败或取消
+                    )
+                )
+            )
+        )
+        
         # 获取用户信息
         user_result = await self.db.execute(
             select(User).where(User.id == user_id)

@@ -103,6 +103,7 @@ import { useAgentStore } from '@/stores/agent'
 import { useQuickEntryStore } from '@/stores/quickEntry'
 import { chatStream } from '@/api/generate'
 import { msgSecCheck } from '@/utils/security'
+import { getConversationDetail } from '@/api/conversation'
 import SvgIcon from '@/components/base/SvgIcon.vue'
 import AgentCard from './components/AgentCard.vue'
 import SafeAreaTop from '@/components/common/SafeAreaTop.vue'
@@ -126,6 +127,8 @@ const inputText = ref('')
 const isGenerating = ref(false)
 const scrollTop = ref(0)
 const conversationId = ref<number | undefined>(undefined)
+// 标记是否是从历史对话跳转的（从历史对话跳转时不需要设置默认指令）
+const isFromConversationHistory = ref(false)
 
 const canSend = computed(() => inputText.value.trim().length > 0)
 
@@ -343,12 +346,72 @@ interface PageOptions {
   agentId?: string
   content?: string
   inspiration_id?: string
+  conversationId?: string
   [key: string]: any
+}
+
+/**
+ * 加载历史对话
+ */
+async function loadConversationHistory(convId: number) {
+  try {
+    const detail = await getConversationDetail(convId)
+
+    // 设置会话ID
+    conversationId.value = detail.id
+
+    // 根据对话的 agent_id 设置智能体
+    if (detail.agent_id) {
+      await agentStore.setActiveAgentById(String(detail.agent_id))
+    }
+
+    // 将历史消息加载到 chatHistory
+    if (detail.messages && detail.messages.length > 0) {
+      // 清空现有消息
+      chatHistory.splice(0, chatHistory.length)
+
+      // 转换消息格式
+      detail.messages.forEach((msg) => {
+        // 只加载 user 和 assistant 角色的消息
+        if (msg.role === 'user' || msg.role === 'assistant') {
+          chatHistory.push({
+            role: msg.role as 'user' | 'assistant',
+            content: msg.content,
+            timestamp: new Date(msg.created_at).getTime(),
+          })
+        }
+      })
+
+      // 滚动到底部
+      nextTick(() => {
+        scrollToBottom()
+      })
+    }
+  } catch (error) {
+    console.error('加载历史对话失败:', error)
+    uni.showToast({
+      title: error instanceof Error ? error.message : '加载对话失败',
+      icon: 'none',
+      duration: 2000
+    })
+  }
 }
 
 onLoad(async (options?: PageOptions) => {
   quickEntryStore.loadActiveQuickEntryFromStorage()
 
+  // 如果提供了 conversationId，优先加载历史对话
+  if (options?.conversationId) {
+    const convId = parseInt(options.conversationId)
+    if (!isNaN(convId)) {
+      // 标记为从历史对话跳转，不设置默认指令
+      isFromConversationHistory.value = true
+      await loadConversationHistory(convId)
+      return // 历史对话加载完成后直接返回，不再处理 agentId
+    }
+  }
+
+  // 如果没有 conversationId，按原有逻辑处理 agentId
   if (options?.agentId) {
     if (!agentStore.activeAgent || agentStore.activeAgent.id !== options.agentId) {
       agentStore.loadActiveAgentFromStorage()
@@ -377,7 +440,8 @@ onLoad(async (options?: PageOptions) => {
 onMounted(async () => {
   scrollToBottom()
 
-  if (!inputText.value.trim() && quickEntryStore.activeQuickEntry?.instructions) {
+  // 只有从快捷指令跳转时才设置默认指令，从历史对话跳转时不设置
+  if (!isFromConversationHistory.value && !inputText.value.trim() && quickEntryStore.activeQuickEntry?.instructions) {
     inputText.value = quickEntryStore.activeQuickEntry.instructions
   }
 })
@@ -385,7 +449,8 @@ onMounted(async () => {
 watch(
   () => quickEntryStore.activeQuickEntry,
   (newEntry) => {
-    if (!inputText.value.trim() && newEntry?.instructions) {
+    // 只有从快捷指令跳转时才设置默认指令，从历史对话跳转时不设置
+    if (!isFromConversationHistory.value && !inputText.value.trim() && newEntry?.instructions) {
       inputText.value = newEntry.instructions
     }
   }
