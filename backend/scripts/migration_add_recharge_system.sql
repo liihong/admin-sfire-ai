@@ -56,3 +56,4 @@ INSERT INTO recharge_packages (name, price, power_amount, unit_price, tag, descr
 ('专业工作室', 199.00, 35000, '1:175', '[]', '针对有 6 人以上小团队的同行。', 1166, 4, 1, FALSE);
 
 
+

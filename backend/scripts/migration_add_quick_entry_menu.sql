@@ -72,3 +72,4 @@ WHERE name = 'quickEntryManage';
 -- SELECT id, name, title FROM menus WHERE name = 'app' OR title LIKE '%小程序%';
 
 
+
