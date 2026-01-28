@@ -207,7 +207,7 @@ const handleGetPhoneNumber = async (e: any) => {
           duration: 3000
         })
         // 清除已保存的 token（如果有）
-        authStore.clearAuth()
+        // authStore.clearAuth()
         return
       }
 

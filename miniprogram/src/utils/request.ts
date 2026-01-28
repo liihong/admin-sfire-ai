@@ -146,7 +146,7 @@ async function handleUnauthorized(originalConfig?: RequestConfig): Promise<boole
     
     console.warn('[401] No refresh token found in memory or storage, cannot refresh, clearing auth')
     console.trace('[401] Call stack when clearing auth:')
-    authStore.clearAuth()
+    // authStore.clearAuth()
 
     // 立即重置标志，避免重复处理
     isHandling401 = false
@@ -192,7 +192,7 @@ async function handleUnauthorized(originalConfig?: RequestConfig): Promise<boole
   // 注意：只有在 refresh_token 真正失效时才清除（不是网络错误）
   console.warn('[401] Token refresh failed (token invalid), clearing auth and redirecting to login')
   console.trace('[401] Call stack when clearing auth due to invalid token:')
-  authStore.clearAuth()
+  // authStore.clearAuth()
 
   // 立即重置标志，避免重复处理
   isHandling401 = false

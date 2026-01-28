@@ -14,6 +14,7 @@ export interface UserInfo {
   partnerBalance: string
   partnerStatus: string
   expireDate: string | null
+  level: string  // 用户等级代码：normal/vip/svip/max
 }
 
 /**

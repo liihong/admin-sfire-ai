@@ -11,14 +11,14 @@
               mode="aspectFill"
             />
             <!-- 皇冠图标 -->
-            <view class="crown-badge" v-if="userInfo.partnerStatus && userInfo.partnerStatus !== '普通用户'">
-             <text class="crown-text">V</text>
+           <view class="crown-badge" v-if="userInfo.level && userInfo.level !== 'normal'">
+             <text class="crown-text">{{ userInfo.level?.[0]?.toUpperCase() || '' }}</text>
             </view>
           </view>
           <text class="phone-number">{{ displayPhone }}</text>
           <view class="tags-row">
-            <text class="vip-tag" v-if="userInfo.partnerStatus && userInfo.partnerStatus !== '普通用户'">
-              {{ userInfo.partnerStatus === 'VIP会员' ? 'VIP' : 'PRO' }} 用户
+           <text class="vip-tag" v-if="userInfo.level && userInfo.level !== 'normal'">
+              {{ userInfo.level.toUpperCase() }} 用户
             </text>
             <text class="expire-tag" v-if="userInfo.expireDate">
               {{ userInfo.expireDate }} 过期
@@ -29,7 +29,7 @@
     </view>
 
     <!-- 会员升级卡片 -->
-    <view class="upgrade-card" v-if="userInfo.partnerStatus === '普通用户' || !userInfo.partnerStatus">
+   <view class="upgrade-card" v-if="userInfo.level === 'normal'">
       <view class="upgrade-content">
         <view class="upgrade-text">
           <text class="upgrade-subtitle">UPGRADE PRIORITY</text>
@@ -101,7 +101,8 @@ const userInfo = reactive({
   expireDate: '',
   power: '0',
   balance: '0.00',
-  partnerStatus: '普通用户'
+  partnerStatus: '普通用户',
+  level: 'normal'  // 用户等级代码：normal/vip/svip/max
 })
 
 // 格式化手机号（隐藏中间4位）
@@ -127,7 +128,7 @@ const menuList = ref([
   {
     id: 'inspiration',
     name: '我的灵感',
-    desc: '保存的草稿与Prompt',
+    desc: '每一次灵感，都是潜在的爆款选题',
     icon: 'linggan',
     iconBg: '#F37021', // 橙色背景
     path: '/pages/inspiration/index'
@@ -135,7 +136,7 @@ const menuList = ref([
   {
     id: 'contact',
     name: '联系客服',
-    desc: '反馈建议或寻求帮助',
+    desc: '升级会员或寻求帮助',
     icon: 'service',
     iconBg: '#10B981', // 绿色背景
     path: '/pages/contact/index'
@@ -156,6 +157,7 @@ const fetchUserInfo = async () => {
       userInfo.power = data.power || '0'
       userInfo.balance = data.partnerBalance || '0.00'
       userInfo.partnerStatus = data.partnerStatus || '普通用户'
+      userInfo.level = data.level || 'normal'  // 获取用户等级代码
     } else {
       console.error('获取用户信息失败:', (response as any).msg)
       uni.showToast({

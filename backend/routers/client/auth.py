@@ -584,6 +584,7 @@ class UserDetailInfo(BaseModel):
     partnerBalance: str = Field(default="0.00", description="合伙人资产余额")
     partnerStatus: str = Field(default="普通用户", description="合伙人状态")
     expireDate: Optional[str] = Field(default=None, description="会员到期时间 YYYY-MM-DD")
+    level: str = Field(default="normal", description="用户等级代码：normal/vip/svip/max")
 
 
 @router.get("/user/info")
@@ -594,7 +595,7 @@ async def get_user_detail_info(
     获取用户详细信息（我的页面使用）
     
     需要 Authorization header 携带 Bearer token
-    返回字段：phone、avatar、nickname、power（算力余额）、partnerBalance（合伙人资产余额）、partnerStatus（合伙人状态）、expireDate（会员到期时间）
+    返回字段：phone、avatar、nickname、power（算力余额）、partnerBalance（合伙人资产余额）、partnerStatus（合伙人状态）、expireDate（会员到期时间）、level（用户等级代码）
     """
     from decimal import Decimal
     
@@ -628,6 +629,7 @@ async def get_user_detail_info(
         partnerBalance=partner_balance_str,
         partnerStatus=partner_status,
         expireDate=expire_date,
+        level=level_code,  # 添加等级代码字段
     )
     
     return success(
