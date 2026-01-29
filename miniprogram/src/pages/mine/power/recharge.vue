@@ -69,16 +69,25 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { getPackages, createRechargeOrder, queryOrderStatus } from '@/api/recharge'
-import { getUserInfo } from '@/api/user'
+import { useAuthStore } from '@/stores/auth'
 import { getBalance } from '@/api/coin'
 import type { Package } from '@/api/recharge'
 import PackageCard from './components/PackageCard.vue'
 import SafeAreaTop from '@/components/common/SafeAreaTop.vue'
 
-// 余额
-const balance = ref<string>('0')
+// 获取 store 实例
+const authStore = useAuthStore()
+
+// 余额（从 store 读取，如果没有则默认为 '0'）
+const balance = computed(() => {
+  const storeUserInfo = authStore.userInfo
+  if (!storeUserInfo) {
+    return '0'
+  }
+  return storeUserInfo.power || '0'
+})
 
 // 套餐列表
 const packages = ref<Package[]>([])
@@ -87,43 +96,44 @@ const selectedPackage = ref<Package | null>(null)
 
 // 初始化
 onMounted(() => {
-  loadBalance()
+  // 如果 store 中没有用户信息，则刷新
+  if (!authStore.userInfo) {
+    refreshUserInfo()
+  }
   loadPackages()
 })
 
-// 加载余额（使用与mine页面相同的API，如果失败则回退到getBalance）
-async function loadBalance() {
+/**
+ * 刷新用户信息（从服务器获取最新信息）
+ * 默认从 store 读取，只在刷新时调用此方法
+ */
+async function refreshUserInfo() {
   try {
-    // 优先使用 getUserInfo，与 mine 页面保持一致
-    const response = await getUserInfo()
-    console.log('getUserInfo 响应:', response)
-
-    if (response.code === 200 && response.data) {
-      const power = response.data.power
-      console.log('获取到的 power:', power)
-
-      // 如果 power 存在且不为 '0'，使用它
-      if (power && power !== '0') {
-        balance.value = power
-        return
-      }
-
-      // 如果 power 为 '0' 或不存在，尝试使用 getBalance API
-      if (power === '0' || !power) {
-        console.log('power 为 0 或不存在，尝试使用 getBalance API')
-        await loadBalanceFromCoinAPI()
-        return
-      }
-
-      balance.value = power || '0'
-    } else {
-      // getUserInfo 失败，回退到 getBalance
-      console.log('getUserInfo 失败，使用 getBalance API')
+    const success = await authStore.refreshUserInfo()
+    if (!success) {
+      console.warn('刷新用户信息失败')
+      // 如果刷新失败，尝试使用 getBalance API 作为后备
       await loadBalanceFromCoinAPI()
     }
-  } catch (error: any) {
-    console.error('加载余额失败:', error)
-    // 如果 getUserInfo 失败，尝试使用 getBalance
+  } catch (error) {
+    console.error('刷新用户信息异常:', error)
+    // 如果刷新失败，尝试使用 getBalance API 作为后备
+    await loadBalanceFromCoinAPI()
+  }
+}
+
+// 加载余额（从 store 读取，如果 store 中没有则刷新）
+async function loadBalance() {
+  // 优先从 store 读取
+  if (authStore.userInfo && authStore.userInfo.power) {
+    return
+  }
+  
+  // 如果 store 中没有，则刷新
+  await refreshUserInfo()
+  
+  // 如果刷新后还是没有，尝试使用 getBalance API 作为后备
+  if (!authStore.userInfo || !authStore.userInfo.power) {
     try {
       await loadBalanceFromCoinAPI()
     } catch (e) {
@@ -132,7 +142,7 @@ async function loadBalance() {
   }
 }
 
-// 从 coin API 加载余额（备用方案）
+// 从 coin API 加载余额（备用方案，仅在 store 中没有用户信息时使用）
 async function loadBalanceFromCoinAPI() {
   try {
     const response = await getBalance()
@@ -140,8 +150,10 @@ async function loadBalanceFromCoinAPI() {
 
     if (response.code === 200 && response.data) {
       const availableBalance = response.data.available_balance || 0
-      balance.value = String(Math.floor(availableBalance))
-      console.log('从 getBalance 获取到的余额:', balance.value)
+      const balanceStr = String(Math.floor(availableBalance))
+      console.log('从 getBalance 获取到的余额:', balanceStr)
+      // 注意：balance 现在是 computed，从 store 读取，这里只做日志记录
+      // 如果需要更新余额，应该通过刷新用户信息接口来实现
     }
   } catch (error: any) {
     console.error('从 coin API 加载余额失败:', error)

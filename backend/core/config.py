@@ -29,14 +29,14 @@ class Settings(BaseSettings):
     PORT: int = 8000
 
     # MySQL 数据库配置
-    MYSQL_HOST: str = "47.110.80.238"
+    MYSQL_HOST: str = ""
     MYSQL_PORT: int = 3306
     MYSQL_USER: str = "root"
-    MYSQL_PASSWORD: str = "Sfire@2026"
-    MYSQL_DATABASE: str = "sfire_admin"
+    MYSQL_PASSWORD: str = ""
+    MYSQL_DATABASE: str = ""
 
     # Redis 配置
-    REDIS_HOST: str = "47.110.80.238"
+    REDIS_HOST: str = ""
     REDIS_PORT: int = 6379
     REDIS_PASSWORD: str = ""
     REDIS_DB: int = 0
@@ -52,17 +52,17 @@ class Settings(BaseSettings):
 
     # 第三方 API 配置（Dashboard 监控用）
     TIKHUB_API_KEY: str = ""  # Tikhub API Key
-    OPENAI_API_KEY: str = "e44c68945ae94109b4d7f433c2442310.3v8Np2obJ8MtYj33"  # OpenAI API Key
+    OPENAI_API_KEY: str = ""  # OpenAI API Key
     
     # 微信小程序配置
-    WECHAT_APP_ID: str = "wxd9e4d8682e6caff6"  # 微信小程序 AppID
-    WECHAT_APP_SECRET: str = "8a74db18d133f00d4e6360edec9d40d9"  # 微信小程序 AppSecret
+    WECHAT_APP_ID: str = ""  # 微信小程序 AppID
+    WECHAT_APP_SECRET: str = ""  # 微信小程序 AppSecret
     
     # 微信支付配置
-    WECHAT_PAY_MCH_ID: str = "1724342908"  # 微信支付商户号
-    WECHAT_PAY_API_KEY: str = "sfire_prod_8TiDSimxwIT26wk7bLxeO"  # 微信支付API密钥（v2 API密钥），仅支持32个字符，数字和大小写字母的组合
-    WECHAT_PAY_NOTIFY_URL: str = "https://sourcefire.cn/api/v1/client/coin/recharge/callback"  # 微信支付回调地址
-    WECHAT_PAY_IP_WHITELIST: str = "182.254.48.0/24,140.207.54.0/24"  # 微信支付IP白名单（逗号分隔）
+    WECHAT_PAY_MCH_ID: str = ""  # 微信支付商户号
+    WECHAT_PAY_API_KEY: str = ""  # 微信支付API密钥（v2 API密钥），仅支持32个字符，数字和大小写字母的组合
+    WECHAT_PAY_NOTIFY_URL: str = ""  # 微信支付回调地址
+    WECHAT_PAY_IP_WHITELIST: str = ""  # 微信支付IP白名单（逗号分隔）
     
     # LLM 配置
     DEEPSEEK_API_KEY: str = ""  # DeepSeek API Key
@@ -81,6 +81,16 @@ class Settings(BaseSettings):
     EMBEDDING_BASE_URL: str = ""  # Embedding API基础URL（可选，默认根据provider自动设置）
     EMBEDDING_MODEL: str = ""  # Embedding模型名称（可选，默认根据provider自动设置）
     EMBEDDING_API_KEY: str = ""  # Embedding API Key（可选，默认使用对应provider的API Key）
+
+    # OSS 对象存储配置
+    OSS_PROVIDER: str = ""  # OSS服务提供商: local(本地存储), aliyun(阿里云OSS), tencent(腾讯云COS), qiniu(七牛云)
+    OSS_ACCESS_KEY_ID: str = ""  # OSS Access Key ID（阿里云/腾讯云/七牛云通用）
+    OSS_ACCESS_KEY_SECRET: str = ""  # OSS Access Key Secret（阿里云/腾讯云/七牛云通用）
+    OSS_BUCKET_NAME: str = ""  # OSS存储桶名称
+    OSS_ENDPOINT: str = ""  # OSS服务端点（阿里云OSS使用，如: oss-cn-hangzhou.aliyuncs.com）
+    OSS_REGION: str = ""  # OSS区域（腾讯云COS使用，如: ap-guangzhou）
+    OSS_DOMAIN: str = ""  # OSS自定义域名（可选，用于文件访问URL，如: https://cdn.example.com）
+
 
     @field_validator("CORS_ORIGINS", mode="before")
     @classmethod

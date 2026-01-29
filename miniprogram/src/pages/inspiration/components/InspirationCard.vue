@@ -21,8 +21,7 @@
         placeholder="此刻在想什么?..."
         placeholder-class="textarea-placeholder"
         :maxlength="500"
-        @input="handleInput"
-        :auto-focus="true"
+@input="handleInput"
       />
       
       <!-- 标签建议 -->

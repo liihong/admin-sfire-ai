@@ -47,10 +47,11 @@ class UserLevelInfo(BaseModel):
 
 
 class UserInfo(BaseModel):
-    """用户信息模型"""
+    """用户信息模型（完整信息）"""
     openid: str = Field(..., description="用户 openid")
     nickname: str = Field(default="", description="用户昵称")
-    avatarUrl: str = Field(default="", description="头像URL")
+    avatar: str = Field(default="", description="头像URL")
+    phone: Optional[str] = Field(default="", description="手机号")
     gender: Optional[int] = Field(default=0, description="性别: 0-未知, 1-男, 2-女")
     city: Optional[str] = Field(default="", description="城市")
     province: Optional[str] = Field(default="", description="省份")
@@ -60,16 +61,18 @@ class UserInfo(BaseModel):
     level_code: Optional[str] = Field(default=None, description="用户等级代码：normal/vip/svip/max")
     level_name: str = Field(default="普通用户", description="等级名称（中文显示）")
     level_info: Optional[UserLevelInfo] = Field(default=None, description="等级详细信息")
-    partner_status: str = Field(default="普通用户", description="合伙人状态：普通用户/VIP会员/合伙人")
-    vip_expire_date: Optional[str] = Field(default=None, description="会员到期时间 YYYY-MM-DD")
+    levelInfo: Optional[UserLevelInfo] = Field(default=None, description="等级详细信息（兼容字段，与level_info相同）")
+    # 余额相关字段
+    power: str = Field(default="0", description="算力可用余额（总余额-冻结余额）")
+    total_balance: str = Field(default="0", description="算力总余额")
+    frozen_balance: str = Field(default="0", description="冻结算力余额")
     partner_balance: str = Field(default="0.00", description="合伙人资产余额")
-
-
-class LoginResponse(BaseModel):
-    """登录响应模型（兼容小程序端）"""
-    success: bool = True
-    token: str = Field(..., description="JWT token")
-    userInfo: UserInfo = Field(..., description="用户信息")
+    partnerBalance: Optional[str] = Field(default=None, description="合伙人资产余额（兼容字段，与partner_balance相同）")
+    # 状态相关字段
+    partner_status: str = Field(default="普通用户", description="合伙人状态：普通用户/VIP会员/合伙人")
+    partnerStatus: Optional[str] = Field(default=None, description="合伙人状态（兼容字段，与partner_status相同）")
+    vip_expire_date: Optional[str] = Field(default=None, description="会员到期时间 YYYY-MM-DD")
+    expireDate: Optional[str] = Field(default=None, description="会员到期时间（兼容字段，与vip_expire_date相同）")
 
 
 # ============== Helper Functions ==============
@@ -357,10 +360,24 @@ def build_user_info(user: User) -> UserInfo:
     partner_balance = user.partner_balance if user.partner_balance else Decimal("0.0000")
     partner_balance_str = f"{float(partner_balance):.2f}"
     
+    # 格式化算力余额
+    total_balance = user.balance if user.balance else Decimal("0")
+    frozen_balance = user.frozen_balance if user.frozen_balance else Decimal("0")
+    available_balance = total_balance - frozen_balance  # 可用余额 = 总余额 - 冻结余额
+    
+    # 转换为字符串格式（整数）
+    total_balance_str = str(int(total_balance))
+    frozen_balance_str = str(int(frozen_balance))
+    power = str(int(available_balance))  # 可用余额
+    
+    # 获取头像URL
+    avatar_url = user.avatar or ""
+    
     return UserInfo(
         openid=user.openid or "",
         nickname=user.nickname or "微信用户",
-        avatarUrl=user.avatar or "",
+        avatar=avatar_url,
+        phone=user.phone or "",
         gender=0,
         city="",
         province="",
@@ -369,9 +386,16 @@ def build_user_info(user: User) -> UserInfo:
         level_code=level_code,
         level_name=level_name,
         level_info=level_info,
+        levelInfo=level_info,  # 兼容字段
         partner_status=partner_status,
+        partnerStatus=partner_status,  # 兼容字段
         vip_expire_date=vip_expire_date,
+        expireDate=vip_expire_date,  # 兼容字段
         partner_balance=partner_balance_str,
+        partnerBalance=partner_balance_str,  # 兼容字段
+        power=power,
+        total_balance=total_balance_str,
+        frozen_balance=frozen_balance_str,
     )
 
 
@@ -518,10 +542,14 @@ async def get_current_user_info(
     db: AsyncSession = Depends(get_db)
 ):
     """
-    获取当前用户信息（包含完整的等级信息）
+    获取当前用户完整信息
     
     需要 Authorization header 携带 Bearer token
-    返回用户基本信息及完整的等级配置信息，方便前端根据会员级别展示不同内容
+    返回用户完整信息，包括：
+    - 基础信息：openid、nickname、avatar、phone
+    - 等级信息：level、level_code、level_name、level_info、levelInfo
+    - 余额信息：power（算力可用余额）、total_balance（算力总余额）、frozen_balance（冻结算力）、partner_balance、partnerBalance
+    - 状态信息：partner_status、partnerStatus、vip_expire_date、expireDate
     """
     try:
         # 重新查询用户并加载等级关系（确保获取最新数据）
@@ -575,67 +603,6 @@ async def get_current_user_info(
         raise ServerErrorException("用户数据异常，请联系管理员")
 
 
-class UserDetailInfo(BaseModel):
-    """用户详细信息模型（我的页面使用）"""
-    phone: Optional[str] = Field(default="", description="手机号")
-    avatar: Optional[str] = Field(default="", description="头像URL")
-    nickname: Optional[str] = Field(default="", description="昵称")
-    power: str = Field(default="0", description="算力余额")
-    partnerBalance: str = Field(default="0.00", description="合伙人资产余额")
-    partnerStatus: str = Field(default="普通用户", description="合伙人状态")
-    expireDate: Optional[str] = Field(default=None, description="会员到期时间 YYYY-MM-DD")
-    level: str = Field(default="normal", description="用户等级代码：normal/vip/svip/max")
-
-
-@router.get("/user/info")
-async def get_user_detail_info(
-    current_user: User = Depends(get_current_miniprogram_user)
-):
-    """
-    获取用户详细信息（我的页面使用）
-    
-    需要 Authorization header 携带 Bearer token
-    返回字段：phone、avatar、nickname、power（算力余额）、partnerBalance（合伙人资产余额）、partnerStatus（合伙人状态）、expireDate（会员到期时间）、level（用户等级代码）
-    """
-    from decimal import Decimal
-    
-    # 合伙人状态映射
-    level_code = current_user.level_code or "normal"
-    level_status_map = {
-        "normal": "普通用户",
-        "vip": "VIP会员",
-        "svip": "合伙人",
-        "max": "合伙人",
-    }
-    partner_status = level_status_map.get(level_code, "普通用户")
-    
-    # 格式化算力余额
-    power = str(int(current_user.balance)) if current_user.balance else "0"
-    
-    # 格式化合伙人资产余额
-    partner_balance = current_user.partner_balance if current_user.partner_balance else Decimal("0.0000")
-    partner_balance_str = f"{float(partner_balance):.2f}"
-    
-    # 格式化会员到期时间
-    expire_date = None
-    if current_user.vip_expire_date:
-        expire_date = current_user.vip_expire_date.strftime("%Y-%m-%d")
-    
-    user_detail = UserDetailInfo(
-        phone=current_user.phone or "",
-        avatar=current_user.avatar or "",
-        nickname=current_user.nickname or "微信用户",
-        power=power,
-        partnerBalance=partner_balance_str,
-        partnerStatus=partner_status,
-        expireDate=expire_date,
-        level=level_code,  # 添加等级代码字段
-    )
-    
-    return success(
-        data=user_detail.model_dump(),
-        msg="获取成功"
-    )
 
 
 class UserUpdateRequest(BaseModel):
@@ -656,50 +623,56 @@ async def update_user_info(
 
     需要 Authorization header 携带 Bearer token
     """
-    # 直接更新用户对象属性
-    if request.nickname is not None:
-        current_user.nickname = request.nickname
-    if request.avatar is not None:
-        current_user.avatar = request.avatar
-    if request.gender is not None:
-        # 注意：User模型可能没有gender字段，这里先不处理
-        pass
+    try:
+        # 直接更新用户对象属性
+        if request.nickname is not None:
+            current_user.nickname = request.nickname
+        if request.avatar is not None:
+            current_user.avatar = request.avatar
+        if request.gender is not None:
+            # 注意：User模型可能没有gender字段，这里先不处理
+            pass
 
-    # 如果没有要更新的字段，返回错误
-    update_fields = []
-    if request.nickname is not None:
-        update_fields.append("nickname")
-    if request.avatar is not None:
-        update_fields.append("avatar")
+        # 如果没有要更新的字段，返回错误
+        update_fields = []
+        if request.nickname is not None:
+            update_fields.append("nickname")
+        if request.avatar is not None:
+            update_fields.append("avatar")
 
-    if not update_fields:
-        raise BadRequestException("请提供要更新的字段")
+        if not update_fields:
+            raise BadRequestException("请提供要更新的字段")
 
-    # 提交更改
-    await db.commit()
-    
-    # 重新查询用户并加载等级关系（确保获取最新数据）
-    query = select(User).where(
-        User.id == current_user.id,
-        User.is_deleted == False
-    ).options(selectinload(User.user_level))
-    
-    result = await db.execute(query)
-    user = result.scalar_one_or_none()
-    
-    if not user:
-        raise BadRequestException("用户不存在")
+        # 提交更改
+        await db.commit()
+        
+        # 重新查询用户并加载等级关系（确保获取最新数据）
+        query = select(User).where(
+            User.id == current_user.id,
+            User.is_deleted == False
+        ).options(selectinload(User.user_level))
+        
+        result = await db.execute(query)
+        user = result.scalar_one_or_none()
+        
+        if not user:
+            raise BadRequestException("用户不存在")
 
-    # 构建响应（包含完整的等级信息）
-    user_info = build_user_info(user)
+        # 构建响应（包含完整的等级信息）
+        user_info = build_user_info(user)
 
-    return success(
-        data={
-            "success": True,
-            "userInfo": user_info.model_dump()
-        },
-        msg="更新成功"
-    )
+        return success(
+            data={
+                "success": True,
+                "userInfo": user_info.model_dump()
+            },
+            msg="更新成功"
+        )
+    except (BadRequestException, ServerErrorException):
+        raise
+    except Exception as e:
+        logger.error(f"更新用户信息失败: {str(e)}, user_id={current_user.id}", exc_info=True)
+        raise ServerErrorException(f"更新用户信息失败: {str(e)}")
 
 
 class ChangePasswordRequest(BaseModel):

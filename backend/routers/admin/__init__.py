@@ -5,8 +5,8 @@ Admin Routers
 from fastapi import APIRouter
 
 from . import (
-    auth, dashboard, agents, admin_users, banner, 
-    home_config, llm_models, menu, users, dictionary, user_levels, quick_entries, article
+    auth, dashboard, agents, admin_users, banner,
+    home_config, llm_models, menu, users, dictionary, user_levels, quick_entries, article, upload
 )
 
 # 尝试导入可选的路由
@@ -40,6 +40,7 @@ admin_router.include_router(dictionary.router, prefix="/dictionary", tags=["数�
 admin_router.include_router(user_levels.router, prefix="/user-levels", tags=["用户等级"])
 admin_router.include_router(quick_entries.router, prefix="/quick-entries", tags=["快捷入口"])
 admin_router.include_router(article.router, prefix="/articles", tags=["文章管理"])
+admin_router.include_router(upload.router, prefix="", tags=["文件上传"])
 
 if roles_available and hasattr(roles, "router"):
     admin_router.include_router(roles.router, prefix="/roles", tags=["角色"])

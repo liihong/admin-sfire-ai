@@ -1,7 +1,7 @@
 <template>
   <text 
     :class="['iconfont', `icon-${name}`]" 
-:style="{ color: iconColor, fontSize: iconSize + 'rpx' }"
+:style="{ color: iconColor, fontSize: iconSize }"
   ></text>
 </template>
 

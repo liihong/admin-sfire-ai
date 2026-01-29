@@ -4,7 +4,8 @@
     <view class="user-card">
       <view class="user-info">
         <view class="avatar-container">
-          <view class="avatar-wrapper" @tap="handleAvatarClick">
+         <!-- #ifdef MP-WEIXIN -->
+          <button class="avatar-wrapper" open-type="chooseAvatar" @chooseavatar="handleChooseAvatar">
             <image 
               class="avatar" 
               :src="userInfo.avatar || '/static/default-avatar.png'" 
@@ -14,8 +15,18 @@
            <view class="crown-badge" v-if="userInfo.level && userInfo.level !== 'normal'">
              <text class="crown-text">{{ userInfo.level?.[0]?.toUpperCase() || '' }}</text>
             </view>
-          </view>
-          <text class="phone-number">{{ displayPhone }}</text>
+         </button>
+          <!-- #endif -->
+          <!-- #ifndef MP-WEIXIN -->
+          <view class="avatar-wrapper">
+            <image class="avatar" :src="userInfo.avatar || '/static/default-avatar.png'" mode="aspectFill" />
+            <!-- 皇冠图标 -->
+            <view class="crown-badge" v-if="userInfo.level && userInfo.level !== 'normal'">
+              <text class="crown-text">{{ userInfo.level?.[0]?.toUpperCase() || '' }}</text>
+           </view>
+         </view>
+          <!-- #endif -->
+         <text class="phone-number">{{ displayPhone }}</text>
           <view class="tags-row">
            <text class="vip-tag" v-if="userInfo.level && userInfo.level !== 'normal'">
               {{ userInfo.level.toUpperCase() }} 用户
@@ -89,20 +100,52 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed } from 'vue'
+import { ref, reactive, computed, onMounted } from 'vue'
 import { onShow } from '@dcloudio/uni-app'
-import { getUserInfo, updateUserInfo } from '@/api/user'
+import { updateUserInfo, getCurrentUserInfo, uploadAvatar } from '@/api/user'
+import { useAuthStore } from '@/stores/auth'
 import SvgIcon from '@/components/base/SvgIcon.vue'
 
-// 用户信息
-const userInfo = reactive({
-  avatar: '',
-  phone: '',
-  expireDate: '',
-  power: '0',
-  balance: '0.00',
-  partnerStatus: '普通用户',
-  level: 'normal'  // 用户等级代码：normal/vip/svip/max
+// 获取 store 实例
+const authStore = useAuthStore()
+
+// 用户信息（从 store 读取）
+const userInfo = computed(() => {
+  const storeUserInfo = authStore.userInfo
+  if (!storeUserInfo) {
+    return {
+      avatar: '',
+      avatarUrl: '',
+      phone: '',
+      nickname: '',
+      expireDate: '',
+      vip_expire_date: '',
+      power: '0',
+      balance: '0.00',
+      partnerBalance: '0.00',
+      partner_balance: '0.00',
+      partnerStatus: '普通用户',
+      partner_status: '普通用户',
+      level: 'normal'
+    }
+  }
+
+  // 从 store 的用户信息中提取字段（兼容新旧字段）
+  return {
+    avatar: storeUserInfo.avatar || storeUserInfo.avatarUrl || '',
+    avatarUrl: storeUserInfo.avatarUrl || storeUserInfo.avatar || '',
+    phone: storeUserInfo.phone || '',
+    nickname: storeUserInfo.nickname || '',
+    expireDate: storeUserInfo.expireDate || storeUserInfo.vip_expire_date || '',
+    vip_expire_date: storeUserInfo.vip_expire_date || storeUserInfo.expireDate || '',
+    power: storeUserInfo.power || '0',
+    balance: storeUserInfo.partnerBalance || storeUserInfo.partner_balance || '0.00',
+    partnerBalance: storeUserInfo.partnerBalance || storeUserInfo.partner_balance || '0.00',
+    partner_balance: storeUserInfo.partner_balance || storeUserInfo.partnerBalance || '0.00',
+    partnerStatus: storeUserInfo.partnerStatus || storeUserInfo.partner_status || '普通用户',
+    partner_status: storeUserInfo.partner_status || storeUserInfo.partnerStatus || '普通用户',
+    level: storeUserInfo.level || 'normal'
+  }
 })
 
 // 格式化手机号（隐藏中间4位）
@@ -115,7 +158,7 @@ const formatPhone = (phone: string): string => {
 }
 
 // 格式化后的手机号（计算属性）
-const displayPhone = computed(() => formatPhone(userInfo.phone))
+const displayPhone = computed(() => formatPhone(userInfo.value.phone))
 
 // 格式化数字（添加千分位）
 const formatNumber = (num: string | number): string => {
@@ -143,100 +186,75 @@ const menuList = ref([
   }
 ])
 
-// 获取用户信息
-const fetchUserInfo = async () => {
+/**
+ * 刷新用户信息（从服务器获取最新信息）
+ * 默认从 store 读取，只在刷新时调用此方法
+ */
+const refreshUserInfo = async () => {
   try {
-    const response = await getUserInfo()
-    // 后端返回格式: {code: 200, data: {...}, msg: "..."}
-    if (response.code === 200 && response.data) {
-      const data = response.data
-      
-      userInfo.avatar = data.avatar || ''
-      userInfo.phone = data.phone || ''
-      userInfo.expireDate = data.expireDate || ''
-      userInfo.power = data.power || '0'
-      userInfo.balance = data.partnerBalance || '0.00'
-      userInfo.partnerStatus = data.partnerStatus || '普通用户'
-      userInfo.level = data.level || 'normal'  // 获取用户等级代码
-    } else {
-      console.error('获取用户信息失败:', (response as any).msg)
-      uni.showToast({
-        title: (response as any).msg || '获取用户信息失败',
-        icon: 'none'
-      })
+    const success = await authStore.refreshUserInfo()
+    if (!success) {
+      console.warn('刷新用户信息失败')
     }
   } catch (error) {
-    console.error('获取用户信息异常:', error)
-    uni.showToast({
-      title: '获取用户信息失败',
-      icon: 'none'
-    })
+    console.error('刷新用户信息异常:', error)
   }
 }
 
-// 头像点击 - 获取微信头像和昵称
-const handleAvatarClick = () => {
-  // #ifdef MP-WEIXIN
-  // 微信小程序环境，使用 getUserProfile 获取用户信息
-  uni.getUserProfile({
-    desc: '用于完善用户资料',
-    success: async (res) => {
-      console.log('获取用户信息成功:', res.userInfo)
-      const { avatarUrl, nickName } = res.userInfo
-      
-      // 调用接口更新用户信息
-      try {
-        const updateResponse = await updateUserInfo({
-          avatar: avatarUrl,
-          nickname: nickName
-        })
-        
-        // 后端返回格式: {code: 200, data: {...}, msg: "..."}
-        if (updateResponse.code === 200) {
-          uni.showToast({
-            title: '更新成功',
-            icon: 'success'
-          })
-          // 刷新用户信息
-          await fetchUserInfo()
-        } else {
-          uni.showToast({
-            title: (updateResponse as any).msg || '更新失败',
-            icon: 'none'
-          })
-        }
-      } catch (error) {
-        console.error('更新用户信息异常:', error)
+/**
+ * 选择头像 - 使用微信新的 chooseAvatar API
+ * 直接上传文件，不使用 Base64
+ */
+const handleChooseAvatar = async (e: any) => {
+  console.log('chooseAvatar event:', e)
+
+  const avatarUrl = e.detail.avatarUrl
+  if (!avatarUrl) {
+    uni.showToast({
+      title: '获取头像失败',
+      icon: 'none'
+    })
+    return
+  }
+
+  try {
+    // 直接使用文件上传接口上传头像
+    const uploadResponse = await uploadAvatar(avatarUrl)
+
+    // 检查上传是否成功
+    if (uploadResponse.code === 200 && uploadResponse.data?.url) {
+    // 上传成功，使用返回的 URL 更新用户信息
+      const updateResponse = await updateUserInfo({
+        avatar: uploadResponse.data.url
+      })
+
+      // 后端返回格式: {code: 200, data: {...}, msg: "..."}
+      if (updateResponse.code === 200) {
         uni.showToast({
-          title: '更新失败',
-          icon: 'none'
+          title: '头像更新成功',
+          icon: 'success'
         })
-      }
-    },
-    fail: (err) => {
-      console.error('获取用户信息失败:', err)
-      if (err.errMsg && err.errMsg.includes('deny')) {
-        uni.showToast({
-          title: '需要授权才能使用此功能',
-          icon: 'none'
-        })
+        // 刷新用户信息
+        await refreshUserInfo()
       } else {
         uni.showToast({
-          title: '获取用户信息失败',
+          title: (updateResponse as any).msg || '更新失败',
           icon: 'none'
         })
       }
+    } else {
+      uni.showToast({
+        title: uploadResponse.msg || '上传失败',
+        icon: 'none'
+      })
     }
-  })
-  // #endif
-  
-  // #ifndef MP-WEIXIN
-  // 非微信小程序环境，提示用户手动输入
-  uni.showToast({
-    title: '请在小程序中打开',
-    icon: 'none'
-  })
-  // #endif
+  } catch (error: any) {
+    console.error('上传头像异常:', error)
+    uni.showToast({
+      title: error?.message || '上传失败，请重试',
+      icon: 'none'
+    })
+  }
 }
 
 // 跳转到算力明细列表
@@ -274,9 +292,16 @@ const handleMenuClick = (item: any) => {
   }
 }
 
-// 页面显示时获取用户信息
+// 页面初始化时，如果 store 中没有用户信息，则从服务器获取
+onMounted(() => {
+  if (!authStore.userInfo) {
+    refreshUserInfo()
+  }
+})
+
+// 页面显示时刷新用户信息（从服务器获取最新数据）
 onShow(() => {
-  fetchUserInfo()
+  refreshUserInfo()
 })
 </script>
 
@@ -325,6 +350,15 @@ onShow(() => {
   overflow: visible;
   margin-bottom: 32rpx;
   border: 2rpx solid #E5E7EB;
+  padding: 0;
+    margin: 0 0 32rpx 0;
+    line-height: 1;
+    background-color: transparent;
+  }
+  
+  // 微信小程序 button 组件样式重置
+  .avatar-wrapper::after {
+    border: none;
 }
 
 .avatar {

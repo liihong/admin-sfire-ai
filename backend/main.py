@@ -5,6 +5,7 @@ import uvicorn
 import asyncio
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 from contextlib import asynccontextmanager
 
 from core.config import settings
@@ -148,6 +149,12 @@ def create_app() -> FastAPI:
     # v2版本接口：技能组装模式
     app.include_router(admin_v2_router, prefix="/api/v2/admin", tags=["B端接口（v2-技能组装）"])
     app.include_router(client_v2_router, prefix="/api/v2/client", tags=["C端接口（v2-执行）"])
+
+    # 挂载静态文件目录（支持图片访问）
+    import os
+    static_dir = os.path.join(os.path.dirname(__file__), "static")
+    if os.path.exists(static_dir):
+        app.mount("/static", StaticFiles(directory=static_dir), name="static")
 
     return app
 

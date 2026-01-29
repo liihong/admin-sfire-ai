@@ -59,6 +59,104 @@ export interface StreamChatCallbacks {
 }
 
 /**
+ * UTF-8 解码函数（手动实现，兼容不支持 TextDecoder 的环境）
+ * 正确解析 UTF-8 多字节字符
+ */
+function decodeUTF8(uint8Array: Uint8Array): string {
+  let result = ''
+  let i = 0
+  
+  while (i < uint8Array.length) {
+    const byte1 = uint8Array[i++]
+    
+    // ASCII 字符 (0xxxxxxx)
+    if (byte1 < 0x80) {
+      result += String.fromCharCode(byte1)
+    }
+    // 2字节字符 (110xxxxx 10xxxxxx)
+    else if ((byte1 & 0xE0) === 0xC0) {
+      if (i >= uint8Array.length) break
+      const byte2 = uint8Array[i++]
+      if ((byte2 & 0xC0) !== 0x80) {
+        // 无效的 UTF-8 序列，跳过
+        continue
+      }
+      const codePoint = ((byte1 & 0x1F) << 6) | (byte2 & 0x3F)
+      result += String.fromCharCode(codePoint)
+    }
+    // 3字节字符 (1110xxxx 10xxxxxx 10xxxxxx)
+    else if ((byte1 & 0xF0) === 0xE0) {
+      if (i + 1 >= uint8Array.length) break
+      const byte2 = uint8Array[i++]
+      const byte3 = uint8Array[i++]
+      if ((byte2 & 0xC0) !== 0x80 || (byte3 & 0xC0) !== 0x80) {
+        // 无效的 UTF-8 序列，跳过
+        continue
+      }
+      const codePoint = ((byte1 & 0x0F) << 12) | ((byte2 & 0x3F) << 6) | (byte3 & 0x3F)
+      result += String.fromCharCode(codePoint)
+    }
+    // 4字节字符 (11110xxx 10xxxxxx 10xxxxxx 10xxxxxx)
+    else if ((byte1 & 0xF8) === 0xF0) {
+      if (i + 2 >= uint8Array.length) break
+      const byte2 = uint8Array[i++]
+      const byte3 = uint8Array[i++]
+      const byte4 = uint8Array[i++]
+      if ((byte2 & 0xC0) !== 0x80 || (byte3 & 0xC0) !== 0x80 || (byte4 & 0xC0) !== 0x80) {
+        // 无效的 UTF-8 序列，跳过
+        continue
+      }
+      const codePoint = ((byte1 & 0x07) << 18) | ((byte2 & 0x3F) << 12) | ((byte3 & 0x3F) << 6) | (byte4 & 0x3F)
+      // JavaScript 字符串使用 UTF-16，需要处理代理对
+      if (codePoint > 0xFFFF) {
+        const surrogate1 = 0xD800 + ((codePoint - 0x10000) >> 10)
+        const surrogate2 = 0xDC00 + ((codePoint - 0x10000) & 0x3FF)
+        result += String.fromCharCode(surrogate1, surrogate2)
+      } else {
+        result += String.fromCharCode(codePoint)
+      }
+    }
+    // 无效的起始字节，跳过
+    else {
+      // 跳过无效字节
+    }
+  }
+  
+  return result
+}
+
+/**
+ * 兼容的 ArrayBuffer/Uint8Array 转字符串函数
+ * 微信小程序环境可能不支持 TextDecoder，使用兼容方案
+ */
+function arrayBufferToString(buffer: ArrayBuffer | Uint8Array): string {
+  // 优先使用 TextDecoder（如果支持）
+  if (typeof TextDecoder !== 'undefined') {
+    try {
+      const decoder = new TextDecoder('utf-8')
+      if (buffer instanceof ArrayBuffer) {
+        return decoder.decode(buffer)
+      } else if (buffer instanceof Uint8Array) {
+        return decoder.decode(buffer)
+      }
+    } catch (e) {
+      // TextDecoder 解码失败，降级到手动转换
+      console.warn('TextDecoder 解码失败，使用降级方案:', e)
+    }
+  }
+
+  // 降级方案：使用手动实现的 UTF-8 解码函数
+  try {
+    const uint8Array = buffer instanceof ArrayBuffer ? new Uint8Array(buffer) : buffer
+    return decodeUTF8(uint8Array)
+  } catch (e) {
+    // 如果转换失败，返回空字符串并记录错误
+    console.error('ArrayBuffer 转字符串失败:', e)
+    return ''
+  }
+}
+
+/**
  * 流式聊天接口
  * 微信小程序对 SSE 支持有限，自动降级到完整响应解析
  */
@@ -84,7 +182,6 @@ export function chatStream(
     let conversationId: number | undefined = undefined
     let isDone = false
     let hasRealStreaming = false
-    const decoder = new TextDecoder('utf-8')
 
     const requestTask = uni.request({
       url,
@@ -154,11 +251,14 @@ export function chatStream(
             hasRealStreaming = true
 
             // 关键：将 ArrayBuffer 转换为字符串
+            // 注意：responseType 设置为 'text' 时，数据通常已经是字符串
+            // 但如果收到 ArrayBuffer/Uint8Array，需要使用 UTF-8 解码
             let chunkStr = ''
             if (typeof res.data === 'string') {
               chunkStr = res.data
             } else if (res.data instanceof ArrayBuffer || res.data instanceof Uint8Array) {
-              chunkStr = decoder.decode(res.data)
+              // 使用兼容的 UTF-8 解码函数
+              chunkStr = arrayBufferToString(res.data)
             } else {
               chunkStr = String(res.data)
             }

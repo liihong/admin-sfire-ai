@@ -3,6 +3,7 @@
 首页内容聚合服务层（独立于文章管理，专门为小程序首页提供数据）
 """
 import json
+import ast
 from typing import List, Dict, Optional
 from datetime import datetime
 from sqlalchemy import select, and_, desc, asc
@@ -197,29 +198,46 @@ class HomeService:
                 return []
             
             # 解析 JSON 配置值
+            config_value = config.config_value.strip()
+            
+            # 先尝试标准 JSON 解析
             try:
-                modules_data = json.loads(config.config_value)
-                if not isinstance(modules_data, list):
-                    logger.warning("featured_modules 配置格式错误：应为数组")
-                    return []
-                
-                # 转换为小程序需要的格式
-                # 数据库格式: { name, icon, link }
-                # 小程序格式: { icon, label, route, iconSize }
-                featured_modules = []
-                for module in modules_data:
-                    if isinstance(module, dict):
-                        featured_modules.append({
-                            "icon": module.get("icon", ""),
-                            "label": module.get("name", ""),
-                            "route": module.get("link", ""),
-                            "iconSize": 20  # 默认图标大小，与组件默认值保持一致
-                        })
-                
-                return featured_modules
+                modules_data = json.loads(config_value)
             except json.JSONDecodeError as e:
-                logger.error(f"解析 featured_modules 配置失败: {e}")
+                # JSON 解析失败，可能是使用了单引号而不是双引号
+                # 尝试使用 ast.literal_eval 解析 Python 字面量（支持单引号）
+                logger.warning(f"JSON 解析失败，尝试使用 Python 字面量解析: {e}")
+                try:
+                    modules_data = ast.literal_eval(config_value)
+                    logger.info("使用 Python 字面量解析成功")
+                except (ValueError, SyntaxError) as ast_error:
+                    # 记录详细错误信息，包括原始配置值（截取前200字符）
+                    config_preview = config_value[:200] if config_value else "None"
+                    logger.error(
+                        f"解析 featured_modules 配置失败: JSON错误={e}, Python字面量错误={ast_error}\n"
+                        f"配置值预览: {config_preview}"
+                    )
+                    return []
+            
+            # 验证数据类型
+            if not isinstance(modules_data, list):
+                logger.warning(f"featured_modules 配置格式错误：应为数组，实际类型为 {type(modules_data)}")
                 return []
+            
+            # 转换为小程序需要的格式
+            # 数据库格式: { name, icon, link }
+            # 小程序格式: { icon, label, route, iconSize }
+            featured_modules = []
+            for module in modules_data:
+                if isinstance(module, dict):
+                    featured_modules.append({
+                        "icon": module.get("icon", ""),
+                        "label": module.get("name", ""),
+                        "route": module.get("link", ""),
+                        "iconSize": 20  # 默认图标大小，与组件默认值保持一致
+                    })
+            
+            return featured_modules
         except Exception as e:
             logger.error(f"获取 featured_modules 配置失败: {e}")
             return []

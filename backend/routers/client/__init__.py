@@ -5,7 +5,7 @@ C端路由聚合（小程序 & PC官网）
 """
 from fastapi import APIRouter
 
-from . import auth, creation, projects, tikhub, web_auth, conversations, coin, security, permission, quick_entries, inspirations, home, article
+from . import auth, creation, projects, tikhub, web_auth, conversations, coin, security, permission, quick_entries, inspirations, home, article, upload
 
 # 创建C端路由聚合器
 client_router = APIRouter()
@@ -49,3 +49,6 @@ client_router.include_router(article.router, prefix="/articles", tags=["C端-文
 
 # 首页内容模块：聚合首页所需的所有数据（Banner + 文章）
 client_router.include_router(home.router, prefix="/home", tags=["C端-首页"])
+
+# 文件上传模块：图片上传、头像上传等
+client_router.include_router(upload.router, prefix="/upload", tags=["C端-文件上传"])

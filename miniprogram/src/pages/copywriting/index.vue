@@ -559,7 +559,7 @@ $border-light: rgba(0, 0, 0, 0.06);
 
 .chat-container {
   flex: 1;
-  padding: 24rpx;
+  padding: 0 24rpx;
   overflow: hidden;
 }
 

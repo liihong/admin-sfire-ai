@@ -226,7 +226,7 @@ const formRules: FormRules = {
 const formRef = ref<FormInstance>();
 
 // 上传配置
-const uploadAction = import.meta.env.VITE_API_URL + "/api/v1/upload";
+const uploadAction = import.meta.env.VITE_API_URL + "/v1/admin/upload";
 const uploadHeaders = {
   Authorization: `Bearer ${getToken()}`
 };
@@ -517,4 +517,6 @@ const columns = reactive<ColumnProps<ArticleItem>[]>([
   margin-top: 4px;
 }
 </style>
+
+
 

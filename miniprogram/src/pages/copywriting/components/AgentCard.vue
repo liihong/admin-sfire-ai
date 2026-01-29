@@ -15,15 +15,15 @@
         <text class="status-text">在线</text>
       </view>
     </view>
-    <view class="card-body">
-      <view class="info-row">
+      <!-- <view class="card-body">
+        <view class="info-row">
         <text class="info-label">
           <SvgIcon name="agent" size="20" color="#3B82F6" /> 当前智能体
         </text>
          <text class="info-value agent-value">{{ currentAgentName }}</text>
 
-      </view>
-      <view class="info-row" v-if="project.industry">
+      </view> 
+         <view class="info-row" v-if="project.industry">
         <text class="info-label">
           <SvgIcon name="industry" size="20" color="#666" /> 行业领域
         </text>
@@ -40,8 +40,12 @@
           <SvgIcon name="target_audience" size="20" color="#666" /> 目标受众
         </text>
         <text class="info-value">{{ personaSettings.target_audience }}</text>
-      </view>
-     </view>
+      </view> 
+     </view>-->
+
+
+
+
 
   </view>
 
@@ -157,8 +161,8 @@ $text-muted: #999;
   .card-header {
     display: flex;
     align-items: center;
-    padding-bottom: 20rpx;
-    border-bottom: 1rpx dashed rgba(0, 0, 0, 0.08);
+    // padding-bottom: 20rpx;
+      // border-bottom: 1rpx dashed rgba(0, 0, 0, 0.08);
 
     .card-avatar {
       width: 88rpx;

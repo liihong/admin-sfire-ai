@@ -201,7 +201,7 @@ class ComputeService:
                     ComputeLog.type == ComputeType.RECHARGE,  # 是充值类型
                     or_(
                         ComputeLog.payment_status.is_(None),  # payment_status 为 None（兼容旧数据）
-                        ComputeLog.payment_status.notin_(["failed", "cancelled"])  # 支付状态不是失败或取消
+                        ComputeLog.payment_status.notin_(["failed", "cancelled", "pending"])  # 支付状态不是失败或取消
                     )
                 )
             )

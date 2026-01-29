@@ -28,3 +28,4 @@ SHOW COLUMNS FROM `articles` WHERE Field = 'category';
 -- 文章表已成功添加公告类型
 -- 现在可以在管理后台创建公告类型的文章了
 
+

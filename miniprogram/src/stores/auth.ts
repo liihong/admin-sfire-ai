@@ -345,8 +345,20 @@ export const useAuthStore = defineStore('auth', () => {
       // 如果返回 401，request 工具已经处理了刷新逻辑
       // 这里只需要处理成功的情况
       if (response.code === 200 && response.data) {
-        // 检查返回的数据结构
-        const userInfoData = response.data.userInfo || response.data
+        // 检查返回的数据结构（支持两种格式：{success: true, userInfo: {...}} 或直接 {...}）
+        let userInfoData: UserInfo | null = null
+
+        if (typeof response.data === 'object' && response.data !== null) {
+          // 如果返回格式是 {success: true, userInfo: {...}}
+          if ('userInfo' in response.data) {
+            userInfoData = (response.data as any).userInfo
+          }
+          // 如果返回格式是直接的用户信息对象
+          else if ('openid' in response.data) {
+            userInfoData = response.data as UserInfo
+          }
+        }
+
         if (userInfoData) {
           setUserInfo(userInfoData)
           console.log('[refreshUserInfo] User info refreshed successfully:', userInfoData)
