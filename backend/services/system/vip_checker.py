@@ -41,22 +41,29 @@ async def check_expired_vips(db: AsyncSession) -> int:
     
     for user in vip_users:
         # 检查VIP是否过期
-        if user.vip_expire_date and user.vip_expire_date < now:
-            try:
-                result = await membership_service.handle_user_downgrade(user.id)
-                processed_count += 1
-                logger.info(
-                    f"处理过期VIP用户: user_id={user.id}, "
-                    f"username={user.username}, "
-                    f"level_code={user.level_code}, "
-                    f"expire_date={user.vip_expire_date}, "
-                    f"result={result}"
-                )
-            except Exception as e:
-                logger.error(
-                    f"处理过期VIP用户失败: user_id={user.id}, "
-                    f"username={user.username}, error={e}"
-                )
+        if user.vip_expire_date:
+            # 处理时区问题：如果 vip_expire_date 是 naive datetime，假设它是 UTC 时间并转换为 aware
+            expire_date = user.vip_expire_date
+            if expire_date.tzinfo is None:
+                # naive datetime，假设是 UTC 时间
+                expire_date = expire_date.replace(tzinfo=timezone.utc)
+            
+            if expire_date < now:
+                try:
+                    result = await membership_service.handle_user_downgrade(user.id)
+                    processed_count += 1
+                    logger.info(
+                        f"处理过期VIP用户: user_id={user.id}, "
+                        f"username={user.username}, "
+                        f"level_code={user.level_code}, "
+                        f"expire_date={expire_date}, "
+                        f"result={result}"
+                    )
+                except Exception as e:
+                    logger.error(
+                        f"处理过期VIP用户失败: user_id={user.id}, "
+                        f"username={user.username}, error={e}"
+                    )
     
     logger.info(
         f"VIP过期检查完成: 检查{len(vip_users)}个VIP用户, "

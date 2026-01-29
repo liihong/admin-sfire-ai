@@ -60,8 +60,7 @@ class UserInfo(BaseModel):
     level: str = Field(default="normal", description="用户等级代码（兼容旧字段）")
     level_code: Optional[str] = Field(default=None, description="用户等级代码：normal/vip/svip/max")
     level_name: str = Field(default="普通用户", description="等级名称（中文显示）")
-    level_info: Optional[UserLevelInfo] = Field(default=None, description="等级详细信息")
-    levelInfo: Optional[UserLevelInfo] = Field(default=None, description="等级详细信息（兼容字段，与level_info相同）")
+    levelInfo: Optional[UserLevelInfo] = Field(default=None, description="等级详细信息")
     # 余额相关字段
     power: str = Field(default="0", description="算力可用余额（总余额-冻结余额）")
     total_balance: str = Field(default="0", description="算力总余额")
@@ -385,8 +384,7 @@ def build_user_info(user: User) -> UserInfo:
         level=level_code,  # 兼容旧字段（保留用于前端兼容）
         level_code=level_code,
         level_name=level_name,
-        level_info=level_info,
-        levelInfo=level_info,  # 兼容字段
+        levelInfo=level_info,
         partner_status=partner_status,
         partnerStatus=partner_status,  # 兼容字段
         vip_expire_date=vip_expire_date,
@@ -547,7 +545,7 @@ async def get_current_user_info(
     需要 Authorization header 携带 Bearer token
     返回用户完整信息，包括：
     - 基础信息：openid、nickname、avatar、phone
-    - 等级信息：level、level_code、level_name、level_info、levelInfo
+    - 等级信息：level、level_code、level_name、levelInfo
     - 余额信息：power（算力可用余额）、total_balance（算力总余额）、frozen_balance（冻结算力）、partner_balance、partnerBalance
     - 状态信息：partner_status、partnerStatus、vip_expire_date、expireDate
     """

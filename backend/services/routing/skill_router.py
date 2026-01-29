@@ -245,7 +245,8 @@ class SkillRouter:
         if not router_agent:
             raise ValueError(f"路由Agent ID={router_agent_id} 不存在")
         
-        if router_agent.status != 1:
+        # 系统自用智能体可以绕过上架检查，普通智能体必须上架
+        if router_agent.is_system == 0 and router_agent.status != 1:
             raise ValueError(f"路由Agent ID={router_agent_id} 未上架")
         
         if not router_agent.model:

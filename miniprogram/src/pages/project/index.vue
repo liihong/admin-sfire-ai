@@ -2,7 +2,7 @@
   <view class="project-index-page">
    <SafeAreaTop />
     <!-- 项目列表视图 - 没有激活项目时显示 -->
-   <ProjectList v-if="!hasActiveProject && !isLoading" />
+   <ProjectList v-if="!hasActiveProject && !isLoading" :key="refreshKey" />
     <!-- 操作台视图 - 有激活项目时显示 -->
    <ProjectDashboard v-if="hasActiveProject && !isLoading" :isInTabBar="true" />
     <!-- 加载状态 -->
@@ -24,6 +24,7 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import { useProjectStore } from '@/stores/project'
+import { fetchProjects } from '@/api/project'
 
 import ProjectList from './components/List.vue'
 import ProjectDashboard from './components/Dashboard.vue'
@@ -34,6 +35,7 @@ import { onShow } from '@dcloudio/uni-app'
 const projectStore = useProjectStore()
 const isLoading = ref(true)
 const loadError = ref(false) // 标记是否加载失败
+const refreshKey = ref(0) // 用于强制刷新 List 组件
 
 const hasActiveProject = computed(() => projectStore.hasActiveProject)
 
@@ -49,11 +51,30 @@ function refreshPage(_?: boolean) {
   })
 }
 
+// 刷新项目列表
+async function refreshProjectList() {
+  try {
+    const response = await fetchProjects()
+    projectStore.setProjectList(response.projects, response.active_project_id)
+  } catch (error) {
+    console.error('刷新项目列表失败:', error)
+  }
+}
 
-// 页面显示时获取用户信息
-onShow(() => {
+// 页面显示时检查是否需要刷新
+onShow(async () => {
   isLoading.value = false
   loadError.value = false
+
+  // 检查 store 中的刷新标记，如果有则触发刷新
+  const needRefresh = projectStore.checkAndClearRefresh()
+
+  if (needRefresh) {
+    // 直接刷新数据
+    await refreshProjectList()
+    // 更新 key 强制重新渲染组件（确保显示最新数据）
+    refreshKey.value++
+  }
 })
 
 </script>

@@ -146,9 +146,6 @@ class ProjectService:
         
         # 2. 使用SELECT FOR UPDATE锁定用户记录，防止并发创建IP
         # 锁定用户记录（SELECT FOR UPDATE），确保在检查权限和创建项目之间不会有其他请求插入
-        from sqlalchemy import select
-        from sqlalchemy.orm import with_for_update
-        
         user_query = select(User).where(
             User.id == user_id,
             User.is_deleted == False

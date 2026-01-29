@@ -308,7 +308,11 @@ class AgentBusinessService:
         
         Raises:
             NotFoundException: Agent不存在
-            BadRequestException: Agent未上架
+            BadRequestException: Agent未上架（系统自用智能体除外）
+        
+        注意：
+            - 系统自用智能体（is_system=1）可以绕过上架检查，直接使用
+            - 普通智能体（is_system=0）必须上架（status=1）才能使用
         """
         result = await self.db.execute(
             select(Agent).filter(Agent.id == agent_id)
@@ -318,7 +322,8 @@ class AgentBusinessService:
         if not agent:
             raise NotFoundException(msg="Agent不存在")
         
-        if agent.status != 1:
+        # 系统自用智能体可以绕过上架检查，普通智能体必须上架
+        if agent.is_system == 0 and agent.status != 1:
             raise BadRequestException(msg="Agent未上架")
         
         return agent

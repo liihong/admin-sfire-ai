@@ -32,7 +32,7 @@ admin_router.include_router(admin_users.router, prefix="/admin-users", tags=["�
 admin_router.include_router(agents.router, prefix="/agents", tags=["智能体"])
 admin_router.include_router(banner.router, prefix="/banners", tags=["轮播图"])
 admin_router.include_router(dashboard.router, prefix="/dashboard", tags=["仪表盘"])
-admin_router.include_router(home_config.router, prefix="/home-config", tags=["首页配置"])
+admin_router.include_router(home_config.router, prefix="/home-configs", tags=["首页配置"])
 admin_router.include_router(llm_models.router, prefix="/llm-models", tags=["LLM模型"])
 admin_router.include_router(menu.router, prefix="/menu", tags=["菜单"])
 admin_router.include_router(users.router, prefix="/users", tags=["用户"])

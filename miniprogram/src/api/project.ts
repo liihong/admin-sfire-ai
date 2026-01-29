@@ -215,6 +215,36 @@ export async function deleteProject(projectId: string): Promise<boolean> {
   throw new Error((response as any).msg || '删除项目失败')
 }
 
+// ============== 字典选项 ==============
+
+export interface DictOption {
+  label: string
+  value: string
+}
+
+export interface ProjectOptionsResponse {
+  success: boolean
+  industries: DictOption[]
+  tones: DictOption[]
+}
+
+/**
+ * 获取项目配置选项（行业赛道和语气风格）
+ */
+export async function getProjectOptions(): Promise<ProjectOptionsResponse> {
+  const response = await request<ProjectOptionsResponse>({
+    url: '/api/v1/client/projects/options',
+    method: 'GET'
+  })
+
+  // 后端返回格式: {code: 200, data: {success, industries, tones}, msg: "..."}
+  if (response.code === 200 && response.data) {
+    return response.data as ProjectOptionsResponse
+  }
+
+  throw new Error((response as any).msg || '获取选项失败')
+}
+
 
 
 

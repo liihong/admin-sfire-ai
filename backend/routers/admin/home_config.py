@@ -6,6 +6,8 @@ from fastapi import APIRouter, Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from db import get_db
+from core.deps import get_current_admin_user
+from models.admin_user import AdminUser
 from schemas.home_config import (
     HomeConfigUpdate,
     HomeConfigBatchUpdate,
@@ -20,6 +22,7 @@ router = APIRouter()
 async def get_all_configs(
     use_cache: bool = Query(True, description="是否使用缓存"),
     db: AsyncSession = Depends(get_db),
+    current_admin: AdminUser = Depends(get_current_admin_user),
 ):
     """
     获取所有首页配置
@@ -36,6 +39,7 @@ async def get_config(
     config_key: str,
     use_cache: bool = Query(True, description="是否使用缓存"),
     db: AsyncSession = Depends(get_db),
+    current_admin: AdminUser = Depends(get_current_admin_user),
 ):
     """
     根据配置键获取配置
@@ -53,6 +57,7 @@ async def update_config(
     config_key: str,
     config_data: HomeConfigUpdate,
     db: AsyncSession = Depends(get_db),
+    current_admin: AdminUser = Depends(get_current_admin_user),
 ):
     """
     更新指定配置
@@ -70,6 +75,7 @@ async def update_config(
 async def batch_update_configs(
     batch_data: HomeConfigBatchUpdate,
     db: AsyncSession = Depends(get_db),
+    current_admin: AdminUser = Depends(get_current_admin_user),
 ):
     """
     批量更新配置

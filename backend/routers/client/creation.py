@@ -384,13 +384,14 @@ async def generate_chat(
             # 如果预设配置中找不到，尝试从数据库查询（可能是数据库ID）
             try:
                 agent_id = int(request.agent_type)
-                from sqlalchemy import select
+                from sqlalchemy import select, or_
                 from models.agent import Agent
 
                 result = await db.execute(
                     select(Agent).where(
                         Agent.id == agent_id,
-                        Agent.status == 1  # 只查询上架的智能体
+                        # 系统自用智能体可以绕过上架检查，普通智能体必须上架
+                        or_(Agent.is_system == 1, Agent.status == 1)
                     )
                 )
                 db_agent = result.scalar_one_or_none()

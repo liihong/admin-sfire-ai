@@ -44,6 +44,9 @@ export const useProjectStore = defineStore('project', () => {
   
   // 加载状态
   const isLoading = ref(false)
+  
+  // 是否需要刷新列表（用于页面跳转后刷新）
+  const needRefresh = ref(false)
 
   // ============== Helpers ==============
 
@@ -224,6 +227,24 @@ export const useProjectStore = defineStore('project', () => {
   }
   
   /**
+   * 设置需要刷新标记
+   */
+  function setNeedRefresh(need: boolean) {
+    needRefresh.value = need
+  }
+  
+  /**
+   * 检查并清除刷新标记（返回是否需要刷新）
+   */
+  function checkAndClearRefresh(): boolean {
+    if (needRefresh.value) {
+      needRefresh.value = false
+      return true
+    }
+    return false
+  }
+  
+  /**
    * 生成带有人设上下文的系统提示词
    */
   function getPersonaSystemPrompt(): string {
@@ -270,6 +291,7 @@ export const useProjectStore = defineStore('project', () => {
     projectList,
     activeProject,
     isLoading,
+    needRefresh,
     
     // Getters
     hasActiveProject,
@@ -285,6 +307,8 @@ export const useProjectStore = defineStore('project', () => {
     clearActiveProject,
     clearProjects,
     setLoading,
+    setNeedRefresh,
+    checkAndClearRefresh,
     getPersonaSystemPrompt
   }
 })

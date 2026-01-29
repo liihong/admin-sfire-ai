@@ -1,7 +1,7 @@
 """
 Application Configuration using pydantic-settings
 """
-from typing import List
+from typing import List, Optional
 from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 import json
@@ -75,6 +75,7 @@ class Settings(BaseSettings):
     AI_COLLECT_BASE_URL: str = ""  # AI采集接口使用的Base URL（可选，优先使用模型配置）
 
     ROUTER_AGENT_ID: int = 12  # 路由Agent ID（存储Prompt模板）
+    IP_COLLECTOR_AGENT_ID: Optional[int] = 13  # IP信息采集Agent ID（从数据库读取配置，如果为None则通过名称查找）
     
     # Embedding 配置
     EMBEDDING_PROVIDER: str = "openai"  # Embedding服务提供商: openai, deepseek (注意：DeepSeek不提供embedding API)

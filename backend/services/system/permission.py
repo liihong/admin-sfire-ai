@@ -161,10 +161,17 @@ class PermissionService:
             return False  # 没有设置过期时间，视为永久有效
         
         now = datetime.now(timezone.utc)
-        is_expired = user.vip_expire_date < now
+        
+        # 处理时区问题：如果 vip_expire_date 是 naive datetime，假设它是 UTC 时间并转换为 aware
+        expire_date = user.vip_expire_date
+        if expire_date.tzinfo is None:
+            # naive datetime，假设是 UTC 时间
+            expire_date = expire_date.replace(tzinfo=timezone.utc)
+        
+        is_expired = expire_date < now
         
         if is_expired:
-            logger.debug(f"用户VIP已过期: user_id={user.id}, expire_date={user.vip_expire_date}")
+            logger.debug(f"用户VIP已过期: user_id={user.id}, expire_date={expire_date}")
         
         return is_expired
     

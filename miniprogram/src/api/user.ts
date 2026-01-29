@@ -34,8 +34,7 @@ export interface AuthUserInfo {
   level: string  // 用户等级代码：normal/vip/svip/max
   level_code?: string
   level_name?: string
-  level_info?: UserLevelInfo | null
-  levelInfo?: UserLevelInfo | null  // 兼容字段，与 level_info 相同
+  levelInfo?: UserLevelInfo | null
   // 余额相关字段
   power?: string  // 算力可用余额（总余额-冻结余额）
   total_balance?: string  // 算力总余额
@@ -146,7 +145,7 @@ export function refreshAccessToken(refreshToken: string) {
  * 
  * 返回完整的用户信息，包括：
  * - 基础信息：openid、nickname、avatarUrl、avatar、phone
- * - 等级信息：level、level_code、level_name、level_info、levelInfo
+ * - 等级信息：level、level_code、level_name、levelInfo
  * - 余额信息：power（算力可用余额）、total_balance（算力总余额）、frozen_balance（冻结算力）、partner_balance、partnerBalance
  * - 状态信息：partner_status、partnerStatus、vip_expire_date、expireDate
  * 
