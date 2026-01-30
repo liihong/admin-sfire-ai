@@ -21,3 +21,4 @@ numpy
 jinja2
 defusedxml
 greenlet
+python-multipart

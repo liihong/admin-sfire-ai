@@ -43,20 +43,28 @@ export const checkStatus = (status: number, message?: string) => {
       // 请求过于频繁
       ElMessage.warning("操作过于频繁，请稍后再试");
       break;
+    // 5XX 服务器错误统一处理
     case 500:
-      ElMessage.error("服务异常！");
-      break;
+    case 501:
     case 502:
-      ElMessage.error("网关错误！");
-      break;
     case 503:
-      ElMessage.error("服务不可用！");
-      break;
     case 504:
-      ElMessage.error("网关超时！");
+    case 505:
+    case 506:
+    case 507:
+    case 508:
+    case 510:
+    case 511:
+      // 所有5XX错误统一提示：系统服务器异常，请稍后尝试，或联系客服
+      ElMessage.error("系统服务器异常，请稍后尝试，或联系客服");
       break;
     default:
-      ElMessage.error(message || "请求失败！");
+      // 其他未处理的5XX错误也统一提示
+      if (status >= 500 && status < 600) {
+        ElMessage.error("系统服务器异常，请稍后尝试，或联系客服");
+      } else {
+        ElMessage.error(message || "请求失败！");
+      }
   }
 };
 
