@@ -10,6 +10,8 @@ from typing import Optional
 from datetime import datetime
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select
+from sqlalchemy.orm import selectinload
 from pydantic import BaseModel, Field
 from loguru import logger
 
@@ -17,6 +19,7 @@ from db import get_db
 from db.redis import RedisCache
 from core.security import create_access_token, create_refresh_token, verify_password
 from core.config import settings
+from models.user import User
 from services.user import UserService
 from utils.response import success
 from utils.exceptions import BadRequestException, ServerErrorException
@@ -24,6 +27,7 @@ from utils.exceptions import BadRequestException, ServerErrorException
 # 复用小程序认证模块的能力，避免重复实现
 from .auth import (
     UserInfo,
+    build_user_info,
     get_wechat_openid,
     generate_username,
     generate_scene_str,
@@ -112,22 +116,26 @@ async def account_login(
                 # 这里我们选择在响应中添加提示信息
                 pass
 
-        # 5. 生成 JWT token（包含 access_token 和 refresh_token）
-        access_token = create_access_token(data={"sub": str(user.id)})
-        refresh_token = create_refresh_token(data={"sub": str(user.id)})
+        # 5. 重新查询用户并加载等级关系（确保获取最新数据和等级信息）
+        query = select(User).where(
+            User.id == user.id,
+            User.is_deleted == False
+        ).options(selectinload(User.user_level))
+        
+        result = await db.execute(query)
+        user_with_level = result.scalar_one_or_none()
+        
+        if not user_with_level:
+            raise ServerErrorException("用户数据异常")
 
-        # 6. 构建用户信息
-        user_info = UserInfo(
-            openid=user.openid or "",
-            nickname=user.nickname or "用户",
-            avatarUrl=user.avatar or "",
-            gender=0,
-            city="",
-            province="",
-            country="",
-        )
+        # 6. 生成 JWT token（包含 access_token 和 refresh_token）
+        access_token = create_access_token(data={"sub": str(user_with_level.id)})
+        refresh_token = create_refresh_token(data={"sub": str(user_with_level.id)})
 
-        # 7. 构建响应数据
+        # 7. 构建用户信息（使用公共函数，包含完整的等级信息）
+        user_info = build_user_info(user_with_level)
+
+        # 8. 构建响应数据
         response_data = {
             "success": True,
             "token": access_token,
@@ -137,18 +145,18 @@ async def account_login(
         }
 
         # 添加 updated_at 字段
-        if user.updated_at:
-            response_data["updated_at"] = user.updated_at.strftime("%Y-%m-%d %H:%M:%S")
+        if user_with_level.updated_at:
+            response_data["updated_at"] = user_with_level.updated_at.strftime("%Y-%m-%d %H:%M:%S")
 
         # 添加会员过期提示
-        if user.vip_expire_date:
+        if user_with_level.vip_expire_date:
             now = datetime.now()
-            if user.vip_expire_date < now:
+            if user_with_level.vip_expire_date < now:
                 response_data["vip_expired"] = True
-                response_data["vip_expire_date"] = user.vip_expire_date.strftime("%Y-%m-%d")
+                response_data["vip_expire_date"] = user_with_level.vip_expire_date.strftime("%Y-%m-%d")
             else:
                 response_data["vip_expired"] = False
-                response_data["vip_expire_date"] = user.vip_expire_date.strftime("%Y-%m-%d")
+                response_data["vip_expire_date"] = user_with_level.vip_expire_date.strftime("%Y-%m-%d")
 
         return success(
             data=response_data,
@@ -245,22 +253,26 @@ async def qrcode_login(
         else:
             logger.info(f"User exists for QR code login: id={user.id}, openid={user.openid}")
 
-        # 3. 生成 JWT token（包含 access_token 和 refresh_token）
-        access_token = create_access_token(data={"sub": str(user.id)})
-        refresh_token = create_refresh_token(data={"sub": str(user.id)})
+        # 3. 重新查询用户并加载等级关系（确保获取最新数据和等级信息）
+        query = select(User).where(
+            User.id == user.id,
+            User.is_deleted == False
+        ).options(selectinload(User.user_level))
+        
+        result = await db.execute(query)
+        user_with_level = result.scalar_one_or_none()
+        
+        if not user_with_level:
+            raise ServerErrorException("用户数据异常")
 
-        # 4. 构建用户信息
-        user_info = UserInfo(
-            openid=user.openid or openid,
-            nickname=user.nickname or "微信用户",
-            avatarUrl=user.avatar or "",
-            gender=0,
-            city="",
-            province="",
-            country="",
-        )
+        # 4. 生成 JWT token（包含 access_token 和 refresh_token）
+        access_token = create_access_token(data={"sub": str(user_with_level.id)})
+        refresh_token = create_refresh_token(data={"sub": str(user_with_level.id)})
 
-        # 5. 将登录状态和token存储到Redis
+        # 5. 构建用户信息（使用公共函数，包含完整的等级信息）
+        user_info = build_user_info(user_with_level)
+
+        # 6. 将登录状态和token存储到Redis
         redis_key = f"mp:login:scene:{request.scene}"
         login_data = {
             "status": "authorized",
@@ -271,7 +283,7 @@ async def qrcode_login(
         }
         await RedisCache.set(redis_key, json.dumps(login_data), expire=300)  # 5分钟过期
 
-        logger.info(f"QR code login successful: scene={request.scene}, user_id={user.id}")
+        logger.info(f"QR code login successful: scene={request.scene}, user_id={user_with_level.id}")
 
         return QrcodeLoginResponse(
             success=True,

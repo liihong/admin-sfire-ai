@@ -11,7 +11,9 @@ from .common import PageParams
 
 
 # 用户等级类型（与前端兼容）
-LevelType = Literal["normal", "member", "partner"]
+# 注意：已废弃，保留仅为兼容性。实际应使用 level_code 字段（str类型）
+# 包含所有可能的等级代码值：normal/vip/svip/max
+LevelType = Literal["normal", "vip", "svip", "max"]
 LevelIntType = Literal[0, 1, 2]
 
 
