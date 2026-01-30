@@ -2,7 +2,7 @@
   <!-- 触发按钮 -->
   <div class="agent-selector-trigger" @click="openDialog">
     <div class="selected-agent" v-if="selectedAgent">
-      <span class="agent-icon">{{ selectedAgent.icon || '🤖' }}</span>
+      <AgentIcon :icon="selectedAgent.icon" :size="24" />
       <span class="agent-name">{{ selectedAgent.name }}</span>
     </div>
     <div class="no-agent" v-else>
@@ -42,8 +42,7 @@
         @click="handleSelect(agent)"
       >
         <div class="item-icon">
-          <span v-if="agent.icon" class="icon-emoji">{{ agent.icon }}</span>
-          <el-icon v-else :size="20"><Tools /></el-icon>
+          <AgentIcon :icon="agent.icon" :size="30" />
         </div>
         <div class="item-content">
           <div class="item-name">{{ agent.name }}</div>
@@ -71,6 +70,7 @@ import { ref, onMounted } from "vue";
 import { Loading, Tools, Check, ArrowDown } from "@element-plus/icons-vue";
 import { getMPAgentsApi, type MPAgentInfo } from "@/api/modules/miniprogram";
 import { ElMessage } from "element-plus";
+import AgentIcon from "@/components/AgentIcon/index.vue";
 
 interface Props {
   selectedAgent: MPAgentInfo | null;
@@ -165,11 +165,6 @@ onMounted(() => {
     align-items: center;
     gap: 6px;
 
-    .agent-icon {
-      font-size: 18px;
-      line-height: 1;
-    }
-
     .agent-name {
       font-size: 14px;
       font-weight: 500;
@@ -241,19 +236,7 @@ onMounted(() => {
 
   .item-icon {
     flex-shrink: 0;
-    width: 40px;
-    height: 40px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    background: var(--ip-os-bg-primary);
-    border-radius: 8px;
-    color: var(--ip-os-accent-primary);
-
-    .icon-emoji {
-      font-size: 22px;
-      line-height: 1;
-    }
+    padding: 10px;
   }
 
   .item-content {
@@ -278,6 +261,7 @@ onMounted(() => {
       text-overflow: ellipsis;
       display: -webkit-box;
       -webkit-line-clamp: 2;
+      line-clamp: 2;
       -webkit-box-orient: vertical;
     }
   }
