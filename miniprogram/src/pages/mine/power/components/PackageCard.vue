@@ -67,6 +67,7 @@ function handleClick() {
 </script>
 
 <style lang="scss" scoped>
+@import '@/styles/_variables.scss';
 .package-card {
   position: relative;
   background: #ffffff;
@@ -78,13 +79,12 @@ function handleClick() {
   transition: all 0.3s;
 
   &.is-popular {
-    border-color: #f97316;
     background: linear-gradient(135deg, #fff7ed 0%, #ffffff 100%);
     box-shadow: 0 4rpx 20rpx rgba(249, 115, 22, 0.15);
   }
 
                                 &.is-selected {
-                                  border-color: #3b82f6;
+                                  border-color: $primary-orange;
                                   border-width: 3rpx;
                                   background: linear-gradient(135deg, #eff6ff 0%, #ffffff 100%);
                                   box-shadow: 0 4rpx 20rpx rgba(59, 130, 246, 0.2);

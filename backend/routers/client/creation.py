@@ -1014,9 +1014,29 @@ async def generate_chat(
                 except Exception as e:
                     # 🔍 详细错误日志
                     import traceback
+                    import httpx
+                    
                     logger.error(f"❌ [DEBUG] Stream generation failed:")
                     logger.error(f"  - Error Type: {type(e).__name__}")
                     logger.error(f"  - Error Message: {str(e)}")
+                    
+                    # 如果是连接错误，提取更详细的信息
+                    if isinstance(e, (httpx.ConnectError, httpx.ConnectTimeout)):
+                        # 提取底层异常信息
+                        if hasattr(e, '__cause__') and e.__cause__:
+                            logger.error(f"  - Underlying Error: {type(e.__cause__).__name__}: {str(e.__cause__)}")
+                        
+                        # 尝试获取请求信息（如果可用）
+                        if hasattr(e, 'request'):
+                            request = e.request
+                            logger.error(f"  - Request URL: {request.url if hasattr(request, 'url') else 'N/A'}")
+                            logger.error(f"  - Request Method: {request.method if hasattr(request, 'method') else 'N/A'}")
+                        
+                        # 连接错误诊断信息
+                        logger.error(f"  - Connection Error Diagnosis:")
+                        logger.error(f"    * 可能原因: 网络连接失败、DNS解析失败、防火墙阻止、API服务不可用")
+                        logger.error(f"    * 建议检查: 网络连接、API服务状态、代理设置")
+                    
                     logger.error(f"  - Conversation ID: {conversation_id}")
                     logger.error(f"  - User ID: {current_user.id}")
                     logger.error(f"  - Model ID: {model_id_for_ai}")

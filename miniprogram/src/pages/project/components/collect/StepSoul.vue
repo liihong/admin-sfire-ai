@@ -15,7 +15,14 @@
         />
         <view class="form-tip">描述您的IP主要面向的用户群体，包括年龄、职业、兴趣等特征</view>
       </view>
-      
+
+    <!-- 目标人群痛点 -->
+      <view class="form-section">
+        <text class="form-label">目标人群痛点 <text class="required-mark">*</text></text>
+        <input class="form-input" :value="formData.target_pains" @input="handleInput('target_pains', $event)"
+          placeholder="例如：工作压力大，需要减压" maxlength="100" />
+        <view class="form-tip">描述您的IP主要面向的用户群体，包括年龄、职业、兴趣等特征</view>
+      </view>
       <!-- IP画像预览 -->
       <IPPreviewCard :data="previewData" />
     </view>
@@ -25,6 +32,7 @@
 <script setup lang="ts">
 import TipCard from './TipCard.vue'
 import IPPreviewCard from '../IPPreviewCard.vue'
+import type { ProjectFormData } from '@/types/project'
 
 interface PreviewData {
   name: string
@@ -35,9 +43,7 @@ interface PreviewData {
 }
 
 interface Props {
-  formData: {
-    target_audience: string
-  }
+  formData: ProjectFormData
   previewData: PreviewData
 }
 

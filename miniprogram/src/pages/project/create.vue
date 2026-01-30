@@ -6,7 +6,7 @@
       <view class="header-back" @tap="handleClose">
         <text class="back-icon">←</text>
       </view>
-      <view class="header-title">IP信息定位智能体</view>
+      <view class="header-title">IP信息定位调研</view>
       <view class="header-placeholder"></view>
     </view>
     <!-- AI智能填写对话框（全屏显示） -->
@@ -22,7 +22,10 @@ import { ref } from 'vue'
 import { useProjectStore } from '@/stores/project'
 import IPCollectDialog from './components/IPCollectDialog.vue'
 import SafeAreaTop from '@/components/common/SafeAreaTop.vue'
-import { createProject, fetchProjects } from '@/api/project'
+import { createProject } from '@/api/project'
+import { formDataToCreateRequest } from '@/utils/project'
+import type { ProjectFormData } from '@/types/project'
+import type { IPCollectFormData } from '@/api/project'
 
 // Store
 const projectStore = useProjectStore()
@@ -39,42 +42,42 @@ function handleClose() {
   })
 }
 
-// 处理AI采集完成，直接创建项目
-async function handleAIComplete(collectedInfo: any) {
+/**
+ * 处理AI采集完成，创建项目
+ * 
+ * 数据流转：
+ * IPCollectDialog 返回 IPCollectFormData → 
+ * 转换为 ProjectFormData → 
+ * formDataToCreateRequest() → 
+ * createProject() → 
+ * ProjectModel → 
+ * store
+ */
+async function handleAIComplete(collectedInfo: IPCollectFormData) {
   if (isSubmitting.value) return
   
   isSubmitting.value = true
   
   try {
-    // 新版本表单式收集，数据已经是结构化格式，直接使用
-    // 构建创建项目的请求数据，符合后端扁平格式要求
-    const requestData: any = {
+    // 将 IPCollectFormData 转换为 ProjectFormData（补充默认值）
+    const formData: ProjectFormData = {
       name: collectedInfo.name?.trim() || '未命名项目',
-      industry: collectedInfo.industry?.trim() || '通用'
+      industry: collectedInfo.industry?.trim() || '通用',
+      tone: collectedInfo.tone || '',
+      catchphrase: collectedInfo.catchphrase || '',
+      target_audience: collectedInfo.target_audience || '',
+      introduction: collectedInfo.introduction || '',
+      keywords: collectedInfo.keywords || [],
+      industry_understanding: collectedInfo.industry_understanding || '',
+      unique_views: collectedInfo.unique_views || '',
+      target_pains: collectedInfo.target_pains || '',
+      benchmark_accounts: [],
+      content_style: '',
+      taboos: []
     }
-
-    // 添加人设字段（扁平格式，后端会自动合并到 persona_settings）
-    // 只添加非空字段，避免发送空字符串
-    if (collectedInfo.introduction?.trim()) {
-      requestData.introduction = collectedInfo.introduction.trim()
-    }
-    if (collectedInfo.tone?.trim()) {
-      requestData.tone = collectedInfo.tone.trim()
-    }
-    if (collectedInfo.target_audience?.trim()) {
-      requestData.target_audience = collectedInfo.target_audience.trim()
-    }
-    if (collectedInfo.catchphrase?.trim()) {
-      requestData.catchphrase = collectedInfo.catchphrase.trim()
-    }
-    // keywords 必须是数组格式
-    if (collectedInfo.keywords && Array.isArray(collectedInfo.keywords) && collectedInfo.keywords.length > 0) {
-      // 过滤空字符串
-      const validKeywords = collectedInfo.keywords.filter((k: string) => k && k.trim())
-      if (validKeywords.length > 0) {
-        requestData.keywords = validKeywords
-      }
-    }
+    
+    // 使用数据转换工具函数，将表单数据转换为创建请求
+    const requestData = formDataToCreateRequest(formData)
 
     console.log('创建项目请求数据:', requestData)
 

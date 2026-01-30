@@ -400,134 +400,201 @@ class AIService:
 
         # 使用 HTTP/2 + Gzip 压缩的客户端
         async with httpx.AsyncClient(**self._client_config) as client:
-            async with client.stream(
-                "POST",
-                api_url,
-                headers=request_headers,
-                content=request_body_json.encode('utf-8'),  # 手动编码,使用content而不是json
-            ) as response:
-                if response.status_code != 200:
-                    error_text = await response.aread()
-                    error_text_str = error_text.decode('utf-8', errors='ignore') if error_text else ""
+            try:
+                async with client.stream(
+                    "POST",
+                    api_url,
+                    headers=request_headers,
+                    content=request_body_json.encode('utf-8'),  # 手动编码,使用content而不是json
+                ) as response:
+                    if response.status_code != 200:
+                        error_text = await response.aread()
+                        error_text_str = error_text.decode('utf-8', errors='ignore') if error_text else ""
 
-                    # 🔍 详细错误日志
-                    # 查找system prompt长度(可能在任何位置)
-                    system_prompt_length = 'N/A'
-                    for msg in formatted_messages:
-                        if msg.get('role') == 'system':
-                            system_prompt_length = len(msg.get('content', ''))
-                            break
+                        # 🔍 详细错误日志
+                        # 查找system prompt长度(可能在任何位置)
+                        system_prompt_length = 'N/A'
+                        for msg in formatted_messages:
+                            if msg.get('role') == 'system':
+                                system_prompt_length = len(msg.get('content', ''))
+                                break
 
-                    logger.error(f"{msg}")    
-                    logger.error(f"❌ [API] LLM API请求失败:")
-                    logger.error(f"  - HTTP Status: {response.status_code}")
-                    logger.error(f"  - API URL: {api_url}")
-                    logger.error(f"  - Model ID: {actual_model_id}")
-                    logger.error(f"  - Model Type: {model}")
-                    logger.error(f"  - Response Headers: {dict(response.headers)}")
-                    logger.error(f"  - Error Response: {error_text_str[:1000]}")  # 限制长度
-                    logger.error(f"  - Request Messages Count: {len(formatted_messages)}")
-                    logger.error(f"  - System Prompt Length: {system_prompt_length}")
+                        logger.error(f"{msg}")    
+                        logger.error(f"❌ [API] LLM API请求失败:")
+                        logger.error(f"  - HTTP Status: {response.status_code}")
+                        logger.error(f"  - API URL: {api_url}")
+                        logger.error(f"  - Model ID: {actual_model_id}")
+                        logger.error(f"  - Model Type: {model}")
+                        logger.error(f"  - Response Headers: {dict(response.headers)}")
+                        logger.error(f"  - Error Response: {error_text_str[:1000]}")  # 限制长度
+                        logger.error(f"  - Request Messages Count: {len(formatted_messages)}")
+                        logger.error(f"  - System Prompt Length: {system_prompt_length}")
 
-                    # 如果是503,提供特别提示
-                    if response.status_code == 503:
-                        logger.error(f"  ⚠️ 503错误可能原因:")
-                        logger.error(f"    1. API网关过载或不可用")
-                        logger.error(f"    2. Base URL配置错误: {api_url}")
-                        logger.error(f"    3. 网关认证密钥(X-My-Gate-Key)无效")
-                        logger.error(f"    4. 外部API服务暂时不可用")
-                        logger.error(f"    💡 建议: 检查数据库中的base_url和api_key配置")
+                        # 如果是503,提供特别提示
+                        if response.status_code == 503:
+                            logger.error(f"  ⚠️ 503错误可能原因:")
+                            logger.error(f"    1. API网关过载或不可用")
+                            logger.error(f"    2. Base URL配置错误: {api_url}")
+                            logger.error(f"    3. 网关认证密钥(X-My-Gate-Key)无效")
+                            logger.error(f"    4. 外部API服务暂时不可用")
+                            logger.error(f"    💡 建议: 检查数据库中的base_url和api_key配置")
 
-                    error_chunk = {
-                        "error": {
-                            "message": f"API 请求失败 (HTTP {response.status_code}): {error_text_str[:200]}",
-                            "type": "APIError",
-                            "status_code": response.status_code,
-                            "api_url": api_url,
-                            "model_id": actual_model_id
-                        }
-                    }
-                    yield json.dumps(error_chunk)
-                    return
-                
-                # 检查响应内容类型，如果不是 SSE 格式，返回错误
-                content_type = response.headers.get("content-type", "").lower()
-                if "text/event-stream" not in content_type and "text/plain" not in content_type and "application/json" not in content_type:
-                    # 可能是 HTML 或其他格式的错误响应
-                    error_text = await response.aread()
-                    error_msg = error_text.decode('utf-8', errors='ignore')[:500]  # 限制长度
-                    logger.error(f"API returned non-SSE response: {content_type} - {error_msg[:200]}")
-                    error_chunk = {
-                        "error": {
-                            "message": f"API 返回了非 SSE 格式的响应 (content-type: {content_type})，可能是认证失败或 URL 错误",
-                            "type": "InvalidResponseError",
-                            "details": error_msg[:200] if len(error_msg) > 0 else "无错误详情"
-                        }
-                    }
-                    yield json.dumps(error_chunk)
-                    return
-                
-                # 解析 SSE 流
-                buffer = ""
-                async for chunk in response.aiter_text():
-                    # 检查第一个 chunk 是否是 HTML 响应
-                    if chunk.strip().startswith("<!DOCTYPE") or chunk.strip().startswith("<html"):
-                        logger.error(f"API returned HTML response instead of SSE stream")
                         error_chunk = {
                             "error": {
-                                "message": "API 返回了 HTML 响应而不是 SSE 流，可能是认证失败或 URL 错误",
-                                "type": "InvalidResponseError",
-                                "details": chunk[:200] if len(chunk) > 0 else "无错误详情"
+                                "message": f"API 请求失败 (HTTP {response.status_code}): {error_text_str[:200]}",
+                                "type": "APIError",
+                                "status_code": response.status_code,
+                                "api_url": api_url,
+                                "model_id": actual_model_id
                             }
                         }
                         yield json.dumps(error_chunk)
                         return
                     
-                    buffer += chunk
+                    # 检查响应内容类型，如果不是 SSE 格式，返回错误
+                    content_type = response.headers.get("content-type", "").lower()
+                    if "text/event-stream" not in content_type and "text/plain" not in content_type and "application/json" not in content_type:
+                        # 可能是 HTML 或其他格式的错误响应
+                        error_text = await response.aread()
+                        error_msg = error_text.decode('utf-8', errors='ignore')[:500]  # 限制长度
+                        logger.error(f"API returned non-SSE response: {content_type} - {error_msg[:200]}")
+                        error_chunk = {
+                            "error": {
+                                "message": f"API 返回了非 SSE 格式的响应 (content-type: {content_type})，可能是认证失败或 URL 错误",
+                                "type": "InvalidResponseError",
+                                "details": error_msg[:200] if len(error_msg) > 0 else "无错误详情"
+                            }
+                        }
+                        yield json.dumps(error_chunk)
+                        return
                     
-                    # 处理完整的 SSE 消息（以 \n\n 分隔）
-                    while "\n\n" in buffer:
-                        line, buffer = buffer.split("\n\n", 1)
-                        
-                        if not line.startswith("data: "):
-                            continue
-                        
-                        data_str = line[6:]  # 移除 "data: " 前缀
-                        
-                        # 检查是否是结束标记
-                        if data_str.strip() == "[DONE]":
-                            # 流结束时更新 token 使用统计（异步后台任务，不阻塞响应）
-                            if usage_info and usage_info.get("total_tokens", 0) > 0:
-                                # 使用异步后台任务更新，不阻塞主流程
-                                self._update_token_usage_async(actual_model_id, usage_info["total_tokens"])
+                    # 解析 SSE 流
+                    buffer = ""
+                    async for chunk in response.aiter_text():
+                        # 检查第一个 chunk 是否是 HTML 响应
+                        if chunk.strip().startswith("<!DOCTYPE") or chunk.strip().startswith("<html"):
+                            logger.error(f"API returned HTML response instead of SSE stream")
+                            error_chunk = {
+                                "error": {
+                                    "message": "API 返回了 HTML 响应而不是 SSE 流，可能是认证失败或 URL 错误",
+                                    "type": "InvalidResponseError",
+                                    "details": chunk[:200] if len(chunk) > 0 else "无错误详情"
+                                }
+                            }
+                            yield json.dumps(error_chunk)
                             return
                         
-                        try:
-                            # 解析 JSON 数据
-                            data = json.loads(data_str)
+                        buffer += chunk
+                        
+                        # 处理完整的 SSE 消息（以 \n\n 分隔）
+                        while "\n\n" in buffer:
+                            line, buffer = buffer.split("\n\n", 1)
                             
-                            # 保存 usage 信息（通常在最后一个 chunk 中）
-                            if "usage" in data:
-                                usage_info = data["usage"]
+                            if not line.startswith("data: "):
+                                continue
                             
-                            # 提取 delta content
-                            choices = data.get("choices", [])
-                            if choices and "delta" in choices[0]:
-                                delta = choices[0]["delta"]
-                                content = delta.get("content", "")
+                            data_str = line[6:]  # 移除 "data: " 前缀
+                            
+                            # 检查是否是结束标记
+                            if data_str.strip() == "[DONE]":
+                                # 流结束时更新 token 使用统计（异步后台任务，不阻塞响应）
+                                if usage_info and usage_info.get("total_tokens", 0) > 0:
+                                    # 使用异步后台任务更新，不阻塞主流程
+                                    self._update_token_usage_async(actual_model_id, usage_info["total_tokens"])
+                                return
+                            
+                            try:
+                                # 解析 JSON 数据
+                                data = json.loads(data_str)
                                 
-                                if content:
-                                    # 格式化为前端需要的格式
-                                    chunk_data = {
-                                        "id": data.get("id", ""),
-                                        "delta": {
-                                            "content": content,
-                                            "role": delta.get("role"),
-                                        },
-                                        "finish_reason": choices[0].get("finish_reason"),
-                                    }
-                                    yield json.dumps(chunk_data)
-                        except json.JSONDecodeError as e:
-                            logger.warning(f"Failed to parse SSE data: {data_str[:100]} - {e}")
-                            continue
+                                # 保存 usage 信息（通常在最后一个 chunk 中）
+                                if "usage" in data:
+                                    usage_info = data["usage"]
+                                
+                                # 提取 delta content
+                                choices = data.get("choices", [])
+                                if choices and "delta" in choices[0]:
+                                    delta = choices[0]["delta"]
+                                    content = delta.get("content", "")
+                                    
+                                    if content:
+                                        # 格式化为前端需要的格式
+                                        chunk_data = {
+                                            "id": data.get("id", ""),
+                                            "delta": {
+                                                "content": content,
+                                                "role": delta.get("role"),
+                                            },
+                                            "finish_reason": choices[0].get("finish_reason"),
+                                        }
+                                        yield json.dumps(chunk_data)
+                            except json.JSONDecodeError as e:
+                                logger.warning(f"Failed to parse SSE data: {data_str[:100]} - {e}")
+                                continue
+            except (httpx.ConnectError, httpx.ConnectTimeout) as e:
+                # 连接错误：无法建立到API服务器的连接
+                logger.error(f"❌ [API] 连接失败:")
+                logger.error(f"  - Error Type: {type(e).__name__}")
+                logger.error(f"  - Error Message: {str(e)}")
+                logger.error(f"  - API URL: {api_url}")
+                logger.error(f"  - Model ID: {actual_model_id}")
+                
+                # 提取底层异常信息
+                if hasattr(e, '__cause__') and e.__cause__:
+                    logger.error(f"  - Underlying Error: {type(e.__cause__).__name__}: {str(e.__cause__)}")
+                
+                # 连接错误诊断
+                logger.error(f"  - 连接错误诊断:")
+                logger.error(f"    * 可能原因: 网络连接失败、DNS解析失败、防火墙阻止、API服务不可用")
+                logger.error(f"    * API地址: {api_url}")
+                logger.error(f"    * 建议检查: 网络连接、API服务状态、代理设置、防火墙规则")
+                
+                error_chunk = {
+                    "error": {
+                        "message": f"无法连接到AI服务: {str(e) if str(e) else '连接失败'}",
+                        "type": "ConnectionError",
+                        "api_url": api_url,
+                        "model_id": actual_model_id,
+                        "details": "请检查网络连接和API服务状态"
+                    }
+                }
+                yield json.dumps(error_chunk)
+                return
+            except httpx.TimeoutException as e:
+                # 超时错误
+                logger.error(f"❌ [API] 请求超时:")
+                logger.error(f"  - API URL: {api_url}")
+                logger.error(f"  - Model ID: {actual_model_id}")
+                logger.error(f"  - Timeout: {self._client_config.get('timeout')}")
+                
+                error_chunk = {
+                    "error": {
+                        "message": f"AI服务响应超时: {str(e) if str(e) else '请求超时'}",
+                        "type": "TimeoutError",
+                        "api_url": api_url,
+                        "model_id": actual_model_id
+                    }
+                }
+                yield json.dumps(error_chunk)
+                return
+            except Exception as e:
+                # 其他未预期的错误
+                import traceback
+                logger.error(f"❌ [API] 未预期的错误:")
+                logger.error(f"  - Error Type: {type(e).__name__}")
+                logger.error(f"  - Error Message: {str(e)}")
+                logger.error(f"  - API URL: {api_url}")
+                logger.error(f"  - Model ID: {actual_model_id}")
+                logger.error(f"  - Traceback:\n{traceback.format_exc()}")
+                
+                error_chunk = {
+                    "error": {
+                        "message": f"AI服务请求失败: {str(e)}",
+                        "type": type(e).__name__,
+                        "api_url": api_url,
+                        "model_id": actual_model_id
+                    }
+                }
+                yield json.dumps(error_chunk)
+                return
 

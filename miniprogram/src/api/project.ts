@@ -1,53 +1,59 @@
 /**
  * Project API - 项目相关接口
+ * 
+ * 只保留 API 调用函数和请求/响应类型
+ * 业务类型定义在 types/project.ts 中
  */
 import { request } from '@/utils/request'
+import type { Project, PersonaSettings } from '@/types/project'
 
-// ============== 类型定义 ==============
+// ============== API 请求/响应类型 ==============
 
-// 人设配置类型
-export interface PersonaSettings {
-  tone: string
-  catchphrase: string
-  target_audience: string
-  benchmark_accounts: string[]
-  content_style: string
-  taboos: string[]
-  keywords: string[]
-  introduction: string
-}
-
-// 项目类型
-export interface Project {
-  id: string
-  user_id: string
-  name: string
-  industry: string
-  avatar_letter: string
-  avatar_color: string
-  persona_settings: PersonaSettings
-  created_at: string
-  updated_at: string
-  is_active: boolean
-}
-
-// 创建项目请求
+/**
+ * 创建项目请求（扁平格式，后端会自动合并到 persona_settings）
+ */
 export interface ProjectCreateRequest {
   name: string
   industry?: string
-  persona_settings?: Partial<PersonaSettings>
+  // 人设字段（扁平格式，后端会自动合并到 persona_settings）
+  tone?: string
+  catchphrase?: string
+  target_audience?: string
+  introduction?: string
+  keywords?: string[]
+  industry_understanding?: string
+  unique_views?: string
+  target_pains?: string
+  benchmark_accounts?: string[]
+  content_style?: string
+  taboos?: string[]
 }
 
-// 更新项目请求
+/**
+ * 更新项目请求（扁平格式，后端会自动合并到 persona_settings）
+ */
 export interface ProjectUpdateRequest {
   name?: string
   industry?: string
   avatar_letter?: string
   avatar_color?: string
-  persona_settings?: Partial<PersonaSettings>
+  // 人设字段（扁平格式，后端会自动合并到 persona_settings）
+  tone?: string
+  catchphrase?: string
+  target_audience?: string
+  introduction?: string
+  keywords?: string[]
+  industry_understanding?: string
+  unique_views?: string
+  target_pains?: string
+  benchmark_accounts?: string[]
+  content_style?: string
+  taboos?: string[]
 }
 
-// 获取项目列表响应
+/**
+ * 获取项目列表响应
+ */
 export interface FetchProjectsResponse {
   success: boolean
   projects: Project[]
@@ -98,6 +104,10 @@ export interface IPCompressResponse {
     keywords: string[]
   }
 }
+
+// IPCollectFormData 类型定义已移至 types/project.ts
+// 这里重新导出以保持向后兼容
+export type { IPCollectFormData } from '@/types/project'
 
 /**
  * AI智能填写 - IP信息采集对话

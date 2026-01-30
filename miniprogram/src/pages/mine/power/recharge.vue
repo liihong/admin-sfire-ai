@@ -539,7 +539,7 @@ function goBack() {
   .recharge-button {
     width: 100%;
     height: 96rpx;
-    background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+    background: linear-gradient(135deg, #0c0c0c 0%, #090909 100%);
     border-radius: 48rpx;
     display: flex;
     align-items: center;

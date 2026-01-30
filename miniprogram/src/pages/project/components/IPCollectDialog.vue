@@ -15,7 +15,7 @@
         <!-- 步骤1: 设定身份 -->
         <swiper-item>
           <StepIdentity
-            :form-data="{ name: formData.name, industry: formData.industry }"
+:form-data="formData"
             :industry-options="industryOptions"
             :preview-data="previewData"
             @update:form-data="handleFormDataUpdate"
@@ -25,9 +25,7 @@
         <!-- 步骤2: 注入灵魂 -->
         <swiper-item>
           <StepSoul
-            :form-data="{
-              target_audience: formData.target_audience
-            }"
+:form-data="formData"
             :preview-data="previewData"
             @update:form-data="handleFormDataUpdate"
           />
@@ -36,11 +34,7 @@
         <!-- 步骤3: 定义风格 -->
         <swiper-item>
           <StepStyle
-            :form-data="{
-              tone: formData.tone,
-              introduction: formData.introduction,
-              catchphrase: formData.catchphrase
-            }"
+:form-data="formData"
             :tone-options="toneOptions"
             :preview-data="previewData"
             @update:form-data="handleFormDataUpdate"
@@ -50,9 +44,9 @@
         <!-- 步骤4: 激活大脑 -->
         <swiper-item>
           <StepBrain
-            :keywords="formData.keywords"
+:form-data="formData"
             :is-generating-keywords="isGeneratingKeywords"
-            @update:keywords="formData.keywords = $event"
+           @update:form-data="handleFormDataUpdate"
           />
         </swiper-item>
       </swiper>
@@ -88,8 +82,28 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch, onMounted } from 'vue'
-import { getProjectOptions, type DictOption, aiCollectIPInfo } from '@/api/project'
+/**
+ * IP信息收集对话框组件
+ * 
+ * 创建流程说明：
+ * 1. 用户通过多步骤表单填写IP信息
+ * 2. 使用 usePersonaForm(mode: 'create') 管理表单数据
+ * 3. 表单数据存储在 formData（ProjectFormData 类型，扁平结构）
+ * 4. 用户完成所有步骤后，调用 handleComplete()
+ * 5. handleComplete() 将 formData 转换为 IPCollectFormData（只包含收集的字段）
+ * 6. 通过 emit('complete', collectedData) 传递给父组件
+ * 7. 父组件（create.vue）接收数据后调用 formDataToCreateRequest() 转换为 API 请求
+ * 8. 调用 createProject() 创建项目
+ * 
+ * 数据流转：
+ * formData (ProjectFormData) → collectedData (IPCollectFormData) → emit → 
+ * 父组件 → formDataToCreateRequest() → createProject() → ProjectModel → store
+ */
+
+import { ref, computed, watch } from 'vue'
+import { type IPCollectFormData, aiCollectIPInfo } from '@/api/project'
+import type { ProjectFormData } from '@/types/project'
+import { usePersonaForm } from '@/composables/usePersonaForm'
 import StepIndicator from './collect/StepIndicator.vue'
 import StepIdentity from './collect/StepIdentity.vue'
 import StepSoul from './collect/StepSoul.vue'
@@ -102,7 +116,7 @@ interface Props {
 
 interface Emits {
   (e: 'close'): void
-  (e: 'complete', data: any): void
+  (e: 'complete', data: IPCollectFormData): void
 }
 
 const props = defineProps<Props>()
@@ -110,111 +124,69 @@ const emit = defineEmits<Emits>()
 
 // 步骤定义
 const steps = [
-  { label: '设定身份', icon: 'account', iconType: 'u-icon' as const, key: 'identity' },
-  { label: '注入灵魂', icon: 'star', iconType: 'u-icon' as const, key: 'soul' },
-  { label: '定义风格', icon: 'fingerprint', iconType: 'u-icon' as const, key: 'fingerprint' },
+  { label: '人设定位', icon: 'account', iconType: 'u-icon' as const, key: 'identity' },
+  { label: '受众定位', icon: 'star', iconType: 'u-icon' as const, key: 'soul' },
+  { label: '风格定位', icon: 'fingerprint', iconType: 'u-icon' as const, key: 'fingerprint' },
   { label: '激活大脑', icon: 'grid', iconType: 'u-icon' as const, key: 'grid' }
 ]
 
-// 表单数据
-const formData = ref({
-  // 步骤1: 基本信息
-  name: '',
-  industry: '',
-  
-  // 步骤2: 目标受众
-  target_audience: '',
-  
-  // 步骤3: 风格设定
-  tone: '',
-  introduction: '',
-  catchphrase: '',
-  
-  // 步骤4: 关键词
-  keywords: [] as string[]
+// 使用 usePersonaForm 管理表单数据（创建模式）
+const {
+  formData,
+  industryOptions,
+  toneOptions,
+  resetForm,
+  initFormData
+} = usePersonaForm({
+  mode: 'create',
+  autoSync: false
 })
-
-// 选项数据
-const industryOptions = ref<DictOption[]>([])
-const toneOptions = ref<DictOption[]>([])
 
 // 状态
 const currentStep = ref(0)
 const isGeneratingKeywords = ref(false)
 
-// IP画像预览数据
+// IP画像预览数据（从 formData 中提取）
 const previewData = computed(() => {
   return {
-    name: formData.value.name || '未命名',
-    industry: formData.value.industry || '未选择',
-    tone: formData.value.tone || '未选择',
-    target_audience: formData.value.target_audience || '未填写',
-    keywords: formData.value.keywords.length > 0 ? formData.value.keywords : []
+    name: formData.name || '未命名',
+    industry: formData.industry || '未选择',
+    tone: formData.tone || '未选择',
+    target_audience: formData.target_audience || '未填写',
+    keywords: formData.keywords.length > 0 ? formData.keywords : []
   }
 })
 
-// 验证逻辑
+// 验证逻辑（使用 formData，不是 formData.value，因为它是 reactive）
 const canNext = computed(() => {
   switch (currentStep.value) {
     case 0:
-      return formData.value.name.trim() && formData.value.industry
+      return formData.name.trim() && formData.industry
     case 1:
-      return formData.value.target_audience.trim().length > 0
+      return formData.target_audience.trim().length > 0 &&
+        formData.target_pains.trim().length > 0
     case 2:
-      return formData.value.tone && 
-             formData.value.introduction.trim().length >= 50
+      return formData.tone &&
+        formData.introduction.trim().length >= 50
     default:
       return false
   }
 })
 
 const canComplete = computed(() => {
-  return formData.value.keywords.length > 0
+  return formData.keywords.length > 0
 })
 
-// 初始化
+// 初始化：当对话框显示时重置表单
 watch(() => props.visible, (newVal) => {
   if (newVal) {
     initDialog()
   }
 })
 
-onMounted(() => {
-  loadOptions()
-})
-
-async function loadOptions() {
-  try {
-    const options = await getProjectOptions()
-    industryOptions.value = options.industries || []
-    toneOptions.value = options.tones || []
-  } catch (error: any) {
-    console.error('加载选项失败:', error)
-    // 使用默认值
-    industryOptions.value = [
-      { label: '通用', value: '通用' },
-      { label: '医疗健康', value: '医疗健康' },
-      { label: '教育培训', value: '教育培训' }
-    ]
-    toneOptions.value = [
-      { label: '专业亲和', value: '专业亲和' },
-      { label: '幽默风趣', value: '幽默风趣' },
-      { label: '温暖治愈', value: '温暖治愈' }
-    ]
-  }
-}
-
 function initDialog() {
   currentStep.value = 0
-  formData.value = {
-    name: '',
-    industry: '',
-    target_audience: '',
-    tone: '',
-    introduction: '',
-    catchphrase: '',
-    keywords: []
-  }
+  resetForm() // 使用 composable 的 resetForm 方法
 }
 
 function handleSwiperChange(e: any) {
@@ -223,7 +195,7 @@ function handleSwiperChange(e: any) {
   if (currentStep.value !== newStep) {
     currentStep.value = newStep
     // 如果进入步骤4且还没有关键词，生成关键词
-    if (newStep === 3 && formData.value.keywords.length === 0) {
+    if (newStep === 3 && formData.keywords.length === 0) {
       generateKeywords()
     }
   }
@@ -235,21 +207,21 @@ async function generateKeywords() {
   isGeneratingKeywords.value = true
   
   try {
-    // 构建请求数据
+    // 构建请求数据（使用 formData，不是 formData.value）
     const requestData = {
       messages: [
         {
           role: 'user' as const,
-          content: `基于以下IP信息，生成5-8个创作关键词：\n名称：${formData.value.name}\n行业：${formData.value.industry}\n受众：${formData.value.target_audience}\n风格：${formData.value.tone}\n描述：${formData.value.introduction}`
+          content: `基于以下IP信息，生成5-8个创作关键词：\n名称：${formData.name}\n行业：${formData.industry}\n受众：${formData.target_audience}\n风格：${formData.tone}\n描述：${formData.introduction}`
         }
       ],
       step: 3,
       context: {
-        name: formData.value.name,
-        industry: formData.value.industry,
-        target_audience: formData.value.target_audience,
-        tone: formData.value.tone,
-        introduction: formData.value.introduction
+        name: formData.name,
+        industry: formData.industry,
+        target_audience: formData.target_audience,
+        tone: formData.tone,
+        introduction: formData.introduction
       }
     }
     
@@ -260,18 +232,18 @@ async function generateKeywords() {
       // 尝试从回复中提取关键词
       const keywords = extractKeywords(response.reply)
       if (keywords.length > 0) {
-        formData.value.keywords = keywords
+        formData.keywords = keywords
       } else {
         // 如果没有提取到，使用默认关键词
-        formData.value.keywords = generateDefaultKeywords()
+        formData.keywords = generateDefaultKeywords()
       }
     } else {
-      formData.value.keywords = generateDefaultKeywords()
+      formData.keywords = generateDefaultKeywords()
     }
   } catch (error: any) {
     console.error('生成关键词失败:', error)
     // 使用默认关键词
-    formData.value.keywords = generateDefaultKeywords()
+    formData.keywords = generateDefaultKeywords()
     uni.showToast({
       title: '关键词生成失败，请手动添加',
       icon: 'none'
@@ -320,18 +292,18 @@ function extractKeywords(text: string): string[] {
 }
 
 function generateDefaultKeywords(): string[] {
-  // 基于已填信息生成默认关键词
+  // 基于已填信息生成默认关键词（使用 formData，不是 formData.value）
   const keywords: string[] = []
   
-  if (formData.value.industry) {
-    keywords.push(formData.value.industry)
+  if (formData.industry) {
+    keywords.push(formData.industry)
   }
-  if (formData.value.tone) {
-    keywords.push(formData.value.tone)
+  if (formData.tone) {
+    keywords.push(formData.tone)
   }
-  if (formData.value.target_audience) {
+  if (formData.target_audience) {
     // 从目标受众中提取关键词（简单处理）
-    const audience = formData.value.target_audience.trim()
+    const audience = formData.target_audience.trim()
     if (audience.length > 0 && audience.length <= 10) {
       keywords.push(audience)
     }
@@ -349,15 +321,17 @@ function handlePrev() {
 function handleNext() {
   if (!canNext.value) {
     let tipText = '请完成必填项'
-    if (currentStep.value === 0 && !formData.value.name.trim()) {
+    if (currentStep.value === 0 && !formData.name.trim()) {
       tipText = '请输入项目名称'
-    } else if (currentStep.value === 0 && !formData.value.industry) {
+    } else if (currentStep.value === 0 && !formData.industry) {
       tipText = '请选择行业赛道'
-    } else if (currentStep.value === 1 && !formData.value.target_audience.trim()) {
+    } else if (currentStep.value === 1 && !formData.target_audience.trim()) {
       tipText = '请输入目标受众'
-    } else if (currentStep.value === 2 && !formData.value.tone) {
+    } else if (currentStep.value === 1 && !formData.target_pains.trim()) {
+      tipText = '请输入目标人群痛点'
+    } else if (currentStep.value === 2 && !formData.tone) {
       tipText = '请选择语气风格'
-    } else if (currentStep.value === 2 && formData.value.introduction.trim().length < 50) {
+    } else if (currentStep.value === 2 && formData.introduction.trim().length < 50) {
       tipText = 'IP概况描述至少需要50字'
     }
     
@@ -372,7 +346,7 @@ function handleNext() {
     currentStep.value++
     
     // 如果进入步骤4，生成关键词
-    if (currentStep.value === 3 && formData.value.keywords.length === 0) {
+    if (currentStep.value === 3 && formData.keywords.length === 0) {
       generateKeywords()
     }
   }
@@ -387,15 +361,22 @@ function handleComplete() {
     return
   }
   
-  // 构建收集的数据，符合数据库要求的格式（扁平格式，后端支持扁平方式）
-  const collectedData = {
-    name: formData.value.name,
-    industry: formData.value.industry,
-    tone: formData.value.tone,
-    catchphrase: formData.value.catchphrase || '',
-    target_audience: formData.value.target_audience,
-    introduction: formData.value.introduction,
-    keywords: formData.value.keywords
+  /**
+   * 构建收集的数据（IPCollectFormData 类型）
+   * 从完整的 formData（ProjectFormData）中提取收集步骤涉及的字段
+   * 传递给父组件，父组件会调用 formDataToCreateRequest() 转换为 API 请求
+   */
+  const collectedData: IPCollectFormData = {
+    name: formData.name,
+    industry: formData.industry,
+    industry_understanding: formData.industry_understanding || '',
+    unique_views: formData.unique_views || '',
+    tone: formData.tone,
+    catchphrase: formData.catchphrase || '',
+    target_audience: formData.target_audience,
+    target_pains: formData.target_pains || '',
+    introduction: formData.introduction,
+    keywords: formData.keywords
   }
   
   emit('complete', collectedData)
@@ -405,8 +386,9 @@ function handleClose() {
   emit('close')
 }
 
-function handleFormDataUpdate(data: Partial<typeof formData.value>) {
-  Object.assign(formData.value, data)
+function handleFormDataUpdate(data: Partial<ProjectFormData>) {
+  // 更新 formData（reactive 对象，直接赋值）
+  Object.assign(formData, data)
 }
 </script>
 

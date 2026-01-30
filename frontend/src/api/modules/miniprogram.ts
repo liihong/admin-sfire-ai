@@ -108,7 +108,7 @@ export interface MPUserDetailInfo {
 }
 
 export const getMPUserDetailInfoApi = () => {
-  return http.get<MPUserDetailInfo>(MP_API_PREFIX + `/auth/user/info`, {}, { loading: false });
+  return http.get<MPUserDetailInfo>(MP_API_PREFIX + `/auth/user`, {}, { loading: false });
 };
 
 /**

@@ -10,14 +10,14 @@
       <!-- 关键词展示 -->
       <view class="keywords-section">
         <view 
-          v-for="(keyword, index) in keywords"
+v-for="(keyword, index) in formData.keywords"
           :key="index"
           class="keyword-tag"
         >
           <text class="keyword-text">{{ keyword }}</text>
         </view>
         <view 
-          v-if="keywords.length === 0 && !isGeneratingKeywords"
+v-if="formData.keywords.length === 0 && !isGeneratingKeywords"
           class="keyword-placeholder"
         >
           <text class="placeholder-text">正在生成关键词...</text>
@@ -27,7 +27,7 @@
       <!-- 添加补充 -->
       <view class="form-section">
         <TagInput
-          :model-value="keywords"
+:model-value="formData.keywords"
           @update:model-value="handleKeywordsUpdate"
           placeholder="添加补充"
         />
@@ -47,20 +47,21 @@
 
 <script setup lang="ts">
 import TagInput from '@/components/form/TagInput.vue'
+import type { ProjectFormData } from '@/types/project'
 
 interface Props {
-  keywords: string[]
+  formData: ProjectFormData
   isGeneratingKeywords: boolean
 }
 
 const props = defineProps<Props>()
 
 const emit = defineEmits<{
-  'update:keywords': [keywords: string[]]
+  'update:formData': [data: Partial<ProjectFormData>]
 }>()
 
 function handleKeywordsUpdate(keywords: string[]) {
-  emit('update:keywords', keywords)
+  emit('update:formData', { keywords })
 }
 </script>
 

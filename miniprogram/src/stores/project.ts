@@ -7,24 +7,28 @@
 
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
-import type { Project, PersonaSettings, ProjectCreateRequest, ProjectUpdateRequest } from '@/api/project'
+import type { Project, PersonaSettings } from '@/types/project'
+import type { ProjectCreateRequest, ProjectUpdateRequest, IPCollectFormData } from '@/api/project'
 
 // ============== 类型导出（向后兼容） ==============
-export type { Project, PersonaSettings, ProjectCreateRequest, ProjectUpdateRequest }
+export type { Project, PersonaSettings, ProjectCreateRequest, ProjectUpdateRequest, IPCollectFormData }
 
 // localStorage key
 const ACTIVE_PROJECT_ID_KEY = 'active_project_id'
 
-// 默认人设配置
+// 默认人设配置（包含所有字段，包括扩展字段）
 export const DEFAULT_PERSONA_SETTINGS: PersonaSettings = {
   tone: '专业亲和',
   catchphrase: '',
   target_audience: '',
+  introduction: '',
+  keywords: [],
+  industry_understanding: '',
+  unique_views: '',
+  target_pains: '',
   benchmark_accounts: [],
   content_style: '',
-  taboos: [],
-  keywords: [],
-  introduction: ''
+  taboos: []
 }
 
 // 默认行业
@@ -63,11 +67,14 @@ export const useProjectStore = defineStore('project', () => {
       tone: anyProject.tone || DEFAULT_PERSONA_SETTINGS.tone,
       catchphrase: anyProject.catchphrase || DEFAULT_PERSONA_SETTINGS.catchphrase,
       target_audience: anyProject.target_audience || DEFAULT_PERSONA_SETTINGS.target_audience,
+      introduction: anyProject.introduction || DEFAULT_PERSONA_SETTINGS.introduction,
+      keywords: anyProject.keywords || [...DEFAULT_PERSONA_SETTINGS.keywords],
+      industry_understanding: anyProject.industry_understanding || DEFAULT_PERSONA_SETTINGS.industry_understanding,
+      unique_views: anyProject.unique_views || DEFAULT_PERSONA_SETTINGS.unique_views,
+      target_pains: anyProject.target_pains || DEFAULT_PERSONA_SETTINGS.target_pains,
       benchmark_accounts: anyProject.benchmark_accounts || [...DEFAULT_PERSONA_SETTINGS.benchmark_accounts],
       content_style: anyProject.content_style || DEFAULT_PERSONA_SETTINGS.content_style,
-      taboos: anyProject.taboos || [...DEFAULT_PERSONA_SETTINGS.taboos],
-      keywords: anyProject.keywords || [...DEFAULT_PERSONA_SETTINGS.keywords],
-      introduction: anyProject.introduction || DEFAULT_PERSONA_SETTINGS.introduction
+      taboos: anyProject.taboos || [...DEFAULT_PERSONA_SETTINGS.taboos]
     }
 
     return project

@@ -56,6 +56,7 @@ import { watch, onMounted } from 'vue'
 import TipCard from './TipCard.vue'
 import IPPreviewCard from '../IPPreviewCard.vue'
 import type { DictOption } from '@/api/project'
+import type { ProjectFormData } from '@/types/project'
 
 interface PreviewData {
   name: string
@@ -66,11 +67,7 @@ interface PreviewData {
 }
 
 interface Props {
-  formData: {
-    tone: string
-    introduction: string
-    catchphrase: string
-  }
+  formData: ProjectFormData
   toneOptions: DictOption[]
   previewData: PreviewData
 }
@@ -82,9 +79,9 @@ const emit = defineEmits<{
 }>()
 
 // IP概况描述模板
-function getIntroductionTemplate(): string {
-  return `
-个人经历：
+function getIntroductionTemplate(name?: string): string {
+  const nameLine = name ? `名字：${name}\n` : ''
+  return `${nameLine}个人经历：
 为什么做这个项目：
 行业/项目：
 产品或服务特色：
@@ -99,7 +96,7 @@ function getIntroductionTemplate(): string {
 // 初始化：如果 introduction 为空，则设置模板
 onMounted(() => {
   if (!props.formData.introduction || props.formData.introduction.trim() === '') {
-    const template = getIntroductionTemplate(props.previewData.name || '顶顶妈')
+    const template = getIntroductionTemplate(props.formData.name)
     emit('update:formData', { introduction: template })
   }
 })
@@ -210,7 +207,7 @@ function handleSelect(field: string, value: string) {
   gap: $spacing-sm;
   
   .option-btn {
-    padding: 16rpx 24rpx;
+    padding: 10rpx 20rpx;
     background: $bg-light;
     border-radius: 32rpx;
     border: 2rpx solid transparent;

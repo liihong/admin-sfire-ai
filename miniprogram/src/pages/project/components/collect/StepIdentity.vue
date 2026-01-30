@@ -1,11 +1,11 @@
 <template>
   <scroll-view class="step-content" scroll-y>
     <view class="step-wrapper">
-      <TipCard title="设定身份" desc="为您的IP设定一个名称和所属行业，这是IP定位的基础信息" />
+     <TipCard title="设定身份" desc="请您尽可能详细的填写该问卷，这将帮助AI更好地理解您的IP，从而生成更符合您需求的内容" />
       
       <!-- 项目名称输入 -->
       <view class="form-section">
-        <text class="form-label">项目名称</text>
+       <text class="form-label">IP名称</text>
         <input 
           class="form-input"
           :value="formData.name"
@@ -26,8 +26,19 @@
         />
       </view>
       
-      <!-- IP画像预览 -->
-      <IPPreviewCard :data="previewData" />
+<!-- 行业理解 -->
+      <view class="form-section">
+        <text class="form-label">你对这个行业的理解</text>
+        <input class="form-input" :value="formData.industry_understanding"
+          @input="handleInput('industry_understanding', $event)" placeholder="请输入你对这个行业的理解" maxlength="200" />
+      </view>
+
+      <!-- 对行业不同的看法 -->
+      <view class="form-section">
+        <text class="form-label">对行业不同的看法</text>
+        <input class="form-input" :value="formData.unique_views" @input="handleInput('unique_views', $event)"
+          placeholder="请输入你对行业不同的看法" maxlength="200" />
+      </view>
     </view>
   </scroll-view>
 </template>
@@ -38,6 +49,7 @@ import TipCard from './TipCard.vue'
 import IPPreviewCard from '../IPPreviewCard.vue'
 import FormPicker from '@/components/form/FormPicker.vue'
 import type { DictOption } from '@/api/project'
+import type { ProjectFormData } from '@/types/project'
 
 interface PreviewData {
   name: string
@@ -48,10 +60,7 @@ interface PreviewData {
 }
 
 interface Props {
-  formData: {
-    name: string
-    industry: string
-  }
+  formData: ProjectFormData
   industryOptions: DictOption[]
   previewData: PreviewData
 }
