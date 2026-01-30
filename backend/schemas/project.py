@@ -91,6 +91,7 @@ class ProjectResponse(BaseModel):
     avatar_letter: str = Field(default="", description="项目首字母")
     avatar_color: str = Field(default="#3B82F6", description="头像背景色")
     persona_settings: PersonaSettings = Field(..., description="人设配置")
+    master_prompt: Optional[str] = Field(default=None, description="Master Prompt（IP核心特征描述）")
     status: int = Field(default=1, description="状态：1-正常, 2-已冻结")
     is_frozen: bool = Field(default=False, description="是否已冻结")
     created_at: datetime = Field(..., description="创建时间")
@@ -103,9 +104,15 @@ class ProjectResponse(BaseModel):
     def from_orm_with_active(cls, project: Project, is_active: bool = False) -> "ProjectResponse":
         """从 ORM 模型创建响应，支持设置 is_active"""
         persona_dict = project.get_persona_settings_dict()
+        # 从 persona_settings 中移除 master_prompt（如果存在），因为现在是独立字段
+        if "master_prompt" in persona_dict:
+            persona_dict = {k: v for k, v in persona_dict.items() if k != "master_prompt"}
         persona_settings = PersonaSettings(**persona_dict) if persona_dict else PersonaSettings()
         
         from models.project import ProjectStatus
+        
+        # 安全获取 updated_at，避免触发延迟加载
+        updated_at = project.updated_at if hasattr(project, '__dict__') and 'updated_at' in project.__dict__ else project.created_at
         
         return cls(
             id=str(project.id),
@@ -115,10 +122,11 @@ class ProjectResponse(BaseModel):
             avatar_letter=project.avatar_letter or "",
             avatar_color=project.avatar_color or "#3B82F6",
             persona_settings=persona_settings,
+            master_prompt=project.master_prompt,
             status=project.status,
             is_frozen=project.status == ProjectStatus.FROZEN.value,
             created_at=project.created_at,
-            updated_at=project.updated_at or project.created_at,
+            updated_at=updated_at or project.created_at,
             is_active=is_active,
         )
 
@@ -209,4 +217,63 @@ class IPCompressResponse(BaseModel):
     # - keywords: 最多8个
     # - catchphrase: 保持简短
     # - 其他字段保持不变
+
+
+class IPReportRequest(BaseModel):
+    """IP定位报告生成请求"""
+    name: str = Field(..., description="项目名称")
+    industry: str = Field(..., description="行业")
+    introduction: Optional[str] = Field(None, description="IP简介")
+    tone: Optional[str] = Field(None, description="语气风格")
+    target_audience: Optional[str] = Field(None, description="目标受众")
+    target_pains: Optional[str] = Field(None, description="目标人群痛点")
+    keywords: Optional[List[str]] = Field(None, description="关键词列表")
+    industry_understanding: Optional[str] = Field(None, description="行业理解")
+    unique_views: Optional[str] = Field(None, description="独特观点")
+    catchphrase: Optional[str] = Field(None, description="口头禅")
+
+
+class IPReportContent(BaseModel):
+    """IP定位报告内容"""
+    name: str = Field(..., description="IP名称")
+    persona_tags: List[str] = Field(..., description="人格标签")
+    core_archetype: str = Field(..., description="核心原型")
+    one_line_intro: str = Field(..., description="一句话简介")
+
+
+class IPReportContentMoat(BaseModel):
+    """内容护城河"""
+    insight: str = Field(..., description="反共识洞察")
+    emotional_hook: str = Field(..., description="情感钩子")
+
+
+class IPReportLanguageFingerprint(BaseModel):
+    """语言指纹分析"""
+    tone_modeling: str = Field(..., description="语感建模")
+    atmosphere: str = Field(..., description="标志性氛围")
+
+
+class IPReportBusinessPotential(BaseModel):
+    """商业潜力与避坑指南"""
+    viral_potential: str = Field(..., description="爆款潜质")
+    red_lines: str = Field(..., description="人设红线")
+
+
+class IPReportData(BaseModel):
+    """IP定位报告数据"""
+    name: str = Field(..., description="IP名称")
+    persona_tags: List[str] = Field(..., description="人格标签")
+    core_archetype: str = Field(..., description="核心原型")
+    one_line_intro: str = Field(..., description="一句话简介")
+    content_moat: IPReportContentMoat = Field(..., description="内容护城河")
+    language_fingerprint: IPReportLanguageFingerprint = Field(..., description="语言指纹分析")
+    business_potential: IPReportBusinessPotential = Field(..., description="商业潜力与避坑指南")
+    expert_message: str = Field(..., description="专家寄语")
+
+
+class IPReportResponse(BaseModel):
+    """IP定位报告响应"""
+    report: IPReportData = Field(..., description="IP定位报告")
+    score: int = Field(..., ge=0, le=100, description="IP数字化程度评分（0-100）")
+    score_reason: str = Field(..., description="评分理由")
 

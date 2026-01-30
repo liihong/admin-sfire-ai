@@ -144,9 +144,10 @@ async def build_execution_prompt(
         )
         project = result.scalar_one_or_none()
         
-        if project and project.persona_settings:
+        if project and (project.persona_settings or project.master_prompt):
             persona_prompt = PromptBuilder.extract_persona_prompt(
-                project.persona_settings
+                project.persona_settings or {},
+                master_prompt=project.master_prompt
             )
     
     # 调用路由模块

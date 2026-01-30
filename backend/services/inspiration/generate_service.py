@@ -18,6 +18,7 @@ from services.resource import LLMModelService
 from services.agent import AgentService
 from services.conversation.business import ConversationBusinessService
 from services.shared.llm_service import LLMFactory
+from services.shared.prompt_builder import PromptBuilder
 from constants.agent import get_agent_config, AgentType, DEFAULT_MODEL_ID
 from utils.exceptions import BadRequestException, NotFoundException, ServerErrorException
 
@@ -287,7 +288,7 @@ class InspirationGenerateService:
         
         # 如果有项目，添加IP人设信息
         if project:
-            ip_persona_prompt = self._build_ip_persona_prompt(project)
+            ip_persona_prompt = PromptBuilder.get_ip_persona_prompt_from_project(project)
             if ip_persona_prompt:
                 system_prompt += "\n\n" + "=" * 40
                 system_prompt += "\n在创作时，请严格遵循以下IP人设设定：\n"
@@ -295,50 +296,4 @@ class InspirationGenerateService:
                 system_prompt += "\n" + "=" * 40
         
         return system_prompt
-    
-    def _build_ip_persona_prompt(self, project) -> str:
-        """
-        从项目信息构建IP人设提示词
-        
-        Args:
-            project: 项目对象
-        
-        Returns:
-            IP人设提示词字符串
-        """
-        if not project:
-            return ""
-        
-        persona = project.get_persona_settings_dict()
-        parts = []
-        
-        parts.append(f"【IP信息】")
-        parts.append(f"- IP名称：{project.name}")
-        parts.append(f"- 所属赛道：{project.industry}")
-        
-        if persona.get("introduction"):
-            parts.append(f"- IP简介：{persona['introduction']}")
-        
-        if persona.get("tone"):
-            parts.append(f"- 语气风格：{persona['tone']}")
-        
-        if persona.get("target_audience"):
-            parts.append(f"- 目标受众：{persona['target_audience']}")
-        
-        if persona.get("content_style"):
-            parts.append(f"- 内容风格：{persona['content_style']}")
-        
-        if persona.get("catchphrase"):
-            parts.append(f"- 常用口头禅：{persona['catchphrase']}")
-        
-        if persona.get("keywords"):
-            parts.append(f"- 常用关键词：{', '.join(persona['keywords'])}")
-        
-        if persona.get("taboos"):
-            parts.append(f"- 内容禁忌：{', '.join(persona['taboos'])}")
-        
-        if persona.get("benchmark_accounts"):
-            parts.append(f"- 对标账号：{', '.join(persona['benchmark_accounts'])}")
-        
-        return "\n".join(parts)
 

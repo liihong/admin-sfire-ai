@@ -1,6 +1,7 @@
 """
 Database Session Management
 """
+import json
 from typing import AsyncGenerator
 from sqlalchemy.ext.asyncio import (
     AsyncSession,
@@ -42,7 +43,8 @@ async def init_db() -> None:
 
         db_url = settings.MYSQL_DATABASE_URL
 
-        # 添加锁超时配置(120秒)
+        # 添加锁超时配置
+        # 注意：charset=utf8mb4 已在 MYSQL_DATABASE_URL 中配置，支持 emoji 等 4 字节 UTF-8 字符
         parsed = urlparse(db_url)
         query_params = parse_qs(parsed.query)
 

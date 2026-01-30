@@ -4,6 +4,7 @@ Inspiration Service - 灵感数据持久化服务
 提供灵感的CRUD操作、搜索、标签筛选等功能
 """
 import json
+import hashlib
 from datetime import datetime
 from typing import Optional, List, Tuple, Dict, Any
 from sqlalchemy import select, func, and_, desc, asc, text, or_
@@ -21,6 +22,7 @@ from schemas.inspiration import (
 from utils.exceptions import NotFoundException, BadRequestException
 from utils.pagination import PageResult
 from services.base import BaseService
+from db.redis import RedisCache
 
 
 class InspirationService(BaseService):
@@ -63,6 +65,9 @@ class InspirationService(BaseService):
         
         # 刷新以获取生成的ID和时间戳
         await self.db.refresh(inspiration)
+        
+        # 清除相关缓存
+        await RedisCache.delete_pattern(f"inspiration:list:*")
         
         logger.info(f"灵感创建成功: ID={inspiration.id}, user_id={user_id}")
         return inspiration
@@ -144,6 +149,9 @@ class InspirationService(BaseService):
         await self.db.flush()
         await self.db.refresh(inspiration)
         
+        # 清除相关缓存
+        await RedisCache.delete_pattern(f"inspiration:list:*")
+        
         logger.info(f"灵感更新成功: ID={inspiration_id}")
         return inspiration
     
@@ -162,6 +170,9 @@ class InspirationService(BaseService):
         inspiration = await self.get_inspiration_by_id(inspiration_id, user_id)
         inspiration.status = InspirationStatus.DELETED.value
         await self.db.flush()
+        
+        # 清除相关缓存
+        await RedisCache.delete_pattern(f"inspiration:list:*")
         
         logger.info(f"灵感删除成功: ID={inspiration_id}")
     
@@ -293,7 +304,21 @@ class InspirationService(BaseService):
             order_func = desc if params.sort_order == "desc" else asc
             query = query.order_by(order_func(Inspiration.created_at))
         
-        # 查询总数
+        # 生成缓存键（基于查询参数）
+        cache_key = self._generate_cache_key(user_id, params)
+        
+        # 尝试从缓存获取
+        cached_result = await RedisCache.get_json(cache_key)
+        if cached_result:
+            logger.debug(f"灵感列表缓存命中: user_id={user_id}")
+            return PageResult(
+                list=[Inspiration(**item) for item in cached_result.get("items", [])],
+                total=cached_result.get("total", 0),
+                pageNum=params.pageNum,
+                pageSize=params.pageSize
+            )
+        
+        # 查询总数（添加超时设置）
         count_query = select(func.count(Inspiration.id)).where(and_(*conditions))
         
         # 绑定参数（如果使用了text()）
@@ -306,10 +331,17 @@ class InspirationService(BaseService):
         if count_params:
             count_query = count_query.params(**count_params)
         
-        total_result = await self.db.execute(count_query)
-        total = total_result.scalar() or 0
+        # 添加查询超时（5秒）
+        count_query = count_query.execution_options(timeout=5)
         
-        # 分页查询
+        try:
+            total_result = await self.db.execute(count_query)
+            total = total_result.scalar() or 0
+        except Exception as e:
+            logger.error(f"查询总数超时或失败: {e}")
+            total = 0
+        
+        # 分页查询（添加超时设置）
         query = query.offset(params.offset).limit(params.pageSize)
         
         # 绑定参数（如果使用了text()）
@@ -322,15 +354,56 @@ class InspirationService(BaseService):
         if query_params:
             query = query.params(**query_params)
         
-        result = await self.db.execute(query)
-        items = result.scalars().all()
+        # 添加查询超时（5秒）
+        query = query.execution_options(timeout=5)
         
-        return PageResult(
+        try:
+            result = await self.db.execute(query)
+            items = result.scalars().all()
+        except Exception as e:
+            logger.error(f"查询列表超时或失败: {e}")
+            items = []
+        
+        # 构建返回结果
+        page_result = PageResult(
             list=items,
             total=total,
             pageNum=params.pageNum,
             pageSize=params.pageSize
         )
+        
+        # 缓存结果（5分钟）
+        if items:
+            cache_data = {
+                "items": [self._inspiration_to_dict(item) for item in items],
+                "total": total
+            }
+            await RedisCache.set_json(cache_key, cache_data, expire=300)
+        
+        return page_result
+    
+    def _generate_cache_key(self, user_id: int, params: InspirationQueryParams) -> str:
+        """生成缓存键"""
+        # 构建参数字符串
+        params_str = f"{user_id}_{params.pageNum}_{params.pageSize}_{params.status or ''}_{params.project_id or ''}_{params.tag or ''}_{params.keyword or ''}_{params.is_pinned or ''}_{params.sort_by or ''}_{params.sort_order or ''}"
+        # 使用MD5生成短键名
+        key_hash = hashlib.md5(params_str.encode()).hexdigest()
+        return f"inspiration:list:{key_hash}"
+    
+    def _inspiration_to_dict(self, inspiration: Inspiration) -> Dict[str, Any]:
+        """将Inspiration对象转换为字典（用于缓存）"""
+        return {
+            "id": inspiration.id,
+            "user_id": inspiration.user_id,
+            "project_id": inspiration.project_id,
+            "content": inspiration.content,
+            "tags": inspiration.tags,
+            "status": inspiration.status,
+            "is_pinned": inspiration.is_pinned,
+            "generated_content": inspiration.generated_content,
+            "created_at": inspiration.created_at.isoformat() if inspiration.created_at else None,
+            "updated_at": inspiration.updated_at.isoformat() if inspiration.updated_at else None,
+        }
     
     async def update_generated_content(
         self,

@@ -74,7 +74,7 @@
           :class="{ disabled: !canComplete }"
           @tap="handleComplete"
         >
-          <text class="btn-text">激活 IP 并进入工作站 →</text>
+         <text class="btn-text">生成IP定位报告 </text>
         </view>
       </view>
     </view>
@@ -361,11 +361,7 @@ function handleComplete() {
     return
   }
   
-  /**
-   * 构建收集的数据（IPCollectFormData 类型）
-   * 从完整的 formData（ProjectFormData）中提取收集步骤涉及的字段
-   * 传递给父组件，父组件会调用 formDataToCreateRequest() 转换为 API 请求
-   */
+  // 构建表单数据（用于生成报告）
   const collectedData: IPCollectFormData = {
     name: formData.name,
     industry: formData.industry,
@@ -379,8 +375,39 @@ function handleComplete() {
     keywords: formData.keywords
   }
   
-  emit('complete', collectedData)
+  // 保存表单数据到本地存储，然后跳转到报告页面
+  try {
+    const formDataStr = JSON.stringify(collectedData)
+    uni.setStorageSync('ip_form_data_temp', formDataStr)
+
+    console.log('表单数据已保存，准备跳转到报告页面')
+
+    // 跳转到报告展示页面（报告页面会调用接口生成报告）
+    uni.navigateTo({
+      url: '/pages/project/report',
+      success: () => {
+        console.log('跳转成功')
+        // 跳转成功后，关闭当前对话框
+        // emit('close')
+      },
+      fail: (err) => {
+        console.error('跳转失败:', err)
+        uni.showToast({
+          title: '跳转失败',
+          icon: 'none'
+        })
+      }
+    })
+  } catch (error: any) {
+    console.error('保存数据失败:', error)
+    uni.showToast({
+      title: error.message || '保存数据失败',
+      icon: 'none',
+      duration: 2000
+    })
+  }
 }
+
 
 function handleClose() {
   emit('close')

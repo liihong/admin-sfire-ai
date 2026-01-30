@@ -105,6 +105,54 @@ export interface IPCompressResponse {
   }
 }
 
+// IP定位报告生成请求
+export interface IPReportRequest {
+  name: string
+  industry: string
+  introduction?: string
+  tone?: string
+  target_audience?: string
+  target_pains?: string
+  keywords?: string[]
+  industry_understanding?: string
+  unique_views?: string
+  catchphrase?: string
+}
+
+// IP定位报告内容
+export interface IPReportContentMoat {
+  insight: string  // 反共识洞察
+  emotional_hook: string  // 情感钩子
+}
+
+export interface IPReportLanguageFingerprint {
+  tone_modeling: string  // 语感建模
+  atmosphere: string  // 标志性氛围
+}
+
+export interface IPReportBusinessPotential {
+  viral_potential: string  // 爆款潜质
+  red_lines: string  // 人设红线
+}
+
+export interface IPReportData {
+  name: string
+  persona_tags: string[]  // 人格标签
+  core_archetype: string  // 核心原型
+  one_line_intro: string  // 一句话简介
+  content_moat: IPReportContentMoat
+  language_fingerprint: IPReportLanguageFingerprint
+  business_potential: IPReportBusinessPotential
+  expert_message: string  // 专家寄语
+}
+
+// IP定位报告响应
+export interface IPReportResponse {
+  report: IPReportData
+  score: number  // IP数字化程度评分（0-100）
+  score_reason: string  // 评分理由
+}
+
 // IPCollectFormData 类型定义已移至 types/project.ts
 // 这里重新导出以保持向后兼容
 export type { IPCollectFormData } from '@/types/project'
@@ -147,6 +195,26 @@ export async function compressIPInfo(
   }
 
   throw new Error((response as any).msg || '压缩失败')
+}
+
+/**
+ * 生成IP定位报告
+ */
+export async function generateIPReport(
+  requestParams: IPReportRequest
+): Promise<IPReportResponse> {
+  const response = await request<IPReportResponse>({
+    url: '/api/v1/client/projects/generate-ip-report',
+    method: 'POST',
+    data: requestParams
+  })
+
+  // 后端返回格式: {code: 200, data: IPReportResponse, msg: "..."}
+  if (response.code === 200 && response.data) {
+    return response.data
+  }
+
+  throw new Error((response as any).msg || 'IP定位报告生成失败')
 }
 
 // ============== 项目 CRUD 操作 ==============

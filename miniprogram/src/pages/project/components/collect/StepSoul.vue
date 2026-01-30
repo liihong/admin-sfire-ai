@@ -5,7 +5,7 @@
       
       <!-- 目标受众输入 -->
       <view class="form-section">
-        <text class="form-label">目标受众 <text class="required-mark">*</text></text>
+       <text class="form-label">目标人群 <text class="required-mark">*</text></text>
         <input 
           class="form-input"
           :value="formData.target_audience"

@@ -99,6 +99,14 @@
       }
     },
     {
+      "path": "pages/project/report",
+      "style": {
+        "navigationBarTitleText": "IP定位报告",
+        "navigationStyle": "custom",
+        "disableScroll": false
+      }
+    },
+    {
       "path": "pages/contact/index",
       "style": {
         "navigationBarTitleText": "联系客服",

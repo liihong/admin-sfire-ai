@@ -269,7 +269,9 @@ class CoinServiceFactory:
         actual_cost: Decimal,
         input_tokens: int = 0,
         output_tokens: int = 0,
-        model_name: str = ""
+        model_name: str = "",
+        agent_id: Optional[int] = None,
+        agent_name: Optional[str] = None
     ) -> dict:
         """
         原子化结算算力（乐观锁 CAS + 解冻 + 扣除）
@@ -281,6 +283,8 @@ class CoinServiceFactory:
             input_tokens: 输入Token数
             output_tokens: 输出Token数
             model_name: 模型名称
+            agent_id: 智能体ID（可选）
+            agent_name: 智能体名称（可选）
         
         Returns:
             结算结果字典
@@ -291,7 +295,9 @@ class CoinServiceFactory:
             actual_cost=actual_cost,
             input_tokens=input_tokens,
             output_tokens=output_tokens,
-            model_name=model_name
+            model_name=model_name,
+            agent_id=agent_id,
+            agent_name=agent_name
         )
     
     async def refund_amount_atomic(

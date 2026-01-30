@@ -3,6 +3,8 @@ Client Project Endpoints
 C端项目管理接口（小程序 & PC官网）
 支持项目的创建、查询、更新、删除、切换等功能
 """
+import json
+import re
 from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -10,6 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from db import get_db
 from models.user import User
 from core.deps import get_current_miniprogram_user, get_current_miniprogram_user_optional
+from core.config import settings
 from services.resource import ProjectService
 from services.system import DictionaryService
 from schemas.project import (
@@ -23,6 +26,9 @@ from schemas.project import (
     IPCollectResponse,
     IPCompressRequest,
     IPCompressResponse,
+    IPReportRequest,
+    IPReportResponse,
+    IPReportData,
 )
 from utils.response import success
 from utils.exceptions import NotFoundException, BadRequestException
@@ -69,6 +75,8 @@ def _build_frontend_project(project_dict: dict) -> dict:
         "keywords": persona_settings.get("keywords", []),
         "taboos": persona_settings.get("taboos", []),
         "benchmark_accounts": persona_settings.get("benchmark_accounts", []),
+        # Master Prompt（独立字段）
+        "master_prompt": project_dict.get("master_prompt"),
         # 其他字段
         "isActive": project_dict.get("is_active", False),
         "createdAt": project_dict.get("created_at", "").isoformat() if project_dict.get("created_at") else "",
@@ -506,4 +514,245 @@ async def ai_compress_ip_info(
         from loguru import logger
         logger.error(f"IP信息压缩失败: {e}")
         raise BadRequestException(f"信息压缩失败: {str(e)}")
+
+
+@router.post("/generate-ip-report", summary="生成IP定位报告")
+async def generate_ip_report(
+    request: IPReportRequest,
+    current_user: User = Depends(get_current_miniprogram_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    IP定位报告生成接口
+    
+    使用agent ID=13生成IP定位报告，包含：
+    - 数字化人格画像
+    - 内容护城河
+    - 语言指纹分析
+    - 商业潜力与避坑指南
+    - 专家寄语
+    - IP数字化程度评分（0-100）
+    """
+    try:
+        # 1. 获取配置的agent ID
+        agent_id = settings.IP_REPORT_AGENT_ID
+        result = await db.execute(
+            select(Agent).filter(Agent.id == agent_id)
+        )
+        agent = result.scalar_one_or_none()
+        
+        if not agent:
+            raise NotFoundException(f"Agent ID={agent_id} 不存在")
+        
+        # 检查agent状态（系统自用或已上架）
+        if agent.is_system != 1 and agent.status != 1:
+            raise BadRequestException(
+                f"Agent ID={agent_id} 既不是系统自用（is_system={agent.is_system}）也未上架（status={agent.status}）"
+            )
+        
+        # 2. 清理用户输入，防止Prompt注入
+        def sanitize_prompt_input(text: Optional[str], max_length: int = 500) -> str:
+            """清理用户输入，防止Prompt注入"""
+            if not text:
+                return "未填写"
+            # 移除可能的指令字符
+            text = text.replace("```", "").replace("```json", "").replace("```python", "")
+            text = text.replace("\n\n\n", "\n\n")  # 限制连续换行
+            # 限制长度
+            return text[:max_length] if len(text) > max_length else text
+        
+        # 清理关键词
+        keywords_clean = []
+        if request.keywords:
+            for kw in request.keywords[:10]:  # 限制关键词数量
+                cleaned = sanitize_prompt_input(kw, 20)
+                if cleaned and cleaned != "未填写":
+                    keywords_clean.append(cleaned)
+        keywords_str = "、".join(keywords_clean) if keywords_clean else "无"
+        
+        # 构建Prompt
+        prompt_text = f"""请根据以下IP信息，生成一份IP数字化人格定位报告。
+
+IP信息：
+- 名称：{sanitize_prompt_input(request.name, 100)}
+- 行业：{sanitize_prompt_input(request.industry, 50)}
+- IP简介：{sanitize_prompt_input(request.introduction, 1000)}
+- 语气风格：{sanitize_prompt_input(request.tone, 50)}
+- 目标受众：{sanitize_prompt_input(request.target_audience, 500)}
+- 目标人群痛点：{sanitize_prompt_input(request.target_pains, 500)}
+- 关键词：{keywords_str}
+- 行业理解：{sanitize_prompt_input(request.industry_understanding, 500)}
+- 独特观点：{sanitize_prompt_input(request.unique_views, 500)}
+- 口头禅：{sanitize_prompt_input(request.catchphrase, 100)}
+
+请生成一份完整的IP定位报告，包含以下内容：
+
+1. 数字化人格画像：
+   - 人格标签（3-5个，如：深耕者、县城觉醒者、技术降维派）
+   - 核心原型（如：实干大哥、专业导师等）
+   - 一句话简介
+
+2. 内容护城河：
+   - 反共识洞察（IP的独特观点）
+   - 情感钩子（受众通过IP获得的情感价值）
+
+3. 语言指纹分析：
+   - 语感建模（语言风格特点）
+   - 标志性氛围（语言营造的氛围）
+
+4. 商业潜力与避坑指南：
+   - 爆款潜质（哪些内容容易成为爆款）
+   - 人设红线（需要避免的内容）
+
+5. 专家寄语（一段鼓励和建议的话）
+
+6. IP数字化程度评分（0-100分）及评分理由
+
+请以JSON格式返回，格式如下：
+{{
+  "report": {{
+    "name": "IP名称",
+    "persona_tags": ["标签1", "标签2", "标签3"],
+    "core_archetype": "核心原型",
+    "one_line_intro": "一句话简介",
+    "content_moat": {{
+      "insight": "反共识洞察",
+      "emotional_hook": "情感钩子"
+    }},
+    "language_fingerprint": {{
+      "tone_modeling": "语感建模",
+      "atmosphere": "标志性氛围"
+    }},
+    "business_potential": {{
+      "viral_potential": "爆款潜质",
+      "red_lines": "人设红线"
+    }},
+    "expert_message": "专家寄语"
+  }},
+  "score": 85,
+  "score_reason": "评分理由"
+}}
+
+请确保返回的是有效的JSON格式，不要添加任何额外的文本或格式标记。"""
+        
+        # 3. 调用AgentExecutor执行agent（非流式，不注入IP基因）
+        executor = AgentExecutor(db)
+        response, _, _, _ = await executor.execute_non_stream(
+            agent=agent,
+            user_input=prompt_text,
+            persona_prompt=None,  # 不注入IP基因
+            temperature=0.7,
+            max_tokens=3000  # 报告较长，需要更多tokens
+        )
+        
+        # 4. 解析返回的JSON格式报告（增强容错性）
+        def extract_json_from_text(text: str) -> dict:
+            """
+            从文本中提取JSON对象，支持多种格式
+            
+            Args:
+                text: 包含JSON的文本
+                
+            Returns:
+                解析后的JSON字典
+                
+            Raises:
+                ValueError: 无法提取有效的JSON
+            """
+            if not text:
+                raise ValueError("响应文本为空")
+            
+            # 方法1: 查找JSON代码块（```json ... ```）
+            json_match = re.search(r'```json\s*(\{.*?\})\s*```', text, re.DOTALL)
+            if json_match:
+                try:
+                    return json.loads(json_match.group(1))
+                except json.JSONDecodeError:
+                    pass
+            
+            # 方法2: 查找普通代码块（``` ... ```）
+            code_match = re.search(r'```\s*(\{.*?\})\s*```', text, re.DOTALL)
+            if code_match:
+                try:
+                    return json.loads(code_match.group(1))
+                except json.JSONDecodeError:
+                    pass
+            
+            # 方法3: 查找第一个完整的JSON对象（通过括号匹配）
+            brace_count = 0
+            start_idx = text.find('{')
+            if start_idx == -1:
+                raise ValueError("未找到JSON对象起始标记")
+            
+            for i in range(start_idx, len(text)):
+                if text[i] == '{':
+                    brace_count += 1
+                elif text[i] == '}':
+                    brace_count -= 1
+                    if brace_count == 0:
+                        json_str = text[start_idx:i+1]
+                        try:
+                            return json.loads(json_str)
+                        except json.JSONDecodeError:
+                            # 如果解析失败，尝试清理后重试
+                            json_str_clean = re.sub(r'[^\x20-\x7E\n\r\t]', '', json_str)  # 移除非ASCII字符
+                            try:
+                                return json.loads(json_str_clean)
+                            except json.JSONDecodeError:
+                                pass
+                        break
+            
+            # 方法4: 尝试直接解析整个文本
+            try:
+                return json.loads(text.strip())
+            except json.JSONDecodeError:
+                pass
+            
+            raise ValueError("无法从响应中提取有效的JSON对象")
+        
+        report_data = None
+        try:
+            report_data = extract_json_from_text(response)
+        except ValueError as e:
+            logger.error(f"IP定位报告JSON提取失败: {e}, 原始响应前500字符: {response[:500]}")
+            raise BadRequestException(f"报告生成失败：无法解析AI返回的JSON格式。错误：{str(e)}。请重试。")
+        except Exception as e:
+            logger.error(f"IP定位报告JSON解析异常: {e}, 原始响应前500字符: {response[:500]}", exc_info=True)
+            raise BadRequestException(f"报告生成失败：JSON解析异常。请重试。")
+        
+        # 5. 验证和构建响应
+        if not isinstance(report_data, dict) or "report" not in report_data:
+            raise BadRequestException("报告生成失败：返回数据格式不正确")
+        
+        report_dict = report_data.get("report", {})
+        score = report_data.get("score", 0)
+        score_reason = report_data.get("score_reason", "未提供评分理由")
+        
+        # 验证评分范围
+        if not isinstance(score, int) or score < 0 or score > 100:
+            score = 0
+            score_reason = "评分数据异常，已重置为0"
+        
+        # 构建响应对象
+        try:
+            report_response = IPReportResponse(
+                report=IPReportData(**report_dict),
+                score=score,
+                score_reason=score_reason
+            )
+        except Exception as e:
+            logger.error(f"IP定位报告数据验证失败: {e}, 数据: {report_dict}")
+            raise BadRequestException(f"报告生成失败：数据格式验证失败。请重试。")
+        
+        logger.info(f"IP定位报告生成成功: 用户ID={current_user.id}, IP名称={request.name}, 评分={score}")
+        
+        return success(data=report_response.model_dump(), msg="报告生成成功")
+        
+    except NotFoundException:
+        raise
+    except BadRequestException:
+        raise
+    except Exception as e:
+        logger.error(f"IP定位报告生成失败: {e}", exc_info=True)
+        raise BadRequestException(f"报告生成失败: {str(e)}")
 

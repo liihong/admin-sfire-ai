@@ -17,10 +17,42 @@ from sqlalchemy import (
     JSON,
     Text,
     Enum as SQLEnum,
+    TypeDecorator,
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from models.base import BaseModel
+from utils.json_utils import json_dumps, json_loads
+
+
+class UnicodeJSON(TypeDecorator):
+    """
+    自定义 JSON 类型，支持中文（ensure_ascii=False）
+    
+    对于MySQL，JSON类型字段的序列化由驱动处理，我们需要重写序列化逻辑
+    使用Text类型存储JSON字符串，确保中文不被转义
+    """
+    impl = Text
+    cache_ok = True
+    
+    def process_bind_param(self, value, dialect):
+        """序列化时使用 ensure_ascii=False"""
+        if value is not None:
+            if isinstance(value, dict):
+                return json_dumps(value)
+            return value
+        return None
+    
+    def process_result_value(self, value, dialect):
+        """反序列化时正常解析"""
+        if value is not None:
+            if isinstance(value, str):
+                try:
+                    return json_loads(value)
+                except (json.JSONDecodeError, TypeError):
+                    return {}
+            return value if isinstance(value, dict) else {}
+        return {}
 
 if TYPE_CHECKING:
     from models.user import User
@@ -86,13 +118,21 @@ class Project(BaseModel):
         comment="头像背景色",
     )
     
-    # === 人设配置（JSON存储） ===
+    # === 人设配置（JSON存储，支持中文） ===
     persona_settings: Mapped[dict] = mapped_column(
-        JSON,
+        UnicodeJSON,
         default=dict,
         server_default="{}",
         nullable=False,
         comment="IP人设配置（JSON格式）",
+    )
+    
+    # === Master Prompt（独立字段，不限制长度） ===
+    master_prompt: Mapped[Optional[str]] = mapped_column(
+        Text,
+        default=None,
+        nullable=True,
+        comment="Master Prompt（IP核心特征描述，由Agent自动生成）",
     )
     
     # === 状态字段 ===
@@ -128,8 +168,8 @@ class Project(BaseModel):
             return self.persona_settings
         if isinstance(self.persona_settings, str):
             try:
-                return json.loads(self.persona_settings)
-            except json.JSONDecodeError:
+                return json_loads(self.persona_settings)
+            except (json.JSONDecodeError, TypeError):
                 return {}
         return {}
     

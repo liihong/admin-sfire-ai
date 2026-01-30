@@ -227,10 +227,18 @@ async def global_exception_handler(
     exc: Exception
 ) -> JSONResponse:
     """处理未捕获的全局异常"""
+    # 安全地格式化异常信息，避免格式化错误
+    exc_type = type(exc).__name__
+    exc_msg = str(exc) if exc else "Unknown error"
+    path = request.url.path if request.url else "unknown"
+    method = request.method if request.method else "unknown"
+    
     logger.error(
-        f"Unhandled Exception: {type(exc).__name__}: {str(exc)} | "
-        f"Path: {request.url.path} | "
-        f"Method: {request.method}",
+        "Unhandled Exception: {}: {} | Path: {} | Method: {}",
+        exc_type,
+        exc_msg,
+        path,
+        method,
         exc_info=True
     )
     

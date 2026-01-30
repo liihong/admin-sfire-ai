@@ -1,7 +1,7 @@
 <template>
   <scroll-view class="step-content" scroll-y>
     <view class="step-wrapper">
-      <TipCard title="定义风格" desc="设定IP的语气风格和详细描述，帮助AI更好地理解您的IP特色" />
+     <TipCard title="定义风格" desc="设定IP的语气风格，帮助AI更好地理解您的IP特色" />
       
       <!-- 语气风格选择 -->
       <view class="form-section">
@@ -83,11 +83,8 @@ function getIntroductionTemplate(name?: string): string {
   const nameLine = name ? `名字：${name}\n` : ''
   return `${nameLine}个人经历：
 为什么做这个项目：
-行业/项目：
 产品或服务特色：
 东西咋来的：
-目标客户：
-客户啥烦恼：
 你的想法和信念：
 真实小故事或别人咋说：
 现在咋样，以后咋打算：`

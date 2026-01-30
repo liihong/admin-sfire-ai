@@ -243,17 +243,25 @@ class PromptBuilder:
         return max(1, tokens)  # 至少1个token
 
     @staticmethod
-    def extract_persona_prompt(persona_settings: Dict) -> str:
+    def extract_persona_prompt(persona_settings: Dict, master_prompt: Optional[str] = None) -> str:
         """
         从 persona_settings 提取IP人设Prompt
+        
+        如果提供了 master_prompt，则优先使用 master_prompt（作为核心描述），
+        然后补充其他详细配置信息。
 
         Args:
             persona_settings: IP人设配置
+            master_prompt: Master Prompt（IP核心特征描述，可选）
 
         Returns:
             格式化的IP人设Prompt
         """
         parts = []
+
+        # 优先使用 Master Prompt（如果存在）
+        if master_prompt and master_prompt.strip():
+            parts.append(f"## IP核心特征\n{master_prompt.strip()}")
 
         # 基本信息
         introduction = persona_settings.get("introduction", "")
@@ -299,6 +307,29 @@ class PromptBuilder:
             return ""
 
         return "## IP人设\n\n" + "\n\n".join(parts)
+
+    @staticmethod
+    def get_ip_persona_prompt_from_project(project) -> str:
+        """
+        从项目对象获取IP人设提示词（统一入口）
+        
+        优先使用 project.master_prompt，如果不存在则返回空字符串（不注入人格）
+        
+        Args:
+            project: 项目对象（Project模型实例）
+        
+        Returns:
+            IP人设提示词字符串，如果没有 master_prompt 则返回空字符串
+        """
+        if not project:
+            return ""
+        
+        # 优先使用 master_prompt（如果存在且非空）
+        if project.master_prompt and project.master_prompt.strip():
+            return project.master_prompt.strip()
+        
+        # 如果没有 master_prompt，返回空字符串（不注入人格）
+        return ""
 
     @staticmethod
     async def intelligent_routing(

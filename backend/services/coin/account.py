@@ -562,7 +562,9 @@ class CoinAccountService:
         actual_cost: Decimal,
         input_tokens: int = 0,
         output_tokens: int = 0,
-        model_name: str = ""
+        model_name: str = "",
+        agent_id: Optional[int] = None,
+        agent_name: Optional[str] = None
     ) -> dict:
         """
         ✅ 原子化结算算力（乐观锁 CAS + 解冻 + 扣除）
@@ -591,6 +593,8 @@ class CoinAccountService:
             input_tokens: 输入Token数
             output_tokens: 输出Token数
             model_name: 模型名称
+            agent_id: 智能体ID（可选）
+            agent_name: 智能体名称（可选）
 
         Returns:
             {
@@ -688,12 +692,30 @@ class CoinAccountService:
                 freeze_log.settled_at = datetime.now()
 
                 # 创建消耗流水
-                remark = (
-                    f"AI对话消耗 - "
-                    f"输入: {input_tokens} tokens, 输出: {output_tokens} tokens"
-                )
+                # 构建备注信息：只包含agent和模型信息，不包含token信息
+                remark_parts = []
+                if agent_name:
+                    remark_parts.append(f"智能体: {agent_name}")
+                elif agent_id:
+                    remark_parts.append(f"智能体ID: {agent_id}")
                 if model_name:
-                    remark += f", 模型: {model_name}"
+                    remark_parts.append(f"模型: {model_name}")
+                
+                remark = "AI对话消耗"
+                if remark_parts:
+                    remark += " - " + ", ".join(remark_parts)
+
+                # 构建扩展数据（JSON格式，存储agent和模型详细信息）
+                extra_data_dict = {}
+                if agent_id:
+                    extra_data_dict["agent_id"] = agent_id
+                if agent_name:
+                    extra_data_dict["agent_name"] = agent_name
+                if model_name:
+                    extra_data_dict["model_name"] = model_name
+                
+                import json
+                extra_data_json = json.dumps(extra_data_dict) if extra_data_dict else None
 
                 consume_log = ComputeLog(
                     user_id=user_id,
@@ -703,7 +725,8 @@ class CoinAccountService:
                     after_balance=after_balance,
                     remark=remark,
                     task_id=request_id,
-                    source="api"
+                    source="api",
+                    extra_data=extra_data_json
                 )
                 self.db.add(consume_log)
 
