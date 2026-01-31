@@ -11,7 +11,7 @@ import { useAuthStore } from '@/stores/auth'
 export interface RequestConfig {
   url: string
   method?: 'GET' | 'POST' | 'PUT' | 'DELETE' | 'OPTIONS' | 'HEAD' | 'TRACE' | 'CONNECT'
-  data?: any
+  data?: unknown
   header?: Record<string, string>
   timeout?: number
   dataType?: string
@@ -27,7 +27,7 @@ export interface RequestConfig {
 }
 
 // 响应类型（后端返回格式: {code: 200, data: {...}, msg: "..."}）
-export interface ResponseData<T = any> {
+export interface ResponseData<T = unknown> {
   code: number
   data?: T
   msg?: string
@@ -88,14 +88,10 @@ function requestInterceptor(config: RequestConfig): RequestConfig {
         if (token) {
           config.header['Authorization'] = `Bearer ${token}`
           config.header["X-My-Gate-Key"] = "Huoyuan2026";
-        } else {
-          console.warn('[requestInterceptor] No token available for request:', config.url)
         }
-      } else {
-        console.warn('[requestInterceptor] authStore.getToken is not available')
       }
-    } catch (error) {
-      console.error('[requestInterceptor] Failed to get token:', error)
+    } catch {
+    // 静默失败
     }
   }
   
@@ -127,45 +123,23 @@ async function handleUnauthorized(originalConfig?: RequestConfig): Promise<boole
 
   // 检查是否有 refreshToken（刷新 token 需要 refreshToken）
   const refreshToken = authStore.getRefreshToken()
-  console.log('[401] Checking refreshToken:', !!refreshToken)
   if (!refreshToken) {
-    // 再次尝试从 storage 直接读取（可能内存中还没有加载）
-    try {
-      const storedRefreshToken = uni.getStorageSync('sfire_ai_refresh_token')
-      console.log('[401] Stored refreshToken exists:', !!storedRefreshToken)
-      if (storedRefreshToken) {
-        // 如果 storage 中有，更新到内存并重试
-        console.log('[401] Found refreshToken in storage, updating memory and retrying')
-        // 这里不直接清除，而是返回 false，让调用方决定如何处理
-        isHandling401 = false
-        return false
-      }
-    } catch (e) {
-      console.error('[401] Failed to check storage for refreshToken:', e)
-    }
-    
-    console.warn('[401] No refresh token found in memory or storage, cannot refresh, clearing auth')
-    console.trace('[401] Call stack when clearing auth:')
-    // authStore.clearAuth()
-
     // 立即重置标志，避免重复处理
     isHandling401 = false
 
     // 延迟跳转，避免在请求回调中直接跳转
-    setTimeout(() => {
-      uni.reLaunch({
-        url: '/pages/login/index'
-      })
-    }, 0)
+    // setTimeout(() => {
+    //   uni.reLaunch({
+    //     url: '/pages/login/index'
+    //   })
+    // }, 0)
     return false
   }
 
   // 尝试刷新 token（会同时更新 access_token 和 refresh_token）
-  console.log('[401] Attempting to refresh token with refreshToken')
   const refreshResult = await authStore.refreshAccessToken()
 
   if (refreshResult.success) {
-    console.log('[401] Token refreshed successfully, both access_token and refresh_token updated')
     isHandling401 = false
     return true
   }
@@ -173,44 +147,36 @@ async function handleUnauthorized(originalConfig?: RequestConfig): Promise<boole
   // 刷新失败
   if (refreshResult.isNetworkError) {
     // 网络错误，保留当前认证状态，不跳转登录页
-    // 但可以尝试使用当前 token 重试原请求（可能 token 仍然有效）
-    console.warn('[401] Token refresh failed due to network error, keeping current auth state')
     isHandling401 = false
-
-    // 如果原请求存在，尝试使用当前 token 重试（不刷新 token）
-    if (originalConfig) {
-      console.log('[401] Retrying original request with current token (network error case)')
-      const retryConfig = { ...originalConfig, _isRetry: true }
-      // 注意：这里不等待重试结果，直接返回 false，让调用方处理
-      // 因为重试可能成功也可能失败，不应该阻塞
-    }
-
     return false
   }
 
   // token 失效，清除认证信息并跳转到登录页
   // 注意：只有在 refresh_token 真正失效时才清除（不是网络错误）
-  console.warn('[401] Token refresh failed (token invalid), clearing auth and redirecting to login')
-  console.trace('[401] Call stack when clearing auth due to invalid token:')
-  // authStore.clearAuth()
-
-  // 立即重置标志，避免重复处理
   isHandling401 = false
 
   // 延迟跳转，避免在请求回调中直接跳转
-  setTimeout(() => {
-    uni.reLaunch({
-      url: '/pages/login/index'
-    })
-  }, 0)
+  // setTimeout(() => {
+  //   uni.reLaunch({
+  //     url: '/pages/login/index'
+  //   })
+  // }, 0)
 
   return false
 }
 
 /**
+ * SSE 响应数据块
+ */
+interface SSEChunk {
+  conversation_id?: number
+  content?: string
+}
+
+/**
  * 解析 SSE (Server-Sent Events) 格式的流式响应
  */
-function parseSSEResponse(sseData: string): any {
+function parseSSEResponse(sseData: string): { code: number; data: { conversation_id?: number; content: string } } {
   const lines = sseData.split('\n')
   let conversationId: number | undefined
   let content = ''
@@ -220,7 +186,7 @@ function parseSSEResponse(sseData: string): any {
     if (trimmed.startsWith('data: ')) {
       try {
         const jsonStr = trimmed.substring(6) // 移除 "data: " 前缀
-        const parsed = JSON.parse(jsonStr)
+        const parsed = JSON.parse(jsonStr) as SSEChunk
 
         if (parsed.conversation_id !== undefined) {
           conversationId = parsed.conversation_id
@@ -228,9 +194,8 @@ function parseSSEResponse(sseData: string): any {
         if (parsed.content) {
           content += parsed.content
         }
-      } catch (e) {
+      } catch {
         // 忽略解析错误，继续处理下一行
-        console.warn('Failed to parse SSE data line:', trimmed)
       }
     }
   }
@@ -266,8 +231,7 @@ function responseInterceptor<T>(response: UniApp.RequestSuccessCallbackResult): 
   if (isSSEResponse) {
     try {
       processedData = parseSSEResponse(dataStr)
-    } catch (error) {
-      console.error('Failed to parse SSE response:', error)
+    } catch {
       return {
         success: false,
         message: '解析流式响应失败',
@@ -278,12 +242,12 @@ function responseInterceptor<T>(response: UniApp.RequestSuccessCallbackResult): 
 
   // 检查响应数据中的code字段（后端可能返回HTTP 200但code为401）
   // 确保 processedData 是对象而不是字符串
-  let responseData: any
+  let responseData: ResponseData<T>
   if (typeof processedData === 'string') {
     // 如果仍然是字符串，尝试解析为 JSON
     try {
-      responseData = JSON.parse(processedData)
-    } catch (e) {
+      responseData = JSON.parse(processedData) as ResponseData<T>
+    } catch {
       return {
         success: false,
         message: '响应数据格式错误',
@@ -291,7 +255,7 @@ function responseInterceptor<T>(response: UniApp.RequestSuccessCallbackResult): 
       }
     }
   } else {
-    responseData = processedData
+    responseData = processedData as ResponseData<T>
   }
 
   const responseCode = responseData?.code
@@ -338,20 +302,27 @@ function responseInterceptor<T>(response: UniApp.RequestSuccessCallbackResult): 
   }
   
   // 其他错误
+  const errorData = data as { message?: string; detail?: string } | null
   return {
     success: false,
     data: data as T,
-    message: (data as any)?.message || (data as any)?.detail || '请求失败',
+    message: errorData?.message || errorData?.detail || '请求失败',
     code: statusCode
   }
 }
 
 /**
+ * Uni.request 错误类型
+ */
+interface UniRequestError {
+  errMsg: string
+  statusCode?: number
+}
+
+/**
  * 错误处理器
  */
-function errorHandler(error: any): ResponseData {
-  console.error('Request error:', error)
-  
+function errorHandler(error: UniRequestError): ResponseData {
   // 网络错误
   if (error.errMsg?.includes('request:fail')) {
     return {
@@ -380,7 +351,7 @@ function errorHandler(error: any): ResponseData {
 /**
  * 核心请求方法
  */
-export function request<T = any>(config: RequestConfig): Promise<ResponseData<T>> {
+export function request<T = unknown>(config: RequestConfig): Promise<ResponseData<T>> {
   return new Promise(async (resolve) => {
     // 请求拦截
     const processedConfig = requestInterceptor(config)
@@ -408,11 +379,10 @@ export function request<T = any>(config: RequestConfig): Promise<ResponseData<T>
 
         // 如果是 401 错误，尝试刷新 token 并重试
         // 注意：如果是重试请求（_isRetry=true），不再刷新，直接返回错误，避免死循环
-        if ((result as any).needRefresh && !config._isRetry) {
+        if (result.needRefresh && !config._isRetry) {
           const refreshSuccess = await handleUnauthorized(config)
           if (refreshSuccess) {
             // 刷新成功，重新发起请求（标记为重试，避免再次刷新）
-            console.log('[request] Retrying request after token refresh')
             const retryConfig = { ...config, _isRetry: true }
             const retryResult = await request<T>(retryConfig)
             resolve(retryResult)

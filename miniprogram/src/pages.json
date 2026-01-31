@@ -29,6 +29,22 @@
       }
     },
     {
+      "path": "pages/agreement/user",
+      "style": {
+        "navigationBarTitleText": "用户协议",
+        "navigationStyle": "custom",
+        "disableScroll": false
+      }
+    },
+    {
+      "path": "pages/agreement/privacy",
+      "style": {
+        "navigationBarTitleText": "隐私政策",
+        "navigationStyle": "custom",
+        "disableScroll": false
+      }
+    },
+    {
       "path": "pages/agent/index",
       "style": {
         "navigationBarTitleText": "火源文案智能体",

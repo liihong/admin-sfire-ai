@@ -67,14 +67,14 @@ export interface IPCollectRequest {
     content: string
   }>
   step?: number
-  context?: Record<string, any>
+  context?: Record<string, unknown>
 }
 
 // IP信息采集对话响应
 export interface IPCollectResponse {
   reply: string
   next_step?: number
-  collected_info?: Record<string, any>
+  collected_info?: Record<string, unknown>
   is_complete: boolean
 }
 
@@ -88,7 +88,7 @@ export interface IPCompressRequest {
     target_audience?: string
     catchphrase?: string
     keywords?: string[]
-    [key: string]: any
+    [key: string]: unknown
   }
 }
 
@@ -174,7 +174,7 @@ export async function aiCollectIPInfo(
     return response.data as IPCollectResponse
   }
   
-  throw new Error((response as any).msg || '采集失败')
+  throw new Error(response.msg || '采集失败')
 }
 
 /**
@@ -223,7 +223,12 @@ export async function generateIPReport(
  * 获取项目列表
  */
 export async function fetchProjects(): Promise<FetchProjectsResponse> {
-  const response = await request<any>({
+  interface ProjectsResponseData {
+    projects: Project[]
+    active_project_id?: string | number
+  }
+
+  const response = await request<ProjectsResponseData>({
     url: '/api/v1/client/projects',
     method: 'GET'
   })
@@ -238,7 +243,7 @@ export async function fetchProjects(): Promise<FetchProjectsResponse> {
     }
   }
 
-  throw new Error((response as any).msg || '获取项目列表失败')
+  throw new Error(response.msg || '获取项目列表失败')
 }
 
 /**
@@ -280,7 +285,7 @@ export async function updateProject(projectId: string, data: ProjectUpdateReques
  * 删除项目
  */
 export async function deleteProject(projectId: string): Promise<boolean> {
-  const response = await request<any>({
+  const response = await request<unknown>({
     url: `/api/v1/client/projects/${projectId}`,
     method: 'DELETE'
   })
@@ -290,7 +295,7 @@ export async function deleteProject(projectId: string): Promise<boolean> {
     return true
   }
 
-  throw new Error((response as any).msg || '删除项目失败')
+  throw new Error(response.msg || '删除项目失败')
 }
 
 // ============== 字典选项 ==============

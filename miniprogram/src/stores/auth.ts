@@ -8,6 +8,7 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import { loginWithCode, refreshAccessToken as refreshTokenAPI, getCurrentUserInfo, type AuthUserInfo } from '@/api/user'
+import { storage } from '@/utils/storage'
 
 // 用户信息类型（导出以便其他地方使用）
 export type UserInfo = AuthUserInfo
@@ -40,11 +41,7 @@ export const useAuthStore = defineStore('auth', () => {
     // 优先检查内存中的 token
     if (token.value) return true
     // 再检查本地存储
-    try {
-      return !!uni.getStorageSync(TOKEN_KEY)
-    } catch {
-      return false
-    }
+    return storage.has(TOKEN_KEY)
   })
   
   // ============== Actions ==============
@@ -54,12 +51,7 @@ export const useAuthStore = defineStore('auth', () => {
    */
   function setToken(newToken: string) {
     token.value = newToken
-    // 持久化存储
-    try {
-      uni.setStorageSync(TOKEN_KEY, newToken)
-    } catch (error) {
-      console.error('Failed to save token:', error)
-    }
+    storage.set(TOKEN_KEY, newToken)
   }
   
   /**
@@ -67,12 +59,7 @@ export const useAuthStore = defineStore('auth', () => {
    */
   function setRefreshToken(newRefreshToken: string) {
     refreshToken.value = newRefreshToken
-    // 持久化存储
-    try {
-      uni.setStorageSync(REFRESH_TOKEN_KEY, newRefreshToken)
-    } catch (error) {
-      console.error('Failed to save refresh token:', error)
-    }
+    storage.set(REFRESH_TOKEN_KEY, newRefreshToken)
   }
   
   /**
@@ -83,14 +70,10 @@ export const useAuthStore = defineStore('auth', () => {
       return refreshToken.value
     }
     // 尝试从本地存储恢复
-    try {
-      const storedRefreshToken = uni.getStorageSync(REFRESH_TOKEN_KEY)
-      if (storedRefreshToken) {
-        refreshToken.value = storedRefreshToken
-        return storedRefreshToken
-      }
-    } catch (error) {
-      console.error('Failed to get refresh token:', error)
+    const storedRefreshToken = storage.get<string>(REFRESH_TOKEN_KEY)
+    if (storedRefreshToken) {
+      refreshToken.value = storedRefreshToken
+      return storedRefreshToken
     }
     return ''
   }
@@ -100,19 +83,11 @@ export const useAuthStore = defineStore('auth', () => {
    */
   function setUserInfo(info: UserInfo) {
     if (!info) {
-      console.warn('[setUserInfo] Invalid user info:', info)
       return
     }
     
     userInfo.value = info
-    // 持久化存储
-    try {
-      const jsonStr = JSON.stringify(info)
-      uni.setStorageSync(USER_INFO_KEY, jsonStr)
-      console.log('[setUserInfo] User info saved to storage:', jsonStr)
-    } catch (error) {
-      console.error('[setUserInfo] Failed to save user info:', error)
-    }
+    storage.set(USER_INFO_KEY, info)
   }
   
   /**
@@ -126,15 +101,11 @@ export const useAuthStore = defineStore('auth', () => {
     }
     
     // 尝试从本地存储恢复
-    try {
-      const storedToken = uni.getStorageSync(TOKEN_KEY)
-      if (storedToken) {
-        // 更新内存并返回（不判断过期，保留token以便刷新）
-        token.value = storedToken
-        return storedToken
-      }
-    } catch (error) {
-      console.error('Failed to get token:', error)
+    const storedToken = storage.get<string>(TOKEN_KEY)
+    if (storedToken) {
+      // 更新内存并返回（不判断过期，保留token以便刷新）
+      token.value = storedToken
+      return storedToken
     }
     return ''
   }
@@ -145,46 +116,37 @@ export const useAuthStore = defineStore('auth', () => {
    */
   async function loadFromStorage() {
     try {
-      console.log('[loadFromStorage] Starting to load auth info from storage')
-      
       // 加载 token（不判断过期，保留token以便后续刷新）
-      const storedToken = uni.getStorageSync(TOKEN_KEY)
-      console.log('[loadFromStorage] Stored token exists:', !!storedToken)
+      const storedToken = storage.get<string>(TOKEN_KEY)
       if (storedToken) {
         token.value = storedToken
       }
       
       // 加载 refresh token（refresh_token 长期有效，不需要检查过期）
-      const storedRefreshToken = uni.getStorageSync(REFRESH_TOKEN_KEY)
-      console.log('[loadFromStorage] Stored refreshToken exists:', !!storedRefreshToken)
+      const storedRefreshToken = storage.get<string>(REFRESH_TOKEN_KEY)
       if (storedRefreshToken) {
         refreshToken.value = storedRefreshToken
       }
       
       // 加载用户信息
-      const storedUserInfo = uni.getStorageSync(USER_INFO_KEY)
-      console.log('[loadFromStorage] Stored userInfo exists:', !!storedUserInfo)
+      const storedUserInfo = storage.get<UserInfo>(USER_INFO_KEY)
       if (storedUserInfo) {
-        userInfo.value = JSON.parse(storedUserInfo)
+        userInfo.value = storedUserInfo
       }
       
       // 如果有token，尝试刷新用户信息（这会自动处理token刷新）
       // refreshUserInfo 内部会通过 request 工具自动处理401和token刷新
       if (storedToken) {
-        console.log('[loadFromStorage] Token found, will refresh user info asynchronously')
         // 延迟一下，确保 refreshToken 已经加载到内存
         setTimeout(() => {
-          refreshUserInfo().catch((error) => {
-            console.error('[loadFromStorage] Failed to refresh user info:', error)
+          refreshUserInfo().catch(() => {
             // refreshUserInfo 失败时，request工具已经处理了token刷新和清除逻辑
             // 这里不需要额外处理
           })
         }, 100)
-      } else {
-        console.log('[loadFromStorage] No token found, skipping refresh')
       }
-    } catch (error) {
-      console.error('[loadFromStorage] Failed to load auth info:', error)
+    } catch {
+    // 静默失败
     }
   }
   
@@ -192,19 +154,12 @@ export const useAuthStore = defineStore('auth', () => {
    * 清除认证信息（登出）
    */
   function clearAuth() {
-    console.warn('[clearAuth] Clearing auth info - this should not happen on page refresh!')
-    console.trace('[clearAuth] Call stack:')
     token.value = ''
     refreshToken.value = ''
     userInfo.value = null
-    try {
-      uni.removeStorageSync(TOKEN_KEY)
-      uni.removeStorageSync(REFRESH_TOKEN_KEY)
-      uni.removeStorageSync(USER_INFO_KEY)
-      console.warn('[clearAuth] Storage cleared')
-    } catch (error) {
-      console.error('Failed to clear auth:', error)
-    }
+    storage.remove(TOKEN_KEY)
+    storage.remove(REFRESH_TOKEN_KEY)
+    storage.remove(USER_INFO_KEY)
   }
   
   /**
@@ -217,12 +172,9 @@ export const useAuthStore = defineStore('auth', () => {
       const loginResult = await wxLogin()
       
       if (!loginResult.code) {
-        console.error('Failed to get login code')
         return false
       }
-      
-      console.log('Got login code:', loginResult.code)
-      
+
       // 发送 code 给后端换取 token
       const response = await loginWithCode(loginResult.code)
       
@@ -235,13 +187,11 @@ export const useAuthStore = defineStore('auth', () => {
         if (response.data.userInfo) {
           setUserInfo(response.data.userInfo)
         }
-        console.log('Silent login success')
         return true
       }
       
       return false
-    } catch (error) {
-      console.error('Silent login failed:', error)
+    } catch {
       return false
     }
   }
@@ -282,7 +232,6 @@ export const useAuthStore = defineStore('auth', () => {
   async function refreshAccessToken(): Promise<{success: boolean, isNetworkError?: boolean}> {
     const currentRefreshToken = getRefreshToken()
     if (!currentRefreshToken) {
-      console.warn('[refreshToken] No refresh token found')
       return { success: false, isNetworkError: false }
     }
     
@@ -304,19 +253,14 @@ export const useAuthStore = defineStore('auth', () => {
           setRefreshToken(response.data.refreshToken)
           // 确保内存中的refreshToken是最新的
           refreshToken.value = response.data.refreshToken
-        } else {
-          console.warn('[refreshToken] No refreshToken in response, keeping old one')
         }
-        
-        console.log('[refreshToken] Token refreshed successfully, both tokens updated')
-        console.log('[refreshToken] New token saved to memory and storage')
+
         return { success: true }
       }
       
       return { success: false, isNetworkError }
     } catch (error) {
       // 异常情况，可能是网络错误
-      console.error('[refreshToken] Refresh failed:', error)
       return { success: false, isNetworkError: true }
     }
   }
@@ -332,16 +276,21 @@ export const useAuthStore = defineStore('auth', () => {
   async function refreshUserInfo(): Promise<boolean> {
     const currentToken = getToken()
     if (!currentToken) {
-      console.warn('[refreshUserInfo] No token found')
       return false
     }
     
     // 即使 token 可能即将过期，也尝试请求
     // 如果返回 401，request 工具会自动尝试刷新 token
-    
+
     try {
       const response = await getCurrentUserInfo()
       
+      // 检查响应是否有效
+      if (!response) {
+        console.warn('刷新用户信息失败: 响应为空')
+        return false
+      }
+
       // 如果返回 401，request 工具已经处理了刷新逻辑
       // 这里只需要处理成功的情况
       if (response.code === 200 && response.data) {
@@ -351,7 +300,7 @@ export const useAuthStore = defineStore('auth', () => {
         if (typeof response.data === 'object' && response.data !== null) {
           // 如果返回格式是 {success: true, userInfo: {...}}
           if ('userInfo' in response.data) {
-            userInfoData = (response.data as any).userInfo
+            userInfoData = (response.data as { userInfo: UserInfo }).userInfo
           }
           // 如果返回格式是直接的用户信息对象
           else if ('openid' in response.data) {
@@ -361,18 +310,21 @@ export const useAuthStore = defineStore('auth', () => {
 
         if (userInfoData) {
           setUserInfo(userInfoData)
-          console.log('[refreshUserInfo] User info refreshed successfully:', userInfoData)
           return true
         } else {
-          console.warn('[refreshUserInfo] No userInfo in response data:', response.data)
+          console.warn('刷新用户信息失败: 无法解析用户信息数据', response.data)
         }
       } else {
-        console.warn('[refreshUserInfo] API response error:', response.code, response.msg)
+        // 非200响应，记录日志但不抛出异常（401等错误已由request工具处理）
+        if (response.code !== 401) {
+          console.warn('刷新用户信息失败: 响应码', response.code, response.msg || response.message)
+        }
       }
       
       return false
     } catch (error) {
-      console.error('[refreshUserInfo] Refresh failed:', error)
+      // 捕获可能的异常（虽然request工具理论上不会抛出异常，但为了防御性编程）
+      console.error('刷新用户信息异常:', error)
       return false
     }
   }
@@ -457,8 +409,7 @@ export const useAuthStore = defineStore('auth', () => {
       // 如果过期时间小于当前时间，说明已过期
       // 提前 5 分钟刷新（避免在边界时间出现问题）
       return exp < (now + 300)
-    } catch (error) {
-      console.error('[isTokenExpired] Failed to check token expiration:', error)
+    } catch {
       // 解析失败，认为已过期
       return true
     }
@@ -504,20 +455,17 @@ function wxLogin(): Promise<{ code: string }> {
         if (res.code) {
           resolve({ code: res.code })
         } else {
-          console.error('uni.login failed: no code returned')
           reject(new Error('获取登录 code 失败'))
         }
       },
       fail: (err) => {
-        console.error('uni.login error:', err)
         reject(err)
       }
     })
     // #endif
-    
+
     // #ifndef MP-WEIXIN
     // 非微信小程序环境（H5、App 等），不支持微信登录
-    console.error('uni.login is not supported in non-WeChat environment')
     reject(new Error('当前环境不支持微信登录'))
     // #endif
   })

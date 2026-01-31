@@ -7,6 +7,7 @@
 
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
+import { storage } from '@/utils/storage'
 
 // 支持的模型类型
 export type ModelType = 'deepseek' | 'doubao' | 'gpt4' | 'claude'
@@ -89,8 +90,6 @@ export const useSettingsStore = defineStore('settings', () => {
     if (model && model.available) {
       modelType.value = type
       saveToStorage()
-    } else {
-      console.warn(`Model ${type} is not available`)
     }
   }
   
@@ -98,34 +97,23 @@ export const useSettingsStore = defineStore('settings', () => {
    * 保存设置到本地存储
    */
   function saveToStorage() {
-    try {
-      const settings = {
-        modelType: modelType.value
-      }
-      uni.setStorageSync(STORAGE_KEY, JSON.stringify(settings))
-    } catch (error) {
-      console.error('Failed to save settings:', error)
+    const settings = {
+      modelType: modelType.value
     }
+    storage.set(STORAGE_KEY, settings)
   }
   
   /**
    * 从本地存储加载设置
    */
   function loadFromStorage() {
-    try {
-      const stored = uni.getStorageSync(STORAGE_KEY)
-      if (stored) {
-        const settings = JSON.parse(stored)
-        if (settings.modelType) {
-          // 验证模型类型是否有效
-          const model = MODEL_LIST.find(m => m.type === settings.modelType)
-          if (model && model.available) {
-            modelType.value = settings.modelType
-          }
-        }
+    const stored = storage.get<{ modelType: ModelType }>(STORAGE_KEY)
+    if (stored?.modelType) {
+      // 验证模型类型是否有效
+      const model = MODEL_LIST.find(m => m.type === stored.modelType)
+      if (model && model.available) {
+        modelType.value = stored.modelType
       }
-    } catch (error) {
-      console.error('Failed to load settings:', error)
     }
   }
   

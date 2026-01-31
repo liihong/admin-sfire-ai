@@ -3,7 +3,7 @@
     <!-- 用户信息卡片 -->
     <view class="user-card">
       <view class="user-info">
-        <view class="avatar-container">
+       <view class="avatar-container">
          <!-- #ifdef MP-WEIXIN -->
           <button class="avatar-wrapper" open-type="chooseAvatar" @chooseavatar="handleChooseAvatar">
             <image 
@@ -21,13 +21,17 @@
           <view class="avatar-wrapper">
             <image class="avatar" :src="userInfo.avatar || '/static/default-avatar.png'" mode="aspectFill" />
             <!-- 皇冠图标 -->
-            <view class="crown-badge" v-if="userInfo.level && userInfo.level !== 'normal'">
+           <view class="crown-badge">
               <text class="crown-text">{{ userInfo.level?.[0]?.toUpperCase() || '' }}</text>
            </view>
          </view>
           <!-- #endif -->
-         <text class="phone-number">{{ displayPhone }}</text>
-          <view class="tags-row">
+         <!-- 未登录时显示登录按钮，已登录时显示手机号 -->
+          <view v-if="!authStore.isLoggedIn" class="login-btn-wrapper">
+            <button class="login-btn" @tap="goToLogin">登录</button>
+          </view>
+          <text v-else class="phone-number">{{ displayPhone }}</text>
+          <view class="tags-row" v-if="authStore.isLoggedIn">
            <text class="vip-tag" v-if="userInfo.level && userInfo.level !== 'normal'">
               {{ userInfo.level.toUpperCase() }} 用户
             </text>
@@ -54,7 +58,7 @@
     </view>
 
     <!-- 我的算力卡片 -->
-    <view class="stat-card">
+   <view class="stat-card" v-if="authStore.isLoggedIn">
       <view class="stat-header">
         <view class="stat-title-wrapper">
           <SvgIcon name="suanli" size="32" color="#F37021" />
@@ -278,6 +282,13 @@ const goToMembership = () => {
   })
 }
 
+// 跳转到登录页面
+const goToLogin = () => {
+  uni.navigateTo({
+    url: '/pages/login/index'
+  })
+}
+
 // 菜单点击
 const handleMenuClick = (item: any) => {
   if (item.path) {
@@ -397,6 +408,36 @@ onShow(() => {
   line-height: 1.2;
 }
 
+.login-btn-wrapper {
+  margin-bottom: 16rpx;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.login-btn {
+  padding: 0 48rpx;
+  height: 72rpx;
+  background: $primary-orange;
+  border-radius: 36rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 32rpx;
+  color: $white;
+  font-weight: 600;
+  border: none;
+  line-height: 1;
+}
+
+.login-btn::after {
+  border: none;
+}
+
+.login-btn:active {
+  opacity: 0.9;
+  transform: scale(0.98);
+}
 .tags-row {
   display: flex;
   align-items: center;

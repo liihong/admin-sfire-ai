@@ -372,7 +372,6 @@ function handleChat(inspiration: Inspiration) {
 
 // 编辑灵感
 function handleEdit(inspiration: Inspiration) {
-  // TODO: 实现编辑功能
   uni.showToast({ title: '编辑功能开发中', icon: 'none' })
 }
 
@@ -436,8 +435,7 @@ async function handleArchive(inspiration: Inspiration) {
 
 // 点击灵感项
 function handleItemClick(inspiration: Inspiration) {
-  // TODO: 跳转到详情页或展开详情
-  console.log('点击灵感:', inspiration)
+  // 跳转到详情页或展开详情（功能待实现）
 }
 
 // 关闭生成预览弹窗

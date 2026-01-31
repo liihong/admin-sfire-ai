@@ -9,6 +9,7 @@ import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import { getAgentList, type Agent } from '@/api/agent'
 import type { ResponseData } from '@/utils/request'
+import { storage } from '@/utils/storage'
 
 // ============== 类型定义 ==============
 
@@ -51,38 +52,21 @@ export const useAgentStore = defineStore('agent', () => {
    * 从 storage 读取激活的智能体信息
    */
   function getActiveAgentFromStorage(): ActiveAgent | null {
-    try {
-      const stored = uni.getStorageSync(ACTIVE_AGENT_INFO_KEY)
-      if (stored) {
-        return JSON.parse(stored) as ActiveAgent
-      }
-      return null
-    } catch (error) {
-      console.error('Failed to get active agent from storage:', error)
-      return null
-    }
+    return storage.get<ActiveAgent>(ACTIVE_AGENT_INFO_KEY)
   }
 
   /**
    * 保存激活的智能体信息到 storage
    */
   function saveActiveAgentToStorage(agent: ActiveAgent) {
-    try {
-      uni.setStorageSync(ACTIVE_AGENT_INFO_KEY, JSON.stringify(agent))
-    } catch (error) {
-      console.error('Failed to save active agent to storage:', error)
-    }
+    storage.set(ACTIVE_AGENT_INFO_KEY, agent)
   }
 
   /**
    * 清除 storage 中的激活智能体信息
    */
   function clearActiveAgentFromStorage() {
-    try {
-      uni.removeStorageSync(ACTIVE_AGENT_INFO_KEY)
-    } catch (error) {
-      console.error('Failed to clear active agent from storage:', error)
-    }
+    storage.remove(ACTIVE_AGENT_INFO_KEY)
   }
 
   /**
@@ -117,7 +101,6 @@ export const useAgentStore = defineStore('agent', () => {
           activeAgent.value = agentInfo
           saveActiveAgentToStorage(agentInfo)
         } else {
-          console.warn(`未找到 ID 为 ${agentId} 的智能体`)
           // 如果找不到，使用默认值
           const agentInfo: ActiveAgent = {
             id: agentId,
@@ -129,7 +112,6 @@ export const useAgentStore = defineStore('agent', () => {
           saveActiveAgentToStorage(agentInfo)
         }
       } else {
-        console.error('获取智能体列表失败:', response.msg)
         // 失败时使用默认值
         const agentInfo: ActiveAgent = {
           id: agentId,
@@ -140,8 +122,7 @@ export const useAgentStore = defineStore('agent', () => {
         activeAgent.value = agentInfo
         saveActiveAgentToStorage(agentInfo)
       }
-    } catch (error) {
-      console.error('获取智能体详情失败:', error)
+    } catch {
       // 失败时使用默认值
       const agentInfo: ActiveAgent = {
         id: agentId,

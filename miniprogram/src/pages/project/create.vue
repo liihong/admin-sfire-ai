@@ -19,7 +19,9 @@
 
 <script setup lang="ts">
 import { ref } from 'vue'
+import { onLoad } from '@dcloudio/uni-app'
 import { useProjectStore } from '@/stores/project'
+import { useAuthStore } from '@/stores/auth'
 import IPCollectDialog from './components/IPCollectDialog.vue'
 import SafeAreaTop from '@/components/common/SafeAreaTop.vue'
 import { createProject } from '@/api/project'
@@ -29,9 +31,36 @@ import type { IPCollectFormData } from '@/api/project'
 
 // Store
 const projectStore = useProjectStore()
+const authStore = useAuthStore()
 
 // 提交状态
 const isSubmitting = ref(false)
+
+/**
+ * 页面加载时检查登录状态
+ * 如果是游客模式，友好提醒用户登录（不阻断页面）
+ */
+onLoad(() => {
+  // 检查用户是否已登录
+  if (!authStore.isLoggedIn) {
+    uni.showModal({
+      title: '提示',
+      content: '该功能需登录才能体验完整流程',
+      showCancel: true,
+      cancelText: '稍后',
+      confirmText: '去登录',
+      success: (res) => {
+        if (res.confirm) {
+          // 点击"去登录"，跳转到登录页面
+          uni.navigateTo({
+            url: '/pages/login/index'
+          })
+        }
+        // 点击"稍后"或取消，留在当前页面，不做任何操作
+      }
+    })
+  }
+})
 
 // 处理关闭对话框
 function handleClose() {

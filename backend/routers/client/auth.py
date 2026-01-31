@@ -312,6 +312,36 @@ async def generate_miniprogram_qrcode(scene: str, page: str = "") -> bytes:
 
 # ============== Helper Functions for User Info ==============
 
+def mask_phone(phone: Optional[str]) -> str:
+    """
+    将手机号中间四位替换为*号
+    
+    Args:
+        phone: 手机号字符串
+    
+    Returns:
+        脱敏后的手机号，例如：138****5678
+        如果手机号为空或格式不正确，返回空字符串
+    """
+    if not phone:
+        return ""
+    
+    # 移除所有非数字字符
+    phone_digits = ''.join(filter(str.isdigit, phone))
+    
+    # 中国手机号通常是11位数字
+    if len(phone_digits) == 11:
+        # 格式：前3位 + **** + 后4位
+        return f"{phone_digits[:3]}****{phone_digits[7:]}"
+    elif len(phone_digits) >= 7:
+        # 如果长度不是11位但大于等于7位，也进行脱敏处理
+        # 保留前3位和后4位，中间用*号替换
+        return f"{phone_digits[:3]}****{phone_digits[-4:]}"
+    else:
+        # 长度不足，返回原值或空字符串
+        return ""
+
+
 def build_user_info(user: User) -> UserInfo:
     """
     构建用户信息对象（包含完整的等级信息）
@@ -372,11 +402,14 @@ def build_user_info(user: User) -> UserInfo:
     # 获取头像URL
     avatar_url = user.avatar or ""
     
+    # 处理手机号：将中间四位替换为*号
+    masked_phone = mask_phone(user.phone)
+    
     return UserInfo(
         openid=user.openid or "",
         nickname=user.nickname or "微信用户",
         avatar=avatar_url,
-        phone=user.phone or "",
+        phone=masked_phone,
         gender=0,
         city="",
         province="",

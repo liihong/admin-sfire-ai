@@ -176,7 +176,7 @@ function scrollToBottom() {
 }
 
 function onScrollToUpper() {
-  // TODO: 加载历史消息
+  // 加载历史消息（功能待实现）
 }
 
 function onInputLineChange() {

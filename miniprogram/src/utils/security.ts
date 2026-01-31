@@ -82,14 +82,13 @@ export async function msgSecCheck(
 
     // 如果后端返回错误，默认通过（避免因检测服务异常影响正常使用）
     // 也可以根据实际需求改为返回失败
-    console.warn('安全检测服务异常，默认通过:', response.msg)
+    // 安全检测服务异常，默认通过
     return {
       pass: true,
       message: '安全检测服务暂时不可用，已跳过检测'
     }
-  } catch (error: any) {
+  } catch {
     // 网络错误或其他异常，默认通过（避免因检测服务异常影响正常使用）
-    console.error('安全检测失败:', error)
     return {
       pass: true,
       message: '安全检测服务暂时不可用，已跳过检测'

@@ -32,11 +32,33 @@ export function getBalance(): Promise<{ code: number; data: CoinBalanceResponse;
 }
 
 /**
+ * 算力交易记录项
+ */
+export interface CoinTransactionItem {
+  id: number
+  type: string
+  amount: number
+  balance: number
+  description?: string
+  created_at: string
+}
+
+/**
+ * 算力交易记录响应
+ */
+export interface CoinTransactionsResponse {
+  list: CoinTransactionItem[]
+  total: number
+  pageNum: number
+  pageSize: number
+}
+
+/**
  * 获取算力交易记录
  */
 export function getCoinTransactions(params: CoinTransactionsRequest) {
   const queryString = `pageNum=${params.pageNum}&pageSize=${params.pageSize}`
-  return request<any>({
+  return request<CoinTransactionsResponse>({
     url: `/api/v1/client/coin/transactions?${queryString}`,
     method: 'GET',
     showLoading: false

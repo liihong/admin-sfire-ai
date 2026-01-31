@@ -121,8 +121,7 @@ async function handleInspirationSend(text: string, tags: string[]) {
 
 // 处理麦克风点击
 function handleMicClick() {
-  console.log('点击麦克风')
-  // TODO: 实现语音输入逻辑
+  // 实现语音输入逻辑（功能待实现）
   uni.showToast({ title: '语音功能即将上线', icon: 'none' })
 }
 

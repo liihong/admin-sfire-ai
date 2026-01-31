@@ -74,10 +74,10 @@ function handleClick(entry: QuickEntry) {
     // 跳转到 copywriting 页面，只传递 agentId
     route = `/pages/copywriting/index?agentId=${entry.action_value}`
   } else if (entry.action_type === 'skill') {
-    // TODO: 跳转到 skill 页面
+    // 跳转到 skill 页面（功能待实现）
     route = ''
   } else if (entry.action_type === 'prompt') {
-    // TODO: 处理 prompt 类型
+    // 处理 prompt 类型（功能待实现）
     route = ''
   }
 

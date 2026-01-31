@@ -48,7 +48,7 @@ export interface ChatRequest {
 export interface ChatResponseData {
   content?: string
   conversation_id?: number
-  [key: string]: any
+  [key: string]: unknown
 }
 
 export interface StreamChatCallbacks {
@@ -139,9 +139,8 @@ function arrayBufferToString(buffer: ArrayBuffer | Uint8Array): string {
       } else if (buffer instanceof Uint8Array) {
         return decoder.decode(buffer)
       }
-    } catch (e) {
+    } catch {
       // TextDecoder 解码失败，降级到手动转换
-      console.warn('TextDecoder 解码失败，使用降级方案:', e)
     }
   }
 
@@ -149,9 +148,8 @@ function arrayBufferToString(buffer: ArrayBuffer | Uint8Array): string {
   try {
     const uint8Array = buffer instanceof ArrayBuffer ? new Uint8Array(buffer) : buffer
     return decodeUTF8(uint8Array)
-  } catch (e) {
-    // 如果转换失败，返回空字符串并记录错误
-    console.error('ArrayBuffer 转字符串失败:', e)
+  } catch {
+    // 如果转换失败，返回空字符串
     return ''
   }
 }
@@ -244,9 +242,12 @@ export function chatStream(
 
     // onChunkReceived 处理真正的流式数据
     try {
-      const task = requestTask as any
+      interface RequestTaskWithChunk {
+        onChunkReceived?: (res: { data: string | ArrayBuffer | Uint8Array }) => void
+      }
+      const task = requestTask as RequestTaskWithChunk
       if (task && typeof task.onChunkReceived === 'function') {
-        task.onChunkReceived((res: any) => {
+        task.onChunkReceived((res: { data: string | ArrayBuffer | Uint8Array }) => {
           if (res && res.data) {
             hasRealStreaming = true
 

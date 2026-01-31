@@ -35,7 +35,10 @@ export function useProject(options?: {
   // 初始化项目（从 URL 参数或 store）
   async function initProject(projectId?: string | number) {
     const pages = getCurrentPages()
-    const currentPage = pages[pages.length - 1] as any
+    interface PageInstance {
+      options?: Record<string, string>
+    }
+    const currentPage = pages[pages.length - 1] as PageInstance | undefined
     const urlParams = currentPage?.options || {}
     const urlProjectId = projectId || urlParams.id
     

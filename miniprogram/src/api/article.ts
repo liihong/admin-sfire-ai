@@ -46,7 +46,11 @@ export function getArticleList(
   pageSize: number = 10
 ) {
   let url = '/api/v1/client/articles'
-  const params: any = {
+  const params: {
+    pageNum: number
+    pageSize: number
+    category?: string
+  } = {
     pageNum,
     pageSize
   }

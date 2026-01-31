@@ -76,7 +76,7 @@
     </scroll-view>
 
   <!-- 创建项目按钮（固定在底部，不随页面滚动） -->
-    <view class="create-project-btn-wrapper" v-if="canCreateProject">
+   <view class="create-project-btn-wrapper" v-if="canCreateProject && projectList.length !== 0">
       <view class="create-project-btn" @tap="navigateToCreate">
         <SvgIcon name="add" size="36" color="#FFFFFF" />
         <text class="create-btn-text">创建新IP</text>

@@ -8,6 +8,7 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import type { QuickEntry } from '@/api/quickEntry'
+import { storage } from '@/utils/storage'
 
 // ============== 类型定义 ==============
 
@@ -50,38 +51,21 @@ export const useQuickEntryStore = defineStore('quickEntry', () => {
    * 从 storage 读取选中的快捷指令信息
    */
   function getActiveQuickEntryFromStorage(): ActiveQuickEntry | null {
-    try {
-      const stored = uni.getStorageSync(ACTIVE_QUICK_ENTRY_INFO_KEY)
-      if (stored) {
-        return JSON.parse(stored) as ActiveQuickEntry
-      }
-      return null
-    } catch (error) {
-      console.error('Failed to get active quick entry from storage:', error)
-      return null
-    }
+    return storage.get<ActiveQuickEntry>(ACTIVE_QUICK_ENTRY_INFO_KEY)
   }
 
   /**
    * 保存选中的快捷指令信息到 storage
    */
   function saveActiveQuickEntryToStorage(entry: ActiveQuickEntry) {
-    try {
-      uni.setStorageSync(ACTIVE_QUICK_ENTRY_INFO_KEY, JSON.stringify(entry))
-    } catch (error) {
-      console.error('Failed to save active quick entry to storage:', error)
-    }
+    storage.set(ACTIVE_QUICK_ENTRY_INFO_KEY, entry)
   }
 
   /**
    * 清除 storage 中的快捷指令信息
    */
   function clearActiveQuickEntryFromStorage() {
-    try {
-      uni.removeStorageSync(ACTIVE_QUICK_ENTRY_INFO_KEY)
-    } catch (error) {
-      console.error('Failed to clear active quick entry from storage:', error)
-    }
+    storage.remove(ACTIVE_QUICK_ENTRY_INFO_KEY)
   }
 
   /**

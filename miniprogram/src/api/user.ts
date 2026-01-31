@@ -225,14 +225,12 @@ export function uploadAvatar(filePath: string): Promise<UploadAvatarResponse> {
             // HTTP 错误
             reject(new Error(data?.msg || data?.message || `上传失败，状态码: ${res.statusCode}`))
           }
-        } catch (error) {
-          console.error('解析上传响应失败:', error)
+        } catch {
           reject(new Error('解析响应数据失败'))
         }
       },
       fail: (error) => {
         uni.hideLoading()
-        console.error('上传头像失败:', error)
         
         // 处理错误信息
         let errorMsg = '上传失败'

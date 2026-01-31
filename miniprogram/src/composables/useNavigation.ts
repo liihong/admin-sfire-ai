@@ -77,7 +77,7 @@ export function useNavigation() {
   ) {
     const categoryName = categoryMap[category] || category
     uni.showToast({ title: `已选择：${categoryName}`, icon: 'none' })
-    // TODO: 导航到对应的分类页面
+    // 导航到对应的分类页面（功能待实现）
   }
   
   return {

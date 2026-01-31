@@ -10,7 +10,7 @@
     <view class="qrcode-card">
       <text class="qrcode-title">扫码联系客服</text>
       <view class="qrcode-wrapper">
-        <image 
+       <image :show-menu-by-longpress="true"
           class="qrcode-image" 
           src="/static/qrcode-placeholder.png" 
           mode="aspectFit"

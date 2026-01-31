@@ -9,6 +9,7 @@ import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import type { Project, PersonaSettings } from '@/types/project'
 import type { ProjectCreateRequest, ProjectUpdateRequest, IPCollectFormData } from '@/api/project'
+import { storage } from '@/utils/storage'
 
 // ============== 类型导出（向后兼容） ==============
 export type { Project, PersonaSettings, ProjectCreateRequest, ProjectUpdateRequest, IPCollectFormData }
@@ -61,20 +62,23 @@ export const useProjectStore = defineStore('project', () => {
     // 已经有 persona_settings 的直接返回
     if (project.persona_settings) return project
 
-    const anyProject = project as any
+    // 定义扁平项目类型（包含可能的人设字段）
+    type FlatProject = Project & Partial<PersonaSettings>
+
+    const flatProject = project as FlatProject
 
     project.persona_settings = {
-      tone: anyProject.tone || DEFAULT_PERSONA_SETTINGS.tone,
-      catchphrase: anyProject.catchphrase || DEFAULT_PERSONA_SETTINGS.catchphrase,
-      target_audience: anyProject.target_audience || DEFAULT_PERSONA_SETTINGS.target_audience,
-      introduction: anyProject.introduction || DEFAULT_PERSONA_SETTINGS.introduction,
-      keywords: anyProject.keywords || [...DEFAULT_PERSONA_SETTINGS.keywords],
-      industry_understanding: anyProject.industry_understanding || DEFAULT_PERSONA_SETTINGS.industry_understanding,
-      unique_views: anyProject.unique_views || DEFAULT_PERSONA_SETTINGS.unique_views,
-      target_pains: anyProject.target_pains || DEFAULT_PERSONA_SETTINGS.target_pains,
-      benchmark_accounts: anyProject.benchmark_accounts || [...DEFAULT_PERSONA_SETTINGS.benchmark_accounts],
-      content_style: anyProject.content_style || DEFAULT_PERSONA_SETTINGS.content_style,
-      taboos: anyProject.taboos || [...DEFAULT_PERSONA_SETTINGS.taboos]
+      tone: flatProject.tone || DEFAULT_PERSONA_SETTINGS.tone,
+      catchphrase: flatProject.catchphrase || DEFAULT_PERSONA_SETTINGS.catchphrase,
+      target_audience: flatProject.target_audience || DEFAULT_PERSONA_SETTINGS.target_audience,
+      introduction: flatProject.introduction || DEFAULT_PERSONA_SETTINGS.introduction,
+      keywords: flatProject.keywords || [...DEFAULT_PERSONA_SETTINGS.keywords],
+      industry_understanding: flatProject.industry_understanding || DEFAULT_PERSONA_SETTINGS.industry_understanding,
+      unique_views: flatProject.unique_views || DEFAULT_PERSONA_SETTINGS.unique_views,
+      target_pains: flatProject.target_pains || DEFAULT_PERSONA_SETTINGS.target_pains,
+      benchmark_accounts: flatProject.benchmark_accounts || [...DEFAULT_PERSONA_SETTINGS.benchmark_accounts],
+      content_style: flatProject.content_style || DEFAULT_PERSONA_SETTINGS.content_style,
+      taboos: flatProject.taboos || [...DEFAULT_PERSONA_SETTINGS.taboos]
     }
 
     return project
@@ -102,35 +106,21 @@ export const useProjectStore = defineStore('project', () => {
    * 从 localStorage 读取激活的项目ID
    */
   function getActiveProjectIdFromStorage(): string | null {
-    try {
-      const projectId = uni.getStorageSync(ACTIVE_PROJECT_ID_KEY)
-      return projectId || null
-    } catch (error) {
-      console.error('Failed to get active project id from storage:', error)
-      return null
-    }
+    return storage.get<string>(ACTIVE_PROJECT_ID_KEY) || null
   }
 
   /**
    * 保存激活的项目ID到 localStorage
    */
   function saveActiveProjectIdToStorage(projectId: string) {
-    try {
-      uni.setStorageSync(ACTIVE_PROJECT_ID_KEY, projectId)
-    } catch (error) {
-      console.error('Failed to save active project id to storage:', error)
-    }
+    storage.set(ACTIVE_PROJECT_ID_KEY, projectId)
   }
 
   /**
    * 清除 localStorage 中的激活项目ID
    */
   function clearActiveProjectIdFromStorage() {
-    try {
-      uni.removeStorageSync(ACTIVE_PROJECT_ID_KEY)
-    } catch (error) {
-      console.error('Failed to clear active project id from storage:', error)
-    }
+    storage.remove(ACTIVE_PROJECT_ID_KEY)
   }
 
   /**
