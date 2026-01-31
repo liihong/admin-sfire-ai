@@ -2,6 +2,7 @@
 火源币账户管理服务
 实现算力的冻结、扣除、退还等核心操作
 """
+import json
 from decimal import Decimal
 from typing import Optional
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -626,7 +627,8 @@ class CoinAccountService:
                     logger.error(f"❌ [CAS结算] 冻结记录不存在: request_id={request_id}")
                     return {'success': False, 'message': '冻结记录不存在'}
 
-                if freeze_log.status != FreezeStatus.FROZEN.value:
+                # ✅ 修复：freeze_log.status 是枚举对象，需要比较枚举对象而不是枚举值
+                if freeze_log.status != FreezeStatus.FROZEN:
                     logger.warning(
                         f"⚠️ [CAS结算] 记录已处理: request_id={request_id}, "
                         f"status={freeze_log.status}"
@@ -714,7 +716,6 @@ class CoinAccountService:
                 if model_name:
                     extra_data_dict["model_name"] = model_name
                 
-                import json
                 extra_data_json = json.dumps(extra_data_dict) if extra_data_dict else None
 
                 consume_log = ComputeLog(
@@ -810,7 +811,7 @@ class CoinAccountService:
                     logger.error(f"❌ [CAS退款] 冻结记录不存在: request_id={request_id}")
                     return {'success': False, 'message': '冻结记录不存在'}
 
-                if freeze_log.status != FreezeStatus.FROZEN.value:
+                if freeze_log.status != FreezeStatus.FROZEN:
                     logger.warning(
                         f"⚠️ [CAS退款] 记录已处理: request_id={request_id}, "
                         f"status={freeze_log.status}"

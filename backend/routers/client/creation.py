@@ -280,6 +280,282 @@ def build_conversation_context(messages: List[ChatMessage]) -> str:
     return "\n".join(context_parts)
 
 
+async def create_or_get_conversation(
+    conversation_service: ConversationBusinessService,
+    request: ChatRequest,
+    current_user: User,
+    db: AsyncSession,
+    agent_model_type: str,
+    db_agent=None
+) -> int:
+    """
+    创建或获取会话ID（复用函数）
+    
+    Args:
+        conversation_service: 会话业务服务
+        request: 请求对象
+        current_user: 当前用户
+        db: 数据库会话
+        agent_model_type: 模型类型
+        db_agent: 数据库智能体对象（可选）
+    
+    Returns:
+        会话ID
+    """
+    from schemas.conversation import ConversationCreate
+    from sqlalchemy import select
+    from models.agent import Agent
+    
+    conversation_id = request.conversation_id
+    
+    if not conversation_id:
+        # 创建新会话
+        agent_name = "新对话"
+        agent_id = None
+        if request.agent_type.isdigit():
+            agent_id = int(request.agent_type)
+            if not db_agent:
+                result = await db.execute(select(Agent).where(Agent.id == agent_id))
+                db_agent = result.scalar_one_or_none()
+            if db_agent:
+                agent_name = db_agent.name
+        
+        # 获取用户的第一句话（截取前30个字符）
+        first_message = ""
+        for msg in request.messages:
+            if msg.role == "user" and msg.content:
+                first_message = msg.content[:30]
+                if len(msg.content) > 30:
+                    first_message += "..."
+                break
+        
+        # 生成会话标题：智能体名称 + 用户第一句话
+        title = f"{agent_name}: {first_message}" if first_message else agent_name
+        
+        conversation_data = ConversationCreate(
+            agent_id=agent_id,
+            project_id=request.project_id,
+            model_type=agent_model_type,
+            title=title,
+        )
+        conversation = await conversation_service.create_conversation(
+            user_id=current_user.id,
+            conversation_data=conversation_data
+        )
+        return conversation.id
+    else:
+        # 验证会话是否存在
+        try:
+            await conversation_service.get_conversation(
+                conversation_id=conversation_id,
+                user_id=current_user.id
+            )
+            return conversation_id
+        except NotFoundException:
+            # 会话不存在，创建新会话
+            logger.warning(f"会话 {conversation_id} 不存在，自动创建新会话（用户ID: {current_user.id}）")
+            
+            agent_name = "新对话"
+            agent_id = None
+            if request.agent_type.isdigit():
+                agent_id = int(request.agent_type)
+                if not db_agent:
+                    result = await db.execute(select(Agent).where(Agent.id == agent_id))
+                    db_agent = result.scalar_one_or_none()
+                if db_agent:
+                    agent_name = db_agent.name
+            
+            # 获取用户的第一句话
+            first_message = ""
+            for msg in request.messages:
+                if msg.role == "user" and msg.content:
+                    first_message = msg.content[:30]
+                    if len(msg.content) > 30:
+                        first_message += "..."
+                    break
+            
+            title = f"{agent_name}: {first_message}" if first_message else agent_name
+            
+            conversation_data = ConversationCreate(
+                agent_id=agent_id,
+                project_id=request.project_id,
+                model_type=agent_model_type,
+                title=title,
+            )
+            conversation = await conversation_service.create_conversation(
+                user_id=current_user.id,
+                conversation_data=conversation_data
+            )
+            return conversation.id
+
+
+async def settle_coin_cost(
+    user_id: int,
+    request_id: str,
+    user_prompt: str,
+    assistant_content: str,
+    llm_model,
+    coin_service,
+    db_agent=None,
+    agent_type: str = None,
+    is_stream: bool = False
+) -> bool:
+    """
+    算力结算（复用函数）
+    
+    Args:
+        user_id: 用户ID
+        request_id: 请求ID
+        user_prompt: 用户输入
+        assistant_content: AI回复内容
+        llm_model: 模型对象
+        coin_service: 算力服务（用于估算token）
+        db_agent: 数据库智能体对象（可选）
+        agent_type: 智能体类型（可选）
+        is_stream: 是否为流式响应
+    
+    Returns:
+        是否结算成功
+    """
+    try:
+        # 估算实际token使用
+        input_tokens = coin_service.estimate_tokens_from_text(user_prompt)
+        output_tokens = coin_service.estimate_tokens_from_text(assistant_content)
+        
+        logger.info(f"💰 [原子结算] Token估算完成: 输入={input_tokens}, 输出={output_tokens}")
+        
+        # 计算实际消耗金额
+        actual_cost = await coin_service.calculate_cost(
+            input_tokens=input_tokens,
+            output_tokens=output_tokens,
+            model_id=llm_model.id
+        )
+        
+        logger.info(f"💰 [原子结算] 成本计算完成: {actual_cost} (模型ID={llm_model.id}, 模型名称={llm_model.name})")
+        
+        # ✅ 即使成本为0，也需要执行结算（解冻+创建流水记录）
+        if actual_cost == 0:
+            logger.warning(f"⚠️ [原子结算] 成本为0，但仍需执行结算以解冻预冻结金额并创建流水记录")
+        
+        # 获取agent信息用于日志记录
+        agent_id_for_log = None
+        agent_name_for_log = None
+        if db_agent:
+            agent_id_for_log = db_agent.id
+            agent_name_for_log = db_agent.name
+        elif agent_type and agent_type.isdigit():
+            agent_id_for_log = int(agent_type)
+        
+        # 使用原子化结算（独立事务，无锁冲突）
+        from db.session import async_session_maker
+        async with async_session_maker() as settle_db:
+            settle_coin_service = CoinServiceFactory(settle_db)
+            
+            logger.info(f"🔍 [原子结算] 准备调用settle_amount_atomic: user_id={user_id}, request_id={request_id}, actual_cost={actual_cost}")
+            
+            try:
+                settle_result = await settle_coin_service.settle_amount_atomic(
+                    user_id=user_id,
+                    request_id=request_id,
+                    actual_cost=actual_cost,
+                    input_tokens=input_tokens,
+                    output_tokens=output_tokens,
+                    model_name=llm_model.name,
+                    agent_id=agent_id_for_log,
+                    agent_name=agent_name_for_log
+                )
+            except Exception as settle_error:
+                logger.exception(f"❌ [原子结算] settle_amount_atomic调用异常: {str(settle_error)}")
+                raise
+            
+            logger.info(f"🔍 [原子结算] settle_result: {settle_result}")
+            
+            if settle_result.get('success'):
+                stream_type = "流式" if is_stream else "非流式"
+                logger.info(
+                    f"✅ [原子结算] 算力结算成功（{stream_type}）: "
+                    f"用户ID={user_id}, "
+                    f"输入Token={input_tokens}, "
+                    f"输出Token={output_tokens}, "
+                    f"结算金额={actual_cost}"
+                )
+                return True
+            else:
+                logger.error(
+                    f"❌ [原子结算] 算力结算失败（{'流式' if is_stream else '非流式'}）: "
+                    f"用户ID={user_id}, "
+                    f"request_id={request_id}, "
+                    f"错误={settle_result.get('message', '未知错误')}, "
+                    f"结算金额={actual_cost}"
+                )
+                return False
+    
+    except (BadRequestException, NotFoundException) as e:
+        logger.error(
+            f"⚠️ [原子结算] 业务异常（{'流式' if is_stream else '非流式'}）: "
+            f"用户ID={user_id}, request_id={request_id}, 错误={str(e)}"
+        )
+        import traceback
+        logger.error(f"业务异常堆栈: {traceback.format_exc()}")
+        return False
+    except Exception as e:
+        logger.exception(
+            f"❌ [原子结算] 算力结算异常（{'流式' if is_stream else '非流式'}）: "
+            f"用户ID={user_id}, request_id={request_id}, 错误={str(e)}"
+        )
+        import traceback
+        logger.error(f"异常堆栈: {traceback.format_exc()}")
+        return False
+
+
+async def refund_frozen_coin(
+    user_id: int,
+    request_id: str,
+    reason: str = "AI生成失败"
+) -> bool:
+    """
+    退还算力（复用函数）
+    
+    Args:
+        user_id: 用户ID
+        request_id: 请求ID
+        reason: 退款原因
+    
+    Returns:
+        是否退款成功
+    """
+    try:
+        from db.session import async_session_maker
+        async with async_session_maker() as refund_db:
+            refund_coin_service = CoinServiceFactory(refund_db)
+            refund_result = await refund_coin_service.refund_amount_atomic(
+                user_id=user_id,
+                request_id=request_id,
+                reason=reason
+            )
+            
+            if refund_result['success']:
+                logger.info(
+                    f"✅ [原子退款] 退款成功: "
+                    f"用户ID={user_id}, request_id={request_id}"
+                )
+                return True
+            else:
+                logger.error(
+                    f"❌ [原子退款] 退款失败: "
+                    f"用户ID={user_id}, "
+                    f"错误={refund_result.get('message')}"
+                )
+                return False
+    
+    except (BadRequestException, NotFoundException) as refund_error:
+        logger.warning(f"⚠️ [原子退款] 业务异常: {str(refund_error)}")
+        return False
+    except Exception as refund_error:
+        logger.exception(f"❌ [原子退款] 退款异常: {str(refund_error)}")
+        return False
+
+
 # ============== API Endpoints ==============
 
 @router.get("/agents")
@@ -394,100 +670,14 @@ async def generate_chat(
             logger.debug(f"使用模型类型: {agent_model_type} (来源: {agent_type_source})")
 
         # 0.1. 处理会话ID（如果不存在则创建新会话）
-        conversation_id = request.conversation_id
-        if not conversation_id:
-            from schemas.conversation import ConversationCreate
-            from sqlalchemy import select
-            from models.agent import Agent
-            
-            # 获取智能体名称用于生成会话标题
-            agent_name = "新对话"
-            agent_id = None
-            if request.agent_type.isdigit():
-                agent_id = int(request.agent_type)
-                result = await db.execute(
-                    select(Agent).where(Agent.id == agent_id)
-                )
-                db_agent = result.scalar_one_or_none()
-                if db_agent:
-                    agent_name = db_agent.name
-            
-            # 获取用户的第一句话（截取前30个字符）
-            first_message = ""
-            for msg in request.messages:
-                if msg.role == "user" and msg.content:
-                    first_message = msg.content[:30]
-                    if len(msg.content) > 30:
-                        first_message += "..."
-                    break
-            
-            # 生成会话标题：智能体名称 + 用户第一句话
-            title = f"{agent_name}: {first_message}" if first_message else agent_name
-            
-            conversation_data = ConversationCreate(
-                agent_id=agent_id,
-                project_id=request.project_id,
-                model_type=agent_model_type,
-                title=title,
-            )
-            conversation = await conversation_service.create_conversation(
-                user_id=current_user.id,
-                conversation_data=conversation_data
-            )
-            conversation_id = conversation.id
-        else:
-            # 验证会话是否属于当前用户
-            try:
-                await conversation_service.get_conversation(
-                    conversation_id=conversation_id,
-                    user_id=current_user.id
-                )
-            except NotFoundException:
-                # 如果会话不存在，创建新会话（可能是前端存储了已删除的会话ID）
-                from schemas.conversation import ConversationCreate
-                from sqlalchemy import select
-                from models.agent import Agent
-
-                logger.warning(f"会话 {conversation_id} 不存在，自动创建新会话（用户ID: {current_user.id}）")
-                
-                # 获取智能体名称用于生成会话标题
-                agent_name = "新对话"
-                agent_id = None
-                if request.agent_type.isdigit():
-                    agent_id = int(request.agent_type)
-                    result = await db.execute(
-                        select(Agent).where(Agent.id == agent_id)
-                    )
-                    db_agent = result.scalar_one_or_none()
-                    if db_agent:
-                        agent_name = db_agent.name
-                
-                # 获取用户的第一句话（截取前30个字符）
-                first_message = ""
-                for msg in request.messages:
-                    if msg.role == "user" and msg.content:
-                        first_message = msg.content[:30]
-                        if len(msg.content) > 30:
-                            first_message += "..."
-                        break
-                
-                # 生成会话标题：智能体名称 + 用户第一句话
-                title = f"{agent_name}: {first_message}" if first_message else agent_name
-
-                conversation_data = ConversationCreate(
-                    agent_id=agent_id,
-                    project_id=request.project_id,
-                    model_type=agent_model_type,
-                    title=title,
-                )
-                conversation = await conversation_service.create_conversation(
-                    user_id=current_user.id,
-                    conversation_data=conversation_data
-                )
-                conversation_id = conversation.id
-            except Exception as e:
-                # 其他错误正常抛出
-                raise
+        conversation_id = await create_or_get_conversation(
+            conversation_service=conversation_service,
+            request=request,
+            current_user=current_user,
+            db=db,
+            agent_model_type=agent_model_type,
+            db_agent=db_agent
+        )
 
         # 1. 获取项目IP画像（如果提供了project_id）
         ip_persona_prompt = ""
@@ -649,6 +839,9 @@ async def generate_chat(
         request_id = f"chat_{current_user.id}_{task_id}"  # ✅ 幂等性request_id
         coin_service = CoinServiceFactory(db)
         estimated_output_tokens = request.max_tokens or 2048
+        
+        # ✅ 修复：提前初始化freeze_info，避免作用域问题
+        freeze_info = None
 
         try:
             # 1️⃣ 先计算预估成本（不涉及数据库操作）
@@ -711,6 +904,7 @@ async def generate_chat(
             # 预冻结失败，记录警告但不阻止请求（降级处理）
             logger.warning(f"⚠️ [DEBUG] 算力预冻结失败（降级处理）: {str(e)}")
             task_id = None  # 标记为未预冻结，跳过结算
+            freeze_info = None  # ✅ 修复：确保freeze_info为None
 
         # 9. 构建 messages 列表（与 AIService 兼容的格式）
         # 将 final_system_prompt 和 user_prompt 转换为 messages 格式
@@ -875,7 +1069,7 @@ async def generate_chat(
         if request.stream:
             # 流式响应
             async def generate_stream():
-                nonlocal assistant_content
+                nonlocal assistant_content, task_id, freeze_info
                 try:
                     # 首先发送 conversation_id（让前端能够更新会话ID）
                     yield f"data: {json.dumps({'conversation_id': conversation_id}, ensure_ascii=False)}\n\n"
@@ -903,9 +1097,18 @@ async def generate_chat(
                             chunk_data = json.loads(chunk_json)
                             # 检查是否有错误
                             if "error" in chunk_data:
-                                # 如果是错误，直接传递
+                                # ✅ 修复：AI返回错误时，也需要退款预冻结的算力
                                 logger.error(f"Received error from AI service: {chunk_data['error']}")
                                 yield f"data: {chunk_json}\n\n"
+                                
+                                # 退款预冻结的算力
+                                if task_id and freeze_info and freeze_info.get('request_id'):
+                                    await refund_frozen_coin(
+                                        user_id=current_user.id,
+                                        request_id=freeze_info['request_id'],
+                                        reason="AI服务返回错误"
+                                    )
+                                
                                 return
                             # 提取 content（AIService 返回的格式）
                             delta = chunk_data.get("delta", {})
@@ -923,70 +1126,35 @@ async def generate_chat(
                     yield f"data: {json.dumps({'done': True}, ensure_ascii=False)}\n\n"
 
                     # ========== ✅ 第三阶段：算力结算（极短事务，~10ms） ==========
-                    if task_id and freeze_info.get('request_id'):
+                    # ✅ 修复：增强条件判断，确保freeze_info存在且有效
+                    logger.info(f"🔍 [原子结算] 检查结算条件: task_id={task_id}, freeze_info存在={freeze_info is not None}, request_id={freeze_info.get('request_id') if freeze_info else None}")
+                    
+                    if task_id and freeze_info and freeze_info.get('request_id'):
                         logger.info(f"💰 [原子结算] 开始算力结算流程，request_id={freeze_info['request_id']}")
                         try:
-                            # 估算实际token使用
-                            input_tokens = coin_service.estimate_tokens_from_text(user_prompt)
-                            output_tokens = coin_service.estimate_tokens_from_text(assistant_content)
-
-                            logger.info(f"💰 [原子结算] Token估算完成: 输入={input_tokens}, 输出={output_tokens}")
-
-                            # 计算实际消耗金额
-                            actual_cost = await coin_service.calculate_cost(
-                                input_tokens=input_tokens,
-                                output_tokens=output_tokens,
-                                model_id=llm_model.id
+                            settle_success = await settle_coin_cost(
+                                user_id=current_user.id,
+                                request_id=freeze_info['request_id'],
+                                user_prompt=user_prompt,
+                                assistant_content=assistant_content,
+                                llm_model=llm_model,
+                                coin_service=coin_service,
+                                db_agent=db_agent,
+                                agent_type=request.agent_type,
+                                is_stream=True
                             )
-
-                            logger.info(f"💰 [原子结算] 成本计算完成: {actual_cost}")
-
-                            # ✅ 使用原子化结算（独立事务，无锁冲突）
-                            # 获取agent信息用于日志记录
-                            agent_id_for_log = None
-                            agent_name_for_log = None
-                            if db_agent:
-                                agent_id_for_log = db_agent.id
-                                agent_name_for_log = db_agent.name
-                            elif request.agent_type.isdigit():
-                                agent_id_for_log = int(request.agent_type)
-                            
-                            from db.session import async_session_maker
-                            async with async_session_maker() as settle_db:
-                                settle_coin_service = CoinServiceFactory(settle_db)
-                                settle_result = await settle_coin_service.settle_amount_atomic(
-                                    user_id=current_user.id,
-                                    request_id=freeze_info['request_id'],
-                                    actual_cost=actual_cost,
-                                    input_tokens=input_tokens,
-                                    output_tokens=output_tokens,
-                                    model_name=llm_model.name,
-                                    agent_id=agent_id_for_log,
-                                    agent_name=agent_name_for_log
-                                )
-
-                                if settle_result['success']:
-                                    logger.info(
-                                        f"✅ [原子结算] 算力结算成功: "
-                                        f"用户ID={current_user.id}, "
-                                        f"输入Token={input_tokens}, "
-                                        f"输出Token={output_tokens}, "
-                                        f"结算金额={actual_cost}"
-                                    )
-                                else:
-                                    logger.error(
-                                        f"❌ [原子结算] 算力结算失败: "
-                                        f"用户ID={current_user.id}, "
-                                        f"错误={settle_result.get('message')}"
-                                    )
-
-                        except (BadRequestException, NotFoundException):
-                            # 业务异常，记录但不影响对话
-                            logger.warning(f"⚠️ [原子结算] 业务异常: {str(e)}")
-                        except Exception as e:
-                            # 系统异常，记录详细日志
-                            logger.exception(f"❌ [原子结算] 算力结算异常: {str(e)}")
-                            # 结算失败不影响对话，只记录错误
+                            if not settle_success:
+                                logger.error(f"❌ [原子结算] settle_coin_cost返回False，结算可能失败，用户ID={current_user.id}, request_id={freeze_info['request_id']}")
+                        except Exception as settle_error:
+                            logger.exception(f"❌ [原子结算] settle_coin_cost调用异常: 用户ID={current_user.id}, request_id={freeze_info['request_id']}, 错误={str(settle_error)}")
+                            # 不重新抛出异常，避免影响流式响应
+                    else:
+                        if not task_id:
+                            logger.warning(f"⚠️ [原子结算] 跳过结算：task_id为空（预冻结失败）")
+                        elif not freeze_info:
+                            logger.warning(f"⚠️ [原子结算] 跳过结算：freeze_info为空")
+                        elif not freeze_info.get('request_id'):
+                            logger.warning(f"⚠️ [原子结算] 跳过结算：request_id为空")
 
                     # 流式完成后，触发后台任务保存
                     background_tasks.add_task(
@@ -1020,10 +1188,11 @@ async def generate_chat(
                             logger.error(f"  - Underlying Error: {type(e.__cause__).__name__}: {str(e.__cause__)}")
                         
                         # 尝试获取请求信息（如果可用）
+                        # ✅ 修复：重命名变量避免覆盖外部的request参数
                         if hasattr(e, 'request'):
-                            request = e.request
-                            logger.error(f"  - Request URL: {request.url if hasattr(request, 'url') else 'N/A'}")
-                            logger.error(f"  - Request Method: {request.method if hasattr(request, 'method') else 'N/A'}")
+                            http_request = e.request
+                            logger.error(f"  - Request URL: {http_request.url if hasattr(http_request, 'url') else 'N/A'}")
+                            logger.error(f"  - Request Method: {http_request.method if hasattr(http_request, 'method') else 'N/A'}")
                         
                         # 连接错误诊断信息
                         logger.error(f"  - Connection Error Diagnosis:")
@@ -1040,33 +1209,13 @@ async def generate_chat(
                     logger.error(f"  - Traceback:\n{traceback.format_exc()}")
 
                     # ========== ✅ 错误时退款预冻结的算力（原子化退款） ==========
-                    if task_id and freeze_info.get('request_id'):
-                        try:
-                            from db.session import async_session_maker
-                            async with async_session_maker() as refund_db:
-                                refund_coin_service = CoinServiceFactory(refund_db)
-                                refund_result = await refund_coin_service.refund_amount_atomic(
-                                    user_id=current_user.id,
-                                    request_id=freeze_info['request_id'],
-                                    reason="AI生成失败"
-                                )
-
-                                if refund_result['success']:
-                                    logger.info(
-                                        f"✅ [原子退款] 错误退款成功: "
-                                        f"用户ID={current_user.id}, request_id={freeze_info['request_id']}"
-                                    )
-                                else:
-                                    logger.error(
-                                        f"❌ [原子退款] 错误退款失败: "
-                                        f"用户ID={current_user.id}, "
-                                        f"错误={refund_result.get('message')}"
-                                    )
-
-                        except (BadRequestException, NotFoundException) as refund_error:
-                            logger.warning(f"⚠️ [原子退款] 业务异常: {str(refund_error)}")
-                        except Exception as refund_error:
-                            logger.exception(f"❌ [原子退款] 退款异常: {str(refund_error)}")
+                    # ✅ 修复：增强条件判断，确保freeze_info存在且有效
+                    if task_id and freeze_info and freeze_info.get('request_id'):
+                        await refund_frozen_coin(
+                            user_id=current_user.id,
+                            request_id=freeze_info['request_id'],
+                            reason="AI生成失败"
+                        )
 
                     error_msg = f"生成错误: {str(e)}"
                     yield f"data: {json.dumps({'error': error_msg}, ensure_ascii=False)}\n\n"
@@ -1094,70 +1243,27 @@ async def generate_chat(
             assistant_content = result.get("message", {}).get("content", "")
             
             # ========== ✅ 非流式响应：算力结算（极短事务，~10ms） ==========
-            if task_id and freeze_info.get('request_id'):
+            # ✅ 修复：增强条件判断，确保freeze_info存在且有效
+            if task_id and freeze_info and freeze_info.get('request_id'):
                 logger.info(f"💰 [原子结算] 开始算力结算流程（非流式），request_id={freeze_info['request_id']}")
-                try:
-                    # 估算实际token使用
-                    input_tokens = coin_service.estimate_tokens_from_text(user_prompt)
-                    output_tokens = coin_service.estimate_tokens_from_text(assistant_content)
-
-                    logger.info(f"💰 [原子结算] Token估算完成: 输入={input_tokens}, 输出={output_tokens}")
-
-                    # 计算实际消耗金额
-                    actual_cost = await coin_service.calculate_cost(
-                        input_tokens=input_tokens,
-                        output_tokens=output_tokens,
-                        model_id=llm_model.id
-                    )
-
-                    logger.info(f"💰 [原子结算] 成本计算完成: {actual_cost}")
-
-                    # 获取agent信息用于日志记录
-                    agent_id_for_log = None
-                    agent_name_for_log = None
-                    if db_agent:
-                        agent_id_for_log = db_agent.id
-                        agent_name_for_log = db_agent.name
-                    elif request.agent_type.isdigit():
-                        agent_id_for_log = int(request.agent_type)
-
-                    # ✅ 使用原子化结算（独立事务，无锁冲突）
-                    from db.session import async_session_maker
-                    async with async_session_maker() as settle_db:
-                        settle_coin_service = CoinServiceFactory(settle_db)
-                        settle_result = await settle_coin_service.settle_amount_atomic(
-                            user_id=current_user.id,
-                            request_id=freeze_info['request_id'],
-                            actual_cost=actual_cost,
-                            input_tokens=input_tokens,
-                            output_tokens=output_tokens,
-                            model_name=llm_model.name,
-                            agent_id=agent_id_for_log,
-                            agent_name=agent_name_for_log
-                        )
-
-                        if settle_result['success']:
-                            logger.info(
-                                f"✅ [原子结算] 算力结算成功（非流式）: "
-                                f"用户ID={current_user.id}, "
-                                f"输入Token={input_tokens}, "
-                                f"输出Token={output_tokens}, "
-                                f"结算金额={actual_cost}"
-                            )
-                        else:
-                            logger.error(
-                                f"❌ [原子结算] 算力结算失败（非流式）: "
-                                f"用户ID={current_user.id}, "
-                                f"错误={settle_result.get('message')}"
-                            )
-
-                except (BadRequestException, NotFoundException) as e:
-                    # 业务异常，记录但不影响对话
-                    logger.warning(f"⚠️ [原子结算] 业务异常（非流式）: {str(e)}")
-                except Exception as e:
-                    # 系统异常，记录详细日志
-                    logger.exception(f"❌ [原子结算] 算力结算异常（非流式）: {str(e)}")
-                    # 结算失败不影响对话，只记录错误
+                await settle_coin_cost(
+                    user_id=current_user.id,
+                    request_id=freeze_info['request_id'],
+                    user_prompt=user_prompt,
+                    assistant_content=assistant_content,
+                    llm_model=llm_model,
+                    coin_service=coin_service,
+                    db_agent=db_agent,
+                    agent_type=request.agent_type,
+                    is_stream=False
+                )
+            else:
+                if not task_id:
+                    logger.warning(f"⚠️ [原子结算] 跳过结算：task_id为空（预冻结失败）")
+                elif not freeze_info:
+                    logger.warning(f"⚠️ [原子结算] 跳过结算：freeze_info为空")
+                elif not freeze_info.get('request_id'):
+                    logger.warning(f"⚠️ [原子结算] 跳过结算：request_id为空")
             
             # 立即触发后台任务保存（不阻塞响应）
             background_tasks.add_task(

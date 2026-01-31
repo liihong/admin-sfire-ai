@@ -31,3 +31,4 @@ SHOW COLUMNS FROM `articles` WHERE Field = 'category';
 
 
 
+

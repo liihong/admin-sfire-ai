@@ -23,3 +23,4 @@ MODIFY COLUMN routing_description TEXT CHARACTER SET utf8mb4 COLLATE utf8mb4_uni
 -- AND TABLE_NAME = 'agents' 
 -- AND COLUMN_NAME IN ('system_prompt', 'description', 'routing_description');
 
+
