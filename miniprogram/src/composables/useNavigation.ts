@@ -3,6 +3,8 @@
  * 统一处理页面导航逻辑
  */
 
+import { safeNavigateTo, safeRedirectTo, safeSwitchTab, safeReLaunch } from '@/utils/navigation'
+
 export function useNavigation() {
   /**
    * 导航到指定路由
@@ -12,11 +14,11 @@ export function useNavigation() {
   function navigateTo(route: string, showTip: boolean = true) {
     if (!route) {
       if (showTip) {
-        uni.showToast({ title: '功能即将上线', icon: 'none' })
+        uni.showToast({ title: '功能开发中，请耐心等待', icon: 'none' })
       }
       return
     }
-    uni.navigateTo({ url: route })
+    safeNavigateTo({ url: route })
   }
   
   /**
@@ -25,7 +27,7 @@ export function useNavigation() {
   function goBack() {
     uni.navigateBack({
       fail: () => {
-        uni.switchTab({ url: '/pages/index/index' })
+        safeSwitchTab({ url: '/pages/index/index' })
       }
     })
   }
@@ -34,7 +36,7 @@ export function useNavigation() {
    * 跳转到项目列表
    */
   function goToProjectList() {
-    uni.navigateTo({ url: '/pages/project/list' })
+    safeNavigateTo({ url: '/pages/project/list' })
   }
   
   /**
@@ -57,7 +59,7 @@ export function useNavigation() {
       url += '?' + params.join('&')
     }
     
-    uni.navigateTo({ url })
+    safeNavigateTo({ url })
   }
   
   /**

@@ -181,6 +181,14 @@ const menuList = ref([
     path: '/pages/inspiration/index'
   },
   {
+    id: 'referral',
+    name: '我要推荐',
+    desc: '邀请好友一起体验，获得算力奖励',
+    icon: 'send',
+    iconBg: '#3B82F6', // 蓝色背景
+    path: '/pages/mine/referral/index'
+  },
+  {
     id: 'contact',
     name: '联系客服',
     desc: '升级会员或寻求帮助',

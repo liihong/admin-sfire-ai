@@ -23,6 +23,10 @@ class PersonaSettings(BaseModel):
     taboos: List[str] = Field(default_factory=list, description="内容禁忌")
     keywords: List[str] = Field(default_factory=list, description="常用关键词")
     introduction: str = Field(default="", description="IP 简介")
+    # 扩展字段
+    industry_understanding: str = Field(default="", description="行业理解")
+    unique_views: str = Field(default="", description="对行业不同的看法")
+    target_pains: str = Field(default="", description="目标人群痛点")
     
     model_config = ConfigDict(from_attributes=True)
 
@@ -55,6 +59,10 @@ class ProjectCreate(ProjectBase):
     keywords: Optional[List[str]] = Field(None, description="常用关键词")
     taboos: Optional[List[str]] = Field(None, description="内容禁忌")
     benchmark_accounts: Optional[List[str]] = Field(None, description="对标账号")
+    # 扩展字段
+    industry_understanding: Optional[str] = Field(None, description="行业理解")
+    unique_views: Optional[str] = Field(None, description="对行业不同的看法")
+    target_pains: Optional[str] = Field(None, description="目标人群痛点")
 
 
 class ProjectUpdate(BaseModel):
@@ -80,6 +88,10 @@ class ProjectUpdate(BaseModel):
     keywords: Optional[List[str]] = Field(None, description="常用关键词")
     taboos: Optional[List[str]] = Field(None, description="内容禁忌")
     benchmark_accounts: Optional[List[str]] = Field(None, description="对标账号")
+    # 扩展字段
+    industry_understanding: Optional[str] = Field(None, description="行业理解")
+    unique_views: Optional[str] = Field(None, description="对行业不同的看法")
+    target_pains: Optional[str] = Field(None, description="目标人群痛点")
 
 
 class ProjectResponse(BaseModel):

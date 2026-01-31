@@ -45,8 +45,8 @@
         <swiper-item>
           <StepBrain
 :form-data="formData"
-            :is-generating-keywords="isGeneratingKeywords"
-           @update:form-data="handleFormDataUpdate"
+:industry-options="industryOptions" :tone-options="toneOptions"
+            @update:form-data="handleFormDataUpdate"
           />
         </swiper-item>
       </swiper>
@@ -101,9 +101,10 @@
  */
 
 import { ref, computed, watch } from 'vue'
-import { type IPCollectFormData, aiCollectIPInfo } from '@/api/project'
+import { type IPCollectFormData } from '@/api/project'
 import type { ProjectFormData } from '@/types/project'
 import { usePersonaForm } from '@/composables/usePersonaForm'
+import { useProjectStore } from '@/stores/project'
 import StepIndicator from './collect/StepIndicator.vue'
 import StepIdentity from './collect/StepIdentity.vue'
 import StepSoul from './collect/StepSoul.vue'
@@ -121,6 +122,9 @@ interface Emits {
 
 const props = defineProps<Props>()
 const emit = defineEmits<Emits>()
+
+// Store
+const projectStore = useProjectStore()
 
 // 步骤定义
 const steps = [
@@ -144,7 +148,6 @@ const {
 
 // 状态
 const currentStep = ref(0)
-const isGeneratingKeywords = ref(false)
 
 // IP画像预览数据（从 formData 中提取）
 const previewData = computed(() => {
@@ -174,19 +177,96 @@ const canNext = computed(() => {
 })
 
 const canComplete = computed(() => {
-  return formData.keywords.length > 0
+  // 最后一步只需要基本信息完整即可，关键词可选
+  return formData.name.trim() && formData.industry && formData.target_audience.trim() && formData.tone && formData.introduction.trim().length >= 50
 })
 
-// 初始化：当对话框显示时重置表单
+// 初始化：当对话框显示时检查缓存并初始化表单
 watch(() => props.visible, (newVal) => {
   if (newVal) {
     initDialog()
   }
 })
 
-function initDialog() {
+// 是否启用自动保存（初始化完成后启用）
+const enableAutoSave = ref(false)
+
+// 监听表单数据变化，自动保存到store（使用防抖，避免频繁保存）
+let saveTimer: ReturnType<typeof setTimeout> | null = null
+watch(() => formData, () => {
+  // 如果未启用自动保存，跳过
+  if (!enableAutoSave.value) return
+
+  // 清除之前的定时器
+  if (saveTimer) {
+    clearTimeout(saveTimer)
+  }
+
+  // 延迟500ms保存，避免频繁保存
+  saveTimer = setTimeout(() => {
+    saveFormDataToStore()
+  }, 500)
+}, { deep: true })
+
+/**
+ * 初始化对话框
+ * 检查是否有缓存的表单数据，如果有则提示用户
+ */
+async function initDialog() {
   currentStep.value = 0
-  resetForm() // 使用 composable 的 resetForm 方法
+  enableAutoSave.value = false // 初始化时禁用自动保存
+  
+  // 检查是否有缓存的表单数据
+  const cachedData = projectStore.loadIPCollectFormData()
+
+  if (cachedData) {
+    // 有缓存数据，提示用户是否继续使用
+    uni.showModal({
+      title: '发现未完成的表单',
+      content: `检测到您之前填写的IP信息（${cachedData.name || '未命名'}），是否继续使用？`,
+      confirmText: '继续使用',
+      cancelText: '清空重填',
+      success: (res) => {
+        if (res.confirm) {
+          // 用户选择继续使用，加载缓存数据
+          loadCachedFormData(cachedData)
+        } else {
+          // 用户选择清空，重置表单并清除缓存
+          resetForm()
+          projectStore.clearIPCollectFormData()
+        }
+        // 初始化完成后启用自动保存
+        enableAutoSave.value = true
+      }
+    })
+  } else {
+    // 没有缓存数据，直接重置表单
+    resetForm()
+    // 初始化完成后启用自动保存
+    enableAutoSave.value = true
+  }
+}
+
+/**
+ * 加载缓存的表单数据到formData
+ */
+function loadCachedFormData(cachedData: IPCollectFormData) {
+  // 将IPCollectFormData转换为ProjectFormData格式
+  Object.assign(formData, {
+    name: cachedData.name || '',
+    industry: cachedData.industry || '',
+    industry_understanding: cachedData.industry_understanding || '',
+    unique_views: cachedData.unique_views || '',
+    tone: cachedData.tone || '',
+    catchphrase: cachedData.catchphrase || '',
+    target_audience: cachedData.target_audience || '',
+    target_pains: cachedData.target_pains || '',
+    introduction: cachedData.introduction || '',
+    keywords: cachedData.keywords || [],
+    benchmark_accounts: [],
+    content_style: '',
+    taboos: []
+  })
 }
 
 function handleSwiperChange(e: any) {
@@ -194,122 +274,7 @@ function handleSwiperChange(e: any) {
   // 避免循环更新
   if (currentStep.value !== newStep) {
     currentStep.value = newStep
-    // 如果进入步骤4且还没有关键词，生成关键词
-    if (newStep === 3 && formData.keywords.length === 0) {
-      generateKeywords()
-    }
   }
-}
-
-async function generateKeywords() {
-  if (isGeneratingKeywords.value) return
-  
-  isGeneratingKeywords.value = true
-  
-  try {
-    // 构建请求数据（使用 formData，不是 formData.value）
-    const requestData = {
-      messages: [
-        {
-          role: 'user' as const,
-          content: `基于以下IP信息，生成5-8个创作关键词：\n名称：${formData.name}\n行业：${formData.industry}\n受众：${formData.target_audience}\n风格：${formData.tone}\n描述：${formData.introduction}`
-        }
-      ],
-      step: 3,
-      context: {
-        name: formData.name,
-        industry: formData.industry,
-        target_audience: formData.target_audience,
-        tone: formData.tone,
-        introduction: formData.introduction
-      }
-    }
-    
-    const response = await aiCollectIPInfo(requestData)
-    
-    // 从回复中提取关键词（简单处理，实际可能需要后端返回结构化数据）
-    if (response.reply) {
-      // 尝试从回复中提取关键词
-      const keywords = extractKeywords(response.reply)
-      if (keywords.length > 0) {
-        formData.keywords = keywords
-      } else {
-        // 如果没有提取到，使用默认关键词
-        formData.keywords = generateDefaultKeywords()
-      }
-    } else {
-      formData.keywords = generateDefaultKeywords()
-    }
-  } catch (error: any) {
-    console.error('生成关键词失败:', error)
-    // 使用默认关键词
-    formData.keywords = generateDefaultKeywords()
-    uni.showToast({
-      title: '关键词生成失败，请手动添加',
-      icon: 'none'
-    })
-  } finally {
-    isGeneratingKeywords.value = false
-  }
-}
-
-function extractKeywords(text: string): string[] {
-  // 简单的关键词提取逻辑
-  const keywords: string[] = []
-  const lines = text.split('\n')
-  
-  // 方法1: 查找包含"关键词"、"标签"等字样的行
-  for (const line of lines) {
-    if (line.includes('关键词') || line.includes('标签') || line.includes('标签：')) {
-      // 提取#开头的标签
-      const hashMatches = line.match(/#[\u4e00-\u9fa5a-zA-Z0-9]+/g)
-      if (hashMatches) {
-        keywords.push(...hashMatches.map(m => m.replace('#', '')))
-      }
-      
-      // 提取冒号后的内容
-      const colonIndex = line.indexOf('：') || line.indexOf(':')
-      if (colonIndex > -1) {
-        const afterColon = line.substring(colonIndex + 1).trim()
-        // 尝试分割逗号、空格等
-        const parts = afterColon.split(/[，,、\s]+/).filter(p => p.trim())
-        keywords.push(...parts.slice(0, 5))
-      }
-    }
-  }
-  
-  // 方法2: 如果没有找到，尝试从整个文本中提取#标签
-  if (keywords.length === 0) {
-    const hashMatches = text.match(/#[\u4e00-\u9fa5a-zA-Z0-9]+/g)
-    if (hashMatches) {
-      keywords.push(...hashMatches.map(m => m.replace('#', '')))
-    }
-  }
-  
-  // 去重并限制数量
-  const uniqueKeywords = Array.from(new Set(keywords)).filter(k => k.length > 0 && k.length <= 10)
-  return uniqueKeywords.slice(0, 8) // 最多8个
-}
-
-function generateDefaultKeywords(): string[] {
-  // 基于已填信息生成默认关键词（使用 formData，不是 formData.value）
-  const keywords: string[] = []
-  
-  if (formData.industry) {
-    keywords.push(formData.industry)
-  }
-  if (formData.tone) {
-    keywords.push(formData.tone)
-  }
-  if (formData.target_audience) {
-    // 从目标受众中提取关键词（简单处理）
-    const audience = formData.target_audience.trim()
-    if (audience.length > 0 && audience.length <= 10) {
-      keywords.push(audience)
-    }
-  }
-  
-  return keywords.length > 0 ? keywords : ['IP创作', '内容营销']
 }
 
 function handlePrev() {
@@ -344,18 +309,13 @@ function handleNext() {
   
   if (currentStep.value < 3) {
     currentStep.value++
-    
-    // 如果进入步骤4，生成关键词
-    if (currentStep.value === 3 && formData.keywords.length === 0) {
-      generateKeywords()
-    }
   }
 }
 
 function handleComplete() {
   if (!canComplete.value) {
     uni.showToast({
-      title: '请至少添加一个关键词',
+      title: '请完成必填项',
       icon: 'none'
     })
     return
@@ -375,37 +335,24 @@ function handleComplete() {
     keywords: formData.keywords
   }
   
-  // 保存表单数据到本地存储，然后跳转到报告页面
-  try {
-    const formDataStr = JSON.stringify(collectedData)
-    uni.setStorageSync('ip_form_data_temp', formDataStr)
+  // 保存表单数据到store（持久化）
+  // 注意：这里不立即清空缓存，等用户点击"注入基因库"后再清空
+  projectStore.saveIPCollectFormData(collectedData)
 
-    console.log('表单数据已保存，准备跳转到报告页面')
-
-    // 跳转到报告展示页面（报告页面会调用接口生成报告）
-    uni.navigateTo({
-      url: '/pages/project/report',
-      success: () => {
-        console.log('跳转成功')
-        // 跳转成功后，关闭当前对话框
-        // emit('close')
-      },
-      fail: (err) => {
-        console.error('跳转失败:', err)
-        uni.showToast({
-          title: '跳转失败',
-          icon: 'none'
-        })
-      }
-    })
-  } catch (error: any) {
-    console.error('保存数据失败:', error)
-    uni.showToast({
-      title: error.message || '保存数据失败',
-      icon: 'none',
-      duration: 2000
-    })
-  }
+  // 跳转到报告展示页面（报告页面会调用接口生成报告）
+  uni.navigateTo({
+    url: '/pages/project/report',
+    success: () => {
+      // 跳转成功
+    },
+    fail: (err) => {
+      console.error('跳转失败:', err)
+      uni.showToast({
+        title: '跳转失败',
+        icon: 'none'
+      })
+    }
+  })
 }
 
 
@@ -416,6 +363,31 @@ function handleClose() {
 function handleFormDataUpdate(data: Partial<ProjectFormData>) {
   // 更新 formData（reactive 对象，直接赋值）
   Object.assign(formData, data)
+
+  // 自动保存到store（持久化）
+  saveFormDataToStore()
+}
+
+/**
+ * 保存表单数据到store（持久化）
+ * 将formData转换为IPCollectFormData格式后保存
+ */
+function saveFormDataToStore() {
+  const collectedData: IPCollectFormData = {
+    name: formData.name,
+    industry: formData.industry,
+    industry_understanding: formData.industry_understanding || '',
+    unique_views: formData.unique_views || '',
+    tone: formData.tone,
+    catchphrase: formData.catchphrase || '',
+    target_audience: formData.target_audience,
+    target_pains: formData.target_pains || '',
+    introduction: formData.introduction,
+    keywords: formData.keywords
+  }
+
+  // 保存到store（会自动持久化到本地存储）
+  projectStore.saveIPCollectFormData(collectedData)
 }
 </script>
 

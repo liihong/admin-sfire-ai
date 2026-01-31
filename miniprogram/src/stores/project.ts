@@ -16,6 +16,7 @@ export type { Project, PersonaSettings, ProjectCreateRequest, ProjectUpdateReque
 
 // localStorage key
 const ACTIVE_PROJECT_ID_KEY = 'active_project_id'
+const IP_COLLECT_FORM_DATA_KEY = 'ip_collect_form_data'
 
 // 默认人设配置（包含所有字段，包括扩展字段）
 export const DEFAULT_PERSONA_SETTINGS: PersonaSettings = {
@@ -52,6 +53,9 @@ export const useProjectStore = defineStore('project', () => {
   
   // 是否需要刷新列表（用于页面跳转后刷新）
   const needRefresh = ref(false)
+
+  // IP收集表单数据（临时保存，用于持久化）
+  const ipCollectFormData = ref<IPCollectFormData | null>(null)
 
   // ============== Helpers ==============
 
@@ -283,12 +287,54 @@ export const useProjectStore = defineStore('project', () => {
     return parts.join('\n')
   }
 
+  // ============== IP收集表单持久化管理 ==============
+
+  /**
+   * 保存IP收集表单数据到本地存储
+   * @param data 表单数据
+   */
+  function saveIPCollectFormData(data: IPCollectFormData) {
+    ipCollectFormData.value = data
+    storage.set(IP_COLLECT_FORM_DATA_KEY, data)
+  }
+
+  /**
+   * 从本地存储加载IP收集表单数据
+   * @returns 表单数据，如果不存在则返回null
+   */
+  function loadIPCollectFormData(): IPCollectFormData | null {
+    const stored = storage.get<IPCollectFormData>(IP_COLLECT_FORM_DATA_KEY)
+    if (stored) {
+      ipCollectFormData.value = stored
+      return stored
+    }
+    ipCollectFormData.value = null
+    return null
+  }
+
+  /**
+   * 检查是否有缓存的IP收集表单数据
+   * @returns 是否存在缓存数据
+   */
+  function hasIPCollectFormData(): boolean {
+    return storage.has(IP_COLLECT_FORM_DATA_KEY)
+  }
+
+  /**
+   * 清空IP收集表单数据（包括内存和本地存储）
+   */
+  function clearIPCollectFormData() {
+    ipCollectFormData.value = null
+    storage.remove(IP_COLLECT_FORM_DATA_KEY)
+  }
+
   return {
     // State
     projectList,
     activeProject,
     isLoading,
     needRefresh,
+    ipCollectFormData,
     
     // Getters
     hasActiveProject,
@@ -306,7 +352,13 @@ export const useProjectStore = defineStore('project', () => {
     setLoading,
     setNeedRefresh,
     checkAndClearRefresh,
-    getPersonaSystemPrompt
+    getPersonaSystemPrompt,
+    
+    // IP收集表单持久化
+    saveIPCollectFormData,
+    loadIPCollectFormData,
+    hasIPCollectFormData,
+    clearIPCollectFormData
   }
 })
 

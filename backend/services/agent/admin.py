@@ -314,6 +314,9 @@ class AgentAdminService:
         """
         增加Agent使用次数
         
+        使用原子更新操作，避免并发问题
+        注意：不在此方法中提交事务，由外层事务管理（FastAPI的get_db依赖）
+        
         Args:
             db: 异步数据库会话
             agent_id: Agent ID
@@ -321,16 +324,30 @@ class AgentAdminService:
         Returns:
             是否成功
         """
-        result = await db.execute(select(Agent).filter(Agent.id == agent_id))
-        agent = result.scalar_one_or_none()
-        if not agent:
-            logger.warning(f"增加使用次数失败: Agent ID={agent_id} 不存在")
-            return False
+        from sqlalchemy import update
         
-        agent.usage_count = (agent.usage_count or 0) + 1
-        await db.commit()
-        logger.debug(f"Agent {agent.name} 使用次数更新为 {agent.usage_count}")
-        return True
+        try:
+            # 使用原子更新操作，直接更新数据库，避免加载整个对象
+            result = await db.execute(
+                update(Agent)
+                .where(Agent.id == agent_id)
+                .values(usage_count=Agent.usage_count + 1)
+            )
+            
+            # 检查是否有行被更新
+            if result.rowcount == 0:
+                logger.warning(f"增加使用次数失败: Agent ID={agent_id} 不存在")
+                return False
+            
+            # 刷新到数据库，但不提交（由外层事务管理）
+            await db.flush()
+            
+            logger.debug(f"Agent ID={agent_id} 使用次数已增加")
+            return True
+            
+        except Exception as e:
+            logger.error(f"增加Agent使用次数异常: Agent ID={agent_id}, 错误={e}")
+            return False
 
 
 # 向后兼容：AgentServiceV2 作为 AgentAdminService 的别名

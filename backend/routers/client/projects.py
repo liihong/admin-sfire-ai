@@ -44,9 +44,9 @@ router = APIRouter()
 
 def _build_frontend_project(project_dict: dict) -> dict:
     """
-    将项目数据转换为前端期望的扁平化格式
+    将项目数据转换为前端期望的格式
     
-    persona_settings 字段会被展开为独立字段
+    同时保留嵌套的 persona_settings 对象和扁平化字段，确保前端可以正确加载数据
     """
     persona_settings = project_dict.get("persona_settings", {})
     if not isinstance(persona_settings, dict):
@@ -66,7 +66,9 @@ def _build_frontend_project(project_dict: dict) -> dict:
         # 头像相关字段
         "avatar_letter": project_dict.get("avatar_letter", ""),
         "avatar_color": project_dict.get("avatar_color", "#3B82F6"),
-        # 人设字段（扁平化，与 persona_settings 一一对应）
+        # 嵌套格式：完整的人设配置对象（前端需要此字段来加载表单数据）
+        "persona_settings": persona_settings,
+        # 扁平化字段（向后兼容，与 persona_settings 一一对应）
         "introduction": persona_settings.get("introduction", ""),
         "tone": persona_settings.get("tone", ""),
         "target_audience": persona_settings.get("target_audience", ""),
@@ -75,8 +77,10 @@ def _build_frontend_project(project_dict: dict) -> dict:
         "keywords": persona_settings.get("keywords", []),
         "taboos": persona_settings.get("taboos", []),
         "benchmark_accounts": persona_settings.get("benchmark_accounts", []),
-        # Master Prompt（独立字段）
-        "master_prompt": project_dict.get("master_prompt"),
+        # 扩展字段
+        "industry_understanding": persona_settings.get("industry_understanding", ""),
+        "unique_views": persona_settings.get("unique_views", ""),
+        "target_pains": persona_settings.get("target_pains", ""),
         # 其他字段
         "isActive": project_dict.get("is_active", False),
         "createdAt": project_dict.get("created_at", "").isoformat() if project_dict.get("created_at") else "",
@@ -276,7 +280,12 @@ async def update_project_info(
     project_service = ProjectService(db)
     
     project = await project_service.update_project(project_id, current_user.id, data)
-    project_response = ProjectResponse.from_orm_with_active(project, is_active=False)
+    
+    # 获取当前激活的项目ID，确保返回正确的 is_active 状态
+    active_id = await project_service.get_active_project(current_user.id)
+    is_active = (active_id == project_id)
+    
+    project_response = ProjectResponse.from_orm_with_active(project, is_active=is_active)
     project_dict = project_response.model_dump()
     frontend_project = _build_frontend_project(project_dict)
     

@@ -88,14 +88,11 @@ async def get_wechat_openid(code: str) -> tuple[str, Optional[str]]:
     
     Raises:
         BadRequestException: 微信 API 调用失败
+        ServerErrorException: 微信配置未设置
     """
+    # 检查微信配置是否已设置
     if not settings.WECHAT_APP_ID or not settings.WECHAT_APP_SECRET:
-        # 开发环境：使用 Mock 数据
-        logger.warning("WECHAT_APP_ID or WECHAT_APP_SECRET not configured, using mock openid")
-        import hashlib
-        code_hash = hashlib.md5(code.encode()).hexdigest()[:16]
-        mock_openid = f"o_mock_{code_hash}"
-        return mock_openid, None
+        raise ServerErrorException("微信小程序配置未设置，请配置 WECHAT_APP_ID 和 WECHAT_APP_SECRET")
     
     try:
         async with httpx.AsyncClient(timeout=10.0) as client:
@@ -146,11 +143,12 @@ async def get_wechat_phone_number(phone_code: str) -> Optional[str]:
     
     Note:
         需要先获取 access_token，然后调用 getuserphonenumber API
-        在开发环境中，如果没有配置微信APP信息，返回None
+        如果微信配置未设置，会抛出异常
     """
+    # 检查微信配置是否已设置
     if not settings.WECHAT_APP_ID or not settings.WECHAT_APP_SECRET:
-        # 开发环境：不处理手机号
-        logger.warning("WECHAT_APP_ID or WECHAT_APP_SECRET not configured, cannot get phone number")
+        logger.error("WECHAT_APP_ID or WECHAT_APP_SECRET not configured, cannot get phone number")
+        # 不抛出异常，返回None，让登录流程继续（手机号是可选的）
         return None
     
     try:
@@ -640,7 +638,7 @@ class UserUpdateRequest(BaseModel):
     """用户信息更新请求"""
     nickname: Optional[str] = Field(default=None, description="用户昵称")
     avatar: Optional[str] = Field(default=None, description="头像（Base64 或 URL）")
-    gender: Optional[int] = Field(default=None, description="性别: 0-未知, 1-男, 2-女")
+    inviter_phone: Optional[str] = Field(default=None, description="推荐人手机号")
 
 
 @router.put("/user")
@@ -655,42 +653,85 @@ async def update_user_info(
     需要 Authorization header 携带 Bearer token
     """
     try:
-        # 直接更新用户对象属性
-        if request.nickname is not None:
-            current_user.nickname = request.nickname
-        if request.avatar is not None:
-            current_user.avatar = request.avatar
-        if request.gender is not None:
-            # 注意：User模型可能没有gender字段，这里先不处理
-            pass
-
-        # 如果没有要更新的字段，返回错误
-        update_fields = []
-        if request.nickname is not None:
-            update_fields.append("nickname")
-        if request.avatar is not None:
-            update_fields.append("avatar")
-
-        if not update_fields:
-            raise BadRequestException("请提供要更新的字段")
-
-        # 提交更改
-        await db.commit()
-        
-        # 重新查询用户并加载等级关系（确保获取最新数据）
+        # 重新从当前 session 查询用户对象，确保使用同一个 session
+        # 这样可以确保修改能够正确提交到数据库
         query = select(User).where(
             User.id == current_user.id,
             User.is_deleted == False
-        ).options(selectinload(User.user_level))
-        
+        )
         result = await db.execute(query)
         user = result.scalar_one_or_none()
         
         if not user:
             raise BadRequestException("用户不存在")
+        
+        # 记录更新前的值（用于日志）
+        updated_fields = []
+        
+        # 更新用户对象属性
+        if request.nickname is not None:
+            old_nickname = user.nickname
+            # 去除首尾空格，如果为空字符串则设置为 None
+            new_nickname = request.nickname.strip() if request.nickname else None
+            user.nickname = new_nickname if new_nickname else None
+            updated_fields.append(f"nickname: {old_nickname} -> {user.nickname}")
+            logger.info(f"Updating nickname for user {user.id}: {old_nickname} -> {user.nickname}")
+        
+        if request.avatar is not None:
+            old_avatar = user.avatar
+            user.avatar = request.avatar.strip() if request.avatar else None
+            updated_fields.append(f"avatar: {old_avatar} -> {user.avatar}")
+            logger.info(f"Updating avatar for user {user.id}")
+        
+        # 处理推荐人手机号
+        if request.inviter_phone is not None:
+            inviter_phone = request.inviter_phone.strip() if request.inviter_phone else ""
+            # 如果提供了推荐人手机号，查找推荐人用户
+            if inviter_phone:
+                user_service = UserService(db)
+                inviter = await user_service.get_user_by_phone(inviter_phone)
+                
+                if not inviter:
+                    raise BadRequestException("推荐人手机号不存在")
+                
+                # 不能设置自己为推荐人
+                if inviter.id == user.id:
+                    raise BadRequestException("不能设置自己为推荐人")
+                
+                # 检查是否已经设置过推荐人（如果已设置，不允许修改）
+                if user.parent_id is not None:
+                    raise BadRequestException("推荐人已设置，无法修改")
+                
+                # 设置推荐人
+                user.parent_id = inviter.id
+                updated_fields.append(f"parent_id: None -> {inviter.id}")
+                logger.info(f"Setting parent_id for user {user.id}: {inviter.id}")
+            # 如果传入空字符串，且用户未设置过推荐人，则保持为 None（不做任何操作）
+
+        # 如果没有要更新的字段，返回错误
+        if not updated_fields:
+            raise BadRequestException("请提供要更新的字段")
+
+        # 提交更改（使用当前 session）
+        await db.commit()
+        await db.refresh(user)  # 刷新对象以获取最新数据
+        
+        # 重新查询用户并加载等级关系（确保获取最新数据）
+        query = select(User).where(
+            User.id == user.id,
+            User.is_deleted == False
+        ).options(selectinload(User.user_level))
+        
+        result = await db.execute(query)
+        user_with_level = result.scalar_one_or_none()
+        
+        if not user_with_level:
+            raise BadRequestException("用户不存在")
 
         # 构建响应（包含完整的等级信息）
-        user_info = build_user_info(user)
+        user_info = build_user_info(user_with_level)
+
+        logger.info(f"用户信息更新成功: user_id={user.id}, updated_fields={updated_fields}")
 
         return success(
             data={
@@ -702,7 +743,7 @@ async def update_user_info(
     except (BadRequestException, ServerErrorException):
         raise
     except Exception as e:
-        logger.error(f"更新用户信息失败: {str(e)}, user_id={current_user.id}", exc_info=True)
+        logger.error(f"更新用户信息失败: {str(e)}, user_id={current_user.id if 'current_user' in locals() else 'unknown'}", exc_info=True)
         raise ServerErrorException(f"更新用户信息失败: {str(e)}")
 
 

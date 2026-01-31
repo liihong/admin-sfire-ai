@@ -30,14 +30,17 @@ export interface ProjectCreateRequest {
 }
 
 /**
- * 更新项目请求（扁平格式，后端会自动合并到 persona_settings）
+ * 更新项目请求（支持嵌套和扁平两种格式）
+ * 后端会优先使用嵌套的 persona_settings，同时也会处理扁平字段
  */
 export interface ProjectUpdateRequest {
   name?: string
   industry?: string
   avatar_letter?: string
   avatar_color?: string
-  // 人设字段（扁平格式，后端会自动合并到 persona_settings）
+  // 嵌套格式：完整的人设配置对象
+  persona_settings?: PersonaSettings
+  // 扁平格式：人设字段（后端会自动合并到 persona_settings）
   tone?: string
   catchphrase?: string
   target_audience?: string

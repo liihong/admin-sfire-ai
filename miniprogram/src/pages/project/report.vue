@@ -188,12 +188,9 @@ const isSaving = ref(false)
 const isLoadingReport = ref(false)
 const reportError = ref<string | null>(null)
 
-// 存储键名
-const STORAGE_KEY_FORM_DATA = 'ip_form_data_temp'
-
 // 页面加载时生成报告
 onMounted(() => {
-  // 先加载表单数据
+  // 从store加载表单数据
   const hasData = loadFormData()
   // 如果数据加载成功，才生成报告
   if (hasData) {
@@ -201,24 +198,16 @@ onMounted(() => {
   }
 })
 
-// 页面卸载时清理临时数据
-onUnmounted(() => {
-  // 如果保存成功，清理临时数据
-  // 如果用户返回，保留数据以便重新进入
-})
-
 /**
- * 加载表单数据
+ * 从store加载表单数据
  */
 function loadFormData() {
   try {
-    const formDataStr = uni.getStorageSync(STORAGE_KEY_FORM_DATA)
-    if (formDataStr) {
-      formData.value = JSON.parse(formDataStr)
-      console.log('表单数据加载成功:', formData.value)
+    const cachedData = projectStore.loadIPCollectFormData()
+    if (cachedData) {
+      formData.value = cachedData
       return true
     } else {
-      console.warn('表单数据不存在')
       reportError.value = '表单数据不存在，请返回重新填写'
       return false
     }
@@ -342,8 +331,8 @@ async function handleSave() {
     
     uni.hideLoading()
     
-    // 清理临时数据
-    uni.removeStorageSync(STORAGE_KEY_FORM_DATA)
+    // 清理store中的IP收集表单缓存（注入基因库成功后清空）
+    projectStore.clearIPCollectFormData()
     
     uni.showToast({
       title: '保存成功',

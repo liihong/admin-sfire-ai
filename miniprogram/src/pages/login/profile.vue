@@ -52,35 +52,15 @@
         </view>
       </view>
 
-      <!-- 性别选择 -->
+    <!-- 推荐人手机号 -->
       <view class="form-item">
-        <text class="form-label">性别</text>
-        <view class="gender-picker">
-          <view 
-            class="gender-option"
-            :class="{ active: formData.gender === 1 }"
-            @tap="formData.gender = 1"
-          >
-            <text class="gender-icon">👨</text>
-            <text class="gender-text">男</text>
-          </view>
-          <view 
-            class="gender-option"
-            :class="{ active: formData.gender === 2 }"
-            @tap="formData.gender = 2"
-          >
-            <text class="gender-icon">👩</text>
-            <text class="gender-text">女</text>
-          </view>
-          <view 
-            class="gender-option"
-            :class="{ active: formData.gender === 0 }"
-            @tap="formData.gender = 0"
-          >
-            <text class="gender-icon">🙂</text>
-            <text class="gender-text">保密</text>
-          </view>
+       <text class="form-label">推荐人手机号（选填）</text>
+        <view class="input-wrapper">
+          <input class="form-input" type="number" v-model="formData.inviterPhone" placeholder="请输入推荐人手机号"
+            placeholder-class="placeholder" maxlength="11" @blur="handleInviterPhoneBlur" />
+          <text class="input-icon">📱</text>
         </view>
+       <text class="form-tip">填写推荐人手机号可获得额外奖励</text>
       </view>
     </view>
 
@@ -99,7 +79,7 @@
 <script setup lang="ts">
 import { ref, reactive } from 'vue'
 import { useAuthStore } from '@/stores/auth'
-import { request } from '@/utils/request'
+import { updateUserInfo, uploadAvatar } from '@/api/user'
 
 const authStore = useAuthStore()
 
@@ -107,7 +87,7 @@ const authStore = useAuthStore()
 const formData = reactive({
   avatarUrl: authStore.userInfo?.avatarUrl || '/static/default-avatar.png',
   nickname: authStore.userInfo?.nickname || '',
-  gender: 0 // 0-保密 1-男 2-女
+  inviterPhone: '' // 推荐人手机号
 })
 
 // 是否正在提交
@@ -144,6 +124,19 @@ const handleNicknameBlur = (e: any) => {
 }
 
 /**
+ * 推荐人手机号输入完成
+ */
+const handleInviterPhoneBlur = (e: any) => {
+  const phone = e.detail.value?.trim() || ''
+  if (phone && !/^1[3-9]\d{9}$/.test(phone)) {
+    uni.showToast({
+      title: '请输入正确的手机号',
+      icon: 'none'
+    })
+  }
+}
+
+/**
  * 提交表单
  */
 const handleSubmit = async () => {
@@ -173,42 +166,64 @@ const handleSubmit = async () => {
       mask: true
     })
     
-    // 处理头像
-    let avatarData = formData.avatarUrl
-    
-    // 如果是临时文件路径，转换为 Base64
-    if (tempAvatarPath.value && tempAvatarPath.value.startsWith('wxfile://')) {
-      avatarData = await fileToBase64(tempAvatarPath.value)
-    } else if (tempAvatarPath.value && tempAvatarPath.value.startsWith('http://tmp')) {
-      // 临时文件路径（可能是 http://tmp 开头）
-      avatarData = await fileToBase64(tempAvatarPath.value)
+    // 准备更新数据
+    const updateData: {
+      nickname: string
+      avatar?: string
+      inviter_phone?: string
+    } = {
+      nickname: formData.nickname.trim()
     }
     
-    // 调用更新接口
-    const response = await request<{
-      success: boolean
-      user_info: any
-    }>({
-      url: '/api/v1/client/auth/user',
-      method: 'PUT',
-      data: {
-        nickname: formData.nickname.trim(),
-        avatar: avatarData,
-        gender: formData.gender
+    // 如果填写了推荐人手机号，进行验证并添加
+    const inviterPhone = formData.inviterPhone?.trim() || ''
+    if (inviterPhone) {
+      // 验证手机号格式
+      if (!/^1[3-9]\d{9}$/.test(inviterPhone)) {
+        uni.showToast({
+          title: '请输入正确的手机号',
+          icon: 'none'
+        })
+        isSubmitting.value = false
+        return
       }
-    })
+      updateData.inviter_phone = inviterPhone
+    }
+
+    // 如果选择了新头像，先上传头像
+    if (tempAvatarPath.value) {
+      try {
+        const uploadResponse = await uploadAvatar(tempAvatarPath.value)
+
+        // 检查上传是否成功
+        if (uploadResponse.code === 200 && uploadResponse.data?.url) {
+          // 上传成功，使用返回的 URL
+          updateData.avatar = uploadResponse.data.url
+          formData.avatarUrl = uploadResponse.data.url
+        } else {
+          throw new Error(uploadResponse.msg || '头像上传失败')
+        }
+      } catch (uploadError: any) {
+        uni.hideLoading()
+        console.error('上传头像失败:', uploadError)
+        uni.showToast({
+          title: uploadError?.message || '头像上传失败，请重试',
+          icon: 'none'
+        })
+        isSubmitting.value = false
+        return
+      }
+    }
+
+    // 调用更新用户信息接口
+    const response = await updateUserInfo(updateData)
     
     uni.hideLoading()
     
     // 后端返回格式: {code: 200, data: {...}, msg: "..."}
     if (response.code === 200) {
-      // 更新本地用户信息
-      authStore.setUserInfo({
-        ...authStore.userInfo!,
-        nickname: formData.nickname.trim(),
-        avatarUrl: formData.avatarUrl,
-        gender: formData.gender
-      })
+      // 刷新用户信息（从服务器获取最新信息）
+      await authStore.refreshUserInfo()
       
       uni.showToast({
         title: '保存成功',
@@ -219,11 +234,11 @@ const handleSubmit = async () => {
       // 跳转到IP工作台
       setTimeout(() => {
         uni.switchTab({
-          url: '/pages/project/list'
+          url: '/pages/project/index'
         })
       }, 1500)
     } else {
-      throw new Error(response.msg || '保存失败')
+      throw new Error((response as any).msg || '保存失败')
     }
   } catch (error: any) {
     uni.hideLoading()
@@ -250,38 +265,10 @@ const handleSkip = () => {
     success: (res) => {
       if (res.confirm) {
         uni.switchTab({
-          url: '/pages/project/list'
+          url: '/pages/project/index'
         })
       }
     }
-  })
-}
-
-/**
- * 将文件转换为 Base64
- */
-function fileToBase64(filePath: string): Promise<string> {
-  return new Promise((resolve, reject) => {
-    // #ifdef MP-WEIXIN
-    const fs = uni.getFileSystemManager()
-    fs.readFile({
-      filePath: filePath,
-      encoding: 'base64',
-      success: (res) => {
-        // 返回带有数据类型前缀的 Base64
-        resolve(`data:image/png;base64,${res.data}`)
-      },
-      fail: (err) => {
-        console.error('Read file error:', err)
-        reject(err)
-      }
-    })
-    // #endif
-    
-    // #ifndef MP-WEIXIN
-    // 非微信环境，直接返回路径
-    resolve(filePath)
-    // #endif
   })
 }
 </script>
@@ -474,42 +461,12 @@ $bg-light: #F5F7FA;
   margin-left: 16rpx;
 }
 
-/* 性别选择 */
-.gender-picker {
-  display: flex;
-  gap: 24rpx;
-}
-
-.gender-option {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 12rpx;
-  padding: 28rpx 0;
-  background: #f8f9fc;
-  border-radius: 16rpx;
-  border: 2rpx solid #e8eaef;
-  transition: all 0.3s ease;
-  
-  &.active {
-    background: linear-gradient(135deg, rgba(255, 136, 0, 0.1) 0%, rgba(255, 136, 0, 0.15) 100%);
-    border-color: $brand-orange;
-    
-    .gender-text {
-      color: $brand-orange;
-      font-weight: 600;
-    }
-  }
-  
-  .gender-icon {
-    font-size: 48rpx;
-  }
-  
-  .gender-text {
-    font-size: 26rpx;
-    color: #666666;
-  }
+.form-tip {
+  display: block;
+  font-size: 24rpx;
+  color: #999999;
+  margin-top: 12rpx;
+  line-height: 1.5;
 }
 
 /* 提交区域 */

@@ -36,7 +36,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch, onMounted, nextTick } from 'vue'
+import { ref, computed, watch } from 'vue'
 import { getConversationList, type Conversation } from '@/api/conversation'
 import { useProjectStore } from '@/stores/project'
 
@@ -136,29 +136,6 @@ function formatTime(timeStr: string): string {
 function handleClick(conversation: Conversation) {
   emit('click', conversation)
 }
-
-// 组件挂载时检查并加载
-onMounted(() => {
-  console.log('[ConversationHistory] 组件挂载')
-  console.log('[ConversationHistory] 当前 activeProject:', activeProject.value)
-  
-  // 等待下一个 tick，确保父组件的初始化完成
-  nextTick(() => {
-    console.log('[ConversationHistory] nextTick 后 activeProject:', activeProject.value)
-    // 如果已经有激活项目，立即加载
-    if (activeProject.value?.id) {
-      loadConversations()
-    } else {
-      // 如果没有激活项目，等待一段时间后重试（给父组件时间初始化）
-      setTimeout(() => {
-        console.log('[ConversationHistory] setTimeout 后 activeProject:', activeProject.value)
-        if (activeProject.value?.id) {
-          loadConversations()
-        }
-      }, 500)
-    }
-  })
-})
 
 // 监听项目变化，重新加载对话列表
 // 使用 immediate: true 确保在组件挂载时如果已有激活项目也会加载

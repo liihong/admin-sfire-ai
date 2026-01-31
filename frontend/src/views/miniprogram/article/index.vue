@@ -126,13 +126,11 @@
           </el-select>
         </el-form-item>
         <el-form-item label="文章内容" prop="content">
-          <el-input
+         <RichTextEditor v-if="drawerVisible" :key="`editor-${formData.id}`"
             v-model="formData.content"
-            type="textarea"
-            :rows="15"
-            placeholder="请输入文章内容（支持HTML格式）"
+           placeholder="请输入文章内容..."
           />
-          <div class="form-tip">支持HTML格式，可以使用富文本编辑器编辑后粘贴到这里</div>
+         <div class="form-tip">支持富文本格式，可以使用工具栏调整文章结构</div>
         </el-form-item>
         <el-form-item label="排序顺序" prop="sort_order">
           <el-input-number v-model="formData.sort_order" :min="0" :max="9999" style="width: 100%" />
@@ -163,13 +161,14 @@
 </template>
 
 <script setup lang="tsx" name="articleManage">
-import { ref, reactive } from "vue";
+import { ref, reactive, nextTick } from "vue";
 import { ElMessage, FormInstance, FormRules } from "element-plus";
 import { CirclePlus, Delete, EditPen, Plus } from "@element-plus/icons-vue";
 import type { ArticleItem, ArticleParams } from "@/api/modules/article";
 import { useHandleData } from "@/hooks/useHandleData";
 import ProTable from "@/components/ProTable/index.vue";
 import { ProTableInstance, ColumnProps } from "@/components/ProTable/interface";
+import RichTextEditor from "@/components/RichTextEditor/index.vue";
 import {
   getArticleList,
   addArticle,
@@ -273,16 +272,23 @@ const getCategoryLabel = (category: string) => {
 };
 
 // 打开抽屉
-const openDrawer = (title: string, row?: ArticleItem) => {
+const openDrawer = async (title: string, row?: ArticleItem) => {
   drawerTitle.value = title;
   isEdit.value = !!row;
   
+  // 先关闭抽屉（如果已打开），确保组件完全销毁
+  if (drawerVisible.value) {
+    drawerVisible.value = false;
+    await nextTick();
+  }
+
   if (row) {
+    // 先更新表单数据
     Object.assign(formData, {
       id: row.id,
       category: row.category,
       title: row.title,
-      content: row.content,
+      content: row.content || "",
       summary: row.summary || "",
       cover_image: row.cover_image || "",
       tags: row.tags || [],
@@ -307,6 +313,8 @@ const openDrawer = (title: string, row?: ArticleItem) => {
     });
   }
   
+  // 等待数据更新后再打开抽屉，确保富文本编辑器能正确获取到初始值
+  await nextTick();
   drawerVisible.value = true;
 };
 

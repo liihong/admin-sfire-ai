@@ -85,6 +85,7 @@ export interface RefreshTokenResponse {
 export interface UpdateUserInfoRequest {
   nickname?: string
   avatar?: string
+  inviter_phone?: string  // 推荐人手机号
 }
 
 /**

@@ -56,19 +56,18 @@
               class="module-item"
             >
               <el-input
-                v-model="module.name"
+v-model="module.label"
                 placeholder="模块名称"
-                style="width: 200px; margin-right: 10px"
+style="width: 150px; margin-right: 10px"
               />
               <el-input
                 v-model="module.icon"
-                placeholder="图标（emoji）"
-                style="width: 120px; margin-right: 10px"
+placeholder="图标名称" style="width: 150px; margin-right: 10px"
               />
               <el-input
-                v-model="module.link"
-                placeholder="跳转链接"
-                style="width: 250px; margin-right: 10px"
+v-model="module.route" placeholder="跳转路由" style="width: 200px; margin-right: 10px" />
+              <el-input-number v-model="module.iconSize" placeholder="图标大小" :min="10" :max="100"
+                style="width: 120px; margin-right: 10px"
               />
               <el-button
                 type="danger"
@@ -149,8 +148,15 @@ const configForm = reactive({
   home_background: ""
 });
 
-// 推荐模块列表
-const featuredModules = ref<Array<{ name: string; icon: string; link: string }>>([]);
+// 推荐模块列表（兼容两种格式：{ name, icon, link } 和 { icon, label, route, iconSize }）
+const featuredModules = ref<Array<{
+  name?: string;
+  icon: string;
+  link?: string;
+  label?: string;
+  route?: string;
+  iconSize?: number;
+}>>([]);
 
 // 快捷链接列表
 const quickLinks = ref<Array<{ title: string; url: string }>>([]);
@@ -161,11 +167,81 @@ const uploadHeaders = {
   Authorization: `Bearer ${getToken()}`
 };
 
+/**
+ * 将 JavaScript 对象字面量格式转换为有效的 JSON 格式
+ * 处理情况：
+ * 1. 属性名没有引号: { icon: "value" } -> { "icon": "value" }
+ * 2. 单引号字符串: { 'icon': 'value' } -> { "icon": "value" }
+ * 3. 混合格式
+ */
+const normalizeJsObjectToJson = (jsStr: string): string => {
+  let normalized = jsStr.trim();
+
+  // 如果已经是有效的 JSON，直接返回
+  try {
+    JSON.parse(normalized);
+    return normalized;
+  } catch (e) {
+    // 继续处理
+  }
+
+  // 处理属性名没有引号的情况
+  // 匹配模式: 属性名（字母、数字、下划线）后跟冒号
+  // 例如: icon: 或 iconSize: 或 icon_size:
+  normalized = normalized.replace(
+    /(\s*)([a-zA-Z_$][a-zA-Z0-9_$]*)\s*:/g,
+    (match, spaces, propName) => {
+      // 检查是否在字符串内（简单检查）
+      const beforeMatch = normalized.substring(0, normalized.indexOf(match));
+      const singleQuotes = (beforeMatch.match(/'/g) || []).length;
+      const doubleQuotes = (beforeMatch.match(/"/g) || []).length;
+      // 如果单引号或双引号数量是奇数，说明在字符串内，不处理
+      if (singleQuotes % 2 !== 0 || doubleQuotes % 2 !== 0) {
+        return match;
+      }
+      return `${spaces}"${propName}":`;
+    }
+  );
+
+  // 处理单引号字符串，转换为双引号
+  normalized = normalized.replace(/'/g, '"');
+
+  return normalized;
+};
+
+/**
+ * 解析配置值（支持 JSON 和 JavaScript 对象字面量格式）
+ */
+const parseConfigValue = (configValue: string | undefined): any => {
+  if (!configValue) {
+    return null;
+  }
+
+  const trimmed = configValue.trim();
+  if (!trimmed) {
+    return null;
+  }
+
+  // 先尝试标准 JSON 解析
+  try {
+    return JSON.parse(trimmed);
+  } catch (e) {
+    // JSON 解析失败，尝试修复 JavaScript 对象字面量格式
+    try {
+      const normalized = normalizeJsObjectToJson(trimmed);
+      return JSON.parse(normalized);
+    } catch (e2) {
+      console.error("解析配置值失败:", e2, "原始值:", trimmed.substring(0, 200));
+      return null;
+    }
+  }
+};
+
 // 加载配置数据
 const loadConfigs = async () => {
   try {
     const response = await getAllConfigs();
-    if ((response.code === 200 || response.code === "200") && response.data) {
+    if (String(response.code) === "200" && response.data) {
       const configs = response.data.list || [];
       
       // 解析配置值
@@ -177,19 +253,17 @@ const loadConfigs = async () => {
         } else if (config.config_key === "home_background") {
           configForm.home_background = config.config_value || "";
         } else if (config.config_key === "featured_modules") {
-          try {
-            featuredModules.value = config.config_value
-              ? JSON.parse(config.config_value)
-              : [];
-          } catch (e) {
+          const parsed = parseConfigValue(config.config_value);
+          if (Array.isArray(parsed)) {
+            featuredModules.value = parsed;
+          } else {
             featuredModules.value = [];
           }
         } else if (config.config_key === "quick_links") {
-          try {
-            quickLinks.value = config.config_value
-              ? JSON.parse(config.config_value)
-              : [];
-          } catch (e) {
+          const parsed = parseConfigValue(config.config_value);
+          if (Array.isArray(parsed)) {
+            quickLinks.value = parsed;
+          } else {
             quickLinks.value = [];
           }
         }
@@ -205,6 +279,17 @@ const loadConfigs = async () => {
 const handleSaveAll = async () => {
   saving.value = true;
   try {
+    // 规范化推荐模块数据，确保字段统一
+    const normalizedModules = featuredModules.value.map((module) => {
+      // 兼容旧格式，统一转换为新格式
+      return {
+        icon: module.icon || "",
+        label: module.label || module.name || "",
+        route: module.route || module.link || "",
+        iconSize: module.iconSize || 20
+      };
+    });
+
     const configs = [
       {
         config_key: "home_title",
@@ -223,7 +308,7 @@ const handleSaveAll = async () => {
       },
       {
         config_key: "featured_modules",
-        config_value: JSON.stringify(featuredModules.value),
+        config_value: JSON.stringify(normalizedModules),
         config_type: "array" as const
       },
       {
@@ -234,8 +319,10 @@ const handleSaveAll = async () => {
     ];
 
     const response = await batchUpdateConfigs(configs);
-    if (response.code === 200 || response.code === "200") {
+    if (String(response.code) === "200") {
       ElMessage.success("保存成功");
+      // 重新加载配置以确保数据同步
+      await loadConfigs();
     } else {
       ElMessage.error(response.msg || "保存失败");
     }
@@ -249,7 +336,7 @@ const handleSaveAll = async () => {
 
 // 背景图上传成功
 const handleBackgroundSuccess = (response: any) => {
-  if (response.code === 200 && response.data) {
+  if (String(response.code) === "200" && response.data) {
     configForm.home_background = response.data.url || response.data;
     ElMessage.success("背景图上传成功");
   } else {
@@ -276,9 +363,10 @@ const beforeImageUpload = (file: File) => {
 // 添加推荐模块
 const addModule = () => {
   featuredModules.value.push({
-    name: "",
     icon: "",
-    link: ""
+    label: "",
+    route: "",
+    iconSize: 20
   });
 };
 

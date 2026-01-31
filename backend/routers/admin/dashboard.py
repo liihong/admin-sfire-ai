@@ -212,13 +212,14 @@ async def get_agent_rank(
     """
     获取智能体调用排行（Top N）
 
-    统计每个智能体的调用次数（基于关联的会话数量），返回最受欢迎的智能体
+    基于 Agent.usage_count 字段统计每个智能体的实际调用次数，返回最受欢迎的智能体
+    只返回上架状态（status=1）且调用次数大于 0 的智能体
 
     返回字段:
     - id: 智能体 ID
     - name: 智能体名称
     - icon: 智能体图标
-    - call_count: 调用次数（会话数量）
+    - call_count: 调用次数（基于 usage_count 字段，每次调用智能体时自动累加）
 
     Args:
         limit: 返回记录数量，默认 5 条，最多 100 条

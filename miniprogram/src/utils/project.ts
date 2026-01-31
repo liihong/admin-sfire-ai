@@ -111,7 +111,7 @@ export function formDataToCreateRequest(formData: ProjectFormData): ProjectCreat
 
 /**
  * 将表单数据转换为更新项目请求
- * 扁平格式，后端会自动合并到 persona_settings
+ * 同时发送嵌套的 persona_settings 对象和扁平字段，确保数据同步更新
  * 
  * 使用场景：更新项目时，将表单数据转换为 API 请求格式
  */
@@ -122,7 +122,31 @@ export function formDataToUpdateRequest(formData: ProjectFormData): ProjectUpdat
   if (formData.name?.trim()) request.name = formData.name.trim()
   if (formData.industry) request.industry = formData.industry
 
-  // 人设字段（扁平格式，后端会自动合并到 persona_settings）
+  // 构建完整的人设配置对象（嵌套格式）
+  const personaSettings: PersonaSettingsModel = {
+    tone: formData.tone?.trim() || '专业亲和',
+    catchphrase: formData.catchphrase?.trim() || '',
+    target_audience: formData.target_audience?.trim() || '',
+    introduction: formData.introduction?.trim() || '',
+    keywords: formData.keywords && formData.keywords.length > 0 
+      ? formData.keywords.filter(k => k && k.trim()) 
+      : [],
+    industry_understanding: formData.industry_understanding?.trim() || '',
+    unique_views: formData.unique_views?.trim() || '',
+    target_pains: formData.target_pains?.trim() || '',
+    benchmark_accounts: formData.benchmark_accounts && formData.benchmark_accounts.length > 0
+      ? formData.benchmark_accounts.filter(a => a && a.trim())
+      : [],
+    content_style: formData.content_style?.trim() || '',
+    taboos: formData.taboos && formData.taboos.length > 0
+      ? formData.taboos.filter(t => t && t.trim())
+      : []
+  }
+  
+  // 同时发送嵌套格式的 persona_settings 对象
+  request.persona_settings = personaSettings
+
+  // 同时发送扁平格式字段（后端会合并处理，确保兼容性）
   if (formData.tone?.trim()) request.tone = formData.tone.trim()
   if (formData.catchphrase?.trim()) request.catchphrase = formData.catchphrase.trim()
   if (formData.target_audience?.trim()) request.target_audience = formData.target_audience.trim()

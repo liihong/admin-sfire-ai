@@ -54,26 +54,35 @@ function refreshPage(_?: boolean) {
 // 刷新项目列表
 async function refreshProjectList() {
   try {
+    isLoading.value = true
+    loadError.value = false
     const response = await fetchProjects()
     projectStore.setProjectList(response.projects, response.active_project_id)
+    // 更新 key 强制重新渲染组件（确保显示最新数据）
+    refreshKey.value++
   } catch (error) {
     console.error('刷新项目列表失败:', error)
+    loadError.value = true
+  } finally {
+    isLoading.value = false
   }
 }
 
 // 页面显示时检查是否需要刷新
 onShow(async () => {
-  isLoading.value = false
-  loadError.value = false
-
   // 检查 store 中的刷新标记，如果有则触发刷新
   const needRefresh = projectStore.checkAndClearRefresh()
+  
+  // 如果 store 中没有项目数据，也需要主动加载
+  const hasNoData = projectStore.projectList.length === 0
 
-  if (needRefresh) {
-    // 直接刷新数据
+  if (needRefresh || hasNoData) {
+    // 加载项目列表数据
     await refreshProjectList()
-    // 更新 key 强制重新渲染组件（确保显示最新数据）
-    refreshKey.value++
+  } else {
+    // 如果不需要刷新且有数据，直接设置为非加载状态
+    isLoading.value = false
+    loadError.value = false
   }
 })
 

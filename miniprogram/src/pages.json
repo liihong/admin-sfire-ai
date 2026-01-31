@@ -91,6 +91,14 @@
       }
     },
     {
+      "path": "pages/mine/referral/index",
+      "style": {
+        "navigationBarTitleText": "我要推荐",
+        "navigationStyle": "custom",
+        "disableScroll": false
+      }
+    },
+    {
       "path": "pages/copywriting/index",
       "style": {
         "navigationBarTitleText": "AI 文案生成",

@@ -14,7 +14,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from db.redis import RedisCache
 from models.user import User
 from models.compute import ComputeLog, ComputeType
-from models.conversation import Conversation
 from schemas.dashboard import (
     DashboardStats,
     OverviewStats,
@@ -498,7 +497,7 @@ class DashboardService:
         """
         获取智能体调用排行
 
-        统计每个智能体的调用次数（基于关联的会话数量），返回 Top N
+        基于 Agent.usage_count 字段统计每个智能体的实际调用次数，返回 Top N
 
         Args:
             limit: 返回的记录数量，默认 5 条
@@ -507,36 +506,21 @@ class DashboardService:
             List[AgentRankItem]: 智能体排行列表
         """
         try:
-            # 按智能体分组统计会话数量
-            result = await self.db.execute(
-                select(
-                    Conversation.agent_id,
-                    func.count(Conversation.id).label("call_count")
-                ).where(
-                    Conversation.agent_id.isnot(None)
-                ).group_by(
-                    Conversation.agent_id
-                ).order_by(
-                    func.count(Conversation.id).desc()
-                ).limit(limit)
-            )
-
-            agent_call_counts = {}
-            for row in result.fetchall():
-                agent_call_counts[row.agent_id] = row.call_count
-
-            if not agent_call_counts:
-                # 如果没有数据，返回空列表
-                return []
-
-            # 获取智能体详细信息
             from models.agent import Agent
 
-            agent_ids = list(agent_call_counts.keys())
-            agents_result = await self.db.execute(
-                select(Agent).where(Agent.id.in_(agent_ids))
+            # 直接查询 Agent 表，按 usage_count 降序排序
+            # 只返回上架的智能体（status=1），且 usage_count > 0
+            result = await self.db.execute(
+                select(Agent)
+                .where(
+                    Agent.status == 1,  # 只统计上架的智能体
+                    Agent.usage_count > 0  # 只返回有调用记录的智能体
+                )
+                .order_by(Agent.usage_count.desc())
+                .limit(limit)
             )
-            agents = agents_result.scalars().all()
+
+            agents = result.scalars().all()
 
             # 构建返回结果
             agent_rank = []
@@ -545,11 +529,8 @@ class DashboardService:
                     id=str(agent.id),
                     name=agent.name,
                     icon=agent.icon,
-                    call_count=agent_call_counts[agent.id]
+                    call_count=agent.usage_count or 0  # 使用 usage_count 字段
                 ))
-
-            # 按调用次数排序
-            agent_rank.sort(key=lambda x: x.call_count, reverse=True)
 
             logger.info(f"获取智能体排行成功，共 {len(agent_rank)} 条")
             return agent_rank

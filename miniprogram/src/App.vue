@@ -1,9 +1,109 @@
 <script setup lang="ts">
-import { onLaunch, onShow, onHide } from "@dcloudio/uni-app";
+import { onLaunch, onShow, onHide, onError } from "@dcloudio/uni-app";
 import { useAuthStore } from "@/stores/auth";
 import { setConfig } from "uview-plus";
 
+// 全局错误处理，捕获路由错误等
+onError((error: string) => {
+  // 检查是否是路由错误
+  if (error.includes('navigateTo:fail') ||
+    error.includes('redirectTo:fail') ||
+    error.includes('switchTab:fail') ||
+    error.includes('is not found') ||
+    error.includes('页面不存在')) {
+    uni.showToast({
+      title: '功能开发中，请耐心等待',
+      icon: 'none',
+      duration: 2000
+    })
+  }
+})
+
 onLaunch(async () => {
+  // 包装全局路由 API，统一处理路由错误
+  // 使用类型断言来避免 TypeScript 类型检查错误
+  const uniAny = uni as any
+
+  // 保存原始方法
+  const originalNavigateTo = uniAny.navigateTo
+  const originalRedirectTo = uniAny.redirectTo
+  const originalSwitchTab = uniAny.switchTab
+  const originalReLaunch = uniAny.reLaunch
+
+  // 包装 navigateTo
+  uniAny.navigateTo = function (options: UniApp.NavigateToOptions) {
+    const originalFail = options.fail
+    options.fail = function (error: any) {
+      // 检查是否是页面不存在的错误
+      const errMsg = error?.errMsg || ''
+      if (errMsg.includes('is not found') || errMsg.includes('页面不存在')) {
+        uni.showToast({
+          title: '功能开发中，请耐心等待',
+          icon: 'none',
+          duration: 2000
+        })
+      } else if (originalFail) {
+        // 执行原始 fail 回调
+        originalFail(error)
+      }
+    }
+    return originalNavigateTo.call(uni, options)
+  }
+
+  // 包装 redirectTo
+  uniAny.redirectTo = function (options: UniApp.RedirectToOptions) {
+    const originalFail = options.fail
+    options.fail = function (error: any) {
+      const errMsg = error?.errMsg || ''
+      if (errMsg.includes('is not found') || errMsg.includes('页面不存在')) {
+        uni.showToast({
+          title: '功能开发中，请耐心等待',
+          icon: 'none',
+          duration: 2000
+        })
+      } else if (originalFail) {
+        originalFail(error)
+      }
+    }
+    return originalRedirectTo.call(uni, options)
+  }
+
+  // 包装 switchTab
+  uniAny.switchTab = function (options: UniApp.SwitchTabOptions) {
+    const originalFail = options.fail
+    options.fail = function (error: any) {
+      const errMsg = error?.errMsg || ''
+      if (errMsg.includes('is not found') || errMsg.includes('页面不存在')) {
+        uni.showToast({
+          title: '功能开发中，请耐心等待',
+          icon: 'none',
+          duration: 2000
+        })
+      } else if (originalFail) {
+        originalFail(error)
+      }
+    }
+    return originalSwitchTab.call(uni, options)
+  }
+
+  // 包装 reLaunch
+  uniAny.reLaunch = function (options: UniApp.ReLaunchOptions) {
+    const originalFail = options.fail
+    options.fail = function (error: any) {
+      const errMsg = error?.errMsg || ''
+      if (errMsg.includes('is not found') || errMsg.includes('页面不存在')) {
+        uni.showToast({
+          title: '功能开发中，请耐心等待',
+          icon: 'none',
+          duration: 2000
+        })
+      } else if (originalFail) {
+        originalFail(error)
+      }
+    }
+    return originalReLaunch.call(uni, options)
+  }
+
   // 配置 uview-plus 使用本地字体，避免请求阿里云 CDN
   // 注意：需要先将字体文件下载到 /static/fonts/uview-iconfont.ttf
   setConfig({

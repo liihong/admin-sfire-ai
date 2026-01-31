@@ -32,7 +32,7 @@
       <ToneSelector
         v-model="formData.tone"
         label="语气风格"
-        :options="toneOptions"
+:options="toneOptions.map(v => v.value)"
       />
       
       <FormInput
