@@ -238,7 +238,8 @@ class UserService(BaseService):
         self,
         user_id: int,
         amount: Decimal,
-        remark: Optional[str] = None
+        remark: Optional[str] = None,
+        operator_id: Optional[int] = None,
     ) -> None:
         """
         用户充值
@@ -247,18 +248,37 @@ class UserService(BaseService):
             user_id: 用户ID
             amount: 充值金额
             remark: 备注
+            operator_id: 操作人ID（管理员操作时记录）
         """
-        user = await super().get_by_id(user_id)
+        from services.coin.account import CoinAccountService
+        from services.system.operation_log import OperationLogService, OperationType
         
-        user.balance += amount
+        # 使用 CoinAccountService 进行充值（会自动记录 ComputeLog）
+        coin_service = CoinAccountService(self.db)
+        await coin_service.recharge(
+            user_id=user_id,
+            amount=amount,
+            remark=remark,
+            operator_id=operator_id,
+        )
         
-        # TODO: 记录算力变动日志
-        
-        await self.db.flush()
+        # 记录操作日志（如果有操作人）
+        if operator_id:
+            operation_log_service = OperationLogService(self.db)
+            operation_detail = {
+                "amount": float(amount),
+            }
+            await operation_log_service.create_log(
+                admin_user_id=operator_id,
+                user_id=user_id,
+                operation_type=OperationType.RECHARGE,
+                operation_detail=operation_detail,
+                remark=remark,
+            )
         
         logger.info(
-            f"User recharged: {user.username}, "
-            f"amount: {amount}, remark: {remark}"
+            f"User recharged: user_id={user_id}, "
+            f"amount: {amount}, remark: {remark}, operator_id: {operator_id}"
         )
     
     async def deduct(
@@ -296,7 +316,8 @@ class UserService(BaseService):
         user_id: int,
         level: str,
         vip_expire_date: Optional[datetime] = None,
-        remark: Optional[str] = None
+        remark: Optional[str] = None,
+        operator_id: Optional[int] = None,
     ) -> None:
         """
         修改用户等级（集成升级/降级处理）
@@ -306,12 +327,15 @@ class UserService(BaseService):
             level: 等级代码 (normal/vip/svip/max)
             vip_expire_date: VIP到期时间（可选）
             remark: 备注
+            operator_id: 操作人ID（管理员操作时记录）
         """
         from services.system.membership import MembershipService
+        from services.system.operation_log import OperationLogService, OperationType
         
         user = await super().get_by_id(user_id)
         
         old_level_code = user.level_code or "normal"
+        old_vip_expire_date = user.vip_expire_date
         
         # 更新level_code
         user.level_code = level
@@ -321,6 +345,23 @@ class UserService(BaseService):
             user.vip_expire_date = vip_expire_date
         
         await self.db.flush()
+        
+        # 记录操作日志（如果有操作人）
+        if operator_id:
+            operation_log_service = OperationLogService(self.db)
+            operation_detail = {
+                "old_level": old_level_code,
+                "new_level": level,
+                "old_vip_expire_date": old_vip_expire_date.isoformat() if old_vip_expire_date else None,
+                "new_vip_expire_date": vip_expire_date.isoformat() if vip_expire_date else None,
+            }
+            await operation_log_service.create_log(
+                admin_user_id=operator_id,
+                user_id=user_id,
+                operation_type=OperationType.CHANGE_LEVEL,
+                operation_detail=operation_detail,
+                remark=remark,
+            )
         
         # 处理升级/降级逻辑
         membership_service = MembershipService(self.db)
@@ -348,7 +389,7 @@ class UserService(BaseService):
         
         logger.info(
             f"User level changed: {user.username}, "
-            f"{old_level_code} -> {level}, remark: {remark}"
+            f"{old_level_code} -> {level}, remark: {remark}, operator_id: {operator_id}"
         )
     
     async def get_user_by_openid(self, openid: str) -> Optional[User]:

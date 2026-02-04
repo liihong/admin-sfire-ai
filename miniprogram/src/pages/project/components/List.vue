@@ -25,7 +25,7 @@
       <EmptyState v-if="!isLoading && projectList.length === 0" @action="navigateToCreate" />
 
       <!-- 项目卡片列表 -->
-      <view class="project-cards" v-else>
+      <view class="project-cards" v-if="projectList.length > 0">
         <view class="project-card" v-for="(project, index) in projectList" :key="project.id" :class="{
           active: activeProject?.id === project.id,
           'enter-animation': true
@@ -76,13 +76,16 @@
     </scroll-view>
 
   <!-- 创建项目按钮（固定在底部，不随页面滚动） -->
-   <view class="create-project-btn-wrapper" v-if="canCreateProject && projectList.length !== 0">
-      <view class="create-project-btn" @tap="navigateToCreate">
-        <SvgIcon name="add" size="36" color="#FFFFFF" />
+    <view class="create-project-btn-wrapper" v-if="projectList.length !== 0">
+      <view class="create-project-btn" :class="{ disabled: !canCreateProject }" @tap="handleCreateClick">
+        <SvgIcon name="add" size="36" :color="canCreateProject ? '#FFFFFF' : '#CCCCCC'" />
         <text class="create-btn-text">创建新IP</text>
       </view>
      <text class="create-btn-hint" v-if="maxIpCount !== null">
         当前 {{ projectList.length }}/{{ maxIpCount }} 个IP
+      </text>
+      <text class="create-btn-upgrade-hint" v-if="!canCreateProject && maxIpCount !== null">
+        如果想开通更多IP席位需要升级SVIP会员
       </text>
     </view>
 
@@ -272,6 +275,19 @@ async function handleDeleteProject(project: Project) {
       }
     }
   })
+}
+
+// 处理创建按钮点击
+function handleCreateClick() {
+  // 如果不能创建，跳转到会员升级页面
+  if (!canCreateProject.value) {
+    uni.navigateTo({
+      url: '/pages/mine/membership'
+    })
+    return
+  }
+  // 可以创建，跳转到创建页面
+  navigateToCreate()
 }
 
 // 跳转到创建项目页面
@@ -595,11 +611,16 @@ function navigateToCreate() {
   box-shadow: 0 4rpx 16rpx rgba(0, 0, 0, 0.15);
   transition: all 0.3s ease;
 
-  &:active {
+  &:active:not(.disabled) {
       transform: scale(0.98);
       background: #2a2a3e;
       box-shadow: 0 2rpx 8rpx rgba(0, 0, 0, 0.1);
     }
+&.disabled {
+  background: #F5F7FA;
+  box-shadow: none;
+  cursor: not-allowed;
+}
 }
 
 .create-btn-text {
@@ -608,11 +629,20 @@ function navigateToCreate() {
   color: #FFFFFF;
 }
 
+.create-project-btn.disabled .create-btn-text {
+  color: #999999;
+}
 .create-btn-hint {
   font-size: 24rpx;
   color: #999;
-    text-align: center;
+  text-align: center;
   }
+.create-btn-upgrade-hint {
+  font-size: 24rpx;
+  color: $primary-orange;
+  text-align: center;
+  margin-top: -8rpx;
+}
 // 列表底部占位
 .list-footer-spacer {
   height: 200rpx;

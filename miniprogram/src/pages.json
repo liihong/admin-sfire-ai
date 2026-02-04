@@ -131,7 +131,7 @@
       }
     },
     {
-      "path": "pages/contact/index",
+      "path": "pages/mine/contact/index",
       "style": {
         "navigationBarTitleText": "联系客服",
         "disableScroll": true
@@ -159,6 +159,14 @@
         "navigationBarTitleText": "文章列表",
         "navigationStyle": "custom",
         "disableScroll": false
+      }
+    },
+    {
+      "path": "pages/hotspot/index",
+      "style": {
+        "navigationBarTitleText": "抖音热点榜单",
+        "navigationStyle": "custom",
+        "disableScroll": true
       }
     }
   ],

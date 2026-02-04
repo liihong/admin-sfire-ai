@@ -158,7 +158,7 @@ const toneLabel = computed(() => {
     }
     
     .info-display-section {
-      margin-bottom: $spacing-lg;
+      margin-bottom: 150rpx;
     }
     
     .info-group {
@@ -238,7 +238,7 @@ const toneLabel = computed(() => {
       font-size: $font-size-sm;
       color: $text-placeholder;
 }
-
+}
 .info-box {
   background: rgba($primary-orange, 0.05);
   border-radius: $radius-md;

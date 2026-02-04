@@ -192,16 +192,26 @@ class ComputeService:
             compute_type = ComputeType(log_type)
             conditions.append(ComputeLog.type == compute_type)
         
-        # 过滤掉充值失败的订单（payment_status 为 failed 或 cancelled 的充值订单）
-        # 条件：不是充值类型，或者是充值类型但支付状态不是失败或取消
+        # 过滤掉充值失败的订单和待支付的订单
+        # 条件：
+        # 1. 不是充值类型，保留
+        # 2. 是充值类型：
+        #    - 系统充值（有 operator_id），保留（无论 payment_status 是什么）
+        #    - 用户支付订单（无 operator_id），只保留已支付的（payment_status 为 paid 或 None）
         conditions.append(
             or_(
                 ComputeLog.type != ComputeType.RECHARGE,  # 不是充值类型，保留
                 and_(
                     ComputeLog.type == ComputeType.RECHARGE,  # 是充值类型
                     or_(
-                        ComputeLog.payment_status.is_(None),  # payment_status 为 None（兼容旧数据）
-                        ComputeLog.payment_status.notin_(["failed", "cancelled", "pending"])  # 支付状态不是失败或取消
+                        ComputeLog.operator_id.isnot(None),  # 系统充值（有操作人），保留
+                        and_(
+                            ComputeLog.operator_id.is_(None),  # 用户支付订单（无操作人）
+                            or_(
+                                ComputeLog.payment_status.is_(None),  # payment_status 为 None（兼容旧数据）
+                                ComputeLog.payment_status == "paid"  # 已支付
+                            )
+                        )
                     )
                 )
             )

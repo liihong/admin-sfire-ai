@@ -646,13 +646,39 @@ IP信息：
         
         # 3. 调用AgentExecutor执行agent（非流式，不注入IP基因）
         executor = AgentExecutor(db)
-        response, _, _, _ = await executor.execute_non_stream(
-            agent=agent,
-            user_input=prompt_text,
-            persona_prompt=None,  # 不注入IP基因
-            temperature=0.7,
-            max_tokens=3000  # 报告较长，需要更多tokens
-        )
+        logger.info(f"开始生成IP定位报告: 用户ID={current_user.id}, IP名称={request.name}, Agent ID={agent_id}")
+        
+        try:
+            response, system_prompt, skills_applied, token_count = await executor.execute_non_stream(
+                agent=agent,
+                user_input=prompt_text,
+                persona_prompt=None,  # 不注入IP基因
+                temperature=0.7,
+                max_tokens=3000  # 报告较长，需要更多tokens
+            )
+            
+            logger.debug(f"AI响应接收完成: 响应长度={len(response)}, Token数={token_count}, 使用技能数={len(skills_applied)}")
+            
+            # 检查响应是否异常：如果响应包含提示词标记，说明返回了错误的响应
+            if not response or len(response.strip()) == 0:
+                raise BadRequestException("AI返回的响应为空，请重试")
+            
+            # 检测是否返回了提示词而不是生成的内容
+            prompt_markers = ["<<<START_PROMPT>>>", "<<<END_PROMPT>>>", "你现在彻底数字化成为了"]
+            if any(marker in response for marker in prompt_markers):
+                logger.error(f"检测到AI返回了提示词而非生成内容: 响应前200字符={response[:200]}")
+                raise BadRequestException("AI返回了错误的响应格式（返回了提示词而非生成内容），请检查Agent配置或重试")
+            
+            # 检查响应是否过短（可能是错误响应）
+            if len(response.strip()) < 50:
+                logger.warning(f"AI响应过短: 响应内容={response[:200]}")
+                raise BadRequestException(f"AI返回的响应过短，可能生成失败。响应内容: {response[:200]}")
+                
+        except BadRequestException:
+            raise
+        except Exception as e:
+            logger.error(f"调用AgentExecutor失败: {e}", exc_info=True)
+            raise BadRequestException(f"调用AI服务失败: {str(e)}。请重试。")
         
         # 4. 解析返回的JSON格式报告（增强容错性）
         def extract_json_from_text(text: str) -> dict:
@@ -671,28 +697,36 @@ IP信息：
             if not text:
                 raise ValueError("响应文本为空")
             
+            text = text.strip()
+            
+            # 预检查：如果文本看起来不像JSON（没有大括号），提前返回错误
+            if '{' not in text:
+                raise ValueError(f"响应中未找到JSON对象标记。响应前200字符: {text[:200]}")
+            
             # 方法1: 查找JSON代码块（```json ... ```）
             json_match = re.search(r'```json\s*(\{.*?\})\s*```', text, re.DOTALL)
             if json_match:
                 try:
                     return json.loads(json_match.group(1))
-                except json.JSONDecodeError:
-                    pass
+                except json.JSONDecodeError as e:
+                    logger.debug(f"方法1解析失败: {e}")
             
             # 方法2: 查找普通代码块（``` ... ```）
             code_match = re.search(r'```\s*(\{.*?\})\s*```', text, re.DOTALL)
             if code_match:
                 try:
                     return json.loads(code_match.group(1))
-                except json.JSONDecodeError:
-                    pass
+                except json.JSONDecodeError as e:
+                    logger.debug(f"方法2解析失败: {e}")
             
             # 方法3: 查找第一个完整的JSON对象（通过括号匹配）
             brace_count = 0
             start_idx = text.find('{')
             if start_idx == -1:
-                raise ValueError("未找到JSON对象起始标记")
+                raise ValueError(f"未找到JSON对象起始标记。响应前200字符: {text[:200]}")
             
+            # 找到第一个完整的JSON对象
+            json_str = None
             for i in range(start_idx, len(text)):
                 if text[i] == '{':
                     brace_count += 1
@@ -700,34 +734,51 @@ IP信息：
                     brace_count -= 1
                     if brace_count == 0:
                         json_str = text[start_idx:i+1]
-                        try:
-                            return json.loads(json_str)
-                        except json.JSONDecodeError:
-                            # 如果解析失败，尝试清理后重试
-                            json_str_clean = re.sub(r'[^\x20-\x7E\n\r\t]', '', json_str)  # 移除非ASCII字符
-                            try:
-                                return json.loads(json_str_clean)
-                            except json.JSONDecodeError:
-                                pass
                         break
+            
+            if json_str:
+                try:
+                    return json.loads(json_str)
+                except json.JSONDecodeError:
+                    # 如果解析失败，尝试清理后重试
+                    json_str_clean = re.sub(r'[^\x20-\x7E\n\r\t]', '', json_str)  # 移除非ASCII字符
+                    try:
+                        return json.loads(json_str_clean)
+                    except json.JSONDecodeError as e:
+                        logger.debug(f"方法3清理后解析失败: {e}")
             
             # 方法4: 尝试直接解析整个文本
             try:
-                return json.loads(text.strip())
-            except json.JSONDecodeError:
-                pass
+                return json.loads(text)
+            except json.JSONDecodeError as e:
+                logger.debug(f"方法4直接解析失败: {e}")
             
-            raise ValueError("无法从响应中提取有效的JSON对象")
+            # 如果所有方法都失败，返回详细错误信息
+            raise ValueError(f"无法从响应中提取有效的JSON对象。响应前500字符: {text[:500]}")
         
         report_data = None
         try:
             report_data = extract_json_from_text(response)
+            logger.debug(f"JSON提取成功: 包含字段={list(report_data.keys()) if isinstance(report_data, dict) else 'N/A'}")
         except ValueError as e:
-            logger.error(f"IP定位报告JSON提取失败: {e}, 原始响应前500字符: {response[:500]}")
-            raise BadRequestException(f"报告生成失败：无法解析AI返回的JSON格式。错误：{str(e)}。请重试。")
+            error_msg = str(e)
+            logger.error(
+                f"IP定位报告JSON提取失败: {error_msg}\n"
+                f"原始响应长度={len(response)}, 前500字符: {response[:500]}\n"
+                f"后500字符: {response[-500:] if len(response) > 500 else response}"
+            )
+            raise BadRequestException(
+                f"报告生成失败：无法解析AI返回的JSON格式。\n"
+                f"错误详情：{error_msg}\n"
+                f"请检查Agent配置，确保返回格式为JSON。如问题持续，请联系管理员。"
+            )
         except Exception as e:
-            logger.error(f"IP定位报告JSON解析异常: {e}, 原始响应前500字符: {response[:500]}", exc_info=True)
-            raise BadRequestException(f"报告生成失败：JSON解析异常。请重试。")
+            logger.error(
+                f"IP定位报告JSON解析异常: {e}\n"
+                f"原始响应长度={len(response)}, 前500字符: {response[:500]}",
+                exc_info=True
+            )
+            raise BadRequestException(f"报告生成失败：JSON解析异常（{str(e)}）。请重试。")
         
         # 5. 验证和构建响应
         if not isinstance(report_data, dict) or "report" not in report_data:

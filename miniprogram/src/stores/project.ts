@@ -54,6 +54,9 @@ export const useProjectStore = defineStore('project', () => {
   // 是否需要刷新列表（用于页面跳转后刷新）
   const needRefresh = ref(false)
 
+  // 用户是否主动清除了激活项目（用于防止自动激活）
+  const isManuallyCleared = ref(false)
+
   // IP收集表单数据（临时保存，用于持久化）
   const ipCollectFormData = ref<IPCollectFormData | null>(null)
 
@@ -134,6 +137,13 @@ export const useProjectStore = defineStore('project', () => {
     // 统一归一化项目结构
     projectList.value = projects.map(p => normalizeProject(p))
 
+    // 如果用户主动清除了激活项目，不自动激活（即使后端返回了 activeProjectId）
+    if (isManuallyCleared.value) {
+      isManuallyCleared.value = false // 重置标记
+      // 只更新列表，不设置激活项目
+      return
+    }
+
   // 如果有激活项目 ID，找到并设置
     if (activeProjectId) {
       const active = projectList.value.find(
@@ -209,6 +219,8 @@ export const useProjectStore = defineStore('project', () => {
   function clearActiveProject() {
     activeProject.value = null
     clearActiveProjectIdFromStorage()
+    // 标记为用户主动清除，防止自动激活
+    isManuallyCleared.value = true
   }
 
   /**

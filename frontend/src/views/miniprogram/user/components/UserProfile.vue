@@ -31,19 +31,19 @@
         </div>
         <div class="compute-cards">
           <div class="compute-card balance">
-            <div class="card-value">{{ formatNumber(userDetail.computePower.balance) }}</div>
+            <div class="card-value">{{ formatNumber(userDetail.computePower?.balance) }}</div>
             <div class="card-label">可用算力</div>
           </div>
           <div class="compute-card frozen">
-            <div class="card-value">{{ formatNumber(userDetail.computePower.frozen) }}</div>
+            <div class="card-value">{{ formatNumber(userDetail.computePower?.frozen) }}</div>
             <div class="card-label">冻结算力</div>
           </div>
           <div class="compute-card consumed">
-            <div class="card-value">{{ formatNumber(userDetail.computePower.totalConsumed) }}</div>
+            <div class="card-value">{{ formatNumber(userDetail.computePower?.totalConsumed) }}</div>
             <div class="card-label">累计消耗</div>
           </div>
           <div class="compute-card recharged">
-            <div class="card-value">{{ formatNumber(userDetail.computePower.totalRecharged) }}</div>
+            <div class="card-value">{{ formatNumber(userDetail.computePower?.totalRecharged) }}</div>
             <div class="card-label">累计充值</div>
           </div>
         </div>
@@ -56,7 +56,7 @@
           <span>邀请数据</span>
         </div>
         <el-descriptions :column="2" border>
-          <el-descriptions-item label="邀请人数">{{ userDetail.inviteCount }} 人</el-descriptions-item>
+          <el-descriptions-item label="邀请人数">{{ userDetail.inviteCount || 0 }} 人</el-descriptions-item>
           <el-descriptions-item label="累计佣金">{{ formatNumber(userDetail.totalCommission) }}</el-descriptions-item>
           <el-descriptions-item label="可提现佣金">
             <span class="highlight-value">{{ formatNumber(userDetail.withdrawableCommission) }}</span>
@@ -72,7 +72,7 @@
         </div>
         <el-timeline>
           <el-timeline-item
-            v-for="activity in userDetail.recentActivities"
+            v-for="activity in userDetail.recentActivities || []"
             :key="activity.id"
             :timestamp="activity.createTime"
             placement="top"
@@ -122,11 +122,16 @@ const getLevelLabel = (level: User.LevelType) => {
 };
 
 // 格式化数字
-const formatNumber = (num: number) => {
-  if (num >= 10000) {
-    return (num / 10000).toFixed(2) + "万";
+const formatNumber = (num: number | undefined | null) => {
+  // 处理 undefined、null 或非数字值
+  if (num === undefined || num === null || isNaN(Number(num))) {
+    return "0";
   }
-  return num.toLocaleString();
+  const numValue = Number(num);
+  if (numValue >= 10000) {
+    return (numValue / 10000).toFixed(2) + "万";
+  }
+  return numValue.toLocaleString();
 };
 
 // 活动类型

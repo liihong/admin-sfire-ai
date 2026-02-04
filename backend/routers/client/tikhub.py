@@ -1,12 +1,13 @@
 """
 Client Tikhub Endpoints
 C端抖音分析接口（小程序 & PC官网）
-支持抖音账号分析、IP画像提取等功能
+支持抖音账号分析、IP画像提取、热点榜单等功能
 """
 import re
 import httpx
 from typing import Optional, List
-from fastapi import APIRouter, Depends
+from datetime import datetime
+from fastapi import APIRouter, Depends, Query
 from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -16,6 +17,7 @@ from core.deps import get_current_miniprogram_user
 from core.config import settings
 from utils.response import success
 from utils.exceptions import BadRequestException, ServerErrorException
+from loguru import logger
 
 router = APIRouter()
 
@@ -278,4 +280,195 @@ async def analyze_douyin_profile(
         raise ServerErrorException("请求超时，请稍后重试")
     except Exception as e:
         return await mock_analyze_douyin(url)
+
+
+# ============== 热点榜单相关 Models ==============
+
+class HotspotItem(BaseModel):
+    """热点榜单项"""
+    rank: int = Field(..., description="排名")
+    title: str = Field(..., description="热点标题")
+    hot_value: Optional[int] = Field(None, description="热度值")
+    word: Optional[str] = Field(None, description="关键词")
+    label: Optional[str] = Field(None, description="标签")
+    url: Optional[str] = Field(None, description="链接")
+    update_time: Optional[str] = Field(None, description="更新时间")
+
+
+class HotspotListResponse(BaseModel):
+    """热点榜单响应"""
+    list: List[HotspotItem] = Field(default_factory=list, description="热点列表")
+    update_time: Optional[str] = Field(None, description="榜单更新时间")
+
+
+async def mock_hotspot_list() -> HotspotListResponse:
+    """Mock 热点榜单数据用于演示和开发测试"""
+    import asyncio
+    await asyncio.sleep(1)
+    
+    mock_list = [
+        {"rank": 1, "title": "AI技术突破新进展", "hot_value": 1250000, "word": "AI技术", "label": "科技", "update_time": datetime.now().strftime("%Y-%m-%d %H:%M:%S")},
+        {"rank": 2, "title": "健康生活方式分享", "hot_value": 980000, "word": "健康生活", "label": "生活", "update_time": datetime.now().strftime("%Y-%m-%d %H:%M:%S")},
+        {"rank": 3, "title": "职场技能提升技巧", "hot_value": 850000, "word": "职场技能", "label": "职场", "update_time": datetime.now().strftime("%Y-%m-%d %H:%M:%S")},
+        {"rank": 4, "title": "美食探店新发现", "hot_value": 720000, "word": "美食探店", "label": "美食", "update_time": datetime.now().strftime("%Y-%m-%d %H:%M:%S")},
+        {"rank": 5, "title": "旅行攻略分享", "hot_value": 650000, "word": "旅行攻略", "label": "旅行", "update_time": datetime.now().strftime("%Y-%m-%d %H:%M:%S")},
+        {"rank": 6, "title": "时尚穿搭指南", "hot_value": 580000, "word": "时尚穿搭", "label": "时尚", "update_time": datetime.now().strftime("%Y-%m-%d %H:%M:%S")},
+        {"rank": 7, "title": "教育学习方法", "hot_value": 520000, "word": "教育学习", "label": "教育", "update_time": datetime.now().strftime("%Y-%m-%d %H:%M:%S")},
+        {"rank": 8, "title": "理财投资建议", "hot_value": 480000, "word": "理财投资", "label": "财经", "update_time": datetime.now().strftime("%Y-%m-%d %H:%M:%S")},
+        {"rank": 9, "title": "情感关系话题", "hot_value": 450000, "word": "情感关系", "label": "情感", "update_time": datetime.now().strftime("%Y-%m-%d %H:%M:%S")},
+        {"rank": 10, "title": "运动健身心得", "hot_value": 420000, "word": "运动健身", "label": "运动", "update_time": datetime.now().strftime("%Y-%m-%d %H:%M:%S")},
+    ]
+    
+    return HotspotListResponse(
+        list=[HotspotItem(**item) for item in mock_list],
+        update_time=datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    )
+
+
+@router.get("/hotspot-list", summary="获取抖音热点榜单")
+async def get_hotspot_list(
+    billboard_type: str = Query("hot", description="榜单类型：hot-热点榜, music-音乐榜, topic-话题榜"),
+    current_user: User = Depends(get_current_miniprogram_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    获取抖音最近一小时热点榜单
+    
+    使用 TikHub API 获取抖音热点榜单数据
+    如果 API Key 未配置或请求失败，返回 Mock 数据
+    
+    路径：GET /api/v1/client/tikhub/hotspot-list
+    """
+    tikhub_api_key = settings.TIKHUB_API_KEY
+    
+    if not tikhub_api_key:
+        # 如果没有配置 API Key，返回 Mock 数据
+        mock_data = await mock_hotspot_list()
+        return success(data=mock_data.model_dump(), msg="获取成功（演示数据）")
+    
+    try:
+        async with httpx.AsyncClient(timeout=30) as client:
+            headers = {
+                "Authorization": f"Bearer {tikhub_api_key}",
+                "Content-Type": "application/json"
+            }
+            
+            # TikHub API 热点榜单接口
+            # 根据文档，抖音热点榜单接口路径为 /api/v1/douyin/billboard/hot
+            api_url = f"https://api.tikhub.io/api/v1/douyin/billboard/{billboard_type}"
+            
+            response = await client.get(api_url, headers=headers)
+            
+            if response.status_code != 200:
+                # API 请求失败，返回 Mock 数据
+                mock_data = await mock_hotspot_list()
+                return success(data=mock_data.model_dump(), msg="获取成功（演示数据）")
+            
+            data = response.json()
+            
+            # 解析 TikHub API 返回的数据结构
+            # 根据 TikHub 文档，返回格式可能为：{"code": 200, "data": {...}, "message": "..."}
+            api_data = data.get("data", {})
+            
+            # 提取热点列表
+            hotspot_list = []
+            if isinstance(api_data, dict):
+                # 尝试不同的可能字段名
+                items = api_data.get("list", []) or api_data.get("data", []) or api_data.get("billboard", [])
+                
+                for idx, item in enumerate(items[:20], start=1):  # 最多返回20条
+                    # 根据实际 API 返回的字段进行映射
+                    hotspot_item = HotspotItem(
+                        rank=item.get("rank", idx),
+                        title=item.get("title", "") or item.get("word", "") or item.get("keyword", "") or "",
+                        hot_value=item.get("hot_value") or item.get("hotValue") or item.get("hot", None),
+                        word=item.get("word", "") or item.get("keyword", ""),
+                        label=item.get("label", "") or item.get("tag", ""),
+                        url=item.get("url", ""),
+                        update_time=item.get("update_time", "") or item.get("updateTime", "")
+                    )
+                    hotspot_list.append(hotspot_item)
+            
+            # 如果没有解析到数据，返回 Mock 数据
+            if not hotspot_list:
+                mock_data = await mock_hotspot_list()
+                return success(data=mock_data.model_dump(), msg="获取成功（演示数据）")
+            
+            result = HotspotListResponse(
+                list=hotspot_list,
+                update_time=datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            )
+            
+            return success(data=result.model_dump(), msg="获取成功")
+            
+    except httpx.TimeoutException:
+        raise ServerErrorException("请求超时，请稍后重试")
+    except Exception as e:
+        # 发生异常时返回 Mock 数据，确保功能可用
+        mock_data = await mock_hotspot_list()
+        return success(data=mock_data.model_dump(), msg="获取成功（演示数据）")
+
+
+@router.get("/hotspot-agent-id", summary="获取热点功能对应的智能体ID")
+async def get_hotspot_agent_id(
+    current_user: User = Depends(get_current_miniprogram_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    获取热点功能对应的智能体ID
+    
+    根据系统配置获取热点功能使用的智能体ID
+    优先使用配置的 HOTSPOT_AGENT_ID，如果未配置则通过名称查找
+    
+    路径：GET /api/v1/client/tikhub/hotspot-agent-id
+    """
+    from sqlalchemy import select, or_
+    from models.agent import Agent
+    
+    agent_id = None
+    
+    # 优先使用配置的agent ID
+    if settings.HOTSPOT_AGENT_ID:
+        agent_id = int(settings.HOTSPOT_AGENT_ID)
+        logger.info(f"尝试查找热点Agent: ID={agent_id}")
+        
+        # 查询是否存在该Agent（不限制状态）
+        result = await db.execute(
+            select(Agent).filter(Agent.id == agent_id)
+        )
+        agent_check = result.scalar_one_or_none()
+        
+        if agent_check:
+            # 系统自用智能体可以绕过上架检查，普通智能体必须上架
+            if agent_check.is_system == 1 or agent_check.status == 1:
+                return success(data={"agent_id": agent_id}, msg="获取成功")
+            else:
+                logger.warning(
+                    f"Agent ID={agent_id} 既不是系统自用（is_system=0）也未上架（status=0），"
+                    f"将尝试通过名称查找"
+                )
+        else:
+            logger.warning(f"未找到Agent ID={agent_id}，将尝试通过名称查找")
+    
+    # 如果配置的ID不存在或不可用，通过名称查找
+    logger.info("尝试通过名称'蹭热点'或'热点文案'查找Agent")
+    result = await db.execute(
+        select(Agent).filter(
+            or_(
+                Agent.name == "蹭热点",
+                Agent.name == "热点文案",
+                Agent.name.like("%热点%")
+            ),
+            # 系统自用智能体可以绕过上架检查，普通智能体必须上架
+            or_(Agent.is_system == 1, Agent.status == 1)
+        ).order_by(Agent.created_at.desc())
+    )
+    agent = result.scalar_one_or_none()
+    
+    if agent:
+        logger.info(f"通过名称找到热点Agent: ID={agent.id}, name={agent.name}")
+        return success(data={"agent_id": agent.id}, msg="获取成功")
+    
+    # 如果还是找不到，返回错误
+    raise BadRequestException("未找到热点功能对应的智能体，请联系管理员配置")
 

@@ -124,22 +124,33 @@ export namespace User {
     phone?: string;
     nickname?: string;
     avatar?: string;
+    email?: string;
     level: LevelType;
-    computePower: {
-      balance: number;
-      frozen: number;
-      totalConsumed: number;
-      totalRecharged: number;
+    computePower?: {
+      balance?: number;
+      frozen?: number;
+      totalConsumed?: number;
+      totalRecharged?: number;
       lastRechargeTime?: string;
     };
     role: string;
     inviteCode?: string;
     inviterId?: string;
     inviterName?: string;
+    inviteCount?: number;
+    totalCommission?: number;
+    withdrawableCommission?: number;
     createTime: string;
     lastLoginTime?: string;
     status: number;
     remark?: string;
+    recentActivities?: Array<{
+      id: string;
+      type: string;
+      description: string;
+      amount?: number;
+      createTime: string;
+    }>;
   }
 
   // 修改用户等级请求

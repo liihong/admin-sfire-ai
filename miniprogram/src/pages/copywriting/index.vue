@@ -113,8 +113,28 @@ const projectStore = useProjectStore()
 const agentStore = useAgentStore()
 const quickEntryStore = useQuickEntryStore()
 
-const activeProject = computed(() => projectStore.activeProject)
-const currentPersonaSettings = computed(() => projectStore.currentPersonaSettings)
+// 添加防御性检查，确保数据安全
+const activeProject = computed(() => {
+  const project = projectStore.activeProject
+  if (!project) return null
+  // 确保关键字段存在且类型正确
+  return {
+    ...project,
+    name: project.name && typeof project.name === 'string' ? project.name : '',
+    avatar_color: project.avatar_color && typeof project.avatar_color === 'string' ? project.avatar_color : '#667eea',
+    avatar_letter: project.avatar_letter && typeof project.avatar_letter === 'string' ? project.avatar_letter : ''
+  }
+})
+
+const currentPersonaSettings = computed(() => {
+  const settings = projectStore.currentPersonaSettings
+  if (!settings) return {}
+  // 确保设置对象安全
+  return {
+    tone: settings.tone && typeof settings.tone === 'string' ? settings.tone : undefined,
+    target_audience: settings.target_audience && typeof settings.target_audience === 'string' ? settings.target_audience : undefined
+  }
+})
 
 interface ChatMessage {
   role: 'user' | 'assistant' | 'system_hint'
@@ -281,21 +301,42 @@ async function sendMessage() {
         },
         onError: (error: string) => {
           isGenerating.value = false
-          if (!assistantMessage) {
-            assistantMessage = {
+
+          // 查找 chatHistory 中最后一条 assistant 消息（如果存在）
+          const errorContent = `❌ 生成失败：${error}`
+          let lastAssistantIndex = -1
+          for (let i = chatHistory.length - 1; i >= 0; i--) {
+            if (chatHistory[i].role === 'assistant') {
+              lastAssistantIndex = i
+              break
+            }
+          }
+
+          if (lastAssistantIndex >= 0) {
+            // 更新现有的 assistant 消息 - 使用 splice 确保 Vue 响应式更新
+            const existingMessage = chatHistory[lastAssistantIndex]
+            const updatedMessage: ChatMessage = {
+              ...existingMessage,
+              content: errorContent
+            }
+            chatHistory.splice(lastAssistantIndex, 1, updatedMessage)
+            // 同步更新局部变量引用（如果存在）
+            if (assistantMessage) {
+              assistantMessage.content = errorContent
+            }
+          } else {
+            // 创建新的错误消息
+            const newMessage: ChatMessage = {
               role: 'assistant',
-              content: `❌ 生成失败：${error}`,
+              content: errorContent,
               timestamp: Date.now()
             }
-            chatHistory.push(assistantMessage)
-          } else {
-            assistantMessage.content = `❌ 生成失败：${error}`
+            chatHistory.push(newMessage)
+            assistantMessage = newMessage
           }
-          scrollToBottom()
-          uni.showToast({
-            title: error,
-            icon: 'none',
-            duration: 2500
+
+          nextTick(() => {
+            scrollToBottom()
           })
         }
       }
@@ -320,11 +361,6 @@ async function sendMessage() {
 
     scrollToBottom()
 
-    uni.showToast({
-      title: errorMessage,
-      icon: 'none',
-      duration: 2500
-    })
   } finally {
     isGenerating.value = false
   }
@@ -455,6 +491,7 @@ watch(
     }
   }
 )
+
 </script>
 
 <style lang="scss" scoped>

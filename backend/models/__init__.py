@@ -21,6 +21,7 @@ from .conversation import (
     MessageStatus,
 )
 from .admin_debug_log import AdminDebugLog
+from .admin_operation_log import AdminOperationLog, OperationType
 from .dictionary import Dictionary, DictionaryItem
 from .skill_library import SkillLibrary
 from .user_level import UserLevel as UserLevelModel
@@ -52,6 +53,8 @@ __all__ = [
     "EmbeddingStatus",
     "MessageStatus",
     "AdminDebugLog",
+    "AdminOperationLog",
+    "OperationType",
     "Dictionary",
     "DictionaryItem",
     "SkillLibrary",

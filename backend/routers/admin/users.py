@@ -8,6 +8,8 @@ from fastapi import APIRouter, Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from db import get_db
+from core.deps import get_current_admin_user
+from models.admin_user import AdminUser
 from schemas.user import (
     UserCreate,
     UserUpdate,
@@ -154,6 +156,7 @@ async def change_user_status(
 @router.post("/recharge", summary="用户充值")
 async def recharge_user(
     request: RechargeRequest,
+    current_admin: AdminUser = Depends(get_current_admin_user),
     db: AsyncSession = Depends(get_db),
 ):
     """为用户充值算力"""
@@ -162,6 +165,7 @@ async def recharge_user(
         user_id=int(request.userId),
         amount=request.amount,
         remark=request.remark,
+        operator_id=current_admin.id,
     )
     return success(msg="充值成功")
 
@@ -184,6 +188,7 @@ async def deduct_user(
 @router.post("/change-level", summary="修改用户等级")
 async def change_user_level(
     request: ChangeLevelRequest,
+    current_admin: AdminUser = Depends(get_current_admin_user),
     db: AsyncSession = Depends(get_db),
 ):
     """修改用户等级"""
@@ -211,6 +216,7 @@ async def change_user_level(
         level=request.level,
         vip_expire_date=vip_expire_date,
         remark=request.remark,
+        operator_id=current_admin.id,
     )
     return success(msg="等级修改成功")
 

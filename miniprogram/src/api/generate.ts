@@ -197,41 +197,157 @@ export function chatStream(
       timeout: 100000,
       success: (response) => {
         if (hasRealStreaming) {
-          if (response.statusCode === 200) {
-            resolve()
-          } else {
-            reject(new Error(`请求失败，状态码: ${response.statusCode}`))
+          // 检查响应体中的 code 字段（即使 HTTP 状态码是 200）
+          let shouldHandleAsError = false
+          let errorMsg = `请求失败，状态码: ${response.statusCode}`
+
+          if (response.data) {
+            try {
+              let responseData: any = null
+              if (typeof response.data === 'string') {
+                responseData = JSON.parse(response.data)
+              } else if (typeof response.data === 'object') {
+                responseData = response.data
+              }
+
+              // 检查响应体中的 code 字段
+              if (responseData && responseData.code !== undefined) {
+                if (responseData.code !== 200) {
+                  shouldHandleAsError = true
+                  errorMsg = responseData.msg || responseData.message || responseData.error || `请求失败，code: ${responseData.code}`
+                }
+              } else if (response.statusCode !== 200) {
+                // 如果没有 code 字段，检查 HTTP 状态码
+                shouldHandleAsError = true
+                if (responseData) {
+                  if (responseData.msg) {
+                    errorMsg = String(responseData.msg)
+                  } else if (responseData.message) {
+                    errorMsg = String(responseData.message)
+                  } else if (responseData.error) {
+                    errorMsg = String(responseData.error)
+                  }
+                }
+              }
+            } catch (e) {
+              // 解析失败，如果 HTTP 状态码不是 200，当作错误处理
+              if (response.statusCode !== 200) {
+                shouldHandleAsError = true
+              }
+            }
+          } else if (response.statusCode !== 200) {
+            shouldHandleAsError = true
           }
+
+          if (shouldHandleAsError) {
+            if (callbacks.onError) {
+              callbacks.onError(errorMsg)
+            }
+            reject(new Error(errorMsg))
+            return
+          }
+
+          // 正常情况，resolve
+          resolve()
           return
         }
 
-        if (response.data) {
-          if (typeof response.data === 'string') {
-            if (response.data.includes('data: ') || response.data.includes('\n\n')) {
-              simulateStreaming(response.data, callbacks, conversationId)
-              isDone = true
-            } else {
-              try {
-                const jsonData = JSON.parse(response.data)
-                handleJSONResponse(jsonData, callbacks, conversationId)
-              } catch (e) {
-                if (callbacks.onChunk) callbacks.onChunk(response.data)
-                if (callbacks.onDone) callbacks.onDone()
+        // 如果状态码不是 200，优先处理错误响应
+        if (response.statusCode !== 200) {
+          let errorMsg = `请求失败，状态码: ${response.statusCode}`
+          if (response.data) {
+            try {
+              let errorData: any = null
+              if (typeof response.data === 'string') {
+                // 尝试解析 JSON 字符串
+                errorData = JSON.parse(response.data)
+              } else if (typeof response.data === 'object') {
+                // 直接使用对象
+                errorData = response.data
               }
+
+              // 优先使用 msg 字段，其次使用 message 字段
+              if (errorData) {
+                if (errorData.msg) {
+                  errorMsg = String(errorData.msg)
+                } else if (errorData.message) {
+                  errorMsg = String(errorData.message)
+                } else if (errorData.error) {
+                  errorMsg = String(errorData.error)
+                }
+              }
+            } catch (e) {
+              // 解析失败，使用默认错误信息
+              console.error('解析错误响应失败:', e, response.data)
             }
-          } else if (typeof response.data === 'object') {
-            handleJSONResponse(response.data, callbacks, conversationId)
+          }
+          // 确保调用 onError 回调
+          if (callbacks.onError) {
+            callbacks.onError(errorMsg)
+          }
+          reject(new Error(errorMsg))
+          return
+        }
+
+        // 状态码为 200，但需要检查响应体中的 code 字段
+        if (response.data) {
+          // 先检查响应体中的 code 字段
+          let hasCodeError = false
+          let codeErrorMsg = ''
+
+          try {
+            let responseData: any = null
+            if (typeof response.data === 'string') {
+              // 尝试解析 JSON
+              if (response.data.includes('data: ') || response.data.includes('\n\n')) {
+                // SSE 格式，交给 simulateStreaming 处理
+                simulateStreaming(response.data, callbacks, conversationId)
+                isDone = true
+              } else {
+                responseData = JSON.parse(response.data)
+              }
+            } else if (typeof response.data === 'object') {
+              responseData = response.data
+            }
+
+            // 检查 code 字段
+            if (responseData && responseData.code !== undefined && responseData.code !== 200) {
+              hasCodeError = true
+              codeErrorMsg = responseData.msg || responseData.message || responseData.error || `请求失败，code: ${responseData.code}`
+            }
+          } catch (e) {
+            // 解析失败，继续正常处理
+          }
+
+          if (hasCodeError) {
+            // 有 code 错误，调用 onError
+            if (callbacks.onError) {
+              callbacks.onError(codeErrorMsg)
+            }
+            reject(new Error(codeErrorMsg))
+            return
+          }
+
+          // 没有 code 错误，正常处理响应数据
+          if (!isDone && response.data) {
+            if (typeof response.data === 'string') {
+              if (!response.data.includes('data: ') && !response.data.includes('\n\n')) {
+                try {
+                  const jsonData = JSON.parse(response.data)
+                  handleJSONResponse(jsonData, callbacks, conversationId)
+                } catch (e) {
+                  if (callbacks.onChunk) callbacks.onChunk(response.data)
+                  if (callbacks.onDone) callbacks.onDone()
+                }
+              }
+            } else if (typeof response.data === 'object') {
+              handleJSONResponse(response.data, callbacks, conversationId)
+            }
           }
         }
 
-        if (response.statusCode === 200) {
-          if (!isDone && callbacks.onDone) callbacks.onDone()
-          resolve()
-        } else {
-          const errorMsg = `请求失败，状态码: ${response.statusCode}`
-          if (callbacks.onError) callbacks.onError(errorMsg)
-          reject(new Error(errorMsg))
-        }
+        if (!isDone && callbacks.onDone) callbacks.onDone()
+        resolve()
       },
       fail: (error) => {
         const errorMsg = error.errMsg || '网络请求失败'
@@ -265,6 +381,47 @@ export function chatStream(
             }
 
             buffer += chunkStr
+
+            // 检查是否是错误响应（普通 JSON 格式，不是 SSE 格式）
+            // 错误响应可能是：{"code":400,"data":null,"msg":"..."}
+            // 尝试解析 buffer 中可能包含的完整 JSON 对象
+            try {
+              const trimmedBuffer = buffer.trim()
+              // 检查是否以 { 开头，可能是 JSON
+              if (trimmedBuffer.startsWith('{')) {
+                // 尝试找到完整的 JSON 对象
+                let braceCount = 0
+                let jsonEnd = -1
+                for (let i = 0; i < trimmedBuffer.length; i++) {
+                  if (trimmedBuffer[i] === '{') braceCount++
+                  if (trimmedBuffer[i] === '}') {
+                    braceCount--
+                    if (braceCount === 0) {
+                      jsonEnd = i + 1
+                      break
+                    }
+                  }
+                }
+
+                if (jsonEnd > 0) {
+                  // 找到了完整的 JSON 对象
+                  const jsonStr = trimmedBuffer.substring(0, jsonEnd)
+                  const parsed = JSON.parse(jsonStr)
+                  // 检查是否有 code 字段且不等于 200
+                  if (parsed.code !== undefined && parsed.code !== 200) {
+                    const errorMsg = parsed.msg || parsed.message || parsed.error || `请求失败，code: ${parsed.code}`
+                    if (callbacks.onError) {
+                      callbacks.onError(errorMsg)
+                    }
+                    buffer = trimmedBuffer.substring(jsonEnd) // 移除已处理的 JSON
+                    return
+                  }
+                }
+              }
+            } catch (e) {
+              // 解析失败，继续处理 SSE 格式
+            }
+
             const result = processSSEBuffer(buffer, callbacks, conversationId)
             if (result.conversationId !== undefined) {
               conversationId = result.conversationId
@@ -463,3 +620,4 @@ export function chat(params: ChatRequest) {
     loadingText: 'AI 生成中...'
   })
 }
+

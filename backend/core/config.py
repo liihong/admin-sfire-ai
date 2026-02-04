@@ -76,8 +76,9 @@ class Settings(BaseSettings):
 
     ROUTER_AGENT_ID: int = 12  # 路由Agent ID（存储Prompt模板）
     IP_COLLECTOR_AGENT_ID: Optional[int] = 13  # IP信息采集Agent ID（从数据库读取配置，如果为None则通过名称查找）
-    IP_REPORT_AGENT_ID: int = 13  # IP定位报告生成Agent ID
-    MASTER_PROMPT_AGENT_ID: int = 14  # Master Prompt生成Agent ID
+    IP_REPORT_AGENT_ID: int = 14  # IP定位报告生成Agent ID
+    MASTER_PROMPT_AGENT_ID: int = 13  # Master Prompt生成Agent ID
+    HOTSPOT_AGENT_ID: Optional[int] = None  # 蹭热点功能使用的智能体ID（从数据库读取配置，如果为None则通过名称查找）
     
     # Embedding 配置
     EMBEDDING_PROVIDER: str = "openai"  # Embedding服务提供商: openai, deepseek (注意：DeepSeek不提供embedding API)

@@ -194,7 +194,7 @@ const menuList = ref([
     desc: '升级会员或寻求帮助',
     icon: 'service',
     iconBg: '#10B981', // 绿色背景
-    path: '/pages/contact/index'
+    path: '/pages/mine/contact/index'
   }
 ])
 

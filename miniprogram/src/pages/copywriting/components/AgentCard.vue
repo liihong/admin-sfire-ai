@@ -4,10 +4,16 @@
     <view v-if="project" class="system-card">
     <view class="card-header">
       <view class="card-avatar" :style="{ background: project.avatar_color }">
-        <text class="avatar-letter">{{ project.avatar_letter ?  project.name[0] : project.avatar_letter}}</text>
+         <text class="avatar-letter">{{ project.avatar_letter || (project.name ? project.name[0] : '') }}</text>
+
+
+
       </view>
       <view class="card-title-group">
-        <text class="card-title">{{ project.name }}</text>
+         <text class="card-title">{{ project.name || '' }}</text>
+
+
+
         <text class="card-subtitle">IP 档案 · AI 已就位</text>
       </view>
       <view class="card-status">
@@ -59,7 +65,7 @@
     <button class="create-btn" @tap="handleGoToProjectList">
       <text>选择项目</text>
     </button>
-  </view>
+   </view>
   </view>
 </template>
 
@@ -92,23 +98,30 @@ interface Props {
 const props = defineProps<Props>()
 
 // 从 store 获取当前智能体名称
-const currentAgentName = computed(() => agentStore.activeAgent?.name || '未选择')
+const currentAgentName = computed(() => {
+  const name = agentStore.activeAgent?.name
+  // 防御性检查：确保名称不为空且是字符串类型
+  return (name && typeof name === 'string') ? name : '未选择'
+})
 
 /**
  * 格式化风格标签
  */
 function formatStyleTags(tone: string): string {
-  if (!tone) return ''
+  if (!tone || typeof tone !== 'string') return ''
+  // 限制字符串长度，避免超长字符串导致问题
+  const maxLength = 1000
+  const safeTone = tone.length > maxLength ? tone.substring(0, maxLength) : tone
   // 如果已经是数组格式的字符串，尝试解析
   try {
-    const parsed = JSON.parse(tone)
+    const parsed = JSON.parse(safeTone)
     if (Array.isArray(parsed)) {
       return parsed.join(', ')
     }
   } catch {
     // 不是 JSON，直接返回
   }
-  return tone
+  return safeTone
 }
 
 /**

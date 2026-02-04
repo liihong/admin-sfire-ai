@@ -243,17 +243,28 @@ class CoinAccountService:
         # 增加余额
         user.balance += amount
 
+        # 确定备注：管理员操作且无备注时，显示"系统充值"
+        if operator_id and not remark:
+            final_remark = "系统充值"
+        else:
+            final_remark = remark or "算力充值"
+
         # 创建充值流水
+        # 系统充值（有 operator_id）时，设置 payment_status 为 "paid"（立即生效，无需支付）
+        # 用户支付订单时，payment_status 由订单服务设置
+        payment_status = "paid" if operator_id else None
+        
         recharge_log = ComputeLog(
             user_id=user_id,
             type=ComputeType.RECHARGE,
             amount=amount,  # 正数表示增加
             before_balance=before_balance,
             after_balance=user.balance,
-            remark=remark or "算力充值",
+            remark=final_remark,
             order_id=order_id,
             operator_id=operator_id,
-            source="admin" if operator_id else "api"
+            source="admin" if operator_id else "api",
+            payment_status=payment_status  # 系统充值设置为已支付
         )
         self.db.add(recharge_log)
 

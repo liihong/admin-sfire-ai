@@ -427,7 +427,6 @@ function formatTime(timeStr?: string): string {
 // 文章正文卡片
 .article-body-card {
   background: $white;
-  padding: $spacing-lg;
   margin-bottom: $spacing-md;
   min-height: 400rpx;
 }

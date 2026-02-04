@@ -13,47 +13,27 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { computed } from 'vue'
 import SvgIcon from '@/components/base/SvgIcon.vue'
-import { getQuickEntries, type QuickEntry } from '@/api/quickEntry'
-import { type ResponseData } from '@/utils/request'
+import { type QuickEntry } from '@/api/quickEntry'
 import { useAgentStore } from '@/stores/agent'
 import { useQuickEntryStore } from '@/stores/quickEntry'
+
+// ============== Props ==============
+interface Props {
+  entries?: QuickEntry[]
+}
+
+const props = withDefaults(defineProps<Props>(), {
+  entries: () => []
+})
 
 // ============== Store ==============
 const agentStore = useAgentStore()
 const quickEntryStore = useQuickEntryStore()
 
-// 快捷入口列表数据
-const quickEntryList = ref<QuickEntry[]>([])
-
-/**
- * 加载快捷入口列表
- */
-async function loadQuickEntries() {
-  try {
-    const response: ResponseData<{ entries: QuickEntry[] }> = await getQuickEntries('command')
-
-    // 后端返回格式: {code: 200, data: {entries: [...]}, msg: "..."}
-    if (response.code === 200 && response.data?.entries) {
-      quickEntryList.value = response.data.entries
-    } else {
-      const errorMsg = response.msg || '获取快捷入口列表失败'
-      console.error('获取快捷入口列表失败:', errorMsg)
-      uni.showToast({
-        title: errorMsg,
-        icon: 'none'
-      })
-    }
-  } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : '加载快捷入口列表失败'
-    console.error('加载快捷入口列表失败:', error)
-    uni.showToast({
-      title: errorMessage,
-      icon: 'none'
-    })
-  }
-}
+// 使用传入的快捷入口列表数据
+const quickEntryList = computed(() => props.entries || [])
 
 const emit = defineEmits<{
   click: [route: string]
@@ -86,11 +66,6 @@ function handleClick(entry: QuickEntry) {
     emit('click', route)
   }
 }
-
-// 组件挂载时加载数据
-onMounted(() => {
-  loadQuickEntries()
-})
 </script>
 
 <style lang="scss" scoped>

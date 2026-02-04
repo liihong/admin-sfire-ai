@@ -22,7 +22,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, watch } from 'vue'
 import { useProjectStore } from '@/stores/project'
 import { fetchProjects } from '@/api/project'
 
@@ -38,6 +38,17 @@ const loadError = ref(false) // 标记是否加载失败
 const refreshKey = ref(0) // 用于强制刷新 List 组件
 
 const hasActiveProject = computed(() => projectStore.hasActiveProject)
+
+// 监听 hasActiveProject 变化，当切换列表时确保 isLoading 为 false
+watch(hasActiveProject, (newVal, oldVal) => {
+  // 当从有激活项目切换到无激活项目时（显示列表），确保 isLoading 为 false
+  if (oldVal === true && newVal === false) {
+    isLoading.value = false
+    loadError.value = false
+    // 强制刷新 List 组件
+    refreshKey.value++
+  }
+})
 
 /**
  * 重新加载页面

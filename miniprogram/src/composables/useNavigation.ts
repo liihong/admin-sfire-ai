@@ -77,9 +77,15 @@ export function useNavigation() {
       hotspot: '蹭热点'
     }
   ) {
+    // 如果是热点分类，跳转到热点页面
+    if (category === 'hotspot') {
+      safeNavigateTo({ url: '/pages/hotspot/index' })
+      return
+    }
+    
     const categoryName = categoryMap[category] || category
     uni.showToast({ title: `已选择：${categoryName}`, icon: 'none' })
-    // 导航到对应的分类页面（功能待实现）
+    // 其他分类页面（功能待实现）
   }
   
   return {

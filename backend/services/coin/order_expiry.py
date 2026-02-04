@@ -54,6 +54,9 @@ async def cleanup_expired_orders(db: AsyncSession) -> int:
     
     await db.flush()
     
+    # 提取订单ID列表用于日志记录
+    order_ids = [order.id for order in expired_orders]
+    
     logger.info(
         f"订单过期清理完成: 清理了 {len(expired_orders)} 个过期订单, "
         f"订单号列表={order_ids[:10]}{'...' if len(order_ids) > 10 else ''}"

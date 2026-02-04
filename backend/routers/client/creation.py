@@ -874,7 +874,7 @@ async def generate_chat(
                     # 余额不足，直接返回错误
                     logger.warning(f"❌ [原子冻结] 用户余额不足: 用户ID={current_user.id}")
                     raise BadRequestException(
-                        f"余额不足。预估需要: {estimated_cost:.4f} 火源币，请充值后再试。"
+                        f"余额不足，请充值后再试。"
                     )
                 else:
                     # 其他错误

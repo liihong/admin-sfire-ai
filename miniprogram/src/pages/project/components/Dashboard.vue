@@ -17,11 +17,11 @@
 
       <!-- 今天拍点啥 - 分类网格 -->
      <BaseSection>今天拍点啥</BaseSection>
-      <CategoryGrid @click="handleCategoryClick" />
+     <CategoryGrid :categories="categoryList" @click="handleCategoryClick" />
 
       <!-- 快捷指令库 -->
      <BaseSection>快捷指令库</BaseSection>
-      <QuickCommandGrid @click="handleNavigate" />
+     <QuickCommandGrid :entries="commandList" @click="handleNavigate" />
 
     <!-- 历史对话 -->
       <BaseSection>历史对话</BaseSection>
@@ -52,6 +52,7 @@ import { useProjectStore, DEFAULT_PERSONA_SETTINGS } from '@/stores/project'
 import { useProject } from '@/composables/useProject'
 import { useNavigation } from '@/composables/useNavigation'
 import { createInspiration } from '@/api/inspiration'
+import { getQuickEntries, type QuickEntry } from '@/api/quickEntry'
 import TopBar from './dashboard/TopBar.vue'
 import PersonaCard from './dashboard/PersonaCard.vue'
 import CategoryGrid from './dashboard/CategoryGrid.vue'
@@ -77,6 +78,42 @@ const showInspirationCard = ref(false)
 const inspirationText = ref('')
 const userName = ref('创作者')
 const userPoints = ref(1280)
+const categoryList = ref<Array<{ key: string; label: string; icon: string; color: string }>>([])
+const commandList = ref<QuickEntry[]>([])
+
+/**
+ * 加载快捷入口数据（category 和 command）
+ */
+async function loadQuickEntries() {
+  try {
+    // 并行请求两种类型的数据
+    const [categoryResponse, commandResponse] = await Promise.all([
+      getQuickEntries('category'),
+      getQuickEntries('command')
+    ])
+
+    // 处理分类数据
+    if (categoryResponse.code === 200 && categoryResponse.data?.entries) {
+      categoryList.value = categoryResponse.data.entries.map((entry: QuickEntry) => ({
+        key: entry.unique_key || String(entry.id),
+        label: entry.title,
+        icon: entry.icon_class,
+        color: entry.bg_color || '#F69C0E'
+      }))
+    }
+
+    // 处理快捷指令数据
+    if (commandResponse.code === 200 && commandResponse.data?.entries) {
+      commandList.value = commandResponse.data.entries
+    }
+  } catch (error) {
+    console.error('加载快捷入口数据失败:', error)
+    uni.showToast({
+      title: '加载数据失败',
+      icon: 'none'
+    })
+  }
+}
 
 // 初始化
 onMounted(async () => {
@@ -89,6 +126,9 @@ onMounted(async () => {
 
   // 初始化项目
   await initProject(projectId)
+
+  // 加载快捷入口数据
+  await loadQuickEntries()
 
   // 如果是编辑模式，打开抽屉
   if (editMode) {
