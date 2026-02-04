@@ -149,6 +149,8 @@ const scrollTop = ref(0)
 const conversationId = ref<number | undefined>(undefined)
 // 标记是否是从历史对话跳转的（从历史对话跳转时不需要设置默认指令）
 const isFromConversationHistory = ref(false)
+// 滚动计数器，用于触发滚动到底部
+let scrollCounter = 0
 
 const canSend = computed(() => inputText.value.trim().length > 0)
 
@@ -191,7 +193,9 @@ function clearChat() {
 
 function scrollToBottom() {
   nextTick(() => {
-    scrollTop.value = scrollTop.value === 99999 ? 100000 : 99999
+    // 使用递增计数器，确保每次调用都有不同的值，避免触发无限循环
+    scrollCounter++
+    scrollTop.value = scrollCounter
   })
 }
 

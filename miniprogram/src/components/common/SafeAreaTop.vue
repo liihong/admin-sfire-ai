@@ -22,12 +22,7 @@ onMounted(() => {
     // 注意：uni.getSystemInfoSync() 返回的是 px，需要转换为 rpx（乘以 2）
     const topHeight = safeAreaInsets.top || statusBarHeight || 0
     safeAreaHeight.value = topHeight * 2 // px 转 rpx
-    
-    console.log('[SafeAreaTop] 安全区域信息:', {
-      safeAreaInsetsTop: safeAreaInsets.top,
-      statusBarHeight: statusBarHeight,
-      finalHeight: safeAreaHeight.value + 'rpx'
-    })
+
   } catch (error) {
     console.warn('[SafeAreaTop] 获取安全区域信息失败:', error)
     safeAreaHeight.value = 0
