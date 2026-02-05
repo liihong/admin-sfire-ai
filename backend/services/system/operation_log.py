@@ -106,3 +106,5 @@ class OperationLogService:
         result = await self.db.execute(query)
         return list(result.scalars().all())
 
+
+

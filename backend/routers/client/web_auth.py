@@ -182,7 +182,7 @@ async def generate_qrcode():
         # 2. 生成小程序码
         qrcode_bytes = await generate_miniprogram_qrcode(
             scene=scene_str,
-            page=""  # 使用空字符串指向小程序首页
+            page="pages/qrcode-login/index"  # 指定扫码登录页面
         )
 
         # 3. 将图片转换为base64数据URL
@@ -217,6 +217,26 @@ async def qrcode_login(
     小程序端扫码登录接口（为PC端提供授权结果）
     """
     try:
+        # 0. 验证scene是否存在于Redis中（安全检查）
+        redis_key = f"mp:login:scene:{request.scene}"
+        scene_data_str = await RedisCache.get(redis_key)
+        
+        if not scene_data_str:
+            logger.warning(f"Invalid or expired scene: {request.scene}")
+            raise BadRequestException("二维码已过期或无效")
+        
+        # 解析scene数据，检查状态
+        try:
+            scene_data = json.loads(scene_data_str)
+            scene_status = scene_data.get("status", "waiting")
+            
+            if scene_status != "waiting":
+                logger.warning(f"Scene already used or expired: scene={request.scene}, status={scene_status}")
+                raise BadRequestException("二维码已被使用或已过期")
+        except json.JSONDecodeError:
+            logger.error(f"Failed to parse scene data: scene={request.scene}")
+            raise BadRequestException("二维码数据异常，请重新扫描")
+        
         # 1. 调用微信 API 获取 openid 和 unionid
         openid, unionid = await get_wechat_openid(request.code)
 

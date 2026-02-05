@@ -498,6 +498,7 @@ class DashboardService:
         获取智能体调用排行
 
         基于 Agent.usage_count 字段统计每个智能体的实际调用次数，返回 Top N
+        优先返回有调用记录的智能体，如果没有足够的记录，则返回上架但未调用的智能体
 
         Args:
             limit: 返回的记录数量，默认 5 条
@@ -508,19 +509,44 @@ class DashboardService:
         try:
             from models.agent import Agent
 
-            # 直接查询 Agent 表，按 usage_count 降序排序
-            # 只返回上架的智能体（status=1），且 usage_count > 0
+            # 先查询有调用记录的上架智能体
             result = await self.db.execute(
                 select(Agent)
                 .where(
                     Agent.status == 1,  # 只统计上架的智能体
-                    Agent.usage_count > 0  # 只返回有调用记录的智能体
+                    Agent.usage_count > 0  # 优先返回有调用记录的智能体
                 )
                 .order_by(Agent.usage_count.desc())
                 .limit(limit)
             )
 
             agents = result.scalars().all()
+
+            # 如果查询到的记录数不足，补充上架但未调用的智能体
+            if len(agents) < limit:
+                # 获取已查询到的智能体ID列表，避免重复
+                existing_ids = {agent.id for agent in agents}
+                
+                # 构建查询条件
+                additional_conditions = [
+                    Agent.status == 1,  # 只统计上架的智能体
+                    Agent.usage_count == 0,  # 未调用的智能体
+                ]
+                
+                # 如果有已查询的智能体，排除它们
+                if existing_ids:
+                    additional_conditions.append(~Agent.id.in_(existing_ids))
+                
+                # 查询上架但未调用的智能体（usage_count = 0）
+                additional_result = await self.db.execute(
+                    select(Agent)
+                    .where(and_(*additional_conditions))
+                    .order_by(Agent.sort_order.asc(), Agent.created_at.desc())  # 按排序顺序和创建时间排序
+                    .limit(limit - len(agents))  # 补充到 limit 条
+                )
+                
+                additional_agents = additional_result.scalars().all()
+                agents = list(agents) + list(additional_agents)
 
             # 构建返回结果
             agent_rank = []
@@ -532,9 +558,9 @@ class DashboardService:
                     call_count=agent.usage_count or 0  # 使用 usage_count 字段
                 ))
 
-            logger.info(f"获取智能体排行成功，共 {len(agent_rank)} 条")
+            logger.info(f"获取智能体排行成功，共 {len(agent_rank)} 条（有调用记录: {sum(1 for a in agents if a.usage_count > 0)} 条）")
             return agent_rank
 
         except Exception as e:
-            logger.error(f"获取智能体排行失败: {e}")
+            logger.error(f"获取智能体排行失败: {e}", exc_info=True)
             return []

@@ -324,14 +324,19 @@ class CoinAccountService:
             user_id: 用户ID
 
         Returns:
-            余额信息字典
+            余额信息字典（所有金额都是整数）
         """
         user = await self.get_user_with_lock(user_id)
 
+        # 确保返回的余额都是整数（虽然数据库字段是 DECIMAL(16,0)，但 Decimal 类型可能仍有小数表示）
+        balance = Decimal(int(user.balance))
+        frozen_balance = Decimal(int(user.frozen_balance))
+        available_balance = balance - frozen_balance
+
         return {
-            "balance": user.balance,
-            "frozen_balance": user.frozen_balance,
-            "available_balance": user.balance - user.frozen_balance,
+            "balance": balance,
+            "frozen_balance": frozen_balance,
+            "available_balance": available_balance,
         }
 
     # ============== ✅ 原子化操作方法（无锁冲突） ==============
@@ -492,10 +497,12 @@ class CoinAccountService:
                         }
 
                 # ✅ 第四步：创建冻结记录
+                # 确保冻结金额是整数（火源币不使用小数）
+                freeze_amount_int = Decimal(int(round(amount)))
                 freeze_log = ComputeFreezeLog(
                     request_id=request_id,
                     user_id=user_id,
-                    amount=amount,
+                    amount=freeze_amount_int,
                     model_id=model_id,
                     conversation_id=conversation_id,
                     status=FreezeStatus.FROZEN.value,
@@ -699,7 +706,8 @@ class CoinAccountService:
 
                 # 更新冻结记录状态
                 freeze_log.status = FreezeStatus.SETTLED.value
-                freeze_log.actual_cost = actual_cost
+                # 确保实际消耗金额是整数（火源币不使用小数）
+                freeze_log.actual_cost = Decimal(int(round(actual_cost)))
                 freeze_log.input_tokens = input_tokens
                 freeze_log.output_tokens = output_tokens
                 freeze_log.settled_at = datetime.now()

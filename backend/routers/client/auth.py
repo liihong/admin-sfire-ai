@@ -107,11 +107,13 @@ async def get_wechat_openid(code: str) -> tuple[str, Optional[str]]:
             )
             
             data = response.json()
+            logger.info(f"WeChat API response: {data}")
             
             # 检查错误
             if "errcode" in data:
                 errcode = data.get("errcode")
                 errmsg = data.get("errmsg", "未知错误")
+                logger.error(f"WeChat API error: errcode={errcode}, errmsg={errmsg}, code={code[:10]}...")
                 raise BadRequestException(f"微信登录失败: {errmsg} (错误码: {errcode})")
             
             openid = data.get("openid")
@@ -119,7 +121,14 @@ async def get_wechat_openid(code: str) -> tuple[str, Optional[str]]:
             session_key = data.get("session_key")
             
             if not openid:
+                logger.error(f"WeChat API returned no openid: {data}")
                 raise BadRequestException("微信登录失败: 未获取到 openid")
+            
+            # 检测 mock openid（微信开发者工具返回的测试数据）
+            if openid.startswith("o_mock_"):
+                logger.warning(f"检测到 mock openid（可能是微信开发者工具测试环境）: {openid}")
+            
+            logger.info(f"Successfully got openid: {openid[:10]}..., unionid: {unionid[:10] if unionid else 'None'}...")
             
             return openid, unionid
             
@@ -128,6 +137,7 @@ async def get_wechat_openid(code: str) -> tuple[str, Optional[str]]:
     except Exception as e:
         if isinstance(e, (BadRequestException, ServerErrorException)):
             raise
+        logger.error(f"Exception in get_wechat_openid: {str(e)}", exc_info=True)
         raise ServerErrorException(f"微信登录失败: {str(e)}")
 
 
@@ -445,6 +455,7 @@ async def miniprogram_login(
     try:
         # 1. 调用微信 API 获取 openid
         openid, unionid = await get_wechat_openid(request.code)
+        logger.info(f"Login attempt: openid={openid}, unionid={unionid if unionid else 'None'}")
         
         # 2. 如果提供了 phone_code，获取手机号
         phone_number = None
@@ -453,36 +464,58 @@ async def miniprogram_login(
             phone_number = await get_wechat_phone_number(request.phone_code)
             logger.info(f"Phone number result: {phone_number if phone_number else 'None'}")
         
-        # 3. 查找或创建用户
+        # 3. 查找或创建用户（确保手机号、openid、unionid 的唯一性绑定）
         user_service = UserService(db)
         
-        # 先通过 openid 查找用户
-        user = await user_service.get_user_by_openid(openid)
+        # 步骤1: 优先通过 unionid 查找用户（跨平台识别，最可靠）
+        user = None
+        if unionid:
+            user = await user_service.get_user_by_unionid(unionid)
+            if user:
+                logger.info(f"User found by unionid: id={user.id}, openid={user.openid}, phone={user.phone}")
+        
+        # 步骤2: 如果通过 unionid 没找到，再通过 openid 查找
+        if not user:
+            user = await user_service.get_user_by_openid(openid)
+            if user:
+                logger.info(f"User found by openid: id={user.id}, openid={user.openid}, phone={user.phone}")
+        
+        # 步骤3: 如果通过openid和unionid都找不到，再通过手机号查找
+        if not user and phone_number:
+            user = await user_service.get_user_by_phone(phone_number)
+            if user:
+                logger.info(f"User found by phone: id={user.id}, existing openid={user.openid}, existing unionid={user.unionid}, new openid={openid}, new unionid={unionid}")
+        
         is_new_user = False
         
         if not user:
-            # 如果通过openid找不到，再通过手机号查找
-            if phone_number:
-                user = await user_service.get_user_by_phone(phone_number)
-                if user:
-                    # 如果通过手机号找到了用户，且openid一致（或为空），则更新用户
-                    if not user.openid or user.openid == openid:
-                        logger.info(f"User found by phone: id={user.id}, updating openid and unionid")
-                        user.openid = openid
-                        if unionid:
-                            user.unionid = unionid
-                        # 更新登录状态和时间（通过更新updated_at）
-                        user.updated_at = datetime.now()
-                        await db.commit()
-                        await db.refresh(user)
-                        logger.info(f"User updated: id={user.id}, openid={user.openid}, phone={user.phone}")
-                        is_new_user = False
-                    else:
-                        # 手机号已存在但openid不一致，说明是不同用户，创建新用户
-                        logger.warning(f"Phone {phone_number} exists but openid mismatch, creating new user")
-                        user = None
+            # 用户不存在，创建新用户
+            # 但在创建前，需要检查唯一性冲突
+            # 检查 openid 是否已被其他用户使用（虽然理论上不可能，因为 openid 有唯一索引）
+            if openid:
+                existing_by_openid = await user_service.get_user_by_openid(openid)
+                if existing_by_openid:
+                    logger.warning(f"Openid {openid} already exists for user {existing_by_openid.id}, but not found in previous search")
+                    user = existing_by_openid
+                    is_new_user = False
+                else:
+                    # 检查手机号是否已被其他用户使用
+                    if phone_number:
+                        existing_by_phone = await user_service.get_user_by_phone(phone_number)
+                        if existing_by_phone:
+                            logger.warning(f"Phone {phone_number} already exists for user {existing_by_phone.id}, binding to existing user")
+                            # 绑定到已存在的用户，更新 openid 和 unionid
+                            user = existing_by_phone
+                            user.openid = openid
+                            if unionid:
+                                user.unionid = unionid
+                            user.updated_at = datetime.now()
+                            await db.commit()
+                            await db.refresh(user)
+                            logger.info(f"Bound existing user: id={user.id}, phone={user.phone}, openid={user.openid}, unionid={user.unionid}")
+                            is_new_user = False
             
-            # 如果都找不到，创建新用户
+            # 如果仍然没有找到用户，创建新用户
             if not user:
                 username = generate_username()
                 
@@ -498,33 +531,49 @@ async def miniprogram_login(
                     "phone": phone_number,  # 保存手机号
                     "is_active": True,
                 }
-                logger.info(f"Creating new user with phone: {phone_number}, openid: {openid}")
+                logger.info(f"Creating new user: phone={phone_number}, openid={openid}, unionid={unionid if unionid else 'None'}")
                 
                 user = await user_service.create_user_from_dict(user_data)
-                logger.info(f"User created: id={user.id}, phone={user.phone}, openid={user.openid}")
+                await db.commit()
+                await db.refresh(user)
+                logger.info(f"User created: id={user.id}, phone={user.phone}, openid={user.openid}, unionid={user.unionid}")
                 is_new_user = True
         else:
-            # 用户已存在（通过openid找到），更新微信数据和登录状态
-            logger.info(f"User exists by openid: id={user.id}, current phone={user.phone}, new phone={phone_number}")
+            # 用户已存在（通过unionid、openid或手机号找到），更新微信数据和登录状态
+            logger.info(f"User exists: id={user.id}, current openid={user.openid}, current unionid={user.unionid}, current phone={user.phone}, new openid={openid}, new unionid={unionid}, new phone={phone_number}")
             
-            # 更新unionid（如果获取到）
-            if unionid and user.unionid != unionid:
-                user.unionid = unionid
-                logger.info(f"Updating unionid: {user.unionid}")
+            # 更新 openid（如果当前 openid 为空或不同，确保绑定）
+            if not user.openid:
+                user.openid = openid
+                logger.info(f"Updating empty openid to: {openid}")
+            elif user.openid != openid:
+                # openid 不一致，记录警告但更新（因为 openid 可能变化，但 unionid 更可靠）
+                logger.warning(f"Openid mismatch: existing={user.openid}, new={openid}, updating to new openid")
+                user.openid = openid
             
-            # 如果获取到手机号且用户没有手机号，则更新
-            if phone_number and not user.phone:
-                logger.info(f"Updating user phone from {user.phone} to {phone_number}")
-                user.phone = phone_number
-            elif phone_number and user.phone and user.phone != phone_number:
-                # 手机号不一致，记录警告但不更新（保持原有手机号）
-                logger.warning(f"Phone number mismatch: existing={user.phone}, new={phone_number}, keeping existing")
+            # 更新 unionid（如果获取到，优先更新 unionid，因为它是跨平台唯一标识）
+            if unionid:
+                if not user.unionid:
+                    user.unionid = unionid
+                    logger.info(f"Updating empty unionid to: {unionid}")
+                elif user.unionid != unionid:
+                    # unionid 不一致，这是严重问题，记录错误但不更新（保持原有 unionid）
+                    logger.error(f"Unionid mismatch: existing={user.unionid}, new={unionid}, keeping existing (this may indicate data corruption)")
             
-            # 更新登录状态和时间（通过更新updated_at）
+            # 更新手机号（如果获取到且用户没有手机号，则绑定）
+            if phone_number:
+                if not user.phone:
+                    user.phone = phone_number
+                    logger.info(f"Binding phone number: {phone_number}")
+                elif user.phone != phone_number:
+                    # 手机号不一致，记录警告但不更新（保持原有手机号，因为手机号是重要标识）
+                    logger.warning(f"Phone number mismatch: existing={user.phone}, new={phone_number}, keeping existing")
+            
+            # 更新登录状态和时间
             user.updated_at = datetime.now()
             await db.commit()
             await db.refresh(user)
-            logger.info(f"User login updated: id={user.id}, phone={user.phone}, openid={user.openid}")
+            logger.info(f"User login updated: id={user.id}, phone={user.phone}, openid={user.openid}, unionid={user.unionid}")
         
         # 4. 重新查询用户并加载等级关系（确保获取最新数据）
         query = select(User).where(

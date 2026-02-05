@@ -308,6 +308,17 @@ const userTrendOption = computed<ECOption>(() => {
 const agentRankOption = computed<ECOption>(() => {
   const data = agentRankData.value;
 
+  // 如果没有数据，返回空配置
+  if (!data || data.length === 0) {
+    return {
+      tooltip: { trigger: "axis" },
+      grid: { left: "3%", right: "8%", bottom: "3%", top: "10%", containLabel: true },
+      xAxis: { type: "value" },
+      yAxis: { type: "category", data: [] },
+      series: [{ type: "bar", data: [] }]
+    };
+  }
+
   return {
     tooltip: {
       trigger: "axis",
@@ -324,11 +335,11 @@ const agentRankOption = computed<ECOption>(() => {
       }
     },
     grid: {
-      left: "3%",
+      left: "140px", // 增加左侧空间以显示完整的智能体名称
       right: "8%",
       bottom: "3%",
       top: "10%",
-      containLabel: true
+      containLabel: false // 设置为 false，因为我们已经手动设置了 left
     },
     xAxis: {
       type: "value",
@@ -353,12 +364,12 @@ const agentRankOption = computed<ECOption>(() => {
         color: "#374151",
         fontSize: 13,
         formatter: (value: string) => {
-          const agent = data.find(a => a.name === value);
-          return `{icon|${agent?.icon || "🤖"}} ${value.length > 6 ? value.slice(0, 6) + "..." : value}`;
+          // 直接显示名称，如果名称过长则截断并显示省略号
+          if (!value) return "";
+          return value.length > 12 ? value.slice(0, 12) + "..." : value;
         },
-        rich: {
-          icon: { fontSize: 16 }
-        }
+        width: 120, // 设置标签宽度，确保长名称能显示
+        overflow: "truncate" // 超出部分截断
       },
       axisTick: { show: false }
     },
@@ -367,7 +378,7 @@ const agentRankOption = computed<ECOption>(() => {
         name: "调用次数",
         type: "bar",
         data: data.map((item, index) => ({
-          value: item.callCount,
+          value: item.call_count,
           itemStyle: {
             color: {
               type: "linear",
@@ -464,11 +475,11 @@ const fetchAgentRank = async () => {
   } catch (error) {
     // 使用模拟数据
     agentRankData.value = [
-      { id: "1", name: "智能客服", icon: "💬", callCount: 15680 },
-      { id: "2", name: "文案助手", icon: "✍️", callCount: 12450 },
-      { id: "3", name: "代码专家", icon: "💻", callCount: 9820 },
-      { id: "4", name: "数据分析", icon: "📊", callCount: 7650 },
-      { id: "5", name: "翻译大师", icon: "🌐", callCount: 5430 }
+      { id: "1", name: "智能客服", icon: "💬", call_count: 15680 },
+      { id: "2", name: "文案助手", icon: "✍️", call_count: 12450 },
+      { id: "3", name: "代码专家", icon: "💻", call_count: 9820 },
+      { id: "4", name: "数据分析", icon: "📊", call_count: 7650 },
+      { id: "5", name: "翻译大师", icon: "🌐", call_count: 5430 }
     ];
   }
 };

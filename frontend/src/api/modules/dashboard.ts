@@ -32,7 +32,7 @@ export namespace Dashboard {
     id: string;
     name: string;
     icon: string;
-    callCount: number;
+    call_count: number;
   }
 
   // 系统预警配置

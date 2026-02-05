@@ -29,6 +29,14 @@
       }
     },
     {
+      "path": "pages/qrcode-login/index",
+      "style": {
+        "navigationBarTitleText": "扫码登录",
+        "navigationStyle": "custom",
+        "disableScroll": true
+      }
+    },
+    {
       "path": "pages/agreement/user",
       "style": {
         "navigationBarTitleText": "用户协议",

@@ -3,7 +3,9 @@
 定义算力计算的核心参数和公式
 
 算力计算公式:
-消耗火源币 = [(输入Token数 × 输入权重) + (输出Token数 × 输出权重) + 基础调度费] × 模型倍率系数
+消耗火源币 = [(输入Token数 × 输入权重) + (输出Token数 × 输出权重)] × 模型倍率系数 × Token换算比例 + 基础调度费 × 模型倍率系数
+
+注意：基础调度费(base_fee)的单位是火源币，不需要乘以TOKEN_TO_COIN_RATE
 """
 from decimal import Decimal
 
@@ -44,6 +46,11 @@ class CoinConfig:
         """
         使用默认配置计算算力消耗
 
+        计算公式:
+        消耗火源币 = [(输入Token数 × 输入权重) + (输出Token数 × 输出权重)] × Token换算比例 + 基础调度费
+        
+        注意：DEFAULT_BASE_FEE 的单位是火源币，不需要乘以 TOKEN_TO_COIN_RATE
+
         Args:
             input_tokens: 输入Token数
             output_tokens: 输出Token数
@@ -51,13 +58,17 @@ class CoinConfig:
         Returns:
             消耗的火源币数量
         """
-        base_cost = (
+        # 计算Token成本（需要转换为火源币）
+        token_cost = (
             Decimal(input_tokens) * cls.DEFAULT_INPUT_WEIGHT +
-            Decimal(output_tokens) * cls.DEFAULT_OUTPUT_WEIGHT +
-            cls.DEFAULT_BASE_FEE
+            Decimal(output_tokens) * cls.DEFAULT_OUTPUT_WEIGHT
         ) * cls.TOKEN_TO_COIN_RATE
 
-        return round(base_cost, 4)
+        # 基础调度费（单位已经是火源币，不需要乘以 TOKEN_TO_COIN_RATE）
+        total_cost = token_cost + cls.DEFAULT_BASE_FEE
+
+        # 四舍五入到整数（火源币不使用小数）
+        return Decimal(int(round(total_cost)))
 
     @classmethod
     def estimate_tokens_from_text(cls, text: str) -> int:
@@ -95,9 +106,11 @@ class CoinConfig:
             base_fee: 基础调度费
 
         Returns:
-            处罚费用
+            处罚费用（整数，火源币不使用小数）
         """
-        return round(base_fee * cls.VIOLATION_PENALTY_MULTIPLIER, 4)
+        penalty = base_fee * cls.VIOLATION_PENALTY_MULTIPLIER
+        # 四舍五入到整数（火源币不使用小数）
+        return Decimal(int(round(penalty)))
 
 
 # 预设模型倍率配置

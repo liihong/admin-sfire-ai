@@ -239,3 +239,57 @@ async def reset_user_password(
     await user_service.reset_password(user_id)
     return success(msg="密码重置成功，新密码为：123456")
 
+
+@router.get("/statistics/unionid", summary="获取用户 unionid 统计信息")
+async def get_unionid_statistics(
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    获取用户 unionid 统计信息
+    
+    用于查看有多少用户的 unionid 为空，需要同步更新
+    unionid 会在用户重新登录小程序时自动更新
+    """
+    from sqlalchemy import select, func
+    from models.user import User
+    
+    # 总用户数
+    total_query = select(func.count(User.id)).where(User.is_deleted == False)
+    total_result = await db.execute(total_query)
+    total_users = total_result.scalar() or 0
+    
+    # 有 unionid 的用户数
+    with_unionid_query = select(func.count(User.id)).where(
+        User.unionid.isnot(None),
+        User.is_deleted == False
+    )
+    with_unionid_result = await db.execute(with_unionid_query)
+    with_unionid_count = with_unionid_result.scalar() or 0
+    
+    # 有 openid 但没有 unionid 的用户数
+    openid_no_unionid_query = select(func.count(User.id)).where(
+        User.openid.isnot(None),
+        User.unionid.is_(None),
+        User.is_deleted == False
+    )
+    openid_no_unionid_result = await db.execute(openid_no_unionid_query)
+    openid_no_unionid_count = openid_no_unionid_result.scalar() or 0
+    
+    # 有手机号但没有 unionid 的用户数
+    phone_no_unionid_query = select(func.count(User.id)).where(
+        User.phone.isnot(None),
+        User.unionid.is_(None),
+        User.is_deleted == False
+    )
+    phone_no_unionid_result = await db.execute(phone_no_unionid_query)
+    phone_no_unionid_count = phone_no_unionid_result.scalar() or 0
+    
+    return success(data={
+        "total_users": total_users,
+        "with_unionid": with_unionid_count,
+        "without_unionid": total_users - with_unionid_count,
+        "openid_no_unionid": openid_no_unionid_count,
+        "phone_no_unionid": phone_no_unionid_count,
+        "note": "unionid 会在用户重新登录小程序时自动更新"
+    })
+

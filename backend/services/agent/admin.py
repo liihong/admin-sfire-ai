@@ -315,39 +315,50 @@ class AgentAdminService:
         增加Agent使用次数
         
         使用原子更新操作，避免并发问题
-        注意：不在此方法中提交事务，由外层事务管理（FastAPI的get_db依赖）
+        使用独立的数据库会话确保统计更新被正确提交，不影响主事务
         
         Args:
-            db: 异步数据库会话
+            db: 异步数据库会话（用于兼容性，实际使用独立会话）
             agent_id: Agent ID
         
         Returns:
             是否成功
         """
         from sqlalchemy import update
+        from db import async_session_maker
         
-        try:
-            # 使用原子更新操作，直接更新数据库，避免加载整个对象
-            result = await db.execute(
-                update(Agent)
-                .where(Agent.id == agent_id)
-                .values(usage_count=Agent.usage_count + 1)
-            )
-            
-            # 检查是否有行被更新
-            if result.rowcount == 0:
-                logger.warning(f"增加使用次数失败: Agent ID={agent_id} 不存在")
+        # 使用独立的数据库会话，确保统计更新被正确提交
+        # 这对于流式响应场景特别重要，因为外层事务可能在流式响应完成前就提交了
+        async with async_session_maker() as stat_db:
+            try:
+                # 使用原子更新操作，直接更新数据库，避免加载整个对象
+                result = await stat_db.execute(
+                    update(Agent)
+                    .where(Agent.id == agent_id)
+                    .values(usage_count=Agent.usage_count + 1)
+                )
+                
+                # 检查是否有行被更新
+                if result.rowcount == 0:
+                    logger.warning(f"⚠️ 增加使用次数失败: Agent ID={agent_id} 不存在或未找到")
+                    return False
+                
+                logger.info(f"📊 Agent ID={agent_id} 执行原子更新操作，影响行数: {result.rowcount}")
+                
+                # 提交事务，确保统计更新被持久化
+                await stat_db.commit()
+                
+                logger.info(f"✅ Agent ID={agent_id} 使用次数已增加并提交 (影响 {result.rowcount} 行)")
+                return True
+                
+            except Exception as e:
+                logger.error(f"增加Agent使用次数异常: Agent ID={agent_id}, 错误={e}")
+                # 如果提交失败，尝试回滚
+                try:
+                    await stat_db.rollback()
+                except Exception as rollback_error:
+                    logger.error(f"回滚事务失败: {rollback_error}")
                 return False
-            
-            # 刷新到数据库，但不提交（由外层事务管理）
-            await db.flush()
-            
-            logger.debug(f"Agent ID={agent_id} 使用次数已增加")
-            return True
-            
-        except Exception as e:
-            logger.error(f"增加Agent使用次数异常: Agent ID={agent_id}, 错误={e}")
-            return False
 
 
 # 向后兼容：AgentServiceV2 作为 AgentAdminService 的别名

@@ -213,7 +213,8 @@ async def get_agent_rank(
     获取智能体调用排行（Top N）
 
     基于 Agent.usage_count 字段统计每个智能体的实际调用次数，返回最受欢迎的智能体
-    只返回上架状态（status=1）且调用次数大于 0 的智能体
+    优先返回有调用记录的上架智能体（status=1, usage_count > 0）
+    如果记录数不足，会补充上架但未调用的智能体（status=1, usage_count = 0）
 
     返回字段:
     - id: 智能体 ID

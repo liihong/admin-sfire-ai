@@ -176,24 +176,39 @@ class AgentBusinessService:
             # 5. 调用EnhancedConversationService.chat（处理算力扣除、内容审查、流式响应）
             # system_prompt包含IP人设和Agent能力（不包含用户输入）
             # message是用户输入
-            async for chunk in enhanced_conversation.chat(
-                user_id=user_id,
-                message=prompt_result.user_message,  # 用户输入
-                model_id=llm_model.id,
-                system_prompt=prompt_result.system_prompt,  # IP人设 + Agent能力
-                conversation_id=conversation_id,
-                temperature=final_temperature,
-                max_tokens=final_max_tokens
-            ):
-                yield chunk
-            
-            # 6. 更新Agent使用次数（异步，失败不影响主流程）
+            execution_successful = False
             try:
-                await AgentAdminService.increment_usage_count(self.db, agent_id)
+                async for chunk in enhanced_conversation.chat(
+                    user_id=user_id,
+                    message=prompt_result.user_message,  # 用户输入
+                    model_id=llm_model.id,
+                    system_prompt=prompt_result.system_prompt,  # IP人设 + Agent能力
+                    conversation_id=conversation_id,
+                    temperature=final_temperature,
+                    max_tokens=final_max_tokens
+                ):
+                    yield chunk
+                # 流式响应正常完成
+                execution_successful = True
             except Exception as e:
-                logger.warning(f"更新Agent使用次数失败: {e}")
+                # 流式响应过程中出现异常，记录日志但继续执行统计更新
+                logger.error(f"Agent流式响应异常: Agent ID={agent_id}, 错误={e}")
+                execution_successful = False
+                raise  # 重新抛出异常，让外层处理
         
         finally:
+            # 6. 更新Agent使用次数（在finally中执行，确保无论成功失败都会更新）
+            # 注意：即使流式响应失败，也统计调用次数（因为已经消耗了资源）
+            try:
+                logger.info(f"开始更新Agent使用次数: Agent ID={agent_id}")
+                result = await AgentAdminService.increment_usage_count(self.db, agent_id)
+                if result:
+                    logger.info(f"✅ Agent使用次数更新成功: Agent ID={agent_id}")
+                else:
+                    logger.warning(f"⚠️ Agent使用次数更新失败: Agent ID={agent_id} (返回False)")
+            except Exception as e:
+                logger.error(f"❌ 更新Agent使用次数异常: Agent ID={agent_id}, 错误={e}", exc_info=True)
+            
             # 释放会话锁
             if conversation_id and lock_value:
                 await RedisLock.release_conversation_lock(conversation_id, lock_value)
@@ -273,21 +288,31 @@ class AgentBusinessService:
         final_max_tokens = max_tokens if max_tokens is not None else agent_config.get("maxTokens", 2048)
         
         # 8. 调用非流式方法
-        result = await enhanced_conversation.chat_non_stream(
-            user_id=user_id,
-            message=input_text,
-            model_id=llm_model.id,
-            system_prompt=prompt_result.system_prompt,
-            conversation_id=conversation_id,
-            temperature=final_temperature,
-            max_tokens=final_max_tokens
-        )
+        try:
+            result = await enhanced_conversation.chat_non_stream(
+                user_id=user_id,
+                message=input_text,
+                model_id=llm_model.id,
+                system_prompt=prompt_result.system_prompt,
+                conversation_id=conversation_id,
+                temperature=final_temperature,
+                max_tokens=final_max_tokens
+            )
+        except Exception as e:
+            # 即使执行失败，也更新统计（因为已经消耗了资源）
+            logger.error(f"Agent非流式执行异常: Agent ID={agent_id}, 错误={e}")
+            raise
         
         # 9. 更新Agent使用次数
         try:
-            await AgentAdminService.increment_usage_count(self.db, agent_id)
+            logger.info(f"开始更新Agent使用次数: Agent ID={agent_id} (非流式)")
+            increment_result = await AgentAdminService.increment_usage_count(self.db, agent_id)
+            if increment_result:
+                logger.info(f"✅ Agent使用次数更新成功: Agent ID={agent_id} (非流式)")
+            else:
+                logger.warning(f"⚠️ Agent使用次数更新失败: Agent ID={agent_id} (非流式, 返回False)")
         except Exception as e:
-            logger.warning(f"更新Agent使用次数失败: {e}")
+            logger.error(f"❌ 更新Agent使用次数异常: Agent ID={agent_id} (非流式), 错误={e}", exc_info=True)
         
         return {
             "response": result["response"],

@@ -161,6 +161,36 @@ export function getCurrentUserInfo() {
 }
 
 /**
+ * 扫码登录请求类型
+ */
+export interface QrcodeLoginRequest {
+  code: string  // 微信登录 code，从 uni.login() 获取
+  scene: string  // 场景值（scene_str）
+}
+
+/**
+ * 扫码登录响应类型
+ */
+export interface QrcodeLoginResponse {
+  success: boolean
+  message: string
+}
+
+/**
+ * 扫码登录（为PC端提供授权）
+ * @param data 扫码登录请求数据
+ */
+export function qrcodeLogin(data: QrcodeLoginRequest) {
+  return request<QrcodeLoginResponse>({
+    url: '/api/v1/client/auth/qrcode/login',
+    method: 'POST',
+    data,
+    needToken: false, // 扫码登录接口不需要 token
+    showLoading: false
+  })
+}
+
+/**
  * 上传头像响应类型
  */
 export interface UploadAvatarResponse {

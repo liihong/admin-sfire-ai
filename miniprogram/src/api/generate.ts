@@ -469,8 +469,18 @@ function handleJSONResponse(
     if (callbacks.onChunk) callbacks.onChunk(content)
   }
 
+  // 处理错误信息：支持 error 对象和 error 字符串两种格式
   if (data.error && callbacks.onError) {
-    callbacks.onError(String(data.error))
+    let errorMsg = ''
+    if (typeof data.error === 'string') {
+      errorMsg = data.error
+    } else if (typeof data.error === 'object') {
+      // 优先使用 message 字段，其次使用 msg 字段，最后使用 error 对象本身
+      errorMsg = data.error.message || data.error.msg || JSON.stringify(data.error)
+    } else {
+      errorMsg = String(data.error)
+    }
+    callbacks.onError(errorMsg)
     return
   }
 
@@ -519,8 +529,18 @@ function simulateStreaming(
           hasDone = true
         }
 
+        // 处理错误信息：支持 error 对象和 error 字符串两种格式
         if (parsed.error && callbacks.onError) {
-          callbacks.onError(String(parsed.error))
+          let errorMsg = ''
+          if (typeof parsed.error === 'string') {
+            errorMsg = parsed.error
+          } else if (typeof parsed.error === 'object') {
+            // 优先使用 message 字段，其次使用 msg 字段，最后使用 error 对象本身
+            errorMsg = parsed.error.message || parsed.error.msg || JSON.stringify(parsed.error)
+          } else {
+            errorMsg = String(parsed.error)
+          }
+          callbacks.onError(errorMsg)
           return
         }
       } catch (e) {
@@ -594,8 +614,18 @@ function processSSEBuffer(
           if (callbacks.onDone) callbacks.onDone()
         }
 
+        // 处理错误信息：支持 error 对象和 error 字符串两种格式
         if (parsed.error && callbacks.onError) {
-          callbacks.onError(parsed.error)
+          let errorMsg = ''
+          if (typeof parsed.error === 'string') {
+            errorMsg = parsed.error
+          } else if (typeof parsed.error === 'object') {
+            // 优先使用 message 字段，其次使用 msg 字段，最后使用 error 对象本身
+            errorMsg = parsed.error.message || parsed.error.msg || JSON.stringify(parsed.error)
+          } else {
+            errorMsg = String(parsed.error)
+          }
+          callbacks.onError(errorMsg)
         }
       } catch (e) {
         // 解析失败，跳过

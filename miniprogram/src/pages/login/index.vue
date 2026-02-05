@@ -36,10 +36,10 @@
 class="login-btn-glass" :class="{ disabled: !isAgreed, shake: !isAgreed && showShake }"
         open-type="getPhoneNumber" @getphonenumber="handleGetPhoneNumber" @tap="handleLoginTap">
         <view class="btn-content">
-          <view class="wechat-icon-wrapper">
-            <view class="wechat-icon-dot"></view>
+         <view class="wechat-icon-wrapper">
+           <SvgIcon name="send" />
           </view>
-          <text class="btn-text">微信登录</text>
+         <text class="btn-text">手机号快捷登录</text>
         </view>
       </button>
 
@@ -75,6 +75,8 @@ class="login-btn-glass" :class="{ disabled: !isAgreed, shake: !isAgreed && showS
 import { ref } from 'vue'
 import { useAuthStore } from '@/stores/auth'
 import { request } from '@/utils/request'
+import { wxLogin } from '@/utils/wechat'
+import SvgIcon from '@/components/base/SvgIcon.vue'
 
 const authStore = useAuthStore()
 
@@ -217,7 +219,8 @@ const handleGetPhoneNumber = async (e: any) => {
         authStore.setUserInfo({
           openid: userInfo.openid,
           nickname: userInfo.nickname || '',
-          avatarUrl: userInfo.avatarUrl || userInfo.avatar_url || '/static/default-avatar.png'
+          avatarUrl: userInfo.avatarUrl || userInfo.avatar_url || '/static/default-avatar.png',
+          level: userInfo.level || 'normal' // 添加必需的 level 字段
         })
         console.log('[Login] User info saved to storage')
       }
@@ -260,34 +263,7 @@ const handleGetPhoneNumber = async (e: any) => {
   }
 }
 
-/**
- * 微信登录获取 code
- */
-function wxLogin(): Promise<{ code: string }> {
-  return new Promise((resolve, reject) => {
-    // #ifdef MP-WEIXIN
-    uni.login({
-      provider: 'weixin',
-      success: (res) => {
-        if (res.code) {
-          resolve({ code: res.code })
-        } else {
-          reject(new Error('获取登录凭证失败'))
-        }
-      },
-      fail: (err) => {
-        console.error('uni.login failed:', err)
-        reject(err)
-      }
-    })
-    // #endif
-
-    // #ifndef MP-WEIXIN
-    // 非微信环境，登录失败
-    reject(new Error('当前仅支持微信小程序环境'))
-    // #endif
-  })
-}
+// wxLogin 函数已提取到 @/utils/wechat.ts，直接导入使用
 
 
 /**

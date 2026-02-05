@@ -57,7 +57,9 @@ class CoinCalculatorService:
         根据实际Token数和模型配置计算算力消耗
 
         计算公式:
-        消耗火源币 = [(输入Token数 × 输入权重) + (输出Token数 × 输出权重) + 基础调度费] × 模型倍率系数 × Token换算比例
+        消耗火源币 = [(输入Token数 × 输入权重) + (输出Token数 × 输出权重)] × 模型倍率系数 × Token换算比例 + 基础调度费 × 模型倍率系数
+        
+        注意：base_fee 的单位是火源币，不需要乘以 TOKEN_TO_COIN_RATE
 
         Args:
             input_tokens: 输入Token数
@@ -73,18 +75,32 @@ class CoinCalculatorService:
             logger.warning(f"模型ID {model_id} 不存在,使用默认配置")
             return self.config.calculate_default_cost(input_tokens, output_tokens)
 
-        # 计算基础成本
-        base_cost = (
+        # 计算Token成本（需要转换为火源币）
+        token_cost = (
             Decimal(input_tokens) * Decimal(model.input_weight) +
-            Decimal(output_tokens) * Decimal(model.output_weight) +
-            Decimal(model.base_fee)
+            Decimal(output_tokens) * Decimal(model.output_weight)
+        ) * Decimal(model.rate_multiplier) * self.config.TOKEN_TO_COIN_RATE
+
+        # 基础调度费（单位已经是火源币，不需要乘以 TOKEN_TO_COIN_RATE）
+        base_fee_cost = Decimal(model.base_fee) * Decimal(model.rate_multiplier)
+
+        # 总成本 = Token成本 + 基础调度费
+        total_cost = token_cost + base_fee_cost
+
+        # 调试日志：记录计算过程
+        logger.debug(
+            f"💰 [成本计算] 模型ID={model_id}, "
+            f"输入Token={input_tokens}, 输出Token={output_tokens}, "
+            f"输入权重={model.input_weight}, 输出权重={model.output_weight}, "
+            f"倍率系数={model.rate_multiplier}, 基础费={model.base_fee}, "
+            f"Token成本={token_cost}, 基础费成本={base_fee_cost}, "
+            f"总成本={total_cost}"
         )
 
-        # 应用倍率系数
-        total_cost = base_cost * Decimal(model.rate_multiplier) * self.config.TOKEN_TO_COIN_RATE
-
-        # 四舍五入到整数
-        return round(total_cost)
+        # 四舍五入到整数（返回 Decimal 类型）
+        result = Decimal(int(round(total_cost)))
+        logger.debug(f"💰 [成本计算] 最终结果={result}")
+        return result
 
     async def estimate_max_cost(
         self,
@@ -196,10 +212,16 @@ class CoinCalculatorService:
             rate_multiplier = self.config.DEFAULT_RATE_MULTIPLIER
 
         # 计算各项费用
-        input_cost = Decimal(input_tokens) * input_weight
-        output_cost = Decimal(output_tokens) * output_weight
-        subtotal = input_cost + output_cost + base_fee
-        total = subtotal * rate_multiplier * self.config.TOKEN_TO_COIN_RATE
+        # Token成本（需要转换为火源币）
+        input_cost = Decimal(input_tokens) * input_weight * rate_multiplier * self.config.TOKEN_TO_COIN_RATE
+        output_cost = Decimal(output_tokens) * output_weight * rate_multiplier * self.config.TOKEN_TO_COIN_RATE
+        token_subtotal = input_cost + output_cost
+        
+        # 基础调度费（单位已经是火源币，不需要乘以 TOKEN_TO_COIN_RATE）
+        base_fee_cost = base_fee * rate_multiplier
+        
+        # 总成本 = Token成本 + 基础调度费
+        total = token_subtotal + base_fee_cost
 
         return {
             "input_tokens": input_tokens,
@@ -208,9 +230,10 @@ class CoinCalculatorService:
             "output_weight": float(output_weight),
             "base_fee": float(base_fee),
             "rate_multiplier": float(rate_multiplier),
-            "input_cost": float(input_cost),
-            "output_cost": float(output_cost),
-            "subtotal": float(subtotal),
+            "input_cost": round(float(input_cost), 4),
+            "output_cost": round(float(output_cost), 4),
+            "token_subtotal": round(float(token_subtotal), 4),
+            "base_fee_cost": round(float(base_fee_cost), 4),
             "total": round(float(total), 4),
             "token_to_coin_rate": float(self.config.TOKEN_TO_COIN_RATE),
         }

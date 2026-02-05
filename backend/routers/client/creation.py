@@ -1169,8 +1169,13 @@ async def generate_chat(
                 except (BadRequestException, NotFoundException) as e:
                     # 业务异常直接传递
                     logger.warning(f"⚠️ [Stream] 业务异常: {str(e)}")
-                    error_msg = f"生成错误: {str(e)}"
-                    yield f"data: {json.dumps({'error': error_msg}, ensure_ascii=False)}\n\n"
+                    error_chunk = {
+                        "error": {
+                            "message": str(e),
+                            "type": type(e).__name__
+                        }
+                    }
+                    yield f"data: {json.dumps(error_chunk, ensure_ascii=False)}\n\n"
                     return
                 except Exception as e:
                     # 🔍 详细错误日志
@@ -1217,8 +1222,17 @@ async def generate_chat(
                             reason="AI生成失败"
                         )
 
-                    error_msg = f"生成错误: {str(e)}"
-                    yield f"data: {json.dumps({'error': error_msg}, ensure_ascii=False)}\n\n"
+                    # 统一错误格式：包含 message 字段，便于前端展示
+                    error_chunk = {
+                        "error": {
+                            "message": f"生成错误: {str(e)}",
+                            "type": type(e).__name__
+                        }
+                    }
+                    # 如果是连接错误，添加更详细的诊断信息
+                    if isinstance(e, (httpx.ConnectError, httpx.ConnectTimeout)):
+                        error_chunk["error"]["details"] = "请检查网络连接和API服务状态"
+                    yield f"data: {json.dumps(error_chunk, ensure_ascii=False)}\n\n"
             
             return StreamingResponse(
                 generate_stream(),

@@ -93,3 +93,5 @@ class AdminOperationLog(BaseModel):
     def __repr__(self) -> str:
         return f"<AdminOperationLog(id={self.id}, admin_user_id={self.admin_user_id}, operation_type={self.operation_type})>"
 
+
+

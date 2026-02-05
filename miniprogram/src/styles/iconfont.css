@@ -12,6 +12,9 @@
   -moz-osx-font-smoothing: grayscale;
 }
 
+.icon-notice:before {
+  content: "\e6da";
+}
 .icon-linggan:before {
   content: "\e6ca";
 }
@@ -19,6 +22,7 @@
 .icon-linggan2:before {
   content: "\e879";
 }
+
 .icon-service:before {
   content: "\e66d";
 }
