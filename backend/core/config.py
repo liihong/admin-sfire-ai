@@ -5,17 +5,25 @@ from typing import List, Optional
 from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 import json
+import os
 from urllib.parse import quote_plus
+from loguru import logger
 
 
 class Settings(BaseSettings):
     """应用配置类"""
     
+    # 获取 .env 文件的绝对路径（相对于当前文件所在目录）
+    _env_file_path = os.path.join(os.path.dirname(__file__), "..", ".env")
+    _env_file_abs = os.path.abspath(_env_file_path)
+    
     model_config = SettingsConfigDict(
-        env_file=".env",
+        env_file=_env_file_abs,  # 使用绝对路径
         env_file_encoding="utf-8",
         case_sensitive=True,
         extra="ignore",
+        # 如果 .env 文件不存在或解析失败，不抛出异常，使用默认值
+        env_ignore_empty=True,
     )
 
     # 应用配置
@@ -139,7 +147,80 @@ class Settings(BaseSettings):
         return f"redis://{self.REDIS_HOST}:{self.REDIS_PORT}/{self.REDIS_DB}"
 
 
-# 创建全局配置实例
-settings = Settings()
+# 创建全局配置实例，优雅处理 .env 文件解析错误
+def create_settings():
+    """创建配置实例，如果 .env 文件解析失败则使用默认值"""
+    # 获取 .env 文件路径
+    env_file_path = os.path.join(os.path.dirname(__file__), "..", ".env")
+    env_file_abs = os.path.abspath(env_file_path)
+    
+    logger.info(f"📋 尝试加载配置文件: {env_file_abs}")
+    logger.info(f"📁 文件是否存在: {os.path.exists(env_file_abs)}")
+    
+    if os.path.exists(env_file_abs):
+        # 检查文件权限
+        file_stat = os.stat(env_file_abs)
+        logger.info(f"📊 文件权限: {oct(file_stat.st_mode)}")
+        logger.info(f"👤 文件所有者: UID={file_stat.st_uid}, GID={file_stat.st_gid}")
+    
+    try:
+        settings = Settings()
+        
+        # 验证关键配置是否加载成功
+        logger.info("🔍 验证配置加载状态...")
+        
+        # 检查微信支付配置
+        wechat_pay_configured = bool(settings.WECHAT_PAY_MCH_ID and settings.WECHAT_PAY_API_KEY)
+        if wechat_pay_configured:
+            logger.info("✅ 微信支付配置加载成功")
+            logger.debug(f"   - 商户号: {settings.WECHAT_PAY_MCH_ID[:4]}*** (已隐藏)")
+            logger.debug(f"   - API密钥: {'*' * min(len(settings.WECHAT_PAY_API_KEY), 8)} (已隐藏)")
+        else:
+            logger.warning("⚠️ 微信支付配置为空或未完整加载")
+            logger.warning(f"   - WECHAT_PAY_MCH_ID: {'已设置' if settings.WECHAT_PAY_MCH_ID else '未设置'}")
+            logger.warning(f"   - WECHAT_PAY_API_KEY: {'已设置' if settings.WECHAT_PAY_API_KEY else '未设置'}")
+        
+        # 检查数据库配置
+        db_configured = bool(settings.MYSQL_HOST and settings.MYSQL_DATABASE)
+        if db_configured:
+            logger.info("✅ 数据库配置加载成功")
+        else:
+            logger.warning("⚠️ 数据库配置未完整加载")
+        
+        # 检查 Redis 配置
+        redis_configured = bool(settings.REDIS_HOST)
+        if redis_configured:
+            logger.info("✅ Redis配置加载成功")
+        else:
+            logger.warning("⚠️ Redis配置未完整加载")
+        
+        return settings
+        
+    except Exception as e:
+        error_msg = str(e)
+        logger.error(f"❌ 加载 .env 文件时出现错误: {error_msg}")
+        logger.error(f"📁 配置文件路径: {env_file_abs}")
+        logger.warning("将使用默认配置值，请检查 .env 文件格式是否正确")
+        logger.info("提示: .env 文件格式要求:")
+        logger.info("  - 每行格式: KEY=VALUE")
+        logger.info("  - 注释以 # 开头，且 # 必须在行首")
+        logger.info("  - 值中包含空格时需要用引号包裹: KEY=\"value with spaces\"")
+        logger.info("  - 行首不能有空格或制表符")
+        logger.info("  - 每行必须以 KEY= 开头，不能有空行（除非是注释）")
+        
+        # 创建不加载 .env 文件的配置类，继承原 Settings 的所有字段和方法
+        class SettingsWithoutFile(Settings):
+            """配置类（不加载 .env 文件，只使用环境变量和默认值）"""
+            model_config = SettingsConfigDict(
+                env_file=None,  # 不加载文件
+                env_file_encoding="utf-8",
+                case_sensitive=True,
+                extra="ignore",
+                env_ignore_empty=True,
+            )
+        
+        return SettingsWithoutFile()
+
+settings = create_settings()
 
 

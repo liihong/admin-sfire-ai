@@ -8,8 +8,8 @@
           <text class="back-icon">‹</text>
         </view>
         <view class="nav-center">
-          <text class="nav-title">抖音热点榜单</text>
-          <text class="update-time" v-if="updateTime">{{ updateTime }}</text>
+         <view class="nav-title">抖音热点榜单</view>
+          <view class="update-time" v-if="updateTime">{{ updateTime }}</view>
         </view>
       </view>
     </view>
