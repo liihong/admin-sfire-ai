@@ -169,16 +169,22 @@ def create_settings():
         # 验证关键配置是否加载成功
         logger.info("🔍 验证配置加载状态...")
         
-        # 检查微信支付配置
-        wechat_pay_configured = bool(settings.WECHAT_PAY_MCH_ID and settings.WECHAT_PAY_API_KEY)
+        # 检查微信支付配置（使用 WARNING 级别确保日志输出）
+        mch_id_value = settings.WECHAT_PAY_MCH_ID
+        api_key_value = settings.WECHAT_PAY_API_KEY
+        
+        logger.warning(f"🔍 [配置检查] WECHAT_PAY_MCH_ID 类型: {type(mch_id_value)}, 值长度: {len(mch_id_value) if mch_id_value else 0}, 是否为空: {not bool(mch_id_value)}")
+        logger.warning(f"🔍 [配置检查] WECHAT_PAY_API_KEY 类型: {type(api_key_value)}, 值长度: {len(api_key_value) if api_key_value else 0}, 是否为空: {not bool(api_key_value)}")
+        
+        wechat_pay_configured = bool(mch_id_value and api_key_value)
         if wechat_pay_configured:
             logger.info("✅ 微信支付配置加载成功")
-            logger.debug(f"   - 商户号: {settings.WECHAT_PAY_MCH_ID[:4]}*** (已隐藏)")
-            logger.debug(f"   - API密钥: {'*' * min(len(settings.WECHAT_PAY_API_KEY), 8)} (已隐藏)")
+            logger.info(f"   - 商户号: {mch_id_value[:4]}*** (已隐藏)")
+            logger.info(f"   - API密钥长度: {len(api_key_value)} 字符")
         else:
-            logger.warning("⚠️ 微信支付配置为空或未完整加载")
-            logger.warning(f"   - WECHAT_PAY_MCH_ID: {'已设置' if settings.WECHAT_PAY_MCH_ID else '未设置'}")
-            logger.warning(f"   - WECHAT_PAY_API_KEY: {'已设置' if settings.WECHAT_PAY_API_KEY else '未设置'}")
+            logger.error("❌ 微信支付配置为空或未完整加载")
+            logger.error(f"   - WECHAT_PAY_MCH_ID: {'已设置' if mch_id_value else '未设置'} (值: '{mch_id_value}')")
+            logger.error(f"   - WECHAT_PAY_API_KEY: {'已设置' if api_key_value else '未设置'} (长度: {len(api_key_value) if api_key_value else 0})")
         
         # 检查数据库配置
         db_configured = bool(settings.MYSQL_HOST and settings.MYSQL_DATABASE)

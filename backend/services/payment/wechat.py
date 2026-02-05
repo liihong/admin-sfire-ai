@@ -47,9 +47,20 @@ class WeChatPayService:
         self.api_key = settings.WECHAT_PAY_API_KEY
         self.notify_url = settings.WECHAT_PAY_NOTIFY_URL
         
+        # 详细的配置检查日志
+        logger.info(f"🔍 [微信支付] 配置检查:")
+        logger.info(f"   - WECHAT_APP_ID: {'已设置' if self.app_id else '未设置'} (长度: {len(self.app_id) if self.app_id else 0})")
+        logger.info(f"   - WECHAT_PAY_MCH_ID: {'已设置' if self.mch_id else '未设置'} (长度: {len(self.mch_id) if self.mch_id else 0}, 值: '{self.mch_id}')")
+        logger.info(f"   - WECHAT_PAY_API_KEY: {'已设置' if self.api_key else '未设置'} (长度: {len(self.api_key) if self.api_key else 0})")
+        logger.info(f"   - WECHAT_PAY_NOTIFY_URL: {'已设置' if self.notify_url else '未设置'} (值: {self.notify_url})")
+        
         # 检查配置
         if not self.mch_id or not self.api_key:
-            logger.warning("微信支付配置不完整，支付功能可能不可用")
+            logger.error(f"❌ [微信支付] 配置不完整，支付功能不可用")
+            logger.error(f"   - mch_id 为空: {not bool(self.mch_id)}")
+            logger.error(f"   - api_key 为空: {not bool(self.api_key)}")
+        else:
+            logger.info(f"✅ [微信支付] 配置完整，支付功能可用")
     
     async def create_unified_order(
         self,
