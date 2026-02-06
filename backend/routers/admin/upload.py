@@ -86,7 +86,7 @@ async def upload_avatar(
     - 支持 JPG、PNG、GIF、WEBP 格式
     - 最大文件大小: 1MB
     - 需要管理员登录
-    - 使用 OSS 服务存储（支持本地存储、阿里云 OSS、腾讯云 COS、七牛云等）
+    - 强制使用本地存储（不使用OSS）
     """
     # 头像文件大小限制更小 (1MB)
     MAX_AVATAR_SIZE = 1 * 1024 * 1024
@@ -102,15 +102,14 @@ async def upload_avatar(
     if file_size > MAX_AVATAR_SIZE:
         raise BadRequestException(msg="头像文件大小不能超过 1MB")
 
-    # 使用 OSS 服务上传头像文件
+    # 使用本地存储上传头像文件（强制使用本地存储，不使用OSS）
     try:
-        # 生成包含用户ID的文件名（OSS服务会自动生成唯一文件名，这里只是用于标识）
+        # 生成包含用户ID的文件名（用于标识）
         filename = file.filename or f"avatar_{current_user.id}.jpg"
         
-        result = await oss_service.upload_file(
+        result = await oss_service.upload_avatar_to_local(
             file_content=content,
             filename=filename,
-            folder="avatars",  # 头像存储文件夹
             content_type=file.content_type
         )
         

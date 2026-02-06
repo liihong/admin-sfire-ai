@@ -1,10 +1,20 @@
 <template>
   <view class="project-index-page">
-   <SafeAreaTop />
-    <!-- 项目列表视图 - 没有激活项目时显示 -->
-   <ProjectList v-if="!hasActiveProject && !isLoading" :key="refreshKey" />
+    <SafeAreaTop />
     <!-- 操作台视图 - 有激活项目时显示 -->
-   <ProjectDashboard v-if="hasActiveProject && !isLoading" :isInTabBar="true" />
+    <ProjectDashboard v-if="hasActiveProject && !isLoading" :isInTabBar="true" @switch-project="openProjectDrawer" />
+
+    <!-- 空状态视图 - 没有项目时显示 -->
+    <view v-if="!hasActiveProject && !isLoading && projectList.length === 0" class="empty-state-container">
+      <EmptyState @action="navigateToCreate" />
+    </view>
+
+    <!-- 项目列表抽屉 -->
+    <BaseDrawer :visible="drawerVisible" title="选择你的操盘项目" @update:visible="drawerVisible = $event"
+      @close="drawerVisible = false">
+      <ProjectList :key="refreshKey" @project-selected="handleProjectSelected" />
+    </BaseDrawer>
+
     <!-- 加载状态 -->
     <view v-if="isLoading" class="loading-container">
       <view class="loading-spinner"></view>
@@ -29,6 +39,8 @@ import { fetchProjects } from '@/api/project'
 import ProjectList from './components/List.vue'
 import ProjectDashboard from './components/Dashboard.vue'
 import SafeAreaTop from '@/components/common/SafeAreaTop.vue'
+import BaseDrawer from '@/components/common/BaseDrawer.vue'
+import EmptyState from './components/list/EmptyState.vue'
 
 import { onShow } from '@dcloudio/uni-app'
 
@@ -36,12 +48,14 @@ const projectStore = useProjectStore()
 const isLoading = ref(true)
 const loadError = ref(false) // 标记是否加载失败
 const refreshKey = ref(0) // 用于强制刷新 List 组件
+const drawerVisible = ref(false) // 控制抽屉显示/隐藏
 
 const hasActiveProject = computed(() => projectStore.hasActiveProject)
+const projectList = computed(() => projectStore.projectList)
 
 // 监听 hasActiveProject 变化，当切换列表时确保 isLoading 为 false
 watch(hasActiveProject, (newVal, oldVal) => {
-  // 当从有激活项目切换到无激活项目时（显示列表），确保 isLoading 为 false
+  // 当从有激活项目切换到无激活项目时，确保 isLoading 为 false
   if (oldVal === true && newVal === false) {
     isLoading.value = false
     loadError.value = false
@@ -49,6 +63,40 @@ watch(hasActiveProject, (newVal, oldVal) => {
     refreshKey.value++
   }
 })
+
+// 监听项目列表变化，如果没有项目且没有激活项目，显示空状态
+watch([hasActiveProject, projectList], ([hasActive, list]) => {
+  // 如果没有激活项目且项目列表为空，确保 isLoading 为 false 以显示空状态
+  if (!hasActive && list.length === 0) {
+    isLoading.value = false
+    loadError.value = false
+  }
+})
+
+/**
+ * 打开项目列表抽屉
+ */
+function openProjectDrawer() {
+  drawerVisible.value = true
+  // 强制刷新 List 组件
+  refreshKey.value++
+}
+
+/**
+ * 处理项目选择后的回调
+ */
+function handleProjectSelected() {
+  drawerVisible.value = false
+}
+
+/**
+ * 跳转到创建项目页面
+ */
+function navigateToCreate() {
+  uni.navigateTo({
+    url: '/pages/project/create'
+  })
+}
 
 /**
  * 重新加载页面
@@ -106,6 +154,13 @@ onShow(async () => {
   background-color: #F5F7FA;
 }
 
+.empty-state-container {
+  width: 100%;
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
 .loading-container {
   width: 100%;
   height: 100vh;

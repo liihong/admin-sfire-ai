@@ -41,6 +41,7 @@ class UserCreate(UserBase):
     """创建用户请求"""
     password: str = Field(..., min_length=6, max_length=50, description="密码")
     parent_id: Optional[int] = Field(None, description="上级用户ID")
+    vip_expire_date: Optional[str] = Field(None, description="VIP到期时间（YYYY-MM-DD格式，可选，仅VIP等级有效）")
 
 
 class UserUpdate(BaseModel):
@@ -51,6 +52,7 @@ class UserUpdate(BaseModel):
     avatar: Optional[str] = None
     level: Optional[str] = Field(None, description="用户等级代码（normal/vip/svip/max），已废弃，请使用level_code")
     level_code: Optional[str] = Field(None, description="用户等级代码（normal/vip/svip/max），对应user_levels表的code字段")
+    vip_expire_date: Optional[str] = Field(None, description="VIP到期时间（YYYY-MM-DD格式，可选，仅VIP等级有效）")
     is_active: Optional[bool] = None
     remark: Optional[str] = None
 

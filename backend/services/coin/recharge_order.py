@@ -312,47 +312,73 @@ class RechargeOrderService:
             logger.warning(f"回调数据缺少支付金额: 订单号={order_id}")
             # 如果订单有金额但回调没有，记录警告但继续处理（可能是测试环境）
         
-        # 5. 充值算力（使用账户服务的充值方法）
+        # 5. 充值算力（直接更新用户余额，不创建新记录）
+        # 注意：订单记录本身就是充值流水记录，不应该调用recharge方法创建新记录
+        # 因为order_id有唯一性约束，创建新记录会导致唯一性冲突
         try:
-            await self.account_service.recharge(
-                user_id=order_log.user_id,
-                amount=order_log.amount,  # 充值算力数量
-                remark=f"充值订单支付成功：{order_log.remark}",
-                order_id=order_id
+            # 获取用户并加锁（防止并发充值）
+            user_result = await self.db.execute(
+                select(User).where(User.id == order_log.user_id).with_for_update()
             )
+            user = user_result.scalar_one_or_none()
+            
+            if not user:
+                raise NotFoundException(f"用户 {order_log.user_id} 不存在")
+            
+            # 记录变动前余额（用于更新订单记录）
+            before_balance = user.balance
+            
+            # 增加余额
+            user.balance += order_log.amount
+            
+            # 更新订单记录（订单记录本身就是充值流水记录）
+            order_log.before_balance = before_balance
+            order_log.after_balance = user.balance
+            order_log.payment_status = "paid"
+            order_log.wechat_transaction_id = transaction_id
+            
+            # 解析支付时间
+            if payment_time_str:
+                try:
+                    # 微信支付时间格式：yyyyMMddHHmmss
+                    payment_time = datetime.strptime(payment_time_str, "%Y%m%d%H%M%S")
+                    order_log.payment_time = payment_time
+                except Exception as e:
+                    logger.warning(f"解析支付时间失败: {payment_time_str}, 错误={e}")
+                    order_log.payment_time = datetime.now()
+            else:
+                order_log.payment_time = datetime.now()
+            
+            # 更新备注（添加支付成功标识）
+            if order_log.remark:
+                order_log.remark = f"{order_log.remark}（支付成功）"
+            else:
+                order_log.remark = "充值订单支付成功"
+            
+            # 刷新到数据库（确保数据持久化）
+            await self.db.flush()
+            
+            logger.info(
+                f"充值算力成功: 订单号={order_id}, "
+                f"用户ID={order_log.user_id}, "
+                f"充值算力={order_log.amount}, "
+                f"余额: {before_balance} → {user.balance}"
+            )
+            
         except Exception as e:
-            logger.error(f"充值算力失败: 订单号={order_id}, 错误={e}")
+            logger.error(
+                f"充值算力失败: 订单号={order_id}, "
+                f"用户ID={order_log.user_id}, 错误={e}",
+                exc_info=True
+            )
             # 更新订单状态为失败
             order_log.payment_status = "failed"
+            if order_log.remark:
+                order_log.remark = f"{order_log.remark}（充值失败: {str(e)}）"
+            else:
+                order_log.remark = f"充值订单支付失败: {str(e)}"
             await self.db.flush()
             raise ServerErrorException(f"充值算力失败: {str(e)}")
-        
-        # 6. 更新订单状态
-        order_log.payment_status = "paid"
-        order_log.wechat_transaction_id = transaction_id
-        
-        # 解析支付时间
-        if payment_time_str:
-            try:
-                # 微信支付时间格式：yyyyMMddHHmmss
-                payment_time = datetime.strptime(payment_time_str, "%Y%m%d%H%M%S")
-                order_log.payment_time = payment_time
-            except Exception as e:
-                logger.warning(f"解析支付时间失败: {payment_time_str}, 错误={e}")
-                order_log.payment_time = datetime.now()
-        else:
-            order_log.payment_time = datetime.now()
-        
-        # 获取更新后的余额（充值成功后查询）
-        # 注意：recharge方法已经更新了用户余额，这里只需要查询余额用于记录
-        # 使用select(User.balance)只查询余额字段，减少数据传输量
-        user_result = await self.db.execute(
-            select(User.balance).where(User.id == order_log.user_id)
-        )
-        after_balance = user_result.scalar_one()
-        order_log.after_balance = after_balance
-        
-        await self.db.flush()
         # 注意：事务提交由路由层的get_db依赖管理
         
         logger.info(

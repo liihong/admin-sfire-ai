@@ -1,29 +1,8 @@
 <template>
-  <view class="project-list-page">
-    <!-- 顶部装饰背景 -->
-    <view class="bg-decoration">
-      <view class="decoration-circle circle-1"></view>
-      <view class="decoration-circle circle-2"></view>
-      <view class="decoration-circle circle-3"></view>
-    </view>
-
-    <!-- 页面头部 -->
-    <view class="page-header">
-      <view class="header-back" @tap="goBack" v-if="canGoBack && !isInTabBar">
-        <text class="back-icon">←</text>
-      </view>
-      <view class="header-content">
-        <text class="header-title">选择你的操盘项目</text>
-        <text class="header-subtitle">每个项目拥有独立的IP人设和内容风格</text>
-      </view>
-    </view>
-
+  <view class="project-list-container">
     <!-- 项目列表区域 -->
     <scroll-view class="project-list-wrapper" scroll-y :refresher-enabled="true" @refresherrefresh="onRefresh"
       :refresher-triggered="isRefreshing">
-      <!-- 空状态 -->
-      <EmptyState v-if="!isLoading && projectList.length === 0" @action="navigateToCreate" />
-
       <!-- 项目卡片列表 -->
       <view class="project-cards" v-if="projectList.length > 0">
         <view class="project-card" v-for="(project, index) in projectList" :key="project.id" :class="{
@@ -71,23 +50,9 @@
         </view>
       </view>
 
-    <!-- 底部占位（为固定按钮留出空间） -->
+    <!-- 底部占位 -->
       <view class="list-footer-spacer"></view>
     </scroll-view>
-
-  <!-- 创建项目按钮（固定在底部，不随页面滚动） -->
-    <view class="create-project-btn-wrapper" v-if="projectList.length !== 0">
-      <view class="create-project-btn" :class="{ disabled: !canCreateProject }" @tap="handleCreateClick">
-        <SvgIcon name="add" size="36" :color="canCreateProject ? '#FFFFFF' : '#CCCCCC'" />
-        <text class="create-btn-text">创建新IP</text>
-      </view>
-     <text class="create-btn-hint" v-if="maxIpCount !== null">
-        当前 {{ projectList.length }}/{{ maxIpCount }} 个IP
-      </text>
-      <text class="create-btn-upgrade-hint" v-if="!canCreateProject && maxIpCount !== null">
-        如果想开通更多IP席位需要升级SVIP会员
-      </text>
-    </view>
 
     <!-- Loading 状态 -->
     <BaseLoading :visible="isLoading" text="加载中..." />
@@ -98,11 +63,9 @@
 import { ref, computed, onMounted, watch } from 'vue'
 import { onShow } from '@dcloudio/uni-app'
 import { useProjectStore, type Project } from '@/stores/project'
-import { useAuthStore } from '@/stores/auth'
 import { fetchProjects, deleteProject } from '@/api/project'
 import BaseLoading from '@/components/common/BaseLoading.vue'
 import SvgIcon from '@/components/base/SvgIcon.vue'
-import EmptyState from './list/EmptyState.vue'
 
 // Props
 const props = defineProps<{
@@ -116,43 +79,16 @@ const emit = defineEmits<{
 
 // Store
 const projectStore = useProjectStore()
-const authStore = useAuthStore()
 // 使用 store 的数据，确保数据同步
 const projectList = computed(() => projectStore.projectList)
 const activeProject = computed(() => projectStore.activeProject)
 const isLoading = ref(false)
 
-// 用户等级信息
-const userLevelInfo = computed(() => {
-  const userInfo = authStore.userInfo
-  return userInfo?.levelInfo || null
-})
-
-// 最大IP数量（null表示不限制）
-const maxIpCount = computed(() => {
-  return userLevelInfo.value?.max_ip_count ?? null
-})
-
-// 是否可以创建新项目
-const canCreateProject = computed(() => {
-  // 如果 max_ip_count 为 null，表示不限制，可以创建
-  if (maxIpCount.value === null) {
-    return true
-  }
-  // 如果当前项目数量小于最大数量，可以创建
-  return projectList.value.length < maxIpCount.value
-})
-
 // 状态
 const isRefreshing = ref(false)
-const canGoBack = ref(false)
 
 // 初始化
 onMounted(async () => {
-  // 检查是否可以返回
-  const pages = getCurrentPages()
-  canGoBack.value = pages.length > 1
-
   // 加载项目列表
   isLoading.value = true
   try {
@@ -184,15 +120,6 @@ onShow(async () => {
   }
 })
 
-// 返回上一页
-function goBack() {
-  uni.navigateBack({
-    fail: () => {
-      uni.switchTab({ url: '/pages/index/index' })
-    }
-  })
-}
-
 async function getProjectList() {
   const response = await fetchProjects()
   console.log(response)
@@ -223,10 +150,8 @@ function handleSelectProject(project: Project) {
     icon: 'success'
   })
 
-  // 如果在 tabBar 页面中，不跳转，触发事件让父组件切换视图
-  if (props.isInTabBar) {
-    emit('projectSelected')
-  }
+  // 触发事件让父组件处理（关闭抽屉）
+  emit('projectSelected')
 }
 
 // 编辑项目
@@ -277,25 +202,6 @@ async function handleDeleteProject(project: Project) {
   })
 }
 
-// 处理创建按钮点击
-function handleCreateClick() {
-  // 如果不能创建，跳转到会员升级页面
-  if (!canCreateProject.value) {
-    uni.navigateTo({
-      url: '/pages/mine/membership'
-    })
-    return
-  }
-  // 可以创建，跳转到创建页面
-  navigateToCreate()
-}
-
-// 跳转到创建项目页面
-function navigateToCreate() {
-  uni.navigateTo({
-    url: '/pages/project/create'
-  })
-}
 
 </script>
 
@@ -303,98 +209,10 @@ function navigateToCreate() {
 @import '@/styles/_variables.scss';
 @import '@/styles/_animations.scss';
 
-.project-list-page {
-  min-height: 100vh;
+.project-list-container {
+  width: 100%;
+  min-height: 100%;
   background: $bg-light;
-  position: relative;
-  overflow: hidden;
-}
-
-// 背景装饰（与 ProjectDashboard 风格一致）
-.bg-decoration {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 500rpx;
-  pointer-events: none;
-  overflow: hidden;
-
-  .decoration-circle {
-    position: absolute;
-    border-radius: 50%;
-  }
-
-  .circle-1 {
-    width: 400rpx;
-    height: 400rpx;
-    background: radial-gradient(circle, rgba(255, 136, 0, 0.08) 0%, transparent 70%);
-    top: -150rpx;
-    right: -100rpx;
-  }
-
-  .circle-2 {
-    width: 300rpx;
-    height: 300rpx;
-    background: radial-gradient(circle, rgba(59, 130, 246, 0.06) 0%, transparent 70%);
-    top: 100rpx;
-    left: -80rpx;
-  }
-
-  .circle-3 {
-    width: 200rpx;
-    height: 200rpx;
-    background: radial-gradient(circle, rgba(255, 136, 0, 0.05) 0%, transparent 70%);
-    top: 200rpx;
-    right: 100rpx;
-  }
-}
-
-// 页面头部
-.page-header {
-  position: relative;
-  z-index: 10;
-  padding: 60rpx 32rpx 40rpx;
-  display: flex;
-  align-items: flex-start;
-  gap: 20rpx;
-
-  .header-back {
-    width: 72rpx;
-    height: 72rpx;
-    background: rgba(255, 255, 255, 0.9);
-    backdrop-filter: blur(10px);
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    box-shadow: 0 4rpx 16rpx rgba(0, 0, 0, 0.06);
-
-    .back-icon {
-      font-size: 36rpx;
-      color: #333;
-    }
-  }
-
-  .header-content {
-    flex: 1;
-    padding-top: 40rpx;
-  }
-
-  .header-title {
-    font-size: 44rpx;
-    font-weight: 700;
-    color: #1a1a2e;
-    letter-spacing: 1rpx;
-    display: block;
-    margin-bottom: 12rpx;
-  }
-
-  .header-subtitle {
-    font-size: 26rpx;
-    color: #666;
-    display: block;
-  }
 }
 
 // 项目列表容器
@@ -402,7 +220,7 @@ function navigateToCreate() {
   position: relative;
   z-index: 10;
   padding: 0 32rpx;
-  padding-bottom: calc(180rpx + env(safe-area-inset-bottom)); // 为底部固定按钮留出空间
+  padding-bottom: 40rpx;
 }
 
 // 空状态样式已移至 EmptyState 组件
@@ -581,71 +399,9 @@ function navigateToCreate() {
   }
 }
 
-// 创建项目按钮（固定在底部）
-.create-project-btn-wrapper {
-  position: fixed;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  padding: 24rpx 32rpx;
-  background: rgba(255, 255, 255, 0.95);
-  backdrop-filter: blur(20px);
-  border-top: 1rpx solid rgba(0, 0, 0, 0.06);
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 12rpx;
-  z-index: 100;
-  box-shadow: 0 -4rpx 20rpx rgba(0, 0, 0, 0.04);
-}
-
-.create-project-btn {
-  width: 100%;
-  height: 96rpx;
-  background: #1a1a2e;
-  border-radius: 48rpx;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 12rpx;
-  box-shadow: 0 4rpx 16rpx rgba(0, 0, 0, 0.15);
-  transition: all 0.3s ease;
-
-  &:active:not(.disabled) {
-      transform: scale(0.98);
-      background: #2a2a3e;
-      box-shadow: 0 2rpx 8rpx rgba(0, 0, 0, 0.1);
-    }
-&.disabled {
-  background: #F5F7FA;
-  box-shadow: none;
-  cursor: not-allowed;
-}
-}
-
-.create-btn-text {
-  font-size: 32rpx;
-  font-weight: 600;
-  color: #FFFFFF;
-}
-
-.create-project-btn.disabled .create-btn-text {
-  color: #999999;
-}
-.create-btn-hint {
-  font-size: 24rpx;
-  color: #999;
-  text-align: center;
-  }
-.create-btn-upgrade-hint {
-  font-size: 24rpx;
-  color: $primary-orange;
-  text-align: center;
-  margin-top: -8rpx;
-}
 // 列表底部占位
 .list-footer-spacer {
-  height: 200rpx;
+  height: 40rpx;
 }
 
 

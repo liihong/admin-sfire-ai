@@ -13,9 +13,7 @@
 </template>
 
 <script setup lang="ts">
-import { useProjectStore } from '@/stores/project'
 import SvgIcon from '@/components/base/SvgIcon.vue'
-
 
 interface Props {
   projectName?: string
@@ -29,15 +27,17 @@ withDefaults(defineProps<Props>(), {
   userPoints: 1280
 })
 
-const projectStore = useProjectStore()
+// Emits
+const emit = defineEmits<{
+  'switch-project': []
+}>()
 
 /**
  * 处理IP切换
- * 清除当前激活项目，让页面显示项目列表
+ * 触发切换项目事件，由父组件处理
  */
 function handleSwitchIP() {
-  // 清除激活项目
-  projectStore.clearActiveProject()
+  emit('switch-project')
 }
 </script>
 

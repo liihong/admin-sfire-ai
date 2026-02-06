@@ -1,15 +1,7 @@
 <template>
   <view class="page-wrapper">
     <!-- 页面头部 -->
-    <view class="page-header">
-      <SafeAreaTop />
-      <view class="header-back" @tap="goBack">
-        <text class="back-icon">←</text>
-      </view>
-      <view class="header-content">
-        <text class="header-title">我要推荐</text>
-      </view>
-    </view>
+    <BaseHeader title="我要推荐" @back="goBack" />
 
     <scroll-view scroll-y class="page-container">
       <!-- 邀请码卡片 -->
@@ -83,7 +75,7 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import { onShareAppMessage, onShareTimeline } from '@dcloudio/uni-app'
-import SafeAreaTop from '@/components/common/SafeAreaTop.vue'
+import BaseHeader from '@/components/base/BaseHeader.vue'
 import SvgIcon from '@/components/base/SvgIcon.vue'
 import { useAuthStore } from '@/stores/auth'
 
@@ -184,45 +176,6 @@ onShareTimeline(() => {
 .page-wrapper {
   min-height: 100vh;
   background: $bg-color;
-}
-
-.page-header {
-  position: sticky;
-  top: 0;
-  z-index: $z-index-sticky;
-  background: $white;
-  box-shadow: $shadow-sm;
-}
-
-.header-back {
-  position: absolute;
-  left: 0;
-  top: 0;
-  bottom: 0;
-  width: 88rpx;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 1;
-}
-
-.back-icon {
-  font-size: 40rpx;
-  color: $text-main;
-  font-weight: 600;
-}
-
-.header-content {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  height: 88rpx;
-}
-
-.header-title {
-  font-size: 36rpx;
-  font-weight: 600;
-  color: $text-main;
 }
 
 .page-container {

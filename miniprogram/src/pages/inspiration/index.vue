@@ -1,23 +1,13 @@
 <template>
   <view class="inspiration-page">
     <!-- 顶部导航栏 -->
-    <view class="nav-header">
-      <SafeAreaTop />
-      <view class="nav-content">
-        <view class="nav-left" @tap="goBack">
-          <text class="back-icon">‹</text>
-        </view>
-        <view class="nav-center">
-          <text class="nav-title">我的灵感</text>
-        </view>
-        <view class="nav-right" @tap="showFilterMenu = !showFilterMenu">
-         <!-- <u-icon name="filter" color="#1D2129" size="20"></u-icon> -->
+    <BaseHeader title="我的灵感" @back="goBack">
+      <template #right>
+        <view @tap="showFilterMenu = !showFilterMenu">
           <SvgIcon name="linggan" size="30" color="#1D2129" />
-
-
         </view>
-      </view>
-    </view>
+      </template>
+    </BaseHeader>
     
     <!-- 搜索框 -->
     <view class="search-section">
@@ -157,7 +147,7 @@ import { getBalance } from '@/api/coin'
 import { useProjectStore } from '@/stores/project'
 import InspirationItem from './components/InspirationItem.vue'
 import InspirationCard from './components/InspirationCard.vue'
-import SafeAreaTop from '@/components/common/SafeAreaTop.vue'
+import BaseHeader from '@/components/base/BaseHeader.vue'
 import SvgIcon from '@/components/base/SvgIcon.vue'
 
 // 状态
@@ -462,46 +452,6 @@ function copyGeneratedContent() {
 .inspiration-page {
   min-height: 100vh;
   background: $bg-color;
-  
-  .nav-header {
-    background: $white;
-    position: sticky;
-    top: 0;
-    z-index: 100;
-    
-    .nav-content {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      padding: $spacing-md $spacing-lg;
-      
-      .nav-left {
-        width: 60rpx;
-        
-        .back-icon {
-          font-size: 48rpx;
-          color: $text-main;
-          line-height: 1;
-        }
-      }
-      
-      .nav-center {
-        flex: 1;
-        text-align: center;
-        
-        .nav-title {
-          font-size: $font-size-lg;
-          font-weight: 600;
-          color: $text-main;
-        }
-      }
-      
-      .nav-right {
-        width: 60rpx;
-        text-align: right;
-      }
-    }
-  }
   
   .search-section {
     padding: $spacing-md $spacing-lg;

@@ -251,12 +251,17 @@ class OSSService:
         with open(full_path, "wb") as f:
             f.write(file_content)
         
-        # 生成访问 URL
-        base_url = getattr(settings, "OSS_DOMAIN", "")
-        if not base_url:
-            # 如果没有配置域名，使用 CORS_ORIGINS 的第一个
-            cors_origins = getattr(settings, "CORS_ORIGINS", [])
-            base_url = cors_origins[0] if cors_origins else "http://localhost:8000"
+        # 生成访问 URL（本地存储时，不使用 OSS_DOMAIN，使用本地服务器地址）
+        # 优先使用 CORS_ORIGINS 的第一个，如果没有则使用默认地址
+        cors_origins = getattr(settings, "CORS_ORIGINS", [])
+        if cors_origins:
+            base_url = cors_origins[0].rstrip('/')
+        else:
+            # 如果没有配置，使用默认的本地地址
+            base_url = "https://sourcefire.cn"
+        
+        logger.info(f"[本地存储] 文件保存路径: {full_path}")
+        logger.info(f"[本地存储] 使用的基础URL: {base_url}")
         
         url = f"{base_url}/static/{file_path}"
         
@@ -266,6 +271,50 @@ class OSSService:
             "filename": os.path.basename(file_path),
             "size": file_size
         }
+    
+    async def upload_avatar_to_local(
+        self,
+        file_content: bytes,
+        filename: str,
+        content_type: Optional[str] = None
+    ) -> dict:
+        """
+        上传头像到本地存储（强制使用本地存储，不使用OSS）
+        
+        Args:
+            file_content: 文件内容（字节流）
+            filename: 原始文件名
+            content_type: 文件 MIME 类型（可选，会自动检测）
+        
+        Returns:
+            包含文件信息的字典：
+            {
+                "url": "文件访问URL",
+                "path": "文件存储路径",
+                "filename": "文件名",
+                "size": 文件大小（字节）
+            }
+        
+        Raises:
+            ServerErrorException: 上传失败时抛出
+        """
+        if not file_content:
+            raise BadRequestException(msg="文件内容不能为空")
+        
+        # 自动检测 MIME 类型
+        if not content_type:
+            content_type, _ = mimetypes.guess_type(filename)
+            if not content_type:
+                content_type = "application/octet-stream"
+        
+        # 生成存储路径（头像固定存储在 avatars 文件夹）
+        file_path = self._generate_file_path(filename, folder="avatars")
+        file_size = len(file_content)
+        
+        logger.info(f"[头像上传] 强制使用本地存储，文件路径: {file_path}")
+        
+        # 直接调用本地存储方法
+        return await self._upload_to_local(file_content, file_path, filename, file_size)
     
     async def _upload_to_aliyun(
         self,
@@ -277,10 +326,33 @@ class OSSService:
     ) -> dict:
         """上传文件到阿里云 OSS"""
         import oss2
+        from urllib.parse import urlparse
         
         # 检查客户端是否已初始化
         if self._client is None:
             raise ServerErrorException(msg="阿里云 OSS 客户端未初始化，请检查配置")
+        
+        # 检查 OSS_DOMAIN 是否包含路径前缀
+        domain = getattr(settings, "OSS_DOMAIN", "")
+        actual_upload_path = file_path  # 实际上传路径
+        
+        logger.info(f"[OSS上传] 原始文件路径: {file_path}")
+        logger.info(f"[OSS上传] OSS_DOMAIN 配置: {domain}")
+        
+        if domain:
+            # 如果配置了自定义域名，检查是否包含路径前缀
+            parsed = urlparse(domain)
+            path_prefix = parsed.path.rstrip('/')  # 移除末尾的斜杠
+            
+            logger.info(f"[OSS上传] 解析域名 - scheme: {parsed.scheme}, netloc: {parsed.netloc}, path: {parsed.path}")
+            
+            # 如果域名包含路径前缀（如 /static），在上传路径中也加上这个前缀
+            # 这样可以确保上传路径和访问 URL 一致
+            if path_prefix:
+                # 移除开头的斜杠（如果有）
+                prefix = path_prefix.lstrip('/')
+                actual_upload_path = f"{prefix}/{file_path}"
+                logger.info(f"[OSS上传] 检测到路径前缀 '{prefix}'，实际上传路径: {actual_upload_path}")
         
         # 设置文件元信息
         headers = {
@@ -288,27 +360,33 @@ class OSSService:
         }
         
         try:
-            # 上传文件
-            result = self._client.put_object(file_path, file_content, headers=headers)
+            # 上传文件（使用包含前缀的路径）
+            logger.info(f"[OSS上传] 开始上传文件到路径: {actual_upload_path}")
+            result = self._client.put_object(actual_upload_path, file_content, headers=headers)
             
-            # 检查上传结果（oss2 的 put_object 返回 PutObjectResult，有 status 属性）
-            if not hasattr(result, 'status'):
-                # 如果没有 status 属性，检查是否有其他错误信息
-                logger.warning(f"阿里云 OSS 上传返回结果异常: {type(result)}")
-                # 如果上传成功但没有 status，继续执行
-            elif result.status != 200:
-                raise ServerErrorException(msg=f"阿里云 OSS 上传失败，状态码: {result.status}")
-        except AttributeError as e:
-            # 如果访问 status 属性出错，记录详细错误
-            logger.error(f"阿里云 OSS 上传结果访问错误: {e}, result type: {type(result) if 'result' in locals() else 'unknown'}")
-            raise ServerErrorException(msg=f"阿里云 OSS 上传失败: {str(e)}")
+            # 检查上传结果（oss2 的 put_object 返回 PutObjectResult）
+            # 如果上传成功，通常不会抛出异常，如果失败会抛出异常
+            # 检查 result 对象是否有 status 属性
+            try:
+                status = getattr(result, 'status', None)
+                if status is not None:
+                    if status != 200:
+                        logger.error(f"[OSS上传] 上传失败，状态码: {status}")
+                        raise ServerErrorException(msg=f"阿里云 OSS 上传失败，状态码: {status}")
+                    else:
+                        logger.info(f"[OSS上传] 文件上传成功，状态码: {status}")
+                else:
+                    # 如果没有 status 属性，假设上传成功（oss2 在某些情况下可能不返回 status）
+                    logger.info(f"[OSS上传] 文件上传成功（未检查到status属性，类型: {type(result)}）")
+            except AttributeError:
+                # 如果访问属性出错，假设上传成功（oss2 在某些版本可能不返回 status）
+                logger.info(f"[OSS上传] 文件上传成功（无法访问status属性，类型: {type(result)}）")
         except Exception as e:
-            # 捕获其他异常（如网络错误、认证错误等）
+            # 捕获所有异常（如网络错误、认证错误等）
             logger.error(f"阿里云 OSS 上传异常: {e}", exc_info=True)
             raise ServerErrorException(msg=f"阿里云 OSS 上传失败: {str(e)}")
         
         # 生成访问 URL
-        domain = getattr(settings, "OSS_DOMAIN", "")
         if not domain:
             # 如果没有配置域名，使用 endpoint 构建
             endpoint = getattr(settings, "OSS_ENDPOINT", "")
@@ -316,12 +394,21 @@ class OSSService:
             if not endpoint or not bucket_name:
                 raise ServerErrorException(msg="阿里云 OSS 配置不完整，缺少 OSS_ENDPOINT 或 OSS_BUCKET_NAME")
             domain = f"https://{bucket_name}.{endpoint.replace('https://', '').replace('http://', '')}"
+            url = f"{domain}/{actual_upload_path}"  # 使用实际上传路径
+        else:
+            # 如果配置了自定义域名
+            parsed = urlparse(domain)
+            base_domain = f"{parsed.scheme}://{parsed.netloc}"
+            # 如果域名本身包含路径前缀，直接拼接实际上传路径
+            # 因为实际上传路径已经包含了前缀（如果有的话）
+            url = f"{base_domain}/{actual_upload_path}"  # 使用实际上传路径
         
-        url = f"{domain}/{file_path}"
+        logger.info(f"[OSS上传] 生成的访问 URL: {url}")
+        logger.info(f"[OSS上传] 返回的 path: {file_path}")
         
         return {
             "url": url,
-            "path": file_path,
+            "path": file_path,  # 返回原始路径（不包含前缀），保持向后兼容
             "filename": os.path.basename(file_path),
             "size": file_size
         }
@@ -336,6 +423,7 @@ class OSSService:
     ) -> dict:
         """上传文件到腾讯云 COS"""
         from qcloud_cos import CosS3Client
+        from urllib.parse import urlparse
         
         # 上传文件
         response = self._client.put_object(
@@ -354,8 +442,18 @@ class OSSService:
             # 如果没有配置域名，使用默认域名
             region = getattr(settings, "OSS_REGION", "")
             domain = f"https://{self._bucket_name}.cos.{region}.myqcloud.com"
-        
-        url = f"{domain}/{file_path}"
+            url = f"{domain}/{file_path}"
+        else:
+            # 如果配置了自定义域名，需要处理路径前缀
+            parsed = urlparse(domain)
+            base_domain = f"{parsed.scheme}://{parsed.netloc}"
+            path_prefix = parsed.path.rstrip('/')  # 移除末尾的斜杠
+            
+            # 如果域名包含路径前缀（如 /static），在 URL 中保留它
+            if path_prefix:
+                url = f"{base_domain}{path_prefix}/{file_path}"
+            else:
+                url = f"{base_domain}/{file_path}"
         
         return {
             "url": url,
@@ -374,6 +472,7 @@ class OSSService:
     ) -> dict:
         """上传文件到七牛云"""
         from qiniu import put_data
+        from urllib.parse import urlparse
         
         # 生成上传 token
         token = self._auth.upload_token(self._bucket_name, file_path, 3600)
@@ -389,7 +488,16 @@ class OSSService:
         if not domain:
             raise ServerErrorException(msg="七牛云需要配置 OSS_DOMAIN")
         
-        url = f"{domain}/{file_path}"
+        # 处理路径前缀
+        parsed = urlparse(domain)
+        base_domain = f"{parsed.scheme}://{parsed.netloc}"
+        path_prefix = parsed.path.rstrip('/')  # 移除末尾的斜杠
+        
+        # 如果域名包含路径前缀（如 /static），在 URL 中保留它
+        if path_prefix:
+            url = f"{base_domain}{path_prefix}/{file_path}"
+        else:
+            url = f"{base_domain}/{file_path}"
         
         return {
             "url": url,
@@ -453,11 +561,15 @@ class OSSService:
         Returns:
             文件访问 URL
         """
+        from urllib.parse import urlparse
+        
         if self.provider == "local":
-            base_url = getattr(settings, "OSS_DOMAIN", "")
-            if not base_url:
-                cors_origins = getattr(settings, "CORS_ORIGINS", [])
-                base_url = cors_origins[0] if cors_origins else "http://localhost:8000"
+            # 本地存储时，不使用 OSS_DOMAIN，使用本地服务器地址
+            cors_origins = getattr(settings, "CORS_ORIGINS", [])
+            if cors_origins:
+                base_url = cors_origins[0]
+            else:
+                base_url = "http://localhost:8000"
             return f"{base_url}/static/{file_path}"
         
         elif self.provider == "aliyun":
@@ -466,7 +578,18 @@ class OSSService:
                 endpoint = getattr(settings, "OSS_ENDPOINT", "")
                 bucket_name = getattr(settings, "OSS_BUCKET_NAME", "")
                 domain = f"https://{bucket_name}.{endpoint.replace('https://', '').replace('http://', '')}"
-            return f"{domain}/{file_path}"
+                return f"{domain}/{file_path}"
+            else:
+                # 如果配置了自定义域名，需要处理路径前缀
+                parsed = urlparse(domain)
+                base_domain = f"{parsed.scheme}://{parsed.netloc}"
+                path_prefix = parsed.path.rstrip('/')  # 移除末尾的斜杠
+                
+                # 如果域名包含路径前缀（如 /static），在 URL 中保留它
+                if path_prefix:
+                    return f"{base_domain}{path_prefix}/{file_path}"
+                else:
+                    return f"{base_domain}/{file_path}"
         
         elif self.provider == "tencent":
             domain = getattr(settings, "OSS_DOMAIN", "")
@@ -474,13 +597,34 @@ class OSSService:
                 region = getattr(settings, "OSS_REGION", "")
                 bucket_name = getattr(settings, "OSS_BUCKET_NAME", "")
                 domain = f"https://{bucket_name}.cos.{region}.myqcloud.com"
-            return f"{domain}/{file_path}"
+                return f"{domain}/{file_path}"
+            else:
+                # 如果配置了自定义域名，需要处理路径前缀
+                parsed = urlparse(domain)
+                base_domain = f"{parsed.scheme}://{parsed.netloc}"
+                path_prefix = parsed.path.rstrip('/')  # 移除末尾的斜杠
+                
+                # 如果域名包含路径前缀（如 /static），在 URL 中保留它
+                if path_prefix:
+                    return f"{base_domain}{path_prefix}/{file_path}"
+                else:
+                    return f"{base_domain}/{file_path}"
         
         elif self.provider == "qiniu":
             domain = getattr(settings, "OSS_DOMAIN", "")
             if not domain:
                 raise ServerErrorException(msg="七牛云需要配置 OSS_DOMAIN")
-            return f"{domain}/{file_path}"
+            
+            # 处理路径前缀
+            parsed = urlparse(domain)
+            base_domain = f"{parsed.scheme}://{parsed.netloc}"
+            path_prefix = parsed.path.rstrip('/')  # 移除末尾的斜杠
+            
+            # 如果域名包含路径前缀（如 /static），在 URL 中保留它
+            if path_prefix:
+                return f"{base_domain}{path_prefix}/{file_path}"
+            else:
+                return f"{base_domain}/{file_path}"
         
         return ""
 

@@ -1,16 +1,13 @@
 <template>
-  <view class="article-detail-page">
-    <SafeAreaTop />
+ <view class="article-detail-page">
     <!-- 顶部导航栏 -->
-    <view class="page-header">
-      <view class="header-back" @tap="goBack">
-        <text class="back-icon">←</text>
-      </view>
-      <view class="header-title">文章详情</view>
-      <view class="header-share" @tap="handleShare">
-        <text class="share-icon">分享</text>
-      </view>
-    </view>
+   <BaseHeader title="文章详情" @back="goBack">
+      <template #right>
+        <view @tap="handleShare">
+          <text class="share-icon">分享</text>
+        </view>
+     </template>
+    </BaseHeader>
 
     <!-- 加载状态 -->
     <view class="loading-container" v-if="isLoading">
@@ -89,7 +86,7 @@
 import { ref, onMounted } from 'vue'
 import { onLoad, onShareAppMessage, onShareTimeline } from '@dcloudio/uni-app'
 import { getArticleDetail, type ArticleItem } from '@/api/article'
-import SafeAreaTop from '@/components/common/SafeAreaTop.vue'
+import BaseHeader from '@/components/base/BaseHeader.vue'
 
 // 文章ID
 const articleId = ref<number>(0)
@@ -242,51 +239,6 @@ function formatTime(timeStr?: string): string {
   min-height: 100vh;
   background: $bg-color;
   position: relative;
-}
-
-// 页面头部
-.page-header {
-  position: sticky;
-  top: 0;
-  z-index: 100;
-  background: $white;
-  padding: 20rpx 32rpx;
-  display: flex;
-  align-items: center;
-  gap: 24rpx;
-  box-shadow: 0 2rpx 8rpx rgba(0, 0, 0, 0.04);
-}
-
-.header-back {
-  width: 64rpx;
-  height: 64rpx;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 50%;
-  background: rgba(0, 0, 0, 0.05);
-}
-
-.back-icon {
-  font-size: 36rpx;
-  color: $text-main;
-  font-weight: 600;
-}
-
-.header-title {
-  flex: 1;
-  font-size: 36rpx;
-  font-weight: 600;
-  color: $text-main;
-  text-align: center;
-}
-
-.header-share {
-  width: 64rpx;
-  height: 64rpx;
-  display: flex;
-  align-items: center;
-  justify-content: center;
 }
 
 .share-icon {

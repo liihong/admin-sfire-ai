@@ -1,23 +1,7 @@
 <template>
-  <view class="power-detail-page">
-    <!-- 顶部装饰背景 -->
-    <view class="bg-decoration">
-      <view class="decoration-circle circle-1"></view>
-      <view class="decoration-circle circle-2"></view>
-    </view>
-
+ <view class="power-detail-page">
     <!-- 页面头部 -->
-    <view class="page-header">
-      <!-- iPhone 灵动岛安全区适配 -->
-      <SafeAreaTop />
-      <view class="header-back" @tap="goBack">
-        <text class="back-icon">←</text>
-      </view>
-      <view class="header-content">
-        <text class="header-title">算力明细</text>
-        <text class="header-subtitle">查看算力消耗记录</text>
-      </view>
-    </view>
+   <BaseHeader title="算力明细" :show-decoration="true" />
 
     <!-- 列表区域 -->
     <scroll-view 
@@ -72,8 +56,6 @@
         <text class="load-more-text" v-else>没有更多数据了</text>
       </view>
 
-      <!-- 底部占位 -->
-      <view class="list-footer-spacer"></view>
     </scroll-view>
 
     <!-- Loading 状态 -->
@@ -87,7 +69,7 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { getCoinTransactions } from '@/api/coin'
-import SafeAreaTop from '@/components/common/SafeAreaTop.vue'
+import BaseHeader from '@/components/base/BaseHeader.vue'
 
 // 交易记录类型
 interface Transaction {
@@ -183,15 +165,6 @@ function onLoadMore() {
   loadTransactions(currentPage.value + 1, false)
 }
 
-// 返回上一页
-function goBack() {
-  uni.navigateBack({
-    fail: () => {
-      uni.switchTab({ url: '/pages/mine/index' })
-    }
-  })
-}
-
 // 获取类型样式类
 function getTypeClass(type?: string): string {
   if (!type) return 'type-default'
@@ -275,84 +248,6 @@ function formatTime(timeStr?: string): string {
   background: #F5F7FA;
   position: relative;
   overflow: hidden;
-}
-
-// 背景装饰
-.bg-decoration {
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 400rpx;
-  pointer-events: none;
-  overflow: hidden;
-
-  .decoration-circle {
-    position: absolute;
-    border-radius: 50%;
-    opacity: 0.6;
-  }
-
-  .circle-1 {
-    width: 300rpx;
-    height: 300rpx;
-    background: linear-gradient(135deg, rgba(59, 130, 246, 0.15) 0%, rgba(59, 130, 246, 0.05) 100%);
-    top: -100rpx;
-    right: -50rpx;
-  }
-
-  .circle-2 {
-    width: 200rpx;
-    height: 200rpx;
-    background: linear-gradient(135deg, rgba(249, 115, 22, 0.1) 0%, rgba(249, 115, 22, 0.03) 100%);
-    top: 100rpx;
-    left: -60rpx;
-  }
-}
-
-// 页面头部
-.page-header {
-  position: relative;
-  z-index: 10;
-  padding: 60rpx 32rpx 40rpx;
-  display: flex;
-  align-items: center;
-  gap: 24rpx;
-}
-
-.header-back {
-  width: 64rpx;
-  height: 64rpx;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 50%;
-  background: rgba(255, 255, 255, 0.9);
-  box-shadow: 0 2rpx 12rpx rgba(0, 0, 0, 0.08);
-}
-
-.back-icon {
-  font-size: 36rpx;
-  color: #1f2937;
-  font-weight: 600;
-}
-
-.header-content {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  gap: 8rpx;
-}
-
-.header-title {
-  font-size: 44rpx;
-  font-weight: 700;
-  color: #1f2937;
-}
-
-.header-subtitle {
-  font-size: 26rpx;
-  color: #6b7280;
 }
 
 // 列表区域

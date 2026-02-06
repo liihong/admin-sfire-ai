@@ -5,6 +5,7 @@
       :project-name="activeProject?.name"
       :user-name="userName"
       :user-points="userPoints"
+      @switch-project="handleSwitchProject"
     />
 
     <!-- 主内容区 -->
@@ -63,6 +64,11 @@ import InspirationCard from '@/pages/inspiration/components/InspirationCard.vue'
 import ConversationHistory from './dashboard/ConversationHistory.vue'
 import BaseSection from '@/components/base/BaseSection.vue'
 import type { Conversation } from '@/api/conversation'
+
+// Emits
+const emit = defineEmits<{
+  'switch-project': []
+}>()
 
 // Store
 const projectStore = useProjectStore()
@@ -204,6 +210,13 @@ function handleConversationClick(conversation: Conversation) {
       })
     }
   })
+}
+
+/**
+ * 处理切换项目事件
+ */
+function handleSwitchProject() {
+  emit('switch-project')
 }
 </script>
 

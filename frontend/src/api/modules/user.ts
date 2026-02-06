@@ -24,7 +24,9 @@ export const addUser = (params: {
   password: string;
   phone?: string;
   nickname?: string;
-  level: string; // "normal" | "member" | "partner"
+  level?: string; // "normal" | "member" | "partner"（已废弃，请使用level_code）
+  level_code?: string; // 用户等级代码（normal/vip/svip/max）
+  vip_expire_date?: string; // VIP到期时间（YYYY-MM-DD格式，可选）
   remark?: string;
   parent_id?: number;
 }) => {
@@ -37,7 +39,9 @@ export const editUser = (params: {
   username?: string;
   phone?: string;
   nickname?: string;
-  level?: string; // "normal" | "member" | "partner"
+  level?: string; // "normal" | "member" | "partner"（已废弃，请使用level_code）
+  level_code?: string; // 用户等级代码（normal/vip/svip/max）
+  vip_expire_date?: string; // VIP到期时间（YYYY-MM-DD格式，可选）
   is_active?: boolean;
   remark?: string;
 }) => {

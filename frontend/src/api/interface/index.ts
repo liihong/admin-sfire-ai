@@ -80,6 +80,7 @@ export namespace User {
     level?: LevelType | "normal" | "member" | "partner"; // 保留兼容旧字段
     levelCode?: string; // 新增：等级代码（normal/vip/svip/max）
     levelName?: string; // 新增：等级名称（中文）
+    vipExpireDate?: string; // VIP到期时间（YYYY-MM-DD格式）
     role?: string; // 角色：user/admin
     inviteCode?: string; // 邀请码
     inviterId?: string; // 邀请人ID

@@ -202,3 +202,5 @@ python backend/scripts/sync_user_unionid.py --query --limit 100
 - 2024-XX-XX: 添加 unionid 自动更新机制
 - 2024-XX-XX: 创建数据修复脚本和管理接口
 
+
+

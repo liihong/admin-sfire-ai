@@ -1,13 +1,7 @@
 <template>
   <view class="article-list-page">
-    <SafeAreaTop />
     <!-- 页面头部 -->
-    <view class="page-header">
-      <view class="header-back" @tap="goBack">
-        <text class="back-icon">←</text>
-      </view>
-      <view class="header-title">{{ categoryLabel }}</view>
-    </view>
+    <BaseHeader :title="categoryLabel" @back="goBack" />
 
     <!-- 列表区域 -->
     <scroll-view
@@ -82,7 +76,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import { getArticleList, type ArticleItem, type ArticleListResponse } from '@/api/article'
-import SafeAreaTop from '@/components/common/SafeAreaTop.vue'
+import BaseHeader from '@/components/base/BaseHeader.vue'
 
 // 文章类型
 const category = ref<'founder_story' | 'operation_article' | 'customer_case' | undefined>(undefined)
@@ -263,42 +257,6 @@ function formatTime(timeStr?: string): string {
 .article-list-page {
   min-height: 100vh;
   background: $bg-color;
-}
-
-// 页面头部
-.page-header {
-  position: sticky;
-  top: 0;
-  z-index: 100;
-  background: $white;
-  padding: 20rpx 32rpx;
-  display: flex;
-  align-items: center;
-  gap: 24rpx;
-  box-shadow: 0 2rpx 8rpx rgba(0, 0, 0, 0.04);
-}
-
-.header-back {
-  width: 64rpx;
-  height: 64rpx;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 50%;
-  background: rgba(0, 0, 0, 0.05);
-}
-
-.back-icon {
-  font-size: 36rpx;
-  color: $text-main;
-  font-weight: 600;
-}
-
-.header-title {
-  flex: 1;
-  font-size: 36rpx;
-  font-weight: 600;
-  color: $text-main;
 }
 
 // 列表区域

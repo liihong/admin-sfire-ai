@@ -166,6 +166,18 @@ class UserService(BaseService):
             user.password_hash = hash_password(data.password)
             # 设置level_code
             user.level_code = data.level_code or "normal"
+            # 处理VIP到期时间
+            if data.vip_expire_date:
+                try:
+                    # 解析日期并设置为当天的23:59:59 UTC
+                    date_obj = datetime.strptime(data.vip_expire_date, "%Y-%m-%d")
+                    user.vip_expire_date = datetime.combine(
+                        date_obj.date(),
+                        datetime.max.time()
+                    ).replace(tzinfo=timezone.utc)
+                except ValueError:
+                    logger.warning(f"VIP到期时间格式错误: {data.vip_expire_date}")
+                    # 格式错误时不设置，保持为None
         
         user = await super().create(
             data=user_data,
@@ -201,6 +213,22 @@ class UserService(BaseService):
             # 优先使用level_code（新系统）
             if "level_code" in update_data and update_data["level_code"]:
                 user.level_code = update_data["level_code"]
+            
+            # 处理VIP到期时间
+            if "vip_expire_date" in update_data and update_data["vip_expire_date"]:
+                try:
+                    # 解析日期并设置为当天的23:59:59 UTC
+                    date_obj = datetime.strptime(update_data["vip_expire_date"], "%Y-%m-%d")
+                    user.vip_expire_date = datetime.combine(
+                        date_obj.date(),
+                        datetime.max.time()
+                    ).replace(tzinfo=timezone.utc)
+                except ValueError:
+                    logger.warning(f"VIP到期时间格式错误: {update_data['vip_expire_date']}")
+                    # 格式错误时不更新，保持原值
+            elif "vip_expire_date" in update_data and update_data["vip_expire_date"] is None:
+                # 如果明确设置为None，则清空到期时间
+                user.vip_expire_date = None
         
         user = await super().update(
             obj_id=user_id,

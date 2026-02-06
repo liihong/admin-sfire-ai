@@ -1,14 +1,7 @@
 <template>
   <view class="report-page">
-    <SafeAreaTop />
     <!-- 顶部导航栏 -->
-    <view class="page-header">
-      <view class="header-back" @tap="handleBack">
-        <text class="back-icon">←</text>
-      </view>
-      <view class="header-title">IP 数字化人格定位报告</view>
-      <view class="header-placeholder"></view>
-    </view>
+    <BaseHeader title="IP 数字化人格定位报告" @back="handleBack" />
     
     <!-- 报告内容 -->
     <scroll-view class="report-scroll" scroll-y>
@@ -172,7 +165,7 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted } from 'vue'
 import { useProjectStore } from '@/stores/project'
-import SafeAreaTop from '@/components/common/SafeAreaTop.vue'
+import BaseHeader from '@/components/base/BaseHeader.vue'
 import { createProject, generateIPReport } from '@/api/project'
 import { formDataToCreateRequest } from '@/utils/project'
 import type { IPReportResponse } from '@/api/project'
@@ -405,48 +398,8 @@ async function handleExport() {
   flex-direction: column;
 }
 
-.page-header {
-  z-index: 100;
-  background: $white;
-  padding: 20rpx 32rpx;
-  display: flex;
-  align-items: center;
-  gap: 24rpx;
-  box-shadow: 0 2rpx 8rpx rgba(0, 0, 0, 0.04);
-  
-  .header-back {
-    width: 64rpx;
-    height: 64rpx;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    border-radius: 50%;
-    background: rgba(0, 0, 0, 0.05);
-    
-    .back-icon {
-      font-size: 36rpx;
-      color: $text-main;
-      font-weight: 600;
-    }
-  }
-  
-  .header-title {
-    flex: 1;
-    font-size: 36rpx;
-    font-weight: 600;
-    color: $text-main;
-    text-align: center;
-  }
-  
-  .header-placeholder {
-    width: 64rpx;
-    height: 64rpx;
-  }
-}
-
 .report-scroll {
   flex: 1;
-  height: 0;
 }
 
 .report-wrapper {

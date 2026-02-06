@@ -186,12 +186,38 @@ def create_settings():
             logger.error(f"   - WECHAT_PAY_MCH_ID: {'已设置' if mch_id_value else '未设置'} (值: '{mch_id_value}')")
             logger.error(f"   - WECHAT_PAY_API_KEY: {'已设置' if api_key_value else '未设置'} (长度: {len(api_key_value) if api_key_value else 0})")
         
-        # 检查数据库配置
-        db_configured = bool(settings.MYSQL_HOST and settings.MYSQL_DATABASE)
+        # 检查数据库配置（详细日志）
+        logger.warning(f"🔍 [数据库配置检查]")
+        logger.warning(f"   - MYSQL_HOST: {'已设置' if settings.MYSQL_HOST else '未设置'} (值: '{settings.MYSQL_HOST}')")
+        logger.warning(f"   - MYSQL_PORT: {settings.MYSQL_PORT}")
+        logger.warning(f"   - MYSQL_USER: {'已设置' if settings.MYSQL_USER else '未设置'} (值: '{settings.MYSQL_USER}')")
+        logger.warning(f"   - MYSQL_PASSWORD: {'已设置' if settings.MYSQL_PASSWORD else '未设置'} (长度: {len(settings.MYSQL_PASSWORD) if settings.MYSQL_PASSWORD else 0})")
+        logger.warning(f"   - MYSQL_DATABASE: {'已设置' if settings.MYSQL_DATABASE else '未设置'} (值: '{settings.MYSQL_DATABASE}')")
+        
+        db_configured = bool(settings.MYSQL_HOST and settings.MYSQL_DATABASE and settings.MYSQL_USER and settings.MYSQL_PASSWORD)
         if db_configured:
             logger.info("✅ 数据库配置加载成功")
+            # 输出连接URL（隐藏密码）
+            db_url = settings.MYSQL_DATABASE_URL
+            # 隐藏密码部分
+            if '@' in db_url:
+                parts = db_url.split('@', 1)
+                if ':' in parts[0]:
+                    user_pass = parts[0].split(':', 1)
+                    safe_url = f"{user_pass[0]}:****@{parts[1]}"
+                    logger.info(f"   - 连接URL: {safe_url}")
         else:
-            logger.warning("⚠️ 数据库配置未完整加载")
+            logger.error("❌ 数据库配置未完整加载")
+            missing = []
+            if not settings.MYSQL_HOST:
+                missing.append("MYSQL_HOST")
+            if not settings.MYSQL_DATABASE:
+                missing.append("MYSQL_DATABASE")
+            if not settings.MYSQL_USER:
+                missing.append("MYSQL_USER")
+            if not settings.MYSQL_PASSWORD:
+                missing.append("MYSQL_PASSWORD")
+            logger.error(f"   缺少配置项: {', '.join(missing)}")
         
         # 检查 Redis 配置
         redis_configured = bool(settings.REDIS_HOST)

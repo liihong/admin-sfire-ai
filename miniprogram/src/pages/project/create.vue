@@ -1,14 +1,7 @@
 <template>
   <view class="create-project-page">
-    <SafeAreaTop />
     <!-- 顶部导航栏 -->
-    <view class="page-header">
-      <view class="header-back" @tap="handleClose">
-        <text class="back-icon">←</text>
-      </view>
-      <view class="header-title">IP信息定位调研</view>
-      <view class="header-placeholder"></view>
-    </view>
+    <BaseHeader title="IP信息定位调研" @back="handleClose" />
     <!-- AI智能填写对话框（全屏显示） -->
     <IPCollectDialog
 :visible="true" @close="handleClose"
@@ -23,7 +16,7 @@ import { onLoad } from '@dcloudio/uni-app'
 import { useProjectStore } from '@/stores/project'
 import { useAuthStore } from '@/stores/auth'
 import IPCollectDialog from './components/IPCollectDialog.vue'
-import SafeAreaTop from '@/components/common/SafeAreaTop.vue'
+import BaseHeader from '@/components/base/BaseHeader.vue'
 import { createProject } from '@/api/project'
 import { formDataToCreateRequest } from '@/utils/project'
 import type { ProjectFormData } from '@/types/project'
@@ -150,46 +143,6 @@ async function handleAIComplete(collectedInfo: IPCollectFormData) {
   background: #F5F7FA;
   position: relative;
   overflow: hidden;
-}
-
-// 页面头部导航栏
-.page-header {
-    z-index: 100;
-      background: #fff;
-      padding: 20rpx 32rpx;
-    display: flex;
-    align-items: center;
-      gap: 24rpx;
-        box-shadow: 0 2rpx 8rpx rgba(0, 0, 0, 0.04);
-  }
-    
-                                                                                                                                                                                                                                                                .header-back {
-                                                                                                                                                                                                                                                                  width: 64rpx;
-                                                                                                                                                                                                                                                                  height: 64rpx;
-                                                                                                                                                                                                                                                                  display: flex;
-                                                                                                                                                                                                                                                                  align-items: center;
-                                                                                                                                                                                                                                                                  justify-content: center;
-  border-radius: 50%;
-  background: rgba(0, 0, 0, 0.05);
-  }
-                                                                                                                                .back-icon {
-                                                                                                                                  font-size: 36rpx;
-                                                                                                                                  color: $text-main;
-      font-weight: 600;
-}
-
-.header-title {
-  flex: 1;
-  font-size: 36rpx;
-  font-weight: 600;
-color: $text-main;
-  text-align: center;
-}
-
-
-                                                                                                                                .header-placeholder {
-                                                                                                                                  width: 64rpx;
-                                                                                                                                  height: 64rpx;
 }
 </style>
 
