@@ -1,0 +1,64 @@
+请根据以下IP信息，生成一份IP数字化人格定位报告。
+
+IP信息：
+- 名称：{ip_name}
+- 行业：{ip_industry}
+- IP简介：{ip_introduction}
+- 语气风格：{ip_tone}
+- 目标受众：{ip_target_audience}
+- 目标人群痛点：{ip_target_pains}
+- 关键词：{ip_keywords}
+- 行业理解：{ip_industry_understanding}
+- 独特观点：{ip_unique_views}
+- 口头禅：{ip_catchphrase}
+
+请生成一份完整的IP定位报告，包含以下内容：
+
+1. 数字化人格画像：
+   - 人格标签（3-5个，如：深耕者、县城觉醒者、技术降维派）
+   - 核心原型（如：实干大哥、专业导师等）
+   - 一句话简介
+
+2. 内容护城河：
+   - 反共识洞察（IP的独特观点）
+   - 情感钩子（受众通过IP获得的情感价值）
+
+3. 语言指纹分析：
+   - 语感建模（语言风格特点）
+   - 标志性氛围（语言营造的氛围）
+
+4. 商业潜力与避坑指南：
+   - 爆款潜质（哪些内容容易成为爆款）
+   - 人设红线（需要避免的内容）
+
+5. 专家寄语（一段鼓励和建议的话）
+
+6. IP数字化程度评分（0-100分）及评分理由
+
+请以JSON格式返回，格式如下：
+{{
+  "report": {{
+    "name": "IP名称",
+    "persona_tags": ["标签1", "标签2", "标签3"],
+    "core_archetype": "核心原型",
+    "one_line_intro": "一句话简介",
+    "content_moat": {{
+      "insight": "反共识洞察",
+      "emotional_hook": "情感钩子"
+    }},
+    "language_fingerprint": {{
+      "tone_modeling": "语感建模",
+      "atmosphere": "标志性氛围"
+    }},
+    "business_potential": {{
+      "viral_potential": "爆款潜质",
+      "red_lines": "人设红线"
+    }},
+    "expert_message": "专家寄语"
+  }},
+  "score": 85,
+  "score_reason": "评分理由"
+}}
+
+请确保返回的是有效的JSON格式，不要添加任何额外的文本或格式标记。
+

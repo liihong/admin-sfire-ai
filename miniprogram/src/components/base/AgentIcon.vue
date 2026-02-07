@@ -159,7 +159,6 @@ const getIconSize = (): number => {
  * 获取回退文本（显示图标名称的首字母）
  */
 const getFallbackText = (iconName: string): string => {
-  console.log(iconName)
   if (!iconName) return '?'
   // 取首字母或首字符
   const firstChar = iconName.charAt(0).toUpperCase()

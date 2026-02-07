@@ -48,7 +48,7 @@ export function exitMiniProgram(fallbackUrl?: string): void {
   // 微信小程序环境，使用退出小程序API
   uni.exitMiniProgram({
     success: () => {
-      console.log('小程序已关闭')
+      // 小程序已关闭
     },
     fail: (err) => {
       console.error('关闭小程序失败:', err)

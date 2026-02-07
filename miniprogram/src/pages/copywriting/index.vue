@@ -453,10 +453,22 @@ onLoad(async (options?: PageOptions) => {
 
   // 如果没有 conversationId，按原有逻辑处理 agentId
   if (options?.agentId) {
+    // 如果当前 activeAgent 的 ID 不匹配，需要重新设置
     if (!agentStore.activeAgent || agentStore.activeAgent.id !== options.agentId) {
+      // 先尝试从 storage 加载
       agentStore.loadActiveAgentFromStorage()
+      
+      // 如果从 storage 加载后仍然不匹配，需要设置新的 agent
       if (!agentStore.activeAgent || agentStore.activeAgent.id !== options.agentId) {
-        await agentStore.setActiveAgentById(options.agentId)
+        // 直接设置一个默认值，避免发起 API 请求
+        // 页面可以正常使用，智能体的详细信息会在需要时再加载
+        agentStore.setActiveAgent({
+          id: options.agentId,
+          name: '智能体',
+          icon: '',
+          description: ''
+        })
+        // 注意：这里不再调用 setActiveAgentById，避免发起 /api/v1/client/agents 请求
       }
     }
   } else {

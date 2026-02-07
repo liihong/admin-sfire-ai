@@ -312,6 +312,7 @@ function formatTime(timeStr?: string): string {
 // 文章内容区域
 .article-content {
   padding: 0;
+  height: calc(100vh - 150rpx);
 }
 
 // 封面图

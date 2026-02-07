@@ -76,7 +76,7 @@ const activeProject = computed(() => projectStore.activeProject)
 
 // Composables
 const { initProject } = useProject({ autoLoad: false })
-const { navigateTo, handleCategoryClick } = useNavigation()
+const { navigateTo } = useNavigation()
 
 // 状态
 const showPersonaDrawer = ref(false)
@@ -84,7 +84,15 @@ const showInspirationCard = ref(false)
 const inspirationText = ref('')
 const userName = ref('创作者')
 const userPoints = ref(1280)
-const categoryList = ref<Array<{ key: string; label: string; icon: string; color: string }>>([])
+// 修改 categoryList 类型，保留 action_type 和 action_value 字段
+const categoryList = ref<Array<{
+  key: string
+  label: string
+  icon: string
+  color: string
+  action_type?: 'agent' | 'skill' | 'prompt' | 'url'
+  action_value?: string
+}>>([])
 const commandList = ref<QuickEntry[]>([])
 
 /**
@@ -98,13 +106,15 @@ async function loadQuickEntries() {
       getQuickEntries('command')
     ])
 
-    // 处理分类数据
+    // 处理分类数据，保留 action_type 和 action_value
     if (categoryResponse.code === 200 && categoryResponse.data?.entries) {
       categoryList.value = categoryResponse.data.entries.map((entry: QuickEntry) => ({
         key: entry.unique_key || String(entry.id),
         label: entry.title,
         icon: entry.icon_class,
-        color: entry.bg_color || '#F69C0E'
+        color: entry.bg_color || '#F69C0E',
+        action_type: entry.action_type,
+        action_value: entry.action_value
       }))
     }
 
@@ -113,7 +123,6 @@ async function loadQuickEntries() {
       commandList.value = commandResponse.data.entries
     }
   } catch (error) {
-    console.error('加载快捷入口数据失败:', error)
     uni.showToast({
       title: '加载数据失败',
       icon: 'none'
@@ -174,12 +183,115 @@ function handleMicClick() {
 // 处理人设保存
 function handlePersonaSaved() {
   // 人设保存后的回调
-  console.log('人设已保存')
 }
 
 // 处理导航
 function handleNavigate(route: string) {
   navigateTo(route)
+}
+
+/**
+ * 处理分类点击事件
+ * @param category 分类项数据
+ */
+function handleCategoryClick(category: {
+  key: string
+  label: string
+  icon: string
+  color: string
+  action_type?: 'agent' | 'skill' | 'prompt' | 'url'
+  action_value?: string
+}) {
+
+  // 规范化 action_type，去除空格并转为小写，便于判断
+  const actionType = category.action_type?.trim().toLowerCase()
+
+  // 如果 action_type 为 agent，跳转到 AI 对话页面
+  if (actionType === 'agent') {
+    if (!category.action_value) {
+      uni.showToast({
+        title: '智能体ID不能为空',
+        icon: 'none'
+      })
+      return
+    }
+
+    // 构建跳转参数
+    const params: Record<string, string> = {
+      agentId: category.action_value
+    }
+
+    // 构建查询字符串
+    const queryString = Object.entries(params)
+      .map(([key, value]) => `${key}=${encodeURIComponent(value)}`)
+      .join('&')
+
+    // 跳转到 AI 对话页面
+    uni.navigateTo({
+      url: `/pages/copywriting/index?${queryString}`,
+      fail: () => {
+        uni.showToast({
+          title: '页面跳转失败',
+          icon: 'none'
+        })
+      }
+    })
+    return
+  }
+
+  // 如果 action_type 为 url，跳转到对应的 URL 页面
+  if (actionType === 'url') {
+    if (!category.action_value) {
+      uni.showToast({
+        title: 'URL 地址不能为空',
+        icon: 'none'
+      })
+      return
+    }
+
+    // 规范化 URL 路径，转换为小程序标准格式：/pages/xxx/index
+    let targetUrl = category.action_value.trim()
+
+    // 如果已经是完整路径（以 /pages 开头），直接使用
+    if (targetUrl.startsWith('/pages/')) {
+      // 如果路径不以 /index 结尾，且不是文件路径（没有扩展名），自动添加 /index
+      if (!targetUrl.endsWith('/index') && !targetUrl.includes('.')) {
+        targetUrl = targetUrl + '/index'
+      }
+    } else {
+      // 如果不是完整路径，转换为标准格式
+      // 移除开头的 /（如果有）
+      if (targetUrl.startsWith('/')) {
+        targetUrl = targetUrl.substring(1)
+      }
+
+      // 如果路径包含 /，说明是类似 hotspot/index 的格式
+      // 否则是单个路径名，如 hotspot
+      const pathParts = targetUrl.split('/')
+      const pageName = pathParts[0]
+
+      // 构建标准路径：/pages/{pageName}/index
+      targetUrl = `/pages/${pageName}/index`
+    }
+
+    // 跳转到对应的 URL 页面
+    uni.navigateTo({
+      url: targetUrl,
+      fail: () => {
+        uni.showToast({
+          title: '页面跳转失败',
+          icon: 'none'
+        })
+      }
+    })
+    return
+  }
+
+  // 其他 action_type 的处理（skill、prompt 等，功能待实现）
+  uni.showToast({
+    title: `功能开发中：${category.label}`,
+    icon: 'none'
+  })
 }
 
 // 处理历史对话点击
@@ -202,8 +314,7 @@ function handleConversationClick(conversation: Conversation) {
   // 跳转到对话详情页面
   uni.navigateTo({
     url: `/pages/copywriting/index?${queryString}`,
-    fail: (err) => {
-      console.error('页面跳转失败:', err)
+    fail: () => {
       uni.showToast({
         title: '页面跳转失败',
         icon: 'none'

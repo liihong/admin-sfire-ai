@@ -7,7 +7,7 @@
  */
 
 import type { ProjectModel, PersonaSettingsModel, ProjectFormData } from '@/types/project'
-import type { ProjectCreateRequest, ProjectUpdateRequest } from '@/api/project'
+import type { ProjectCreateRequest, ProjectUpdateRequest, IPCollectFormData } from '@/api/project'
 
 /**
  * 默认人设配置值
@@ -198,6 +198,54 @@ export function getDefaultFormData(): ProjectFormData {
     benchmark_accounts: [...DEFAULT_PERSONA_SETTINGS.benchmark_accounts],
     content_style: DEFAULT_PERSONA_SETTINGS.content_style,
     taboos: [...DEFAULT_PERSONA_SETTINGS.taboos]
+  }
+}
+
+/**
+ * 将 ProjectFormData 转换为 IPCollectFormData
+ * 提取 IP 收集表单所需的字段
+ * 
+ * 使用场景：IPCollectDialog 组件中，将表单数据转换为收集数据格式用于持久化
+ */
+export function formDataToIPCollectFormData(formData: ProjectFormData): IPCollectFormData {
+  return {
+    name: formData.name,
+    industry: formData.industry,
+    industry_understanding: formData.industry_understanding || '',
+    unique_views: formData.unique_views || '',
+    tone: formData.tone || '',
+    catchphrase: formData.catchphrase || '',
+    target_audience: formData.target_audience || '',
+    target_pains: formData.target_pains || '',
+    introduction: formData.introduction || '',
+    keywords: formData.keywords || []
+  }
+}
+
+/**
+ * 将 IPCollectFormData 转换为 ProjectFormData
+ * 补充默认值，生成完整的表单数据
+ * 
+ * 使用场景：从缓存的 IPCollectFormData 恢复表单，或创建项目时转换为完整表单数据
+ */
+export function ipCollectFormDataToProjectFormData(
+  collectedData: IPCollectFormData,
+  defaults?: Partial<ProjectFormData>
+): ProjectFormData {
+  return {
+    name: collectedData.name?.trim() || defaults?.name || '未命名项目',
+    industry: collectedData.industry?.trim() || defaults?.industry || '通用',
+    tone: collectedData.tone || defaults?.tone || '',
+    catchphrase: collectedData.catchphrase || defaults?.catchphrase || '',
+    target_audience: collectedData.target_audience || defaults?.target_audience || '',
+    introduction: collectedData.introduction || defaults?.introduction || '',
+    keywords: collectedData.keywords || defaults?.keywords || [],
+    industry_understanding: collectedData.industry_understanding || defaults?.industry_understanding || '',
+    unique_views: collectedData.unique_views || defaults?.unique_views || '',
+    target_pains: collectedData.target_pains || defaults?.target_pains || '',
+    benchmark_accounts: defaults?.benchmark_accounts || [],
+    content_style: defaults?.content_style || '',
+    taboos: defaults?.taboos || []
   }
 }
 

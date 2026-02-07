@@ -9,6 +9,17 @@
       <EmptyState @action="navigateToCreate" />
     </view>
 
+    <!-- 有项目但未激活时，直接显示项目列表和创建按钮 -->
+    <view v-if="!hasActiveProject && !isLoading && projectList.length > 0" class="project-list-page">
+      <!-- 引导文字 -->
+      <view class="project-list-header">
+        <text class="header-title">选择你的操盘项目</text>
+        <text class="header-subtitle">每个项目拥有独立的IP人设和内容风格</text>
+      </view>
+      <!-- 项目列表 -->
+      <ProjectList :key="refreshKey" @project-selected="handleProjectSelected" />
+    </view>
+
     <!-- 项目列表抽屉 -->
     <BaseDrawer :visible="drawerVisible" title="选择你的操盘项目" @update:visible="drawerVisible = $event"
       @close="drawerVisible = false">
@@ -42,7 +53,7 @@ import SafeAreaTop from '@/components/common/SafeAreaTop.vue'
 import BaseDrawer from '@/components/common/BaseDrawer.vue'
 import EmptyState from './components/list/EmptyState.vue'
 
-import { onShow } from '@dcloudio/uni-app'
+import { onShow, onLoad } from '@dcloudio/uni-app'
 
 const projectStore = useProjectStore()
 const isLoading = ref(true)
@@ -86,7 +97,12 @@ function openProjectDrawer() {
  * 处理项目选择后的回调
  */
 function handleProjectSelected() {
-  drawerVisible.value = false
+  // 如果是从抽屉中选择的，关闭抽屉
+  if (drawerVisible.value) {
+    drawerVisible.value = false
+  }
+  // 强制刷新 List 组件（如果当前显示的是列表页面）
+  refreshKey.value++
 }
 
 /**
@@ -115,20 +131,75 @@ async function refreshProjectList() {
   try {
     isLoading.value = true
     loadError.value = false
+    console.log('[ProjectIndex] 开始加载项目列表...')
     const response = await fetchProjects()
+    console.log('[ProjectIndex] 项目列表加载成功:', {
+      projectsCount: response.projects?.length || 0,
+      activeProjectId: response.active_project_id
+    })
     projectStore.setProjectList(response.projects, response.active_project_id)
     // 更新 key 强制重新渲染组件（确保显示最新数据）
     refreshKey.value++
+    console.log('[ProjectIndex] Store 状态:', {
+      hasActiveProject: projectStore.hasActiveProject,
+      projectListLength: projectStore.projectList.length
+    })
   } catch (error) {
-    console.error('刷新项目列表失败:', error)
+    console.error('[ProjectIndex] 刷新项目列表失败:', error)
     loadError.value = true
+    // 确保即使出错也显示错误状态，而不是一直加载
+    isLoading.value = false
   } finally {
     isLoading.value = false
+    console.log('[ProjectIndex] 加载完成，isLoading:', isLoading.value)
   }
 }
 
+// 初始化加载数据
+async function initLoad() {
+  try {
+    console.log('[ProjectIndex] 开始初始化加载...')
+    // 检查 store 中的刷新标记，如果有则触发刷新
+    const needRefresh = projectStore.checkAndClearRefresh()
+
+    // 如果 store 中没有项目数据，也需要主动加载
+    const hasNoData = projectStore.projectList.length === 0
+
+    console.log('[ProjectIndex] 初始化状态:', {
+      needRefresh,
+      hasNoData,
+      projectListLength: projectStore.projectList.length
+    })
+
+    if (needRefresh || hasNoData) {
+      // 加载项目列表数据
+      await refreshProjectList()
+    } else {
+      // 如果不需要刷新且有数据，直接设置为非加载状态
+      console.log('[ProjectIndex] 使用缓存数据，跳过加载')
+      isLoading.value = false
+      loadError.value = false
+    }
+  } catch (error) {
+    console.error('[ProjectIndex] 初始化加载失败:', error)
+    // 确保即使出错也显示内容
+    isLoading.value = false
+    loadError.value = true
+  }
+}
+
+// 页面加载时初始化加载
+onLoad(() => {
+  // 注意：onLoad 不支持 async，需要手动处理
+  initLoad().catch(error => {
+    console.error('onLoad 执行失败:', error)
+    isLoading.value = false
+    loadError.value = true
+  })
+})
+
 // 页面显示时检查是否需要刷新
-onShow(async () => {
+onShow(() => {
   // 检查 store 中的刷新标记，如果有则触发刷新
   const needRefresh = projectStore.checkAndClearRefresh()
   
@@ -137,7 +208,9 @@ onShow(async () => {
 
   if (needRefresh || hasNoData) {
     // 加载项目列表数据
-    await refreshProjectList()
+    refreshProjectList().catch(error => {
+      console.error('onShow 刷新失败:', error)
+    })
   } else {
     // 如果不需要刷新且有数据，直接设置为非加载状态
     isLoading.value = false
@@ -160,6 +233,31 @@ onShow(async () => {
   display: flex;
   align-items: center;
   justify-content: center;
+}
+.project-list-page {
+  width: 100%;
+  min-height: 100vh;
+  background-color: #F5F7FA;
+}
+
+.project-list-header {
+  padding: 48rpx 32rpx 32rpx;
+  display: flex;
+  flex-direction: column;
+  gap: 16rpx;
+}
+
+.header-title {
+  font-size: 44rpx;
+  font-weight: 600;
+  color: #1D2129;
+  line-height: 1.4;
+}
+
+.header-subtitle {
+  font-size: 28rpx;
+  color: #86909C;
+  line-height: 1.5;
 }
 .loading-container {
   width: 100%;

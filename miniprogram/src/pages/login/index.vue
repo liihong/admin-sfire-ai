@@ -117,8 +117,6 @@ const handleLoginTap = () => {
  * 处理获取手机号
  */
 const handleGetPhoneNumber = async (e: any) => {
-  console.log('getPhoneNumber event:', e)
-
   // 检查是否同意协议
   if (!isAgreed.value) {
     uni.showToast({
@@ -179,7 +177,6 @@ const handleGetPhoneNumber = async (e: any) => {
 
     uni.hideLoading()
 
-    console.log(response)
     // 后端返回格式: {code: 200, data: {token: "...", userInfo: {...}, is_new_user: ...}, msg: "..."}
     if (response.code === 200 && response.data) {
       const data = response.data
@@ -188,7 +185,6 @@ const handleGetPhoneNumber = async (e: any) => {
       const tokenValue = data.token
       if (tokenValue) {
         authStore.setToken(tokenValue)
-        console.log('[Login] Access token saved to storage')
       } else {
         console.warn('[Login] Access token is missing from response')
       }
@@ -198,7 +194,6 @@ const handleGetPhoneNumber = async (e: any) => {
       const refreshTokenValue = data.refreshToken
       if (refreshTokenValue) {
         authStore.setRefreshToken(refreshTokenValue)
-        console.log('[Login] Refresh token saved to storage')
       } else {
         // refresh_token 缺失，这是严重错误，应该阻止登录流程
         console.error('[Login] Refresh token is missing from response, login incomplete')
@@ -222,7 +217,6 @@ const handleGetPhoneNumber = async (e: any) => {
           avatarUrl: userInfo.avatarUrl || userInfo.avatar_url || '/static/default-avatar.png',
           level: userInfo.level || 'normal' // 添加必需的 level 字段
         })
-        console.log('[Login] User info saved to storage')
       }
 
       uni.showToast({

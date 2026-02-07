@@ -18,8 +18,7 @@ import { useAuthStore } from '@/stores/auth'
 import IPCollectDialog from './components/IPCollectDialog.vue'
 import BaseHeader from '@/components/base/BaseHeader.vue'
 import { createProject } from '@/api/project'
-import { formDataToCreateRequest } from '@/utils/project'
-import type { ProjectFormData } from '@/types/project'
+import { formDataToCreateRequest, ipCollectFormDataToProjectFormData } from '@/utils/project'
 import type { IPCollectFormData } from '@/api/project'
 
 // Store
@@ -81,27 +80,11 @@ async function handleAIComplete(collectedInfo: IPCollectFormData) {
   isSubmitting.value = true
   
   try {
-    // 将 IPCollectFormData 转换为 ProjectFormData（补充默认值）
-    const formData: ProjectFormData = {
-      name: collectedInfo.name?.trim() || '未命名项目',
-      industry: collectedInfo.industry?.trim() || '通用',
-      tone: collectedInfo.tone || '',
-      catchphrase: collectedInfo.catchphrase || '',
-      target_audience: collectedInfo.target_audience || '',
-      introduction: collectedInfo.introduction || '',
-      keywords: collectedInfo.keywords || [],
-      industry_understanding: collectedInfo.industry_understanding || '',
-      unique_views: collectedInfo.unique_views || '',
-      target_pains: collectedInfo.target_pains || '',
-      benchmark_accounts: [],
-      content_style: '',
-      taboos: []
-    }
+    // 使用工具函数将 IPCollectFormData 转换为 ProjectFormData（补充默认值）
+    const formData = ipCollectFormDataToProjectFormData(collectedInfo)
     
     // 使用数据转换工具函数，将表单数据转换为创建请求
     const requestData = formDataToCreateRequest(formData)
-
-    console.log('创建项目请求数据:', requestData)
 
     // 创建项目
     const project = await createProject(requestData)
@@ -111,6 +94,9 @@ async function handleAIComplete(collectedInfo: IPCollectFormData) {
 
     // 设置刷新标记，跳转后会自动刷新列表
     projectStore.setNeedRefresh(true)
+
+    // 清理store中的IP收集表单缓存（创建成功后清空）
+    projectStore.clearIPCollectFormData()
 
     uni.showToast({
       title: '创建成功',
@@ -124,10 +110,10 @@ async function handleAIComplete(collectedInfo: IPCollectFormData) {
         url: '/pages/project/index'
       })
     }, 500)
-  } catch (error: any) {
-    console.error('创建项目失败:', error)
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : '创建失败，请重试'
     uni.showToast({
-      title: error.message || '创建失败，请重试',
+      title: errorMessage,
       icon: 'none'
     })
   } finally {

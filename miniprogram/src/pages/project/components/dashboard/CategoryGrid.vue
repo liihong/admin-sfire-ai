@@ -4,7 +4,7 @@
       v-for="item in categories"
       :key="item.key"
       class="category-item"
-      @tap="handleClick(item.key)"
+@tap="handleClick(item)"
     >
       <view class="category-icon-wrapper">
         <!-- <u-icon :name="item.icon" :size="34" color="#f69c0e" /> -->
@@ -25,6 +25,8 @@ interface CategoryItem {
   label: string
   icon: string
   color: string
+  action_type?: 'agent' | 'skill' | 'prompt' | 'url'
+  action_value?: string
 }
 
 interface Props {
@@ -55,11 +57,11 @@ const props = withDefaults(defineProps<Props>(), {
 const categories = computed(() => props.categories && props.categories.length > 0 ? props.categories : DEFAULT_CATEGORIES)
 
 const emit = defineEmits<{
-  click: [key: string]
+  click: [category: CategoryItem]
 }>()
 
-function handleClick(key: string) {
-  emit('click', key)
+function handleClick(item: CategoryItem) {
+  emit('click', item)
 }
 </script>
 

@@ -45,8 +45,6 @@ export function useSafeArea() {
         screenHeight: systemInfo.screenHeight || 0,
         screenWidth: systemInfo.screenWidth || 0
       }
-      
-      console.log('[SafeArea] 安全区域信息:', safeArea.value)
     } catch (error) {
       console.warn('[SafeArea] 获取安全区域信息失败:', error)
     }

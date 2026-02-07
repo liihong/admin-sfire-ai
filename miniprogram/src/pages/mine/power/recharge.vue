@@ -131,13 +131,9 @@ async function loadBalance() {
 async function loadBalanceFromCoinAPI() {
   try {
     const response = await getBalance()
-    console.log('getBalance 响应:', response)
 
     if (response.code === 200 && response.data) {
-      const availableBalance = response.data.available_balance || 0
-      const balanceStr = String(Math.floor(availableBalance))
-      console.log('从 getBalance 获取到的余额:', balanceStr)
-      // 注意：balance 现在是 computed，从 store 读取，这里只做日志记录
+      // 注意：balance 现在是 computed，从 store 读取
       // 如果需要更新余额，应该通过刷新用户信息接口来实现
     }
   } catch (error: any) {
@@ -231,8 +227,6 @@ async function processPayment(pkg: Package) {
         signType: paymentParams.signType,
         paySign: paymentParams.paySign,
         success: async (res: any) => {
-          console.log('支付成功:', res)
-
           // 支付成功，查询订单状态
           await checkOrderStatus(orderData.order_id)
 
@@ -279,8 +273,8 @@ async function processPayment(pkg: Package) {
 async function checkOrderStatus(orderId: string) {
   try {
     const response = await queryOrderStatus(orderId)
-    if (response.code === 200 && response.data) {
-      console.log('订单状态:', response.data)
+    if (response.code !== 200) {
+      console.error('查询订单状态失败:', response.msg)
     }
   } catch (error: any) {
     console.error('查询订单状态失败:', error)

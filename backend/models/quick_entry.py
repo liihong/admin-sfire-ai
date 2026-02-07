@@ -27,7 +27,8 @@ class ActionType(enum.Enum):
     """动作类型枚举"""
     AGENT = "agent"            # 调用 Agent（通过 agent_id）
     SKILL = "skill"            # 调用 Skill（通过 skill_id）
-    PROMPT = "prompt"          # 硬编码的 System Prompt
+    PROMPT = "prompt" 
+    URL = "url"         # 硬编码的 System Prompt
 
 
 class EntryTag(enum.Enum):

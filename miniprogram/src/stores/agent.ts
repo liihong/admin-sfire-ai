@@ -74,11 +74,22 @@ export const useAgentStore = defineStore('agent', () => {
    * 只存储基本信息（id, name, icon, description），不包含 system_prompt
    * 
    * @param agentId 智能体 ID
+   * @param forceRefresh 是否强制刷新（忽略缓存），默认 false
    */
-  async function setActiveAgentById(agentId: string) {
+  async function setActiveAgentById(agentId: string, forceRefresh: boolean = false) {
     // 如果已经是当前激活的智能体，直接返回
-    if (activeAgent.value?.id === agentId) {
+    if (activeAgent.value?.id === agentId && !forceRefresh) {
       return
+    }
+
+    // 如果不是强制刷新，先检查 storage 中是否已经有该智能体的信息
+    if (!forceRefresh) {
+      const stored = getActiveAgentFromStorage()
+      if (stored && stored.id === agentId) {
+        // storage 中已有该智能体信息，直接使用，不需要请求 API
+        activeAgent.value = stored
+        return
+      }
     }
 
     isLoading.value = true

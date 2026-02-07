@@ -15,7 +15,7 @@ export interface QuickEntry {
   instructions: string | null
   icon_class: string
   bg_color: string | null
-  action_type: 'agent' | 'skill' | 'prompt'
+  action_type: 'agent' | 'skill' | 'prompt' | 'url'
   action_value: string
   tag: 'none' | 'new' | 'hot'
   priority: number

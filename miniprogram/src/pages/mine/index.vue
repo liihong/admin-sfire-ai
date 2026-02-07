@@ -218,8 +218,6 @@ const refreshUserInfo = async () => {
  * 直接上传文件，不使用 Base64
  */
 const handleChooseAvatar = async (e: any) => {
-  console.log('chooseAvatar event:', e)
-
   const avatarUrl = e.detail.avatarUrl
   if (!avatarUrl) {
     uni.showToast({

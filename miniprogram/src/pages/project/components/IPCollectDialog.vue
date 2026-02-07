@@ -89,22 +89,32 @@
  * 1. 用户通过多步骤表单填写IP信息
  * 2. 使用 usePersonaForm(mode: 'create') 管理表单数据
  * 3. 表单数据存储在 formData（ProjectFormData 类型，扁平结构）
- * 4. 用户完成所有步骤后，调用 handleComplete()
- * 5. handleComplete() 将 formData 转换为 IPCollectFormData（只包含收集的字段）
- * 6. 通过 emit('complete', collectedData) 传递给父组件
- * 7. 父组件（create.vue）接收数据后调用 formDataToCreateRequest() 转换为 API 请求
- * 8. 调用 createProject() 创建项目
+ * 4. 表单数据变化时自动保存到 store（持久化到 localStorage），防抖500ms
+ * 5. 用户完成所有步骤后，调用 handleComplete()
+ * 6. handleComplete() 将 formData 转换为 IPCollectFormData（只包含收集的字段）
+ * 7. 保存到 store 并跳转到报告页面
+ * 8. 报告页面可以保存项目，保存成功后自动清空缓存
+ * 
+ * 持久化机制：
+ * - 填写过程中自动保存到 localStorage（通过 projectStore.saveIPCollectFormData）
+ * - 点击创建项目按钮时，如果有缓存数据会弹出提示框，让用户选择"继续使用"或"清空重填"
+ * - 用户选择"继续使用"：自动回填缓存数据到表单
+ * - 用户选择"清空重填"：清空缓存并重置表单
+ * - 项目创建成功后自动清空缓存（create.vue 和 report.vue 中都会清空）
  * 
  * 数据流转：
- * formData (ProjectFormData) → collectedData (IPCollectFormData) → emit → 
- * 父组件 → formDataToCreateRequest() → createProject() → ProjectModel → store
+ * formData (ProjectFormData) → formDataToIPCollectFormData() → 
+ * IPCollectFormData → store (localStorage) → 
+ * 报告页面 → ipCollectFormDataToProjectFormData() → 
+ * ProjectFormData → formDataToCreateRequest() → createProject() → ProjectModel → store
  */
 
-import { ref, computed, watch } from 'vue'
+import { ref, computed, watch, onMounted, onUnmounted, nextTick } from 'vue'
 import { type IPCollectFormData } from '@/api/project'
 import type { ProjectFormData } from '@/types/project'
 import { usePersonaForm } from '@/composables/usePersonaForm'
 import { useProjectStore } from '@/stores/project'
+import { formDataToIPCollectFormData, ipCollectFormDataToProjectFormData } from '@/utils/project'
 import StepIndicator from './collect/StepIndicator.vue'
 import StepIdentity from './collect/StepIdentity.vue'
 import StepSoul from './collect/StepSoul.vue'
@@ -182,14 +192,17 @@ const canComplete = computed(() => {
 })
 
 // 初始化：当对话框显示时检查缓存并初始化表单
-watch(() => props.visible, (newVal) => {
-  if (newVal) {
-    initDialog()
-  }
+// 使用 onMounted 确保只初始化一次，避免响应式循环
+onMounted(() => {
+  // 组件挂载时初始化（visible 在 create.vue 中始终为 true）
+  initDialog()
 })
 
 // 是否启用自动保存（初始化完成后启用）
 const enableAutoSave = ref(false)
+
+// 是否已经初始化过（使用普通变量，避免响应式循环）
+let isInitialized = false
 
 // 监听表单数据变化，自动保存到store（使用防抖，避免频繁保存）
 let saveTimer: ReturnType<typeof setTimeout> | null = null
@@ -200,23 +213,45 @@ watch(() => formData, () => {
   // 清除之前的定时器
   if (saveTimer) {
     clearTimeout(saveTimer)
+    saveTimer = null
   }
 
   // 延迟500ms保存，避免频繁保存
   saveTimer = setTimeout(() => {
     saveFormDataToStore()
+    saveTimer = null
   }, 500)
 }, { deep: true })
 
+// 组件卸载时清理定时器，防止内存泄漏
+onUnmounted(() => {
+  if (saveTimer) {
+    clearTimeout(saveTimer)
+    saveTimer = null
+  }
+})
+
 /**
  * 初始化对话框
- * 检查是否有缓存的表单数据，如果有则提示用户
+ * 检查是否有缓存的表单数据，如果有则提示用户是否继续使用
  */
 async function initDialog() {
+  // 防止重复初始化
+  if (isInitialized) {
+    return
+  }
+
+  // 立即标记为已初始化，防止重复调用
+  isInitialized = true
+
+  // 使用 nextTick 确保在下一个事件循环中执行，避免响应式循环
+  await nextTick()
+
   currentStep.value = 0
-  enableAutoSave.value = false // 初始化时禁用自动保存
+  // 重要：先禁用自动保存，避免 resetForm() 触发自动保存覆盖缓存
+  enableAutoSave.value = false
   
-  // 检查是否有缓存的表单数据
+  // 检查是否有缓存的表单数据（在重置表单之前检查，避免被覆盖）
   const cachedData = projectStore.loadIPCollectFormData()
 
   if (cachedData) {
@@ -226,50 +261,70 @@ async function initDialog() {
       content: `检测到您之前填写的IP信息（${cachedData.name || '未命名'}），是否继续使用？`,
       confirmText: '继续使用',
       cancelText: '清空重填',
-      success: (res) => {
+      success: async (res) => {
         if (res.confirm) {
           // 用户选择继续使用，加载缓存数据
+          // 注意：此时 enableAutoSave 仍然是 false，加载数据不会触发自动保存
           loadCachedFormData(cachedData)
+          // 加载完成后启用自动保存
+          enableAutoSave.value = true
         } else {
           // 用户选择清空，重置表单并清除缓存
-          resetForm()
+          // 先清空缓存，确保不会被自动保存覆盖
           projectStore.clearIPCollectFormData()
+          // 使用 Promise 延迟执行，避免嵌套 setTimeout
+          await clearAndResetForm()
         }
-        // 初始化完成后启用自动保存
+      },
+      fail: () => {
+        // 用户取消操作，默认加载缓存数据（不清空缓存）
+        // 注意：此时 enableAutoSave 仍然是 false，加载数据不会触发自动保存
+        loadCachedFormData(cachedData)
+      // 加载完成后启用自动保存
         enableAutoSave.value = true
       }
     })
   } else {
     // 没有缓存数据，直接重置表单
+    // 注意：此时 enableAutoSave 是 false，resetForm() 不会触发自动保存
     resetForm()
-    // 初始化完成后启用自动保存
+    // 重置完成后启用自动保存
     enableAutoSave.value = true
   }
 }
 
 /**
- * 加载缓存的表单数据到formData
+ * 清空并重置表单（异步执行，避免 watch 延迟覆盖清空操作）
  */
-function loadCachedFormData(cachedData: IPCollectFormData) {
-  // 将IPCollectFormData转换为ProjectFormData格式
-  Object.assign(formData, {
-    name: cachedData.name || '',
-    industry: cachedData.industry || '',
-    industry_understanding: cachedData.industry_understanding || '',
-    unique_views: cachedData.unique_views || '',
-    tone: cachedData.tone || '',
-    catchphrase: cachedData.catchphrase || '',
-    target_audience: cachedData.target_audience || '',
-    target_pains: cachedData.target_pains || '',
-    introduction: cachedData.introduction || '',
-    keywords: cachedData.keywords || [],
-    benchmark_accounts: [],
-    content_style: '',
-    taboos: []
-  })
+async function clearAndResetForm() {
+  // 等待当前事件循环完成，确保清空操作生效
+  await nextTick()
+  // 重置表单（此时 enableAutoSave 仍然是 false，不会触发自动保存）
+  resetForm()
+  // 延迟启用自动保存，确保 watch 的延迟执行（500ms）不会覆盖清空操作
+  await new Promise(resolve => setTimeout(resolve, 600))
+  enableAutoSave.value = true
 }
 
-function handleSwiperChange(e: any) {
+/**
+ * 加载缓存的表单数据到formData
+ * 使用工具函数将 IPCollectFormData 转换为 ProjectFormData
+ */
+function loadCachedFormData(cachedData: IPCollectFormData) {
+  const projectFormData = ipCollectFormDataToProjectFormData(cachedData)
+  Object.assign(formData, projectFormData)
+}
+
+/**
+ * Swiper 切换事件类型
+ */
+interface SwiperChangeEvent {
+  detail: {
+    current: number
+  }
+}
+
+function handleSwiperChange(e: SwiperChangeEvent) {
   const newStep = e.detail.current
   // 避免循环更新
   if (currentStep.value !== newStep) {
@@ -321,19 +376,8 @@ function handleComplete() {
     return
   }
   
-  // 构建表单数据（用于生成报告）
-  const collectedData: IPCollectFormData = {
-    name: formData.name,
-    industry: formData.industry,
-    industry_understanding: formData.industry_understanding || '',
-    unique_views: formData.unique_views || '',
-    tone: formData.tone,
-    catchphrase: formData.catchphrase || '',
-    target_audience: formData.target_audience,
-    target_pains: formData.target_pains || '',
-    introduction: formData.introduction,
-    keywords: formData.keywords
-  }
+  // 使用工具函数将 formData 转换为 IPCollectFormData
+  const collectedData = formDataToIPCollectFormData(formData)
   
   // 保存表单数据到store（持久化）
   // 注意：这里不立即清空缓存，等用户点击"注入基因库"后再清空
@@ -345,8 +389,7 @@ function handleComplete() {
     success: () => {
       // 跳转成功
     },
-    fail: (err) => {
-      console.error('跳转失败:', err)
+    fail: () => {
       uni.showToast({
         title: '跳转失败',
         icon: 'none'
@@ -364,28 +407,55 @@ function handleFormDataUpdate(data: Partial<ProjectFormData>) {
   // 更新 formData（reactive 对象，直接赋值）
   Object.assign(formData, data)
 
-  // 自动保存到store（持久化）
-  saveFormDataToStore()
+  // 只有在启用自动保存时才保存到store（避免初始化时保存空表单）
+  if (enableAutoSave.value) {
+    // 自动保存到store（持久化）
+    saveFormDataToStore()
+  }
+}
+
+/**
+ * 检查 introduction 是否是模板文本（占位符）
+ * StepStyle 组件会在 introduction 为空时自动设置模板文本
+ */
+function isIntroductionTemplate(text: string): boolean {
+  if (!text || !text.trim()) return true
+  // 检查是否包含模板的关键标识
+  return text.includes('个人经历：') &&
+    text.includes('为什么做这个项目：') &&
+    text.includes('产品或服务特色：')
+}
+
+/**
+ * 检查表单是否为空（只有默认值，没有用户实际输入）
+ * 如果表单为空，不应该保存到缓存
+ */
+function isFormEmpty(): boolean {
+  const isIntroTemplate = isIntroductionTemplate(formData.introduction)
+  // 检查关键字段是否为空，如果都是空说明用户还没有开始填写
+  // introduction 如果是模板文本，也应该视为空
+  return !formData.name.trim() &&
+    !formData.target_audience.trim() &&
+    !formData.target_pains.trim() &&
+    (isIntroTemplate || !formData.introduction.trim()) &&
+    formData.keywords.length === 0 &&
+    !formData.industry_understanding.trim() &&
+    !formData.unique_views.trim() &&
+    !formData.catchphrase.trim()
 }
 
 /**
  * 保存表单数据到store（持久化）
- * 将formData转换为IPCollectFormData格式后保存
+ * 使用工具函数将formData转换为IPCollectFormData格式后保存
+ * 如果表单为空（只有默认值），则不保存
  */
 function saveFormDataToStore() {
-  const collectedData: IPCollectFormData = {
-    name: formData.name,
-    industry: formData.industry,
-    industry_understanding: formData.industry_understanding || '',
-    unique_views: formData.unique_views || '',
-    tone: formData.tone,
-    catchphrase: formData.catchphrase || '',
-    target_audience: formData.target_audience,
-    target_pains: formData.target_pains || '',
-    introduction: formData.introduction,
-    keywords: formData.keywords
+  // 如果表单为空（只有默认值），不保存到缓存
+  if (isFormEmpty()) {
+    return
   }
 
+  const collectedData = formDataToIPCollectFormData(formData)
   // 保存到store（会自动持久化到本地存储）
   projectStore.saveIPCollectFormData(collectedData)
 }

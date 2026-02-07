@@ -34,7 +34,8 @@
             </view>
             <view class="item-info">
               <text class="item-title">{{  item.typeName || '算力消耗' }}</text>
-              <text class="item-time">{{ formatTime(item.create_time || item.created_at) }}</text>
+               <text class="item-time">{{ formatTime(item.createTime) }}</text>
+
             </view>
           </view>
           <view class="item-right">
@@ -78,8 +79,7 @@ interface Transaction {
   typeName?: string
   amount?: number | string
   remark?: string
-  create_time?: string
-  created_at?: string
+  createTime?: string
 }
 
 // 状态

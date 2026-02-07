@@ -134,7 +134,7 @@ onMounted(() => {
   display: flex;
     align-items: center;
     justify-content: center;
-    padding-bottom: 10rpx;
+    padding-bottom: 20rpx;
 }
 
 // 头部内容包装器

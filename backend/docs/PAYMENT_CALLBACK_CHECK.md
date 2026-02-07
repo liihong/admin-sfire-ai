@@ -33,8 +33,10 @@ WECHAT_PAY_NOTIFY_URL: https://sourcefire.cn/api/v1/client/coin/recharge/callbac
 
 **配置**:
 ```python
-WECHAT_PAY_IP_WHITELIST: "182.254.48.0/24,140.207.54.0/24"
+WECHAT_PAY_IP_WHITELIST: "182.254.48.0/24,140.207.54.0/24,101.226.103.0/24"
 ```
+
+**注意**：微信支付可能使用多个IP段进行回调，根据实际回调日志，需要添加 `101.226.103.0/24` 段。
 
 **状态**: ✅ **正常**
 

@@ -1,5 +1,5 @@
 <template>
-  <scroll-view class="step-content" scroll-y>
+ <scroll-view class="step-content" scroll-y :enhanced="true" :enable-passive="true">
     <view class="step-wrapper">
      <TipCard title="定义风格" desc="设定IP的语气风格，帮助AI更好地理解您的IP特色" />
       
@@ -29,6 +29,10 @@
           placeholder="请详细描述您的IP定位、特色、核心价值等（至少50字）"
           maxlength="500"
           :auto-height="true"
+          :adjust-position="true"
+          :cursor-spacing="20"
+          :hold-keyboard="false"
+          :show-confirm-bar="false"
         />
         <view class="char-count">{{ formData.introduction.length }}/500</view>
       </view>
@@ -44,9 +48,7 @@
           maxlength="20"
         />
       </view>
-      
-      <!-- IP画像预览 -->
-      <IPPreviewCard :data="previewData" />
+
     </view>
   </scroll-view>
 </template>
@@ -54,7 +56,6 @@
 <script setup lang="ts">
 import { watch, onMounted } from 'vue'
 import TipCard from './TipCard.vue'
-import IPPreviewCard from '../IPPreviewCard.vue'
 import type { DictOption } from '@/api/project'
 import type { ProjectFormData } from '@/types/project'
 

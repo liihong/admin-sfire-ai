@@ -98,7 +98,7 @@ function handleClick(tool: ToolItem) {
       path: tool.path || '',
       extraData: tool.extraData || {},
       success: () => {
-        console.log('跳转小程序成功')
+        // 跳转成功
       },
       fail: (err) => {
         console.error('跳转小程序失败:', err)

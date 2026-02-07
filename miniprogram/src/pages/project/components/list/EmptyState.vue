@@ -1,5 +1,6 @@
 <template>
   <view class="empty-state">
+   <BaseHeader title="创建你操盘的IP" />
     <!-- 中心图形：浅橙色圆形 + 火焰图标 -->
     <view class="empty-icon-wrapper">
       <view class="empty-icon-circle">

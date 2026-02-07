@@ -4,7 +4,7 @@
       <!-- 标题 -->
       <view class="step-header">
        <text class="step-title">确认信息</text>
-        <text class="step-subtitle">请确认以下信息是否正确，如需修改请返回上一步进行编辑</text>
+       <text class="step-subtitle">请确认以下信息，AI将根据以下内容进行定位分析</text>
       </view>
 
     <!-- 信息展示区域 -->
@@ -13,28 +13,39 @@
         <view class="info-group">
           <text class="group-title">基本信息</text>
 
-          <view class="info-item">
-            <text class="info-label">IP名称</text>
-            <view class="info-value">{{ formData.name || '未填写' }}</view>
-          </view>
-         <view class="info-item">
-            <text class="info-label">行业赛道</text>
-            <view class="info-value">{{ industryLabel || formData.industry || '未选择' }}</view>
+        <!-- 横向布局：IP名称和行业赛道 -->
+          <view class="info-row">
+            <view class="info-item info-item-horizontal">
+              <text class="info-label">IP名称</text>
+             <text class="info-value info-value-plain">{{
+                formData.name || "未填写"
+              }}</text>
+            </view>
+           <view class="info-item info-item-horizontal">
+              <text class="info-label">行业赛道</text>
+             <text class="info-value info-value-plain">{{
+                industryLabel || formData.industry || "未选择"
+              }}</text>
+            </view>
           </view>
         </view>
 
-       <!-- 行业理解 -->
+      <!-- 行业理解 -->
         <view class="info-group">
           <text class="group-title">行业理解</text>
 
         <view class="info-item">
             <text class="info-label">对行业的理解</text>
-            <view class="info-value">{{ formData.industry_understanding || '未填写' }}</view>
+           <view class="info-value">{{
+              formData.industry_understanding || "未填写"
+            }}</view>
           </view>
 
           <view class="info-item">
             <text class="info-label">对行业不同的看法</text>
-            <view class="info-value">{{ formData.unique_views || '未填写' }}</view>
+           <view class="info-value">{{
+              formData.unique_views || "未填写"
+            }}</view>
           </view>
         </view>
 
@@ -44,12 +55,16 @@
 
           <view class="info-item">
             <text class="info-label">目标人群</text>
-            <view class="info-value">{{ formData.target_audience || '未填写' }}</view>
+           <view class="info-value">{{
+              formData.target_audience || "未填写"
+            }}</view>
           </view>
 
           <view class="info-item">
             <text class="info-label">目标人群痛点</text>
-            <view class="info-value">{{ formData.target_pains || '未填写' }}</view>
+           <view class="info-value">{{
+              formData.target_pains || "未填写"
+            }}</view>
           </view>
         </view>
 
@@ -59,21 +74,27 @@
 
           <view class="info-item">
             <text class="info-label">语气风格</text>
-            <view class="info-value">{{ toneLabel || formData.tone || '未选择' }}</view>
+           <view class="info-value">{{
+              toneLabel || formData.tone || "未选择"
+            }}</view>
           </view>
           <view class="info-item">
             <text class="info-label">口头禅</text>
-            <view class="info-value">{{ formData.catchphrase || '未填写' }}</view>
+           <view class="info-value">{{
+              formData.catchphrase || "未填写"
+            }}</view>
           </view>
           <view class="info-item">
             <text class="info-label">IP概况描述</text>
-            <view class="info-value info-text">{{ formData.introduction || '未填写' }}</view>
+           <view class="info-value info-text">{{
+              formData.introduction || "未填写"
+            }}</view>
           </view>
         </view>
         <!-- 关键词 -->
         <view class="info-group">
           <text class="group-title">创作关键词</text>
-          <view class="keywords-display" v-if="formData.keywords && formData.keywords.length > 0">
+         <view class="keywords-display" v-if="formData.keywords && formData.keywords.length > 0">
             <view v-for="(keyword, index) in formData.keywords" :key="index" class="keyword-tag">
               <text class="keyword-text">{{ keyword }}</text>
             </view>
@@ -83,7 +104,7 @@
           </view>
         </view>
       </view>
-      
+
       <!-- 说明信息框 -->
       <view class="info-box">
         <u-icon name="info-circle" color="#F37021" size="20"></u-icon>
@@ -97,31 +118,35 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
-import type { ProjectFormData } from '@/types/project'
-import type { DictOption } from '@/api/project'
+import { computed } from "vue";
+import type { ProjectFormData } from "@/types/project";
+import type { DictOption } from "@/api/project";
 
 interface Props {
-  formData: ProjectFormData
-  industryOptions?: DictOption[]
-  toneOptions?: DictOption[]
+  formData: ProjectFormData;
+  industryOptions?: DictOption[];
+  toneOptions?: DictOption[];
 }
 
-const props = defineProps<Props>()
+const props = defineProps<Props>();
 
 // 获取行业标签
 const industryLabel = computed(() => {
-  if (!props.industryOptions || !props.formData.industry) return ''
-  const option = props.industryOptions.find(opt => opt.value === props.formData.industry)
-  return option?.label || props.formData.industry
-})
+  if (!props.industryOptions || !props.formData.industry) return "";
+  const option = props.industryOptions.find(
+    (opt) => opt.value === props.formData.industry,
+  );
+  return option?.label || props.formData.industry;
+});
 
 // 获取语气风格标签
 const toneLabel = computed(() => {
-  if (!props.toneOptions || !props.formData.tone) return ''
-  const option = props.toneOptions.find(opt => opt.value === props.formData.tone)
-  return option?.label || props.formData.tone
-})
+  if (!props.toneOptions || !props.formData.tone) return "";
+  const option = props.toneOptions.find(
+    (opt) => opt.value === props.formData.tone,
+  );
+  return option?.label || props.formData.tone;
+});
 </script>
 
 <style lang="scss" scoped>
@@ -137,10 +162,11 @@ const toneLabel = computed(() => {
   padding-bottom: $spacing-xl;
 }
 
+// 标题区域
 .step-header {
   text-align: center;
-  margin-bottom: $spacing-xl;
-  
+  margin-bottom: $spacing-sm;
+
   .step-title {
     display: block;
     font-size: $font-size-xxl;
@@ -148,80 +174,107 @@ const toneLabel = computed(() => {
     color: $text-main;
     margin-bottom: $spacing-sm;
   }
-  
+
   .step-subtitle {
     display: block;
     font-size: $font-size-md;
     color: $text-second;
     line-height: 1.5;
-    }
-    }
-    
-    .info-display-section {
-      margin-bottom: 150rpx;
-    }
-    
-    .info-group {
-      background: $bg-light;
-      border-radius: $radius-md;
-      padding: $spacing-md;
-      margin-bottom: $spacing-md;
-    
-      .group-title {
-        display: block;
-        font-size: $font-size-lg;
-        font-weight: 600;
-        color: $text-main;
-        margin-bottom: $spacing-md;
-        padding-bottom: $spacing-sm;
-        border-bottom: 2rpx solid rgba($text-main, 0.1);
-      }
-    
-      .info-item {
-        margin-bottom: $spacing-md;
-    
-        &:last-child {
-          margin-bottom: 0;
-        }
-    
-        .info-label {
-          display: block;
-          font-size: $font-size-sm;
-          color: $text-second;
-          margin-bottom: $spacing-xs;
-          font-weight: 500;
-        }
-    
-        .info-value {
-          font-size: $font-size-md;
-          color: $text-main;
-          padding: $spacing-sm $spacing-md;
-          background: $white;
-          border-radius: $radius-sm;
-          min-height: 44rpx;
-          line-height: 1.6;
-          word-break: break-all;
-    
-          &.info-text {
-            min-height: auto;
-            padding: $spacing-md;
-            white-space: pre-wrap;
-          }
-        }
   }
 }
 
+// 信息展示区域
+.info-display-section {
+  margin-bottom: 100rpx;
+}
+
+// 信息分组
+.info-group {
+  background: $bg-light;
+  border-radius: $radius-md;
+  padding: $spacing-md;
+  margin-bottom: $spacing-md;
+
+  .group-title {
+    display: block;
+    font-size: $font-size-lg;
+    font-weight: 600;
+    color: $text-main;
+    margin-bottom: 10rpx;
+    padding-bottom: 10rpx;
+    border-bottom: 2rpx solid rgba($text-main, 0.1);
+  }
+
+  // 横向布局容器
+  .info-row {
+    gap: $spacing-md;
+    margin-bottom: 0;
+  }
+
+  // info-item 项
+  .info-item {
+    margin-bottom: $spacing-md;
+
+    &:last-child {
+      margin-bottom: 0;
+    }
+
+    // 横向布局的 info-item
+    &.info-item-horizontal {
+      flex: 1;
+      margin-bottom: 0;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .info-label {
+      display: block;
+      font-size: $font-size-sm;
+      color: $text-second;
+      margin-bottom: $spacing-xs;
+      font-weight: 500;
+    }
+
+    .info-value {
+      font-size: $font-size-md;
+      color: $text-main;
+      padding: $spacing-sm $spacing-md;
+      background: $white;
+      border-radius: $radius-sm;
+      min-height: 44rpx;
+      line-height: 1.6;
+      word-break: break-all;
+
+      &.info-text {
+        min-height: auto;
+        padding: $spacing-md;
+        white-space: pre-wrap;
+      }
+
+      // 横向布局字段：移除白色背景块
+      &.info-value-plain {
+        background: transparent;
+        padding: 0;
+        border-radius: 0;
+        min-height: auto;
+      }
+    }
+  }
+}
+
+// 关键词展示
 .keywords-display {
   display: flex;
   flex-wrap: wrap;
   gap: $spacing-sm;
-  
+
   .keyword-tag {
     padding: 12rpx 20rpx;
     background: linear-gradient(135deg, rgba($primary-orange, 0.1) 0%, rgba($primary-orange, 0.15) 100%);
     border-radius: 24rpx;
     border: 2rpx solid $primary-orange;
-    
+
     .keyword-text {
       font-size: $font-size-sm;
       color: $primary-orange;
@@ -230,15 +283,18 @@ const toneLabel = computed(() => {
   }
 }
 
+// 关键词为空
 .keywords-empty {
   padding: $spacing-md;
   text-align: center;
-  
+
   .empty-text {
-      font-size: $font-size-sm;
-      color: $text-placeholder;
+    font-size: $font-size-sm;
+    color: $text-placeholder;
+  }
 }
-}
+
+// 说明信息框
 .info-box {
   background: rgba($primary-orange, 0.05);
   border-radius: $radius-md;
@@ -246,18 +302,18 @@ const toneLabel = computed(() => {
   display: flex;
   gap: $spacing-sm;
   border: 2rpx solid rgba($primary-orange, 0.2);
-  
+
   .info-content {
     flex: 1;
     @include flex-column;
     gap: $spacing-xs;
-    
+
     .info-title {
       font-size: $font-size-md;
       font-weight: 600;
       color: $text-main;
     }
-    
+
     .info-text {
       font-size: $font-size-sm;
       color: $text-second;

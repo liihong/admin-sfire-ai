@@ -262,7 +262,7 @@ function formatTime(timeStr?: string): string {
 // 列表区域
 .list-wrapper {
   padding: $spacing-md 32rpx;
-  min-height: calc(100vh - 120rpx);
+  min-height: calc(100vh - 180rpx);
 }
 
 // 空状态

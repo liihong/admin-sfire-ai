@@ -24,8 +24,6 @@ from schemas.project import (
     TONE_OPTIONS,
     IPCollectRequest,
     IPCollectResponse,
-    IPCompressRequest,
-    IPCompressResponse,
     IPReportRequest,
     IPReportResponse,
     IPReportData,
@@ -496,35 +494,6 @@ async def ai_collect_ip_info(
         raise BadRequestException(f"AI对话失败: {str(e)}")
 
 
-@router.post("/ai-compress", summary="AI智能填写 - IP信息压缩")
-async def ai_compress_ip_info(
-    request: IPCompressRequest,
-    current_user: User = Depends(get_current_miniprogram_user),
-    db: AsyncSession = Depends(get_db)
-):
-    """
-    AI总结压缩接口
-    
-    将收集到的IP信息压缩到极限字数，以控制token消耗
-    - IP简介：压缩到200字以内
-    - 目标受众：压缩到50字以内
-    - 关键词：最多8个
-    - 口头禅：保持简短
-    """
-    try:
-        project_service = ProjectService(db)
-        compressed_info = await project_service.compress_ip_info(request.raw_info)
-        
-        response_data = IPCompressResponse(compressed_info=compressed_info)
-        
-        return success(data=response_data.model_dump(), msg="压缩成功")
-        
-    except Exception as e:
-        from loguru import logger
-        logger.error(f"IP信息压缩失败: {e}")
-        raise BadRequestException(f"信息压缩失败: {str(e)}")
-
-
 @router.post("/generate-ip-report", summary="生成IP定位报告")
 async def generate_ip_report(
     request: IPReportRequest,
@@ -579,80 +548,78 @@ async def generate_ip_report(
                     keywords_clean.append(cleaned)
         keywords_str = "、".join(keywords_clean) if keywords_clean else "无"
         
-        # 构建Prompt
-        prompt_text = f"""请根据以下IP信息，生成一份IP数字化人格定位报告。
+        # 3. 准备IP信息变量（用于替换提示词模板中的占位符）
+        ip_variables = {
+            "ip_name": sanitize_prompt_input(request.name, 100),
+            "ip_industry": sanitize_prompt_input(request.industry, 50),
+            "ip_introduction": sanitize_prompt_input(request.introduction, 1000),
+            "ip_tone": sanitize_prompt_input(request.tone, 50),
+            "ip_target_audience": sanitize_prompt_input(request.target_audience, 500),
+            "ip_target_pains": sanitize_prompt_input(request.target_pains, 500),
+            "ip_keywords": keywords_str,
+            "ip_industry_understanding": sanitize_prompt_input(request.industry_understanding, 500),
+            "ip_unique_views": sanitize_prompt_input(request.unique_views, 500),
+            "ip_catchphrase": sanitize_prompt_input(request.catchphrase, 100),
+        }
+        
+        # 4. 使用数据库中的提示词模板（agent.system_prompt）
+        # 如果提示词中包含占位符（如 {ip_name}），则替换后作为user_input传入
+        # 如果提示词中不包含占位符，则将IP信息格式化后作为user_input传入
+        prompt_template = agent.system_prompt
+        if not prompt_template:
+            raise BadRequestException("Agent配置的提示词为空，无法生成报告")
+        
+        # 检查提示词中是否包含占位符
+        has_placeholders = any(f"{{{key}}}" in prompt_template for key in ip_variables.keys())
+        
+        if has_placeholders:
+            # 如果包含占位符，替换后作为user_input传入
+            try:
+                user_input = prompt_template.format(**ip_variables)
+            except KeyError as e:
+                logger.warning(f"提示词模板中包含未定义的占位符: {e}")
+                # 如果替换失败，降级处理：将IP信息格式化后作为user_input传入
+                ip_info_text = f"""请根据以下IP信息，生成一份IP数字化人格定位报告。
 
 IP信息：
-- 名称：{sanitize_prompt_input(request.name, 100)}
-- 行业：{sanitize_prompt_input(request.industry, 50)}
-- IP简介：{sanitize_prompt_input(request.introduction, 1000)}
-- 语气风格：{sanitize_prompt_input(request.tone, 50)}
-- 目标受众：{sanitize_prompt_input(request.target_audience, 500)}
-- 目标人群痛点：{sanitize_prompt_input(request.target_pains, 500)}
-- 关键词：{keywords_str}
-- 行业理解：{sanitize_prompt_input(request.industry_understanding, 500)}
-- 独特观点：{sanitize_prompt_input(request.unique_views, 500)}
-- 口头禅：{sanitize_prompt_input(request.catchphrase, 100)}
+- 名称：{ip_variables['ip_name']}
+- 行业：{ip_variables['ip_industry']}
+- IP简介：{ip_variables['ip_introduction']}
+- 语气风格：{ip_variables['ip_tone']}
+- 目标受众：{ip_variables['ip_target_audience']}
+- 目标人群痛点：{ip_variables['ip_target_pains']}
+- 关键词：{ip_variables['ip_keywords']}
+- 行业理解：{ip_variables['ip_industry_understanding']}
+- 独特观点：{ip_variables['ip_unique_views']}
+- 口头禅：{ip_variables['ip_catchphrase']}"""
+                user_input = ip_info_text
+        else:
+            # 如果提示词中不包含占位符，将IP信息格式化后作为user_input传入
+            # agent.system_prompt 会作为系统提示词自动使用
+            ip_info_text = f"""请根据以下IP信息，生成一份IP数字化人格定位报告。
 
-请生成一份完整的IP定位报告，包含以下内容：
-
-1. 数字化人格画像：
-   - 人格标签（3-5个，如：深耕者、县城觉醒者、技术降维派）
-   - 核心原型（如：实干大哥、专业导师等）
-   - 一句话简介
-
-2. 内容护城河：
-   - 反共识洞察（IP的独特观点）
-   - 情感钩子（受众通过IP获得的情感价值）
-
-3. 语言指纹分析：
-   - 语感建模（语言风格特点）
-   - 标志性氛围（语言营造的氛围）
-
-4. 商业潜力与避坑指南：
-   - 爆款潜质（哪些内容容易成为爆款）
-   - 人设红线（需要避免的内容）
-
-5. 专家寄语（一段鼓励和建议的话）
-
-6. IP数字化程度评分（0-100分）及评分理由
-
-请以JSON格式返回，格式如下：
-{{
-  "report": {{
-    "name": "IP名称",
-    "persona_tags": ["标签1", "标签2", "标签3"],
-    "core_archetype": "核心原型",
-    "one_line_intro": "一句话简介",
-    "content_moat": {{
-      "insight": "反共识洞察",
-      "emotional_hook": "情感钩子"
-    }},
-    "language_fingerprint": {{
-      "tone_modeling": "语感建模",
-      "atmosphere": "标志性氛围"
-    }},
-    "business_potential": {{
-      "viral_potential": "爆款潜质",
-      "red_lines": "人设红线"
-    }},
-    "expert_message": "专家寄语"
-  }},
-  "score": 85,
-  "score_reason": "评分理由"
-}}
-
-请确保返回的是有效的JSON格式，不要添加任何额外的文本或格式标记。"""
+IP信息：
+- 名称：{ip_variables['ip_name']}
+- 行业：{ip_variables['ip_industry']}
+- IP简介：{ip_variables['ip_introduction']}
+- 语气风格：{ip_variables['ip_tone']}
+- 目标受众：{ip_variables['ip_target_audience']}
+- 目标人群痛点：{ip_variables['ip_target_pains']}
+- 关键词：{ip_variables['ip_keywords']}
+- 行业理解：{ip_variables['ip_industry_understanding']}
+- 独特观点：{ip_variables['ip_unique_views']}
+- 口头禅：{ip_variables['ip_catchphrase']}"""
+            user_input = ip_info_text
         
-        # 3. 调用AgentExecutor执行agent（非流式，不注入IP基因）
+        # 5. 调用AgentExecutor执行agent（非流式，不注入IP基因）
         executor = AgentExecutor(db)
         logger.info(f"开始生成IP定位报告: 用户ID={current_user.id}, IP名称={request.name}, Agent ID={agent_id}")
         
         try:
             response, system_prompt, skills_applied, token_count = await executor.execute_non_stream(
                 agent=agent,
-                user_input=prompt_text,
-                persona_prompt=None,  # 不注入IP基因
+                user_input=user_input,
+                persona_prompt=None,  # 不注入IP基因，报告只负责生成报告信息
                 temperature=0.7,
                 max_tokens=3000  # 报告较长，需要更多tokens
             )

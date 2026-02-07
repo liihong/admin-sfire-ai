@@ -57,12 +57,8 @@ const emit = defineEmits<{
  * 加载历史对话列表
  */
 async function loadConversations() {
-  console.log('[ConversationHistory] loadConversations 被调用')
-  console.log('[ConversationHistory] activeProject.value:', activeProject.value)
-  
   // 如果没有激活的项目，不发送请求
   if (!activeProject.value?.id) {
-    console.log('[ConversationHistory] 没有激活的项目，跳过加载')
     conversationList.value = []
     loading.value = false
     return
@@ -71,7 +67,6 @@ async function loadConversations() {
   loading.value = true
   try {
     const projectId = parseInt(activeProject.value.id)
-    console.log('[ConversationHistory] 准备请求，projectId:', projectId)
     
     if (isNaN(projectId)) {
       console.error('[ConversationHistory] 项目ID无效:', activeProject.value.id)
@@ -80,7 +75,6 @@ async function loadConversations() {
       return
     }
 
-    console.log('[ConversationHistory] 开始请求对话列表...')
     const response = await getConversationList({
       pageNum: 1,
       pageSize: 5, // 显示最近 5 条对话
@@ -88,11 +82,8 @@ async function loadConversations() {
       project_id: projectId,
     })
 
-    console.log('[ConversationHistory] 请求响应:', response)
-
     if (response.code === 200 && response.data?.list) {
       conversationList.value = response.data.list
-      console.log('[ConversationHistory] 加载成功，对话数量:', response.data.list.length)
     } else {
       console.error('[ConversationHistory] 获取对话列表失败:', response.msg)
       conversationList.value = []
@@ -142,7 +133,6 @@ function handleClick(conversation: Conversation) {
 watch(
   () => activeProject.value?.id,
   (newId, oldId) => {
-    console.log('[ConversationHistory] watch 触发，newId:', newId, 'oldId:', oldId)
     if (newId && newId !== oldId) {
       // 只有当项目ID变化时才加载，避免重复请求
       loadConversations()

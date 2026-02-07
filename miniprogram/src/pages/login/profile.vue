@@ -100,8 +100,6 @@ const tempAvatarPath = ref('')
  * 选择头像
  */
 const handleChooseAvatar = async (e: any) => {
-  console.log('chooseAvatar event:', e)
-  
   const avatarUrl = e.detail.avatarUrl
   if (!avatarUrl) {
     uni.showToast({
@@ -120,7 +118,7 @@ const handleChooseAvatar = async (e: any) => {
  * 昵称输入完成
  */
 const handleNicknameBlur = (e: any) => {
-  console.log('nickname blur:', e.detail.value)
+  // 昵称输入完成处理
 }
 
 /**

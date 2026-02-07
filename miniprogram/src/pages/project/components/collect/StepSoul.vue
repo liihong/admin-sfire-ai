@@ -24,7 +24,7 @@
         <view class="form-tip">描述您的IP主要面向的用户群体，包括年龄、职业、兴趣等特征</view>
       </view>
       <!-- IP画像预览 -->
-      <IPPreviewCard :data="previewData" />
+     <!-- <IPPreviewCard :data="previewData" /> -->
     </view>
   </scroll-view>
 </template>
