@@ -34,8 +34,10 @@ export default defineConfig(({ mode }: ConfigEnv): UserConfig => {
     define: {
       __APP_INFO__: JSON.stringify(__APP_INFO__),
       // 添加下面这两行，强制在全局注入，解决 md5/qs 等库找不到 global 的问题
-      global: "window",
-      "process.env": "{}"
+      // --- 关键修复：强制全局变量注入 ---
+      global: "globalThis",
+      "process.env": JSON.stringify({}),
+      Buffer: "Buffer"
     },
     css: {
       preprocessorOptions: {
@@ -71,6 +73,8 @@ export default defineConfig(({ mode }: ConfigEnv): UserConfig => {
           global: true,
           process: true
         },
+        // 确保包含 crypto polyfill，解决 md5 包的兼容性问题
+        include: ['crypto', 'buffer', 'process', 'util'],
         protocolImports: true
       })
     ],
