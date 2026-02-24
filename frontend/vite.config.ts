@@ -32,7 +32,10 @@ export default defineConfig(({ mode }: ConfigEnv): UserConfig => {
       }
     },
     define: {
-      __APP_INFO__: JSON.stringify(__APP_INFO__)
+      __APP_INFO__: JSON.stringify(__APP_INFO__),
+      // 添加下面这两行，强制在全局注入，解决 md5/qs 等库找不到 global 的问题
+      global: "window",
+      "process.env": "{}"
     },
     css: {
       preprocessorOptions: {
