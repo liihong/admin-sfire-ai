@@ -151,8 +151,8 @@ export default defineConfig(({ mode }: ConfigEnv): UserConfig => {
               if (id.includes("axios")) {
                 return "vendor-axios";
               }
-              // 工具库 (dayjs, js-md5, qs 等)
-              if (id.includes("dayjs") || id.includes("js-md5") || id.includes("qs") || id.includes("mitt")) {
+              // 工具库 (dayjs, crypto-js, qs 等)
+              if (id.includes("dayjs") || id.includes("crypto-js") || id.includes("qs") || id.includes("mitt")) {
                 return "vendor-utils";
               }
               // 其他 node_modules 包

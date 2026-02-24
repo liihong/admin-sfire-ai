@@ -1,4 +1,4 @@
-import md5 from "js-md5";
+import CryptoJS from "crypto-js";
 
 /**
  * MD5 加密
@@ -6,7 +6,7 @@ import md5 from "js-md5";
  * @returns 加密后的字符串
  */
 export const encryptMD5 = (text: string): string => {
-	return md5(text);
+	return CryptoJS.MD5(text).toString(CryptoJS.enc.Hex);
 };
 
 /**
