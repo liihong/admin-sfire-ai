@@ -95,68 +95,14 @@ export default defineConfig(({ mode }: ConfigEnv): UserConfig => {
           manualChunks: (id: string) => {
             // 1. 将 node_modules 中的包按类型分离
             if (id.includes("node_modules")) {
-              // Vue 核心 (进一步拆分)
-              if (id.includes("vue")) {
-                // vue 核心单独
-                if (id.includes("vue/runtime") || id.includes("vue/dist/vue.runtime")) {
-                  return "vendor-vue-runtime";
-                }
-                // @vue/* 相关
-                if (id.includes("@vue")) {
-                  return "vendor-vue-lib";
-                }
-                return "vendor-vue-core";
-              }
-              // Element Plus 相关 (进一步拆分)
-              if (id.includes("element-plus") || id.includes("@element-plus")) {
-                // 图标库单独拆分
-                if (id.includes("@element-plus/icons-vue")) {
-                  return "vendor-element-icons";
-                }
-                return "vendor-element";
-              }
-              // ECharts 图表库 (进一步拆分)
-              if (id.includes("echarts")) {
-                // echarts 核心和组件
-                if (id.includes("echarts/core") || id.includes("echarts/charts") || id.includes("echarts/components")) {
-                  return "vendor-echarts-core";
-                }
-                // echarts-liquidfill 水球图插件
-                if (id.includes("echarts-liquidfill")) {
-                  return "vendor-echarts-liquidfill";
-                }
-                return "vendor-echarts";
-              }
-              // GSAP 动画库 (单独拆分)
-              if (id.includes("gsap")) {
-                return "vendor-gsap";
-              }
-              // 路由相关
-              if (id.includes("vue-router")) {
-                return "vendor-router";
-              }
-              // 状态管理
-              if (id.includes("pinia")) {
-                return "vendor-pinia";
-              }
-              // Swiper 轮播库 (单独拆分)
-              if (id.includes("swiper")) {
-                return "vendor-swiper";
-              }
-              // 其他 UI 组件工具库
-              if (id.includes("sortablejs") || id.includes("driver.js") || id.includes("screenfull")) {
-                return "vendor-ui-utils";
-              }
-              // axios 网络库
-              if (id.includes("axios")) {
-                return "vendor-axios";
-              }
-              // 工具库 (dayjs, crypto-js, qs 等)
-              if (id.includes("dayjs") || id.includes("crypto-js") || id.includes("qs") || id.includes("mitt")) {
-                return "vendor-utils";
-              }
-              // 其他 node_modules 包
-              return "vendor";
+              // 1. 只有体积巨大的库才值得单独拆分
+              if (id.includes("element-plus")) return "vendor-element";
+              if (id.includes("echarts")) return "vendor-echarts";
+              if (id.includes("swiper") || id.includes("gsap")) return "vendor-ui-major";
+
+              // 2. 将 crypto-js, qs, dayjs 等所有工具类合并为一个 vendor-common
+              // 这样可以确保它们内部的引用变量（如 I, xt, wt）在同一个作用域内，不会报错
+              return "vendor-common";
             }
           }
         }
