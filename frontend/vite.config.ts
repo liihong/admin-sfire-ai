@@ -1,4 +1,5 @@
 import { defineConfig, loadEnv, ConfigEnv, UserConfig } from "vite";
+import { nodePolyfills } from "vite-plugin-node-polyfills";
 import { resolve } from "path";
 import { wrapperEnv } from "./build/getEnv";
 import { createProxy } from "./build/proxy";
@@ -37,7 +38,7 @@ export default defineConfig(({ mode }: ConfigEnv): UserConfig => {
       preprocessorOptions: {
         scss: {
           // 👇 添加这一行配置
-          api: 'modern-compiler',
+          api: "modern-compiler",
 
           additionalData: `@use "@/styles/var.scss" as *;`
         }
@@ -59,6 +60,15 @@ export default defineConfig(({ mode }: ConfigEnv): UserConfig => {
       }),
       Components({
         resolvers: [ElementPlusResolver()]
+      }),
+      nodePolyfills({
+        // 重点包含 buffer 和 globals
+        globals: {
+          Buffer: true,
+          global: true,
+          process: true
+        },
+        protocolImports: true
       })
     ],
     esbuild: {
