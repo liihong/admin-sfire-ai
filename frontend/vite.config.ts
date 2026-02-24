@@ -1,5 +1,4 @@
 import { defineConfig, loadEnv, ConfigEnv, UserConfig } from "vite";
-import { nodePolyfills } from "vite-plugin-node-polyfills";
 import { resolve } from "path";
 import { wrapperEnv } from "./build/getEnv";
 import { createProxy } from "./build/proxy";
@@ -32,12 +31,7 @@ export default defineConfig(({ mode }: ConfigEnv): UserConfig => {
       }
     },
     define: {
-      __APP_INFO__: JSON.stringify(__APP_INFO__),
-      // 添加下面这两行，强制在全局注入，解决 md5/qs 等库找不到 global 的问题
-      // --- 关键修复：强制全局变量注入 ---
-      global: "globalThis",
-      "process.env": JSON.stringify({}),
-      Buffer: "Buffer"
+      __APP_INFO__: JSON.stringify(__APP_INFO__)
     },
     css: {
       preprocessorOptions: {
@@ -65,17 +59,6 @@ export default defineConfig(({ mode }: ConfigEnv): UserConfig => {
       }),
       Components({
         resolvers: [ElementPlusResolver()]
-      }),
-      nodePolyfills({
-        // 重点包含 buffer 和 globals
-        globals: {
-          Buffer: true,
-          global: true,
-          process: true
-        },
-        // 确保包含 crypto polyfill，解决 md5 包的兼容性问题
-        include: ['crypto', 'buffer', 'process', 'util'],
-        protocolImports: true
       })
     ],
     esbuild: {
@@ -168,8 +151,8 @@ export default defineConfig(({ mode }: ConfigEnv): UserConfig => {
               if (id.includes("axios")) {
                 return "vendor-axios";
               }
-              // 工具库 (dayjs, md5, qs 等)
-              if (id.includes("dayjs") || id.includes("md5") || id.includes("qs") || id.includes("mitt")) {
+              // 工具库 (dayjs, js-md5, qs 等)
+              if (id.includes("dayjs") || id.includes("js-md5") || id.includes("qs") || id.includes("mitt")) {
                 return "vendor-utils";
               }
               // 其他 node_modules 包
