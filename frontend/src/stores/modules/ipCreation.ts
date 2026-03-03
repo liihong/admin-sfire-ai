@@ -11,6 +11,7 @@ export interface AgentInfo {
   name: string;
   icon: string;
   description: string;
+  welcomeMessage?: string; // 欢迎语（数据库配置，空则使用前端默认）
 }
 
 /**
@@ -82,6 +83,22 @@ export const useIPCreationStore = defineStore({
       // 切换智能体时清空当前内容（但保留版本历史）
       this.currentContent = "";
       this.isGenerating = false;
+
+      // 欢迎语跟着切换：更新对话历史中的欢迎语
+      if (agent) {
+        const agentName = agent.name || "AI助手";
+        const defaultWelcome = `你好！我是${agentName}，很高兴为你服务。请告诉我你想创作什么内容吧~`;
+        const welcomeMessage = agent.welcomeMessage?.trim() || defaultWelcome;
+
+        if (this.conversationHistory.length === 0) {
+          this.conversationHistory = [{ role: "assistant", content: welcomeMessage }];
+        } else if (this.conversationHistory[0]?.role === "assistant") {
+          this.conversationHistory = [
+            { role: "assistant", content: welcomeMessage },
+            ...this.conversationHistory.slice(1)
+          ];
+        }
+      }
     },
     // 添加内容版本
     addContentVersion(content: string, agentId: number, agentName: string) {

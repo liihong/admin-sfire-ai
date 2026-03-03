@@ -251,14 +251,9 @@ class OSSService:
         with open(full_path, "wb") as f:
             f.write(file_content)
         
-        # 生成访问 URL（本地存储时，不使用 OSS_DOMAIN，使用本地服务器地址）
-        # 优先使用 CORS_ORIGINS 的第一个，如果没有则使用默认地址
-        cors_origins = getattr(settings, "CORS_ORIGINS", [])
-        if cors_origins:
-            base_url = cors_origins[0].rstrip('/')
-        else:
-            # 如果没有配置，使用默认的本地地址
-            base_url = "https://sourcefire.cn"
+        # 生成访问 URL（本地存储时，使用 API_PUBLIC_URL 作为公网访问地址）
+        # 生产环境应配置为 https://sourcefire.cn，确保返回的 URL 可被客户端正确访问
+        base_url = getattr(settings, "API_PUBLIC_URL", "https://sourcefire.cn").rstrip('/')
         
         logger.info(f"[本地存储] 文件保存路径: {full_path}")
         logger.info(f"[本地存储] 使用的基础URL: {base_url}")
@@ -564,12 +559,8 @@ class OSSService:
         from urllib.parse import urlparse
         
         if self.provider == "local":
-            # 本地存储时，不使用 OSS_DOMAIN，使用本地服务器地址
-            cors_origins = getattr(settings, "CORS_ORIGINS", [])
-            if cors_origins:
-                base_url = cors_origins[0]
-            else:
-                base_url = "http://localhost:8000"
+            # 本地存储时，使用 API_PUBLIC_URL 作为公网访问地址
+            base_url = getattr(settings, "API_PUBLIC_URL", "https://sourcefire.cn").rstrip('/')
             return f"{base_url}/static/{file_path}"
         
         elif self.provider == "aliyun":

@@ -60,6 +60,23 @@ export const miniprogramRouter: RouteRecordRaw[] = [
           title: "创作指挥舱",
           isFull: true
         }
+      },
+      {
+        path: "tools",
+        name: "mpTools",
+        component: () => import("@/views/client/tools/index.vue"),
+        meta: {
+          title: "便捷工具包"
+        }
+      },
+      {
+        path: "tools/voice-clone",
+        name: "mpToolsVoiceClone",
+        component: () => import("@/views/client/tools/voice-clone/index.vue"),
+        meta: {
+          title: "声音复刻",
+          isHide: true
+        }
       }
     ]
   }

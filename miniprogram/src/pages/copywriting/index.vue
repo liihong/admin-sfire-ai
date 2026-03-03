@@ -7,7 +7,7 @@
           <text class="back-icon">‹</text>
         </view>
         <view class="nav-center">
-          <text class="nav-title">{{ agentStore.activeAgent?.name || '智能体' }}</text>
+          <text class="nav-title">{{ agentStore.getActiveAgentLabel || '智能体' }}</text>
           <view class="agent-tag">
             <text class="tag-dot"></text>
             <text class="tag-text">AI 创作助手</text>
@@ -113,6 +113,15 @@ const projectStore = useProjectStore()
 const agentStore = useAgentStore()
 const quickEntryStore = useQuickEntryStore()
 
+// 固定返回 IP 操作台 tab 页面
+function goBack() {
+  uni.navigateBack({
+    fail: () => {
+      uni.switchTab({ url: '/pages/project/index' })
+    }
+  })
+}
+
 // 添加防御性检查，确保数据安全
 const activeProject = computed(() => {
   const project = projectStore.activeProject
@@ -157,14 +166,6 @@ const canSend = computed(() => inputText.value.trim().length > 0)
 const inputPlaceholder = computed(() => {
   return '向智能体发送创作指令...'
 })
-
-function goBack() {
-  uni.navigateBack({
-    fail: () => {
-      uni.switchTab({ url: '/pages/index/index' })
-    }
-  })
-}
 
 function clearChat() {
   if (chatHistory.length === 0) {
@@ -384,6 +385,7 @@ function copyMessage(content: string) {
 
 interface PageOptions {
   agentId?: string
+  label?: string
   content?: string
   inspiration_id?: string
   conversationId?: string
@@ -465,9 +467,10 @@ onLoad(async (options?: PageOptions) => {
         agentStore.setActiveAgent({
           id: options.agentId,
           name: '智能体',
+          label: options.label,
           icon: '',
           description: ''
-        })
+        }, { persist: false })
         // 注意：这里不再调用 setActiveAgentById，避免发起 /api/v1/client/agents 请求
       }
     }
@@ -545,6 +548,8 @@ $border-light: rgba(0, 0, 0, 0.06);
   }
 
   .nav-left {
+    position: relative;
+      z-index: 10;
     width: 72rpx;
     height: 72rpx;
     display: flex;
@@ -563,6 +568,7 @@ $border-light: rgba(0, 0, 0, 0.06);
     display: flex;
     flex-direction: column;
     align-items: center;
+    margin-left: -80rpx;
 
     .nav-title {
       font-size: 32rpx;

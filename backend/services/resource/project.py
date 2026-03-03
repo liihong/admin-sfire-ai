@@ -366,6 +366,54 @@ class ProjectService:
             # 显式标记 JSON 字段已修改，确保 SQLAlchemy 检测到变化
             flag_modified(project, "persona_settings")
             logger.info(f"Updated persona_settings for project {project_id}: {current_persona}")
+            
+            # 重新生成 Master Prompt（微调人设后同步更新）
+            try:
+                from services.project.master_prompt import MasterPromptService, IPFormData
+                
+                def get_field(key: str, default: str = "") -> str:
+                    value = current_persona.get(key)
+                    if value:
+                        return str(value) if value else default
+                    value = getattr(data, key, None)
+                    return str(value) if value else default
+                
+                def get_list_field(key: str, default: list = None) -> list:
+                    if default is None:
+                        default = []
+                    value = current_persona.get(key)
+                    if value and isinstance(value, list):
+                        return value
+                    value = getattr(data, key, None)
+                    return value if isinstance(value, list) else default
+                
+                form_data: IPFormData = {
+                    "name": project.name or data.name or "",
+                    "industry": project.industry or data.industry or "通用",
+                    "introduction": get_field("introduction"),
+                    "tone": get_field("tone"),
+                    "target_audience": get_field("target_audience"),
+                    "target_pains": get_field("target_pains"),
+                    "keywords": get_list_field("keywords"),
+                    "industry_understanding": get_field("industry_understanding"),
+                    "unique_views": get_field("unique_views"),
+                    "catchphrase": get_field("catchphrase"),
+                }
+                
+                master_prompt_service = MasterPromptService(self.db)
+                master_prompt = await master_prompt_service.generate_master_prompt(
+                    user_id=user_id,
+                    form_data=form_data
+                )
+                
+                if master_prompt:
+                    project.master_prompt = master_prompt
+                    await self.db.flush()
+                    logger.info(f"Master Prompt已重新生成并保存: 项目ID={project.id}, 长度={len(master_prompt)}字符")
+                else:
+                    logger.warning(f"Master Prompt重新生成失败，人设已保存: 项目ID={project.id}")
+            except Exception as e:
+                logger.error(f"Master Prompt重新生成异常（人设已保存）: {e}", exc_info=True)
         
         await self.db.flush()
         await self.db.refresh(project)

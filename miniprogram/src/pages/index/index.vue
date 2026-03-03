@@ -1,7 +1,7 @@
 <template>
   <scroll-view scroll-y class="container">
     <!-- FOUNDER'S MESSAGE 轮播区域 -->
-   <FounderMessage :founder-stories="homeData.founder_stories" />
+   <FounderMessage :banners="homeData.banners.home_top" />
 
   <!-- 公告通知条 -->
     <NotificationBar v-if="homeData.announcements && homeData.announcements.length > 0"

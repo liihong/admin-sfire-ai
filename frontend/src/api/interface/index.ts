@@ -450,6 +450,7 @@ export namespace Agent {
     name: string;
     icon: string;
     description?: string;
+    welcomeMessage?: string; // 欢迎语（用户进入对话时展示）
     systemPrompt: string;
     model: string;
     config: AgentConfig;
@@ -478,6 +479,7 @@ export namespace Agent {
     name: string;
     icon: string;
     description?: string;
+    welcomeMessage?: string; // 欢迎语（用户进入对话时展示）
     systemPrompt: string;
     model: string;
     config: AgentConfig;

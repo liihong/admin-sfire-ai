@@ -71,7 +71,9 @@ export const useUserStore = defineStore({
     // 刷新token
     async refreshToken(): Promise<boolean> {
       try {
-        const { data } = await refreshTokenApi(this.refreshToken);
+        const token = this.$state.refreshToken;
+        if (!token) return false;
+        const { data } = await refreshTokenApi(token);
         this.setToken(data.access_token || data.token, data.expires_in);
         this.setRefreshToken(data.refresh_token);
         return true;

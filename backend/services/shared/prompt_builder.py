@@ -260,8 +260,18 @@ class PromptBuilder:
         parts = []
 
         # 优先使用 Master Prompt（如果存在）
-        if master_prompt and master_prompt.strip():
-            parts.append(f"## IP核心特征\n{master_prompt.strip()}")
+        # 兼容历史数据：如果 master_prompt 参数为 None，则尝试从 persona_settings["master_prompt"] 取值
+        resolved_master_prompt = ""
+        if master_prompt is None:
+            legacy_master_prompt = persona_settings.get("master_prompt")
+            if isinstance(legacy_master_prompt, str) and legacy_master_prompt.strip():
+                resolved_master_prompt = legacy_master_prompt.strip()
+        else:
+            if master_prompt and master_prompt.strip():
+                resolved_master_prompt = master_prompt.strip()
+
+        if resolved_master_prompt:
+            parts.append(f"## IP核心特征\n{resolved_master_prompt}")
 
         # 基本信息
         introduction = persona_settings.get("introduction", "")
@@ -325,8 +335,14 @@ class PromptBuilder:
             return ""
         
         # 优先使用 master_prompt（如果存在且非空）
-        if project.master_prompt and project.master_prompt.strip():
+        if getattr(project, "master_prompt", None) and project.master_prompt.strip():
             return project.master_prompt.strip()
+
+        # 兼容历史数据：老项目可能把 master_prompt 存在 persona_settings 里
+        persona_settings = getattr(project, "persona_settings", None) or {}
+        legacy_master_prompt = persona_settings.get("master_prompt") if isinstance(persona_settings, dict) else None
+        if isinstance(legacy_master_prompt, str) and legacy_master_prompt.strip():
+            return legacy_master_prompt.strip()
         
         # 如果没有 master_prompt，返回空字符串（不注入人格）
         return ""

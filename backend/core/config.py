@@ -54,6 +54,8 @@ class Settings(BaseSettings):
     JWT_ALGORITHM: str = "HS256"
     JWT_ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
     JWT_REFRESH_TOKEN_EXPIRE_DAYS: int = 7
+    # PC 客户端 access_token 有效期（天），设为 7 则登录后 7 天内无需重新登录；小程序端保持 30 分钟
+    JWT_CLIENT_ACCESS_TOKEN_EXPIRE_DAYS: int = 7
 
     # 跨域配置
     CORS_ORIGINS: List[str] = ["http://0.0.0.0:8000", "http://0.0.0.0:9000"]
@@ -72,6 +74,12 @@ class Settings(BaseSettings):
     WECHAT_PAY_NOTIFY_URL: str = ""  # 微信支付回调地址
     WECHAT_PAY_IP_WHITELIST: str = ""  # 微信支付IP白名单（逗号分隔）
     
+    # 火山引擎豆包语音（工具包-声音复刻）
+    VOLCENGINE_APP_ID: str = ""  # 火山引擎应用 ID（豆包语音控制台获取）
+    VOLCENGINE_ACCESS_TOKEN: str = ""  # 访问令牌
+    VOLCENGINE_LICENSE: str = ""  # API Key / License（控制台-API Key 管理获取，声音复刻必填）
+    VOLCENGINE_SPEAKER_IDS: str = ""  # 音色 ID 池，逗号分隔，用于分配给用户（如 "id1,id2"）
+
     # LLM 配置
     DEEPSEEK_API_KEY: str = ""  # DeepSeek API Key
     DOUBAO_API_KEY: str = ""  # 火山引擎（Doubao）API Key
@@ -93,6 +101,10 @@ class Settings(BaseSettings):
     EMBEDDING_BASE_URL: str = ""  # Embedding API基础URL（可选，默认根据provider自动设置）
     EMBEDDING_MODEL: str = ""  # Embedding模型名称（可选，默认根据provider自动设置）
     EMBEDDING_API_KEY: str = ""  # Embedding API Key（可选，默认使用对应provider的API Key）
+
+    # API 公网访问地址（本地存储时用于生成文件访问 URL，如头像、图片等）
+    # 生产环境应设置为 https://sourcefire.cn，开发环境可为 http://localhost:8000
+    API_PUBLIC_URL: str = "https://sourcefire.cn"
 
     # OSS 对象存储配置
     OSS_PROVIDER: str = ""  # OSS服务提供商: local(本地存储), aliyun(阿里云OSS), tencent(腾讯云COS), qiniu(七牛云)

@@ -31,6 +31,7 @@ from schemas.project import (
 from utils.response import success
 from utils.exceptions import NotFoundException, BadRequestException
 from services.agent.core import AgentExecutor
+from services.agent.admin import AgentAdminService
 from services.routing import PromptEngine
 from services.content import AIService
 from models.agent import Agent
@@ -484,7 +485,13 @@ async def ai_collect_ip_info(
         )
         
         logger.debug(f"IP信息采集对话完成: token_count={token_count}, is_complete={is_complete}")
-        
+
+        # 增加智能体使用次数
+        try:
+            await AgentAdminService.increment_usage_count(db, agent.id)
+        except Exception as e:
+            logger.error(f"增加智能体使用次数失败: Agent ID={agent.id}, 错误={e}")
+
         return success(data=response_data.model_dump(), msg="对话成功")
         
     except NotFoundException:
@@ -646,7 +653,13 @@ IP信息：
         except Exception as e:
             logger.error(f"调用AgentExecutor失败: {e}", exc_info=True)
             raise BadRequestException(f"调用AI服务失败: {str(e)}。请重试。")
-        
+
+        # 增加智能体使用次数
+        try:
+            await AgentAdminService.increment_usage_count(db, agent.id)
+        except Exception as e:
+            logger.error(f"增加智能体使用次数失败: Agent ID={agent.id}, 错误={e}")
+
         # 4. 解析返回的JSON格式报告（增强容错性）
         def extract_json_from_text(text: str) -> dict:
             """

@@ -19,6 +19,7 @@ def agent_to_response(agent: Agent) -> dict:
         "name": agent.name,
         "icon": agent.icon,
         "description": agent.description or "",
+        "welcomeMessage": agent.welcome_message or "",
         "systemPrompt": agent.system_prompt,
         "model": agent.model,
         "config": config.model_dump(),

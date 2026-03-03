@@ -76,11 +76,13 @@ import { getHotspotList, type HotspotItem } from '@/api/hotspot'
 import { getQuickEntries, type QuickEntry } from '@/api/quickEntry'
 import { useProjectStore } from '@/stores/project'
 import { useAuthStore } from '@/stores/auth'
+import { useAgentStore } from '@/stores/agent'
 import SafeAreaTop from '@/components/common/SafeAreaTop.vue'
 
 // Store
 const projectStore = useProjectStore()
 const authStore = useAuthStore()
+const agentStore = useAgentStore()
 
 // 状态
 const hotspotList = ref<HotspotItem[]>([])
@@ -203,6 +205,13 @@ async function handleUseHotspot(item: HotspotItem) {
   const quickCommand = `请根据热点"${item.title}"，结合我的IP信息（${ipName}），创作一条30秒的抖音口播文案。要求：1. 开头吸引眼球；2. 结合热点和IP特色；3. 结尾有行动号召。`
   
   // 跳转到AI对话页面
+  agentStore.setActiveAgent({
+    id: String(hotspotAgentId.value),
+    name: '蹭热点',
+    label: '蹭热点',
+    icon: '',
+    description: ''
+  })
   uni.navigateTo({
     url: `/pages/copywriting/index?agentId=${hotspotAgentId.value}&content=${encodeURIComponent(quickCommand)}`,
     fail: (err) => {

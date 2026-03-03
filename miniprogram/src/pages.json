@@ -115,6 +115,14 @@
       }
     },
     {
+      "path": "pages/aichat/index",
+      "style": {
+        "navigationBarTitleText": "AI 对话",
+        "navigationStyle": "custom",
+        "disableScroll": true
+      }
+    },
+    {
       "path": "pages/project/index",
       "style": {
         "navigationBarTitleText": "IP操作台",

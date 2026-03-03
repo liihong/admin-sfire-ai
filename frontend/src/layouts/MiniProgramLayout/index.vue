@@ -25,6 +25,12 @@
             <el-icon><DataAnalysis /></el-icon>
             <span>数据统计</span>
           </el-menu-item>
+          <el-menu-item index="/mp/tools">
+            <el-icon>
+              <Box />
+            </el-icon>
+            <span>便捷工具包</span>
+          </el-menu-item>
         </el-menu>
       </div>
       <div class="header-right">
@@ -71,6 +77,7 @@ import {
   HomeFilled,
   FolderOpened,
   DataAnalysis,
+  Box,
   UserFilled,
   User,
   SwitchButton,
@@ -163,7 +170,7 @@ const handleCommand = async (command: string) => {
     .mp-menu {
       border-bottom: none;
       background: transparent;
-      width: 500px;
+      width: 800px;
       :deep(.el-menu-item) {
         border-bottom: 2px solid transparent;
         transition: all 0.3s;

@@ -45,6 +45,18 @@
         />
       </el-form-item>
 
+      <el-form-item label="欢迎语" prop="welcomeMessage">
+        <el-input
+          v-model="formData.welcomeMessage"
+          type="textarea"
+          :rows="3"
+          placeholder="请输入欢迎语（用户进入对话时展示，选填）"
+          maxlength="500"
+          show-word-limit
+        />
+        <div class="form-tip">用户进入对话时展示的欢迎内容，留空则不显示</div>
+      </el-form-item>
+
     <!-- 技能组装模式专属 -->
       <template v-if="formData.agentMode === 1">
         <el-divider content-position="left">技能组装配置</el-divider>
@@ -251,6 +263,7 @@ const formData = reactive<Agent.ReqAgentForm>({
   name: "",
   icon: "",
   description: "",
+  welcomeMessage: "",
   systemPrompt: "",
   model: "",
   config: {
@@ -297,6 +310,7 @@ const initFormData = () => {
       name: props.formData.name || "",
       icon: props.formData.icon || "",
       description: props.formData.description || "",
+      welcomeMessage: props.formData.welcomeMessage || "",
       systemPrompt: props.formData.systemPrompt || "",
       model: props.formData.model || "",
       config: {

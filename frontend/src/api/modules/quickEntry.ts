@@ -15,6 +15,7 @@ export interface QuickEntryItem {
   type: "category" | "command";
   title: string;
   subtitle?: string;
+  instructions?: string;
   icon_class: string;
   bg_color?: string;
   action_type: "agent" | "skill" | "prompt";
@@ -40,6 +41,7 @@ export interface QuickEntryCreate {
   type: "category" | "command";
   title: string;
   subtitle?: string;
+  instructions?: string;
   icon_class: string;
   bg_color?: string;
   action_type: "agent" | "skill" | "prompt";
@@ -54,6 +56,7 @@ export interface QuickEntryUpdate {
   type?: "category" | "command";
   title?: string;
   subtitle?: string;
+  instructions?: string;
   icon_class?: string;
   bg_color?: string;
   action_type?: "agent" | "skill" | "prompt";

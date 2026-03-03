@@ -27,59 +27,56 @@
       </el-form>
     </el-card>
 
-    <!-- 智能体列表 -->
-    <div class="agent-list">
-      <el-card v-for="agent in agentList" :key="agent.id" class="agent-card" shadow="hover" :body-style="{ padding: '20px' }">
-        <div class="card-header">
-          <div class="agent-info">
-            <AgentIcon :icon="agent.icon" :size="30" />
-            <div class="agent-details">
-              <div class="agent-name">{{ agent.name }}</div>
-              <div class="agent-desc">{{ agent.description || "暂无描述" }}</div>
-              <div class="agent-meta">
-                <el-tag size="small" :type="agent.status === 1 ? 'success' : 'info'">
-                  {{ agent.status === 1 ? "上架" : "下架" }}
-                </el-tag>
-                <span class="meta-item">模型: {{ agent.model }}</span>
-                <span class="meta-item">使用次数: {{ agent.usageCount }}</span>
+  <!-- 智能体列表（按 is_system 分类：0-否第一行，1-是第二行） -->
+    <div class="agent-list-wrapper">
+      <template v-for="section in agentSections" :key="section.type">
+        <div v-if="section.agents.length > 0" class="agent-section">
+          <div class="section-title">{{ section.title }}</div>
+          <div class="agent-list">
+           <el-card v-for="agent in section.agents" :key="agent.id" class="agent-card" shadow="hover"
+              :body-style="{ padding: '20px' }">
+              <div class="card-header">
+                <div class="agent-info">
+                  <AgentIcon :icon="agent.icon" :size="30" />
+                  <div class="agent-details">
+                    <div class="agent-name">{{ agent.name }}</div>
+                    <div class="agent-desc">{{ agent.description || "暂无描述" }}</div>
+                    <div class="agent-meta">
+                      <el-tag size="small" :type="agent.status === 1 ? 'success' : 'info'">
+                        {{ agent.status === 1 ? "上架" : "下架" }}
+                      </el-tag>
+                      <span class="meta-item">模型: {{ agent.model }}</span>
+                      <span class="meta-item">使用次数: {{ agent.usageCount }}</span>
+                    </div>
+                  </div>
+                </div>
+                <div class="card-actions">
+                 <el-switch v-model="agent.status" :active-value="1" :inactive-value="0"
+                    :loading="statusLoading === agent.id" @change="handleStatusChange(agent)" />
+                </div>
               </div>
-            </div>
-          </div>
-          <div class="card-actions">
-            <el-switch
-              v-model="agent.status"
-              :active-value="1"
-              :inactive-value="0"
-              :loading="statusLoading === agent.id"
-              @change="handleStatusChange(agent)"
-            />
-          </div>
-        </div>
 
-        <div class="card-footer">
-          <div class="sort-control">
-            <span class="sort-label">排序:</span>
-            <el-input-number
-              v-model="agent.sortOrder"
-              :min="0"
-              :max="9999"
-              :step="1"
-              size="small"
-              style="width: 100px"
-              @change="handleSortChange(agent)"
-            />
-          </div>
-          <div class="action-buttons">
-            <!-- 路由测试按钮：仅在技能组装模式且启用智能路由时显示 -->
-            <el-button v-if="agent.agentMode === 1" type="success" link :icon="MagicStick" @click="handleRoutingDebug(agent)">
-              路由测试
-            </el-button>
-            <el-button type="warning" link :icon="Cpu" class="debug-button" @click="handleDebug(agent)">调试</el-button>
-            <el-button type="primary" link :icon="EditPen" @click="handleEdit(agent)">编辑</el-button>
-            <el-button type="danger" link :icon="Delete" @click="handleDelete(agent)">删除</el-button>
-          </div>
+            <div class="card-footer">
+                <div class="sort-control">
+                  <span class="sort-label">排序:</span>
+                 <el-input-number v-model="agent.sortOrder" :min="0" :max="9999" :step="1" size="small"
+                    style="width: 100px" @change="handleSortChange(agent)" />
+                </div>
+                <div class="action-buttons">
+                 <el-button v-if="agent.agentMode === 1" type="success" link :icon="MagicStick"
+                    @click="handleRoutingDebug(agent)">
+                    路由测试
+                  </el-button>
+                 <el-button type="warning" link :icon="Cpu" class="debug-button"
+                    @click="handleDebug(agent)">调试</el-button>
+                  <el-button type="primary" link :icon="EditPen" @click="handleEdit(agent)">编辑</el-button>
+                  <el-button type="danger" link :icon="Delete" @click="handleDelete(agent)">删除</el-button>
+                </div>
+              </div>
+            </el-card>
+         </div>
         </div>
-      </el-card>
+      </template>
 
       <!-- 空状态 -->
       <el-empty v-if="!loading && agentList.length === 0" description="暂无智能体数据" />
@@ -91,7 +88,7 @@
         v-model:current-page="pagination.pageNum"
         v-model:page-size="pagination.pageSize"
         :total="total"
-        :page-sizes="[10, 20, 50, 100]"
+       :page-sizes="[20, 50, 100]"
         layout="total, sizes, prev, pager, next, jumper"
         @size-change="handleSizeChange"
         @current-change="handlePageChange"
@@ -113,7 +110,7 @@
 </template>
 
 <script setup lang="ts" name="agentManage">
-import { ref, reactive, onMounted } from "vue";
+import { ref, reactive, computed, onMounted } from "vue";
 import { ElMessage, ElMessageBox } from "element-plus";
 import {
   Search,
@@ -143,10 +140,16 @@ const agentList = ref<Agent.ResAgentItem[]>([]);
 const loading = ref(false);
 const total = ref(0);
 
+// 按 is_system 分类：0-否（第一行），1-是（第二行）
+const agentSections = computed(() => [
+  { type: "nonSystem", title: "非系统智能体", agents: agentList.value.filter((a) => (a.isSystem ?? 0) === 0) },
+  { type: "system", title: "系统智能体", agents: agentList.value.filter((a) => (a.isSystem ?? 0) === 1) }
+]);
+
 // 分页
 const pagination = reactive({
   pageNum: 1,
-  pageSize: 10
+  pageSize: 20
 });
 
 // 状态切换loading
@@ -303,11 +306,29 @@ onMounted(() => {
     }
   }
 
+        .agent-list-wrapper {
+          margin-bottom: 20px;
+        }
+    
+        .agent-section {
+          margin-bottom: 24px;
+    
+          &:last-child {
+            margin-bottom: 0;
+          }
+    
+          .section-title {
+            font-size: 16px;
+            font-weight: 600;
+            color: var(--el-text-color-primary);
+            margin-bottom: 12px;
+            padding-left: 4px;
+          }
+        }
   .agent-list {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(400px, 1fr));
     gap: 20px;
-    margin-bottom: 20px;
 
     .agent-card {
       transition: all 0.3s;

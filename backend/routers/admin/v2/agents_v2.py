@@ -204,6 +204,7 @@ async def preview_agent_prompt(
         ).model_dump()
         
         logger.info(f"预览Prompt成功: Agent ID={agent_id}, {token_count} tokens, {len(skills_used)}个技能")
+        logger.info(f"[调试] 最终提示词 preview(Agent ID={agent_id}) 长度={len(full_prompt)}:\n{full_prompt}")
         return success(data=data, msg="预览成功")
     except BadRequestException:
         raise
@@ -400,6 +401,9 @@ async def preview_intelligent_routing(
         )
         final_prompt = prompt_result.system_prompt
         token_routed = prompt_result.token_count
+        logger.info(
+            f"[调试] 最终提示词 routing-preview(Agent={agent.name}, ID={agent_id}) 长度={len(final_prompt)}:\n{final_prompt}"
+        )
 
         # 8. 计算全量加载的Token（用于对比）
         full_prompt_result = await prompt_engine.assemble_prompt(

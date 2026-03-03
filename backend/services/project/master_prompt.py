@@ -12,6 +12,7 @@ from loguru import logger
 from core.config import settings
 from models.agent import Agent
 from services.agent.core import AgentExecutor
+from services.agent.admin import AgentAdminService
 from utils.exceptions import NotFoundException, BadRequestException
 
 
@@ -104,10 +105,19 @@ class MasterPromptService:
                 max_tokens=2000  # 增加token限制以支持更长的Master Prompt
             )
             
-            # 4. 清理和验证响应
+            # 4. 增加智能体使用次数
+            try:
+                await AgentAdminService.increment_usage_count(self.db, agent.id)
+            except Exception as e:
+                logger.error(f"增加智能体使用次数失败: Agent ID={agent.id}, 错误={e}")
+
+            # 5. 清理和验证响应（移除标记，只保留真实内容）
             master_prompt = response.strip()
+            for marker in ("<<<START_PROMPT>>>", "<<<END_PROMPT>>>"):
+                master_prompt = master_prompt.replace(marker, "")
+            master_prompt = master_prompt.strip()
             
-            # 验证最小长度（确保有内容）
+            # 6. 验证最小长度（确保有内容）
             if len(master_prompt) < 50:
                 logger.warning(f"Master Prompt生成结果过短: {len(master_prompt)}字符")
                 return ""

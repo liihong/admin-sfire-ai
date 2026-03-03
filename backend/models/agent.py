@@ -60,6 +60,12 @@ class Agent(BaseModel):
         comment="描述信息",
     )
     
+    welcome_message: Mapped[Optional[str]] = mapped_column(
+        Text,
+        nullable=True,
+        comment="欢迎语（用户进入对话时展示）",
+    )
+    
     system_prompt: Mapped[str] = mapped_column(
         Text,
         nullable=False,

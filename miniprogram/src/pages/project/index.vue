@@ -60,6 +60,7 @@ const isLoading = ref(true)
 const loadError = ref(false) // 标记是否加载失败
 const refreshKey = ref(0) // 用于强制刷新 List 组件
 const drawerVisible = ref(false) // 控制抽屉显示/隐藏
+const isInitialLoading = ref(false) // 防止 onLoad 与 onShow 重复请求
 
 const hasActiveProject = computed(() => projectStore.hasActiveProject)
 const projectList = computed(() => projectStore.projectList)
@@ -158,39 +159,27 @@ async function refreshProjectList() {
 // 初始化加载数据
 async function initLoad() {
   try {
-    console.log('[ProjectIndex] 开始初始化加载...')
-    // 检查 store 中的刷新标记，如果有则触发刷新
     const needRefresh = projectStore.checkAndClearRefresh()
-
-    // 如果 store 中没有项目数据，也需要主动加载
     const hasNoData = projectStore.projectList.length === 0
 
-    console.log('[ProjectIndex] 初始化状态:', {
-      needRefresh,
-      hasNoData,
-      projectListLength: projectStore.projectList.length
-    })
-
     if (needRefresh || hasNoData) {
-      // 加载项目列表数据
+      isInitialLoading.value = true
       await refreshProjectList()
     } else {
-      // 如果不需要刷新且有数据，直接设置为非加载状态
-      console.log('[ProjectIndex] 使用缓存数据，跳过加载')
       isLoading.value = false
       loadError.value = false
     }
   } catch (error) {
     console.error('[ProjectIndex] 初始化加载失败:', error)
-    // 确保即使出错也显示内容
     isLoading.value = false
     loadError.value = true
+  } finally {
+    isInitialLoading.value = false
   }
 }
 
 // 页面加载时初始化加载
 onLoad(() => {
-  // 注意：onLoad 不支持 async，需要手动处理
   initLoad().catch(error => {
     console.error('onLoad 执行失败:', error)
     isLoading.value = false
@@ -198,21 +187,19 @@ onLoad(() => {
   })
 })
 
-// 页面显示时检查是否需要刷新
+// 页面显示时检查是否需要刷新（从其他页面返回时）
 onShow(() => {
-  // 检查 store 中的刷新标记，如果有则触发刷新
+  // 如果 onLoad 的 initLoad 正在执行，跳过避免重复请求
+  if (isInitialLoading.value) return
+
   const needRefresh = projectStore.checkAndClearRefresh()
-  
-  // 如果 store 中没有项目数据，也需要主动加载
   const hasNoData = projectStore.projectList.length === 0
 
   if (needRefresh || hasNoData) {
-    // 加载项目列表数据
     refreshProjectList().catch(error => {
       console.error('onShow 刷新失败:', error)
     })
   } else {
-    // 如果不需要刷新且有数据，直接设置为非加载状态
     isLoading.value = false
     loadError.value = false
   }

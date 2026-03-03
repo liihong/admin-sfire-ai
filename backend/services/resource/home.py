@@ -288,18 +288,24 @@ class HomeService:
                 return []
             
             # 转换为小程序需要的格式
-            # 数据库格式: { name, icon, link } 或 { icon, label, route, iconSize }
+            # 数据库格式: { name, icon, link } 或 { icon, label, route, iconSize, agent_id }
             # 小程序格式: { icon, label, route, iconSize }
             featured_modules = []
             for module in modules_data:
                 if isinstance(module, dict):
+                    route = module.get("route") or module.get("link", "")
+                    agent_id = module.get("agent_id") or module.get("agentId")
+                    # 当 route 为 aichat 页面且配置了 agent_id 时，自动追加 agentId 参数
+                    if agent_id is not None and "/pages/aichat/index" in route:
+                        sep = "&" if "?" in route else "?"
+                        route = f"{route}{sep}agentId={agent_id}"
                     # 兼容两种格式：
                     # 1. 旧格式: { name, icon, link }
-                    # 2. 新格式: { icon, label, route, iconSize }
+                    # 2. 新格式: { icon, label, route, iconSize, agent_id }
                     featured_modules.append({
                         "icon": module.get("icon", ""),
                         "label": module.get("label") or module.get("name", ""),  # 优先使用 label，兼容 name
-                        "route": module.get("route") or module.get("link", ""),  # 优先使用 route，兼容 link
+                        "route": route,
                         "iconSize": module.get("iconSize", 20)  # 默认图标大小，与组件默认值保持一致
                     })
             

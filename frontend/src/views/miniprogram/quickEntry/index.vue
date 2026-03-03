@@ -165,6 +165,18 @@
           />
         </el-form-item>
 
+        <el-form-item label="默认指令信息" prop="instructions">
+          <el-input
+            v-model="formData.instructions"
+            type="textarea"
+            :rows="3"
+            placeholder="请输入默认指令（用于自动填充到输入框，如快捷指令库）"
+            maxlength="2000"
+            show-word-limit
+          />
+          <div class="form-tip">快捷指令库类型时，点击入口会自动填充到输入框</div>
+        </el-form-item>
+
         <el-form-item label="图标类名" prop="icon_class">
           <el-input
             v-model="formData.icon_class"
@@ -369,6 +381,7 @@ const formData = reactive<QuickEntryCreate & { id?: number }>({
   type: "category",
   title: "",
   subtitle: "",
+  instructions: "",
   icon_class: "",
   bg_color: "",
   action_type: "agent",
@@ -474,6 +487,7 @@ const openDrawer = async (title: string, row?: QuickEntryItem) => {
           type: response.data.type,
           title: response.data.title,
           subtitle: response.data.subtitle || "",
+          instructions: response.data.instructions || "",
           icon_class: response.data.icon_class,
           bg_color: response.data.bg_color || "",
           action_type: response.data.action_type,
@@ -495,6 +509,7 @@ const openDrawer = async (title: string, row?: QuickEntryItem) => {
       type: "category",
       title: "",
       subtitle: "",
+      instructions: "",
       icon_class: "",
       bg_color: "",
       action_type: "agent",
@@ -563,6 +578,7 @@ const handleSubmit = async () => {
           type: formData.type,
           title: formData.title,
           subtitle: formData.subtitle || undefined,
+          instructions: formData.instructions || undefined,
           icon_class: formData.icon_class,
           bg_color: formData.bg_color || undefined,
           action_type: formData.action_type,

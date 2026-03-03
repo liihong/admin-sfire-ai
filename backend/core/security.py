@@ -36,7 +36,8 @@ def get_password_hash(password: str) -> str:
 
 def create_access_token(
     data: dict,
-    expires_delta: Optional[timedelta] = None
+    expires_delta: Optional[timedelta] = None,
+    client_long_session: bool = False
 ) -> str:
     """
     创建访问令牌
@@ -44,6 +45,7 @@ def create_access_token(
     Args:
         data: 要编码到令牌中的数据
         expires_delta: 过期时间增量
+        client_long_session: 是否为 PC 客户端长期会话（7天有效期，小程序端不使用）
     
     Returns:
         JWT 令牌字符串
@@ -52,6 +54,11 @@ def create_access_token(
     
     if expires_delta:
         expire = datetime.now(timezone.utc) + expires_delta
+    elif client_long_session:
+        # PC 客户端：7 天有效期，与 refresh_token 一致
+        expire = datetime.now(timezone.utc) + timedelta(
+            days=settings.JWT_CLIENT_ACCESS_TOKEN_EXPIRE_DAYS
+        )
     else:
         expire = datetime.now(timezone.utc) + timedelta(
             minutes=settings.JWT_ACCESS_TOKEN_EXPIRE_MINUTES

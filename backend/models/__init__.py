@@ -28,6 +28,7 @@ from .user_level import UserLevel as UserLevelModel
 from .quick_entry import QuickEntry, EntryType, ActionType, EntryTag
 from .inspiration import Inspiration, InspirationStatus
 from .recharge_package import RechargePackage
+from .user_voice_speaker import UserVoiceSpeaker
 
 __all__ = [
     "BaseModel",
@@ -66,4 +67,5 @@ __all__ = [
     "Inspiration",
     "InspirationStatus",
     "RechargePackage",
+    "UserVoiceSpeaker",
 ]

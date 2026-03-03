@@ -4,7 +4,7 @@
 """
 import json
 from decimal import Decimal
-from typing import Optional
+from typing import Optional, Dict, Any
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from sqlalchemy.orm import selectinload
@@ -583,7 +583,8 @@ class CoinAccountService:
         output_tokens: int = 0,
         model_name: str = "",
         agent_id: Optional[int] = None,
-        agent_name: Optional[str] = None
+        agent_name: Optional[str] = None,
+        extra_data: Optional[Dict[str, Any]] = None,
     ) -> dict:
         """
         ✅ 原子化结算算力（乐观锁 CAS + 解冻 + 扣除）
@@ -734,8 +735,19 @@ class CoinAccountService:
                     extra_data_dict["agent_name"] = agent_name
                 if model_name:
                     extra_data_dict["model_name"] = model_name
+
+                # 合并上游传入的调试信息（如完整提示词）
+                if extra_data:
+                    try:
+                        extra_data_dict.update(extra_data)
+                    except Exception as e:
+                        logger.warning(f"extra_data合并失败，将忽略传入extra_data: {e}")
                 
-                extra_data_json = json.dumps(extra_data_dict) if extra_data_dict else None
+                extra_data_json = (
+                    json.dumps(extra_data_dict, ensure_ascii=False, default=str)
+                    if extra_data_dict
+                    else None
+                )
 
                 consume_log = ComputeLog(
                     user_id=user_id,

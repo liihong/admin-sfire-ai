@@ -4,18 +4,19 @@
       class="founder-swiper"
       :indicator-dots="true"
       :autoplay="true"
-      :interval="4200"
+:interval="4000"
       :duration="500"
       indicator-color="rgba(255,255,255,0.3)"
       indicator-active-color="#ffffff"
       circular
+:display-multiple-items="1"
     >
-      <swiper-item v-for="(item, index) in messageList" :key="index">
-       <view class="message-card">
-          <view class="message-title">{{ item.title }}</view>
-          <view class="message-desc">{{ item.desc }}</view>
-          <view class="message-btn" @tap="handleViewStory">
-            <text class="btn-text">查看故事</text>
+     <swiper-item v-for="(item, index) in bannerList" :key="item.id || index">
+        <view class="banner-card" @tap="handleBannerTap(item)">
+          <image v-if="item.image_url" class="banner-image" :src="item.image_url" mode="aspectFill" />
+          <view v-else class="message-card">
+            <view class="message-title">{{ item.title }}</view>
+           <view class="message-desc">{{ item.title }}</view>
           </view>
         </view>
       </swiper-item>
@@ -25,33 +26,35 @@
 
 <script setup lang="ts">
 import { computed } from 'vue'
-import type { ArticleItem } from '@/api/home'
+import type { BannerItem } from '@/api/home'
 
-// 接收父组件传递的创始人故事数据
+// 接收父组件传递的 banners 数据（home_top）
 const props = defineProps<{
-  founderStories?: ArticleItem[]
+  banners?: BannerItem[]
 }>()
 
-// 转换为组件需要的格式
-const messageList = computed(() => {
-  if (props.founderStories && props.founderStories.length > 0) {
-    return props.founderStories.map(item => ({
-      id: item.id,
-      title: item.title,
-      desc: item.summary || item.title
-    }))
+// 使用父组件接口查询的 banners 数据
+const bannerList = computed(() => {
+  if (props.banners && props.banners.length > 0) {
+    return props.banners
   }
-  // 默认数据
+  // 默认占位
   return [{
     id: 0,
     title: '武峥:火源AI创始人',
-    desc: '10年北京代码生涯,回乡做AI,只想帮你每天多省出一杯茶的时间。'
+    image_url: '',
+    link_url: '',
+    link_type: 'none' as const,
+    position: 'home_top' as const,
+    sort_order: 0
   }]
 })
 
-const handleViewStory = () => {
-  if (messageList.value.length > 0 && messageList.value[0].id > 0) {
-    uni.navigateTo({ url: `/pages/article/detail?id=${messageList.value[0].id}` })
+const handleBannerTap = (item: BannerItem) => {
+  if (item.link_type === 'internal' && item.link_url) {
+    uni.navigateTo({ url: item.link_url })
+  } else if (item.link_type === 'external' && item.link_url) {
+    uni.navigateTo({ url: `/pages/webview/index?url=${encodeURIComponent(item.link_url)}` })
   }
 }
 </script>
@@ -67,6 +70,18 @@ const handleViewStory = () => {
     height: 350rpx;
   }
 
+        .banner-card {
+          width: 100%;
+          height: 100%;
+          border-radius: $radius-lg;
+          overflow: hidden;
+        }
+    
+        .banner-image {
+          width: 100%;
+          height: 100%;
+          display: block;
+        }
   .message-card {
     position: relative;
     width: 100%;

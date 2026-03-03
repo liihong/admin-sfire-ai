@@ -8,6 +8,7 @@ from . import (
     auth, dashboard, agents, admin_users, banner,
     home_config, llm_models, menu, users, dictionary, user_levels, quick_entries, article, upload
 )
+from . import tools as admin_tools
 
 # 尝试导入可选的路由
 try:
@@ -41,6 +42,7 @@ admin_router.include_router(user_levels.router, prefix="/user-levels", tags=["�
 admin_router.include_router(quick_entries.router, prefix="/quick-entries", tags=["快捷入口"])
 admin_router.include_router(article.router, prefix="/articles", tags=["文章管理"])
 admin_router.include_router(upload.router, prefix="", tags=["文件上传"])
+admin_router.include_router(admin_tools.router, prefix="/tools", tags=["B端-便捷工具包"])
 
 if roles_available and hasattr(roles, "router"):
     admin_router.include_router(roles.router, prefix="/roles", tags=["角色"])

@@ -96,6 +96,7 @@ class AgentService(BaseService):
             name=agent_data.name,
             icon=agent_data.icon,
             description=agent_data.description,
+            welcome_message=getattr(agent_data, "welcomeMessage", None) or None,
             system_prompt=agent_data.systemPrompt,  # 驼峰 -> 下划线
             model=agent_data.model,
             config=agent_data.config.model_dump() if agent_data.config else None,
@@ -140,6 +141,8 @@ class AgentService(BaseService):
             agent.icon = update_data["icon"]
         if "description" in update_data:
             agent.description = update_data["description"]
+        if "welcomeMessage" in update_data:
+            agent.welcome_message = update_data["welcomeMessage"]
         if "systemPrompt" in update_data:
             agent.system_prompt = update_data["systemPrompt"]
         if "model" in update_data:

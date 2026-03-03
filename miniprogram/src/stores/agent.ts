@@ -18,6 +18,11 @@ import { storage } from '@/utils/storage'
  */
 export interface ActiveAgent {
   id: string
+  /**
+   * 页面展示用标题（来自功能入口/快捷入口等）
+   * 兼容旧数据：可能不存在
+   */
+  label?: string
   name: string
   icon?: string
   description?: string
@@ -45,6 +50,9 @@ export const useAgentStore = defineStore('agent', () => {
   
   // 获取当前智能体 ID
   const getActiveAgentId = computed(() => activeAgent.value?.id || '')
+
+  // 页面展示名称（优先 label，其次 name）
+  const getActiveAgentLabel = computed(() => activeAgent.value?.label || activeAgent.value?.name || '')
 
   // ============== Actions ==============
 
@@ -105,6 +113,7 @@ export const useAgentStore = defineStore('agent', () => {
           // 只存储基本信息，不包含 system_prompt
           const agentInfo: ActiveAgent = {
             id: String(agent.id),
+            label: agent.name,
             name: agent.name,
             icon: agent.icon,
             description: agent.description
@@ -115,6 +124,7 @@ export const useAgentStore = defineStore('agent', () => {
           // 如果找不到，使用默认值
           const agentInfo: ActiveAgent = {
             id: agentId,
+            label: '智能体',
             name: '智能体',
             icon: '',
             description: ''
@@ -126,6 +136,7 @@ export const useAgentStore = defineStore('agent', () => {
         // 失败时使用默认值
         const agentInfo: ActiveAgent = {
           id: agentId,
+          label: '智能体',
           name: '智能体',
           icon: '',
           description: ''
@@ -137,6 +148,7 @@ export const useAgentStore = defineStore('agent', () => {
       // 失败时使用默认值
       const agentInfo: ActiveAgent = {
         id: agentId,
+        label: '智能体',
         name: '智能体',
         icon: '',
         description: ''
@@ -154,15 +166,21 @@ export const useAgentStore = defineStore('agent', () => {
    * 
    * @param agent 智能体信息（至少包含 id 和 name）
    */
-  function setActiveAgent(agent: { id: string; name: string; icon?: string; description?: string }) {
+  function setActiveAgent(
+    agent: { id: string; name: string; label?: string; icon?: string; description?: string },
+    options?: { persist?: boolean }
+  ) {
     const agentInfo: ActiveAgent = {
       id: agent.id,
+      label: agent.label ?? agent.name,
       name: agent.name,
       icon: agent.icon,
       description: agent.description
     }
     activeAgent.value = agentInfo
-    saveActiveAgentToStorage(agentInfo)
+    if (options?.persist !== false) {
+      saveActiveAgentToStorage(agentInfo)
+    }
   }
 
   /**
@@ -198,6 +216,7 @@ export const useAgentStore = defineStore('agent', () => {
     // Getters
     hasActiveAgent,
     getActiveAgentId,
+    getActiveAgentLabel,
     
     // Actions
     setActiveAgent,

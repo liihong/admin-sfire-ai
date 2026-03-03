@@ -31,6 +31,7 @@ class AgentBase(BaseModel):
     name: str = Field(..., min_length=1, max_length=128, description="智能体名称")
     icon: str = Field(..., max_length=256, description="图标URL或图标标识")
     description: Optional[str] = Field(None, description="描述信息")
+    welcomeMessage: Optional[str] = Field(None, description="欢迎语（用户进入对话时展示）")
     systemPrompt: str = Field(..., min_length=1, description="系统提示词")
     model: str = Field(..., max_length=128, description="使用的AI模型")
     config: AgentConfig = Field(default_factory=AgentConfig, description="配置参数")
@@ -69,6 +70,7 @@ class AgentUpdate(BaseModel):
     name: Optional[str] = Field(None, min_length=1, max_length=128)
     icon: Optional[str] = Field(None, max_length=256)
     description: Optional[str] = None
+    welcomeMessage: Optional[str] = Field(None, description="欢迎语")
     systemPrompt: Optional[str] = Field(None, min_length=1)
     model: Optional[str] = Field(None, max_length=128)
     config: Optional[AgentConfig] = None
@@ -90,6 +92,7 @@ class AgentResponse(BaseModel):
     name: str = Field(..., description="智能体名称")
     icon: str = Field(..., description="图标")
     description: str = Field(default="", description="描述信息")
+    welcomeMessage: Optional[str] = Field(None, description="欢迎语")
     systemPrompt: str = Field(..., description="系统提示词")
     model: str = Field(..., description="使用的AI模型")
     config: AgentConfig = Field(..., description="配置参数")

@@ -353,6 +353,7 @@ export interface MPAgentInfo {
   name: string;
   icon: string;
   description: string;
+  welcomeMessage?: string; // 欢迎语（数据库配置，空则使用前端默认）
 }
 
 /**
@@ -381,6 +382,7 @@ export interface MPChatRequest {
   conversation_id?: number; // 会话ID（可选）
   project_id?: number;
   agent_type: string;
+  agent_id?: number; // 智能体数据库ID（可选，用于 usage_count 统计，当 agent_type 为预设时需传）
   messages: MPChatMessage[];
   model_type?: string;
   temperature?: number;

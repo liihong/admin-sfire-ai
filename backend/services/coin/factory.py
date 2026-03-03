@@ -271,7 +271,8 @@ class CoinServiceFactory:
         output_tokens: int = 0,
         model_name: str = "",
         agent_id: Optional[int] = None,
-        agent_name: Optional[str] = None
+        agent_name: Optional[str] = None,
+        extra_data: Optional[dict] = None,
     ) -> dict:
         """
         原子化结算算力（乐观锁 CAS + 解冻 + 扣除）
@@ -297,7 +298,8 @@ class CoinServiceFactory:
             output_tokens=output_tokens,
             model_name=model_name,
             agent_id=agent_id,
-            agent_name=agent_name
+            agent_name=agent_name,
+            extra_data=extra_data,
         )
     
     async def refund_amount_atomic(

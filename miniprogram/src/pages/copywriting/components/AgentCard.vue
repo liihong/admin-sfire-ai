@@ -14,7 +14,9 @@
 
 
 
-        <text class="card-subtitle">IP 档案 · AI 已就位</text>
+      <view class="card-subtitle">IP 档案 · AI 已就位</view>
+          <!-- <view class="info-value agent-value">{{ currentAgentName }}</view> -->
+
       </view>
       <view class="card-status">
         <view class="status-pulse"></view>
@@ -26,8 +28,7 @@
         <text class="info-label">
           <SvgIcon name="agent" size="20" color="#3B82F6" /> 当前智能体
         </text>
-         <text class="info-value agent-value">{{ currentAgentName }}</text>
-
+    <text class="info-value agent-value">{{ currentAgentName }}</text>
       </view> 
          <view class="info-row" v-if="project.industry">
         <text class="info-label">
@@ -99,7 +100,7 @@ const props = defineProps<Props>()
 
 // 从 store 获取当前智能体名称
 const currentAgentName = computed(() => {
-  const name = agentStore.activeAgent?.name
+  const name = agentStore.activeAgent?.label || agentStore.activeAgent?.name
   // 防御性检查：确保名称不为空且是字符串类型
   return (name && typeof name === 'string') ? name : '未选择'
 })

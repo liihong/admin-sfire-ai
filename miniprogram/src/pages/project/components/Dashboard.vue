@@ -49,7 +49,9 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
-import { useProjectStore, DEFAULT_PERSONA_SETTINGS } from '@/stores/project'
+import { useProjectStore } from '@/stores/project'
+import { useQuickEntryStore } from '@/stores/quickEntry'
+import { useAgentStore } from '@/stores/agent'
 import { useProject } from '@/composables/useProject'
 import { useNavigation } from '@/composables/useNavigation'
 import { createInspiration } from '@/api/inspiration'
@@ -72,6 +74,8 @@ const emit = defineEmits<{
 
 // Store
 const projectStore = useProjectStore()
+const quickEntryStore = useQuickEntryStore()
+const agentStore = useAgentStore()
 const activeProject = computed(() => projectStore.activeProject)
 
 // Composables
@@ -84,14 +88,16 @@ const showInspirationCard = ref(false)
 const inspirationText = ref('')
 const userName = ref('创作者')
 const userPoints = ref(1280)
-// 修改 categoryList 类型，保留 action_type 和 action_value 字段
+// 修改 categoryList 类型，保留 action_type、action_value 和 instructions 字段
 const categoryList = ref<Array<{
   key: string
   label: string
   icon: string
   color: string
+  id?: number
   action_type?: 'agent' | 'skill' | 'prompt' | 'url'
   action_value?: string
+  instructions?: string | null
 }>>([])
 const commandList = ref<QuickEntry[]>([])
 
@@ -106,15 +112,17 @@ async function loadQuickEntries() {
       getQuickEntries('command')
     ])
 
-    // 处理分类数据，保留 action_type 和 action_value
+    // 处理分类数据，保留 action_type、action_value 和 instructions（用于默认指令提示语）
     if (categoryResponse.code === 200 && categoryResponse.data?.entries) {
       categoryList.value = categoryResponse.data.entries.map((entry: QuickEntry) => ({
         key: entry.unique_key || String(entry.id),
         label: entry.title,
         icon: entry.icon_class,
         color: entry.bg_color || '#F69C0E',
+        id: entry.id,
         action_type: entry.action_type,
-        action_value: entry.action_value
+        action_value: entry.action_value,
+        instructions: entry.instructions
       }))
     }
 
@@ -199,8 +207,10 @@ function handleCategoryClick(category: {
   label: string
   icon: string
   color: string
+  id?: number
   action_type?: 'agent' | 'skill' | 'prompt' | 'url'
   action_value?: string
+  instructions?: string | null
 }) {
 
   // 规范化 action_type，去除空格并转为小写，便于判断
@@ -215,6 +225,34 @@ function handleCategoryClick(category: {
       })
       return
     }
+
+    // 同步设置当前智能体展示标题（用于对话页标题展示）
+    agentStore.setActiveAgent({
+      id: String(category.action_value),
+      name: category.label,
+      label: category.label,
+      icon: '',
+      description: ''
+    })
+
+    // 设置选中的快捷指令到 store（含 instructions，用于 copywriting 页面的默认指令提示语）
+    quickEntryStore.setActiveQuickEntry({
+      id: category.id ?? 0,
+      unique_key: category.key,
+      type: 'category',
+      title: category.label,
+      subtitle: null,
+      instructions: category.instructions ?? null,
+      icon_class: category.icon,
+      bg_color: category.color,
+      action_type: 'agent',
+      action_value: category.action_value,
+      tag: 'none',
+      priority: 0,
+      status: 1,
+      created_at: null,
+      updated_at: null
+    })
 
     // 构建跳转参数
     const params: Record<string, string> = {

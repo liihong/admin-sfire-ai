@@ -58,7 +58,7 @@
     </view>
 
     <!-- 我的算力卡片 -->
-   <view class="stat-card" v-if="authStore.isLoggedIn">
+    <view class="stat-card" v-if="userInfo.level !== 'normal'">
       <view class="stat-header">
         <view class="stat-title-wrapper">
           <SvgIcon name="suanli" size="32" color="#F37021" />

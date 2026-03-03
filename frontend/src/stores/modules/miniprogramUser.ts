@@ -112,8 +112,10 @@ export const useMPUserStore = defineStore({
     // 刷新token
     async refreshToken(): Promise<boolean> {
       try {
+        const token = this.$state.refreshToken;
+        if (!token) return false;
         const { refreshClientTokenApi } = await import("@/api/modules/miniprogram");
-        const { data } = await refreshClientTokenApi(this.refreshToken);
+        const { data } = await refreshClientTokenApi(token);
         this.setToken(data.token, data.expiresIn);
         this.setRefreshToken(data.refreshToken);
         return true;

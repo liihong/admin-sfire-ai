@@ -18,6 +18,7 @@ from services.resource import ProjectService
 from services.shared.llm_service import LLMFactory
 from services.resource import LLMModelService
 from services.agent import AgentService
+from services.agent.admin import AgentAdminService
 from services.conversation.business import ConversationBusinessService
 from services.content import AIService
 from services.coin import CoinServiceFactory
@@ -130,6 +131,18 @@ async def save_conversation_background_task(
             )
 
 
+async def increment_agent_usage_background_task(agent_id: int):
+    """
+    后台任务：增加智能体使用次数（agents 表 usage_count 字段）
+    """
+    try:
+        logger.info(f"📊 [usage_count] 后台任务开始: Agent ID={agent_id}")
+        result = await AgentAdminService.increment_usage_count(None, agent_id)
+        logger.info(f"📊 [usage_count] 后台任务完成: Agent ID={agent_id}, success={result}")
+    except Exception as e:
+        logger.error(f"❌ [usage_count] 增加失败: Agent ID={agent_id}, 错误={e}", exc_info=True)
+
+
 async def save_conversation_fallback(
     conversation_id: int,
     user_message: str,
@@ -206,6 +219,7 @@ class ChatRequest(BaseModel):
     conversation_id: Optional[int] = Field(default=None, description="会话ID（可选，如果不存在则创建新会话）")
     project_id: Optional[int] = Field(default=None, description="项目ID，用于获取IP人设信息")
     agent_type: str = Field(default=AgentType.IP_COLLECTOR, description="智能体类型")
+    agent_id: Optional[int] = Field(default=None, description="智能体数据库ID（可选，用于 usage_count 统计，当 agent_type 为预设时必传）")
     messages: List[ChatMessage] = Field(..., description="对话历史消息列表")
     model_type: Optional[str] = Field(default=None, description="LLM模型类型（可选，不传则使用智能体配置的模型）")
     temperature: Optional[float] = Field(default=None, ge=0.0, le=2.0, description="生成温度")
@@ -239,16 +253,25 @@ class AgentListResponse(BaseModel):
 # ============== Helper Functions ==============
 
 def build_final_system_prompt(agent_system_prompt: str, ip_persona_prompt: str) -> str:
-    """融合智能体人设和IP画像，构建最终的System Prompt"""
-    parts = [agent_system_prompt]
+    """
+    融合补充人设信息 + 智能体能力，构建最终的System Prompt。
     
+    拼接顺序（从上到下）：
+    1. 补充人设配置（可选，来自 persona_settings）
+    2. 智能体系统提示词（agent_system_prompt）
+    """
+    parts = []
+
+    # 1. 补充人设配置（如语气、禁忌、关键词等）
     if ip_persona_prompt:
-        parts.append("\n\n" + "=" * 40)
-        parts.append("\n在创作时，请严格遵循以下IP人设设定，确保内容符合该IP的风格特点：\n")
-        parts.append(ip_persona_prompt)
-        parts.append("\n" + "=" * 40)
-        parts.append("\n请在保持智能体专业能力的同时，融入以上IP的人设特点进行创作。")
-    
+        parts.append("【补充人设信息】\n")
+        parts.append(ip_persona_prompt.strip())
+
+    # 2. 智能体系统提示词（放在最后，明确当前技能要做什么）
+    if agent_system_prompt:
+        parts.append("\n\n" + "=" * 40 + "\n")
+        parts.append(agent_system_prompt.strip())
+
     return "".join(parts)
 
 
@@ -286,41 +309,23 @@ async def create_or_get_conversation(
     current_user: User,
     db: AsyncSession,
     agent_model_type: str,
+    agent_id: Optional[int] = None,
     db_agent=None
 ) -> int:
     """
     创建或获取会话ID（复用函数）
     
     Args:
-        conversation_service: 会话业务服务
-        request: 请求对象
-        current_user: 当前用户
-        db: 数据库会话
-        agent_model_type: 模型类型
-        db_agent: 数据库智能体对象（可选）
-    
-    Returns:
-        会话ID
+        agent_id: agents 表主键（request.agent_id 或从 agent_type 解析）
+        db_agent: Agent 对象（用于 agent_name），可选
     """
     from schemas.conversation import ConversationCreate
-    from sqlalchemy import select
-    from models.agent import Agent
     
     conversation_id = request.conversation_id
+    agent_name = db_agent.name if db_agent else "新对话"
     
     if not conversation_id:
         # 创建新会话
-        agent_name = "新对话"
-        agent_id = None
-        if request.agent_type.isdigit():
-            agent_id = int(request.agent_type)
-            if not db_agent:
-                result = await db.execute(select(Agent).where(Agent.id == agent_id))
-                db_agent = result.scalar_one_or_none()
-            if db_agent:
-                agent_name = db_agent.name
-        
-        # 获取用户的第一句话（截取前30个字符）
         first_message = ""
         for msg in request.messages:
             if msg.role == "user" and msg.content:
@@ -329,9 +334,7 @@ async def create_or_get_conversation(
                     first_message += "..."
                 break
         
-        # 生成会话标题：智能体名称 + 用户第一句话
         title = f"{agent_name}: {first_message}" if first_message else agent_name
-        
         conversation_data = ConversationCreate(
             agent_id=agent_id,
             project_id=request.project_id,
@@ -344,7 +347,6 @@ async def create_or_get_conversation(
         )
         return conversation.id
     else:
-        # 验证会话是否存在
         try:
             await conversation_service.get_conversation(
                 conversation_id=conversation_id,
@@ -352,20 +354,7 @@ async def create_or_get_conversation(
             )
             return conversation_id
         except NotFoundException:
-            # 会话不存在，创建新会话
             logger.warning(f"会话 {conversation_id} 不存在，自动创建新会话（用户ID: {current_user.id}）")
-            
-            agent_name = "新对话"
-            agent_id = None
-            if request.agent_type.isdigit():
-                agent_id = int(request.agent_type)
-                if not db_agent:
-                    result = await db.execute(select(Agent).where(Agent.id == agent_id))
-                    db_agent = result.scalar_one_or_none()
-                if db_agent:
-                    agent_name = db_agent.name
-            
-            # 获取用户的第一句话
             first_message = ""
             for msg in request.messages:
                 if msg.role == "user" and msg.content:
@@ -373,9 +362,7 @@ async def create_or_get_conversation(
                     if len(msg.content) > 30:
                         first_message += "..."
                     break
-            
             title = f"{agent_name}: {first_message}" if first_message else agent_name
-            
             conversation_data = ConversationCreate(
                 agent_id=agent_id,
                 project_id=request.project_id,
@@ -398,7 +385,9 @@ async def settle_coin_cost(
     coin_service,
     db_agent=None,
     agent_type: str = None,
-    is_stream: bool = False
+    is_stream: bool = False,
+    system_prompt: str = "",
+    messages_for_ai: list = None,
 ) -> bool:
     """
     算力结算（复用函数）
@@ -454,6 +443,12 @@ async def settle_coin_cost(
             logger.info(f"🔍 [原子结算] 准备调用settle_amount_atomic: user_id={user_id}, request_id={request_id}, actual_cost={actual_cost}")
             
             try:
+                extra_data = {
+                    "llm_system_prompt": system_prompt or "",
+                    "llm_user_prompt": user_prompt or "",
+                    "llm_messages": messages_for_ai or [],
+                    "is_stream": bool(is_stream),
+                }
                 settle_result = await settle_coin_service.settle_amount_atomic(
                     user_id=user_id,
                     request_id=request_id,
@@ -462,7 +457,8 @@ async def settle_coin_cost(
                     output_tokens=output_tokens,
                     model_name=llm_model.name,
                     agent_id=agent_id_for_log,
-                    agent_name=agent_name_for_log
+                    agent_name=agent_name_for_log,
+                    extra_data=extra_data,
                 )
             except Exception as settle_error:
                 logger.exception(f"❌ [原子结算] settle_amount_atomic调用异常: {str(settle_error)}")
@@ -592,7 +588,8 @@ async def list_agents(
             "id": agent.id,  # 统一为 number 类型
             "name": agent.name,
             "icon": agent.icon,
-            "description": agent.description or ""
+            "description": agent.description or "",
+            "welcomeMessage": agent.welcome_message or ""  # 欢迎语，空则前端使用默认
         })
     
     return success(data={"agents": agents}, msg="获取成功")
@@ -610,82 +607,93 @@ async def generate_chat(
         # 0. 初始化会话服务
         conversation_service = ConversationBusinessService(db)
 
-        # 0.1. 获取智能体配置和模型类型（提前获取，避免重复查询）
+        # 0.1. 解析 agent_id（agents 表主键，唯一标识）
+        # agent_id 来源：request.agent_id（前端传入）或 request.agent_type（当为数字时）
+        # db_agent：用 agent_id 查出的 Agent 对象，用于配置、会话标题、算力流水、usage_count
+        from sqlalchemy import select, or_
+        from models.agent import Agent
+
+        agent_id = request.agent_id
+        if agent_id is None and request.agent_type and request.agent_type.isdigit():
+            agent_id = int(request.agent_type)
+        logger.info(f"📊 [Chat] agent_id={agent_id}, request.agent_id={request.agent_id}, request.agent_type={request.agent_type}")
+
         agent_config = None
         agent_type_source = "preset"
         db_agent = None
         agent_model_type = request.model_type or "doubao"  # 默认值
 
-        try:
-            agent_config = get_agent_config(request.agent_type)
-        except ValueError:
-            # 如果预设配置中找不到，尝试从数据库查询（可能是数据库ID）
-            try:
-                agent_id = int(request.agent_type)
-                from sqlalchemy import select, or_
-                from models.agent import Agent
-
-                result = await db.execute(
-                    select(Agent).where(
-                        Agent.id == agent_id,
-                        # 系统自用智能体可以绕过上架检查，普通智能体必须上架
-                        or_(Agent.is_system == 1, Agent.status == 1)
-                    )
+        # 优先用 agent_id 查数据库（前端传 agent_id 时，agent_type 可能为预设如 ip_collector）
+        if agent_id is not None:
+            result = await db.execute(
+                select(Agent).where(
+                    Agent.id == agent_id,
+                    or_(Agent.is_system == 1, Agent.status == 1)
                 )
-                db_agent = result.scalar_one_or_none()
+            )
+            db_agent = result.scalar_one_or_none()
+            if db_agent:
+                agent_config = {
+                    "system_prompt": db_agent.system_prompt,
+                    "temperature": db_agent.config.get("temperature", 0.7) if db_agent.config else 0.7,
+                    "max_tokens": db_agent.config.get("max_tokens", 2048) if db_agent.config else 2048,
+                }
+                agent_type_source = "database"
+                agent_model_type = db_agent.model
+                logger.info(f"📊 [Chat] 使用数据库智能体: id={db_agent.id}, name={db_agent.name}")
 
-                if db_agent:
-                    # 从数据库智能体构建配置
-                    agent_config = {
-                        "system_prompt": db_agent.system_prompt,
-                        "temperature": db_agent.config.get("temperature", 0.7) if db_agent.config else 0.7,
-                        "max_tokens": db_agent.config.get("max_tokens", 2048) if db_agent.config else 2048,
-                    }
-                    agent_type_source = "database"
-                    # 使用数据库智能体配置的模型
-                    agent_model_type = db_agent.model
-                    if settings.DEBUG:
-                        logger.debug(f"使用数据库智能体配置的模型: {agent_model_type}")
-                else:
-                    available = ", ".join(AGENT_CONFIGS.keys())
-                    raise BadRequestException(f"智能体 ID '{agent_id}' 不存在或已下架。可用类型: {available}")
+        # 若 db_agent 不存在，尝试用 agent_type 解析（预设或旧版传参）
+        if not agent_config:
+            try:
+                agent_config = get_agent_config(request.agent_type)
+                if agent_id is None and request.agent_type.isdigit():
+                    agent_id = int(request.agent_type)
+                    result = await db.execute(
+                        select(Agent).where(
+                            Agent.id == agent_id,
+                            or_(Agent.is_system == 1, Agent.status == 1)
+                        )
+                    )
+                    db_agent = result.scalar_one_or_none()
             except ValueError:
-                # agent_type 不是数字，也不是预设枚举值
+                if agent_id is not None:
+                    raise BadRequestException(f"智能体 ID {agent_id} 不存在或已下架")
                 available = ", ".join(AGENT_CONFIGS.keys())
                 raise BadRequestException(f"未知的智能体类型: '{request.agent_type}'。可用类型: {available}")
 
         if not agent_config:
-            available = ", ".join(AGENT_CONFIGS.keys())
-            raise BadRequestException(f"无法获取智能体配置: '{request.agent_type}'。可用类型: {available}")
+            raise BadRequestException(f"无法获取智能体配置: '{request.agent_type}'")
 
-        # 如果是预设智能体且没有提供model_type，使用默认值
         if agent_type_source == "preset" and not request.model_type:
             agent_model_type = "doubao"
-            if settings.DEBUG:
-                logger.debug(f"使用默认模型: {agent_model_type}")
 
         # 0.2. 不再验证模型类型，所有模型信息从数据库读取
         # 这样可以支持动态添加新模型，无需修改代码
         if settings.DEBUG:
             logger.debug(f"使用模型类型: {agent_model_type} (来源: {agent_type_source})")
 
-        # 0.1. 处理会话ID（如果不存在则创建新会话）
+        # 0.2. 处理会话ID（如果不存在则创建新会话）
         conversation_id = await create_or_get_conversation(
             conversation_service=conversation_service,
             request=request,
             current_user=current_user,
             db=db,
             agent_model_type=agent_model_type,
+            agent_id=agent_id,
             db_agent=db_agent
         )
 
-        # 1. 获取项目IP画像（如果提供了project_id）
+        # 1. 获取项目补充人设信息（如果提供了project_id）
         ip_persona_prompt = ""
         if request.project_id:
             project_service = ProjectService(db)
             project = await project_service.get_project_by_id(request.project_id, user_id=current_user.id)
-            if project:
-                ip_persona_prompt = PromptBuilder.get_ip_persona_prompt_from_project(project)
+            if project and project.persona_settings:
+                # 始终提取补充人设配置（语气、禁忌、关键词等），排除 master_prompt 仅保留补充信息
+                ip_persona_prompt = PromptBuilder.extract_persona_prompt(
+                    project.persona_settings or {},
+                    master_prompt="",  # 显式排除核心人设，只保留补充人设
+                )
 
         # 2. 获取用户最新消息作为prompt
         user_prompt = get_latest_user_message(request.messages)
@@ -722,19 +730,12 @@ async def generate_chat(
         #     from loguru import logger
         #     logger.warning(f"向量检索失败，使用原始消息: {e}")
         
-        # 6. 构建最终System Prompt（使用优化后的消息或原始消息构建上下文）
+        # 6. 构建最终System Prompt（system 只放“规则/人设/能力”，对话历史放到 messages，避免重复和额外 token）
         base_system_prompt = agent_config["system_prompt"]
-        
-        # 如果有优化的消息，构建上下文
-        if relevant_chunks:
-            # 使用优化后的消息构建上下文（只包含相关片段和最近消息）
-            conversation_context = ""
-        else:
-            # 回退到原始逻辑：使用全部消息构建上下文
-            conversation_context = build_conversation_context(optimized_messages)
+        conversation_context = ""
         
         final_system_prompt = build_final_system_prompt(
-            agent_system_prompt=base_system_prompt + conversation_context,
+            agent_system_prompt=base_system_prompt,
             ip_persona_prompt=ip_persona_prompt,
         )
 
@@ -910,6 +911,13 @@ async def generate_chat(
         # 将 final_system_prompt 和 user_prompt 转换为 messages 格式
         messages_for_ai = []
 
+        # 规范化消息，去掉连续重复（避免前端/上游重复发送导致 token 浪费）
+        normalized_messages = []
+        for msg in optimized_messages or []:
+            if normalized_messages and msg.role == normalized_messages[-1].role and msg.content == normalized_messages[-1].content:
+                continue
+            normalized_messages.append(msg)
+
         # 🔍 智能处理长system prompt: 将长提示词拆分成多个message,避免网关503错误
         # 策略:
         # 1. 短提示词(<3000 chars): 使用单个 system message
@@ -973,7 +981,7 @@ async def generate_chat(
             for i, part in enumerate(parts):
                 logger.info(f"    Part {i+1}: {len(part)} chars")
 
-            # 构建消息列表: 多个 system message + user message
+            # 构建消息列表: 多个 system message + 对话消息
             messages_for_ai = []
             for part in parts:
                 messages_for_ai.append({
@@ -981,21 +989,12 @@ async def generate_chat(
                     "content": part
                 })
 
-            # 添加对话历史(如果有)
-            # 注意: 如果有对话历史,需要保持 user-assistant 交替格式
-            if len(request.messages) > 1:
-                # 将历史消息添加到 system messages 之后
-                for msg in request.messages[:-1]:
-                    messages_for_ai.append({
-                        "role": msg.role,
-                        "content": msg.content
-                    })
-
-            # 添加当前用户问题
-            messages_for_ai.append({
-                "role": "user",
-                "content": user_prompt
-            })
+            # 添加对话消息（包含历史与本轮用户输入）
+            for msg in normalized_messages:
+                messages_for_ai.append({
+                    "role": msg.role,
+                    "content": msg.content
+                })
 
         else:
             # System prompt长度适中,使用标准格式(带缓存)
@@ -1007,10 +1006,12 @@ async def generate_chat(
                     "role": "system",
                     "content": final_system_prompt
                 })
-            messages_for_ai.append({
-                "role": "user",
-                "content": user_prompt
-            })
+            # 添加对话消息（包含历史与本轮用户输入）
+            for msg in normalized_messages:
+                messages_for_ai.append({
+                    "role": msg.role,
+                    "content": msg.content
+                })
 
         # 10. 使用 AIService（与 admin/ai 保持一致，避免差异）
         ai_service = AIService(db)
@@ -1137,6 +1138,8 @@ async def generate_chat(
                                 request_id=freeze_info['request_id'],
                                 user_prompt=user_prompt,
                                 assistant_content=assistant_content,
+                                system_prompt=final_system_prompt,
+                                messages_for_ai=messages_for_ai,
                                 llm_model=llm_model,
                                 coin_service=coin_service,
                                 db_agent=db_agent,
@@ -1165,6 +1168,10 @@ async def generate_chat(
                         user_tokens=len(user_prompt) // 4,  # 粗略估算token数
                         assistant_tokens=len(assistant_content) // 4,
                     )
+                    # 增加智能体使用次数（使用 agent_id，即 agents 表主键）
+                    if agent_id is not None:
+                        logger.info(f"📊 [usage_count] 准备增加 Agent ID={agent_id} 使用次数")
+                        background_tasks.add_task(increment_agent_usage_background_task, agent_id)
 
                 except (BadRequestException, NotFoundException) as e:
                     # 业务异常直接传递
@@ -1265,6 +1272,8 @@ async def generate_chat(
                     request_id=freeze_info['request_id'],
                     user_prompt=user_prompt,
                     assistant_content=assistant_content,
+                    system_prompt=final_system_prompt,
+                    messages_for_ai=messages_for_ai,
                     llm_model=llm_model,
                     coin_service=coin_service,
                     db_agent=db_agent,
@@ -1288,6 +1297,10 @@ async def generate_chat(
                 user_tokens=len(user_prompt) // 4,
                 assistant_tokens=len(assistant_content) // 4,
             )
+            # 增加智能体使用次数（使用 agent_id，即 agents 表主键）
+            if agent_id is not None:
+                logger.info(f"📊 [usage_count] 准备增加 Agent ID={agent_id} 使用次数（非流式）")
+                background_tasks.add_task(increment_agent_usage_background_task, agent_id)
             
             return ChatResponse(
                 success=True,

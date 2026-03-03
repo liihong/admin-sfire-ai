@@ -325,7 +325,7 @@ class AgentAdminService:
             是否成功
         """
         from sqlalchemy import update
-        from db import async_session_maker
+        from db.session import async_session_maker
         
         # 使用独立的数据库会话，确保统计更新被正确提交
         # 这对于流式响应场景特别重要，因为外层事务可能在流式响应完成前就提交了

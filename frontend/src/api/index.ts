@@ -61,8 +61,11 @@ class RequestHttp {
         const isClientRequest = config.url && (config.url.includes("/v1/client") || config.url.includes("/v2/client"));
         const store = isClientRequest ? mpUserStore : userStore;
 
-        // Token自动刷新逻辑
-        if (store && store.isTokenExpiringSoon && store.isTokenExpiringSoon() && store.refreshToken) {
+        // 排除 refresh 接口，避免死锁（refresh 请求本身不需要触发 token 刷新逻辑）
+        const isRefreshRequest = config.url && config.url.includes("/auth/refresh");
+
+        // Token自动刷新逻辑（refresh 接口不参与，否则会死锁）
+        if (!isRefreshRequest && store && store.isTokenExpiringSoon && store.isTokenExpiringSoon() && store.refreshToken) {
           if (!isRefreshing) {
             isRefreshing = true;
             try {
@@ -104,15 +107,18 @@ class RequestHttp {
         config.loading && showFullScreenLoading();
 
         // 根据请求 URL 判断使用哪个 store 的 token
+        // refresh 接口使用 refreshToken 在 body 中，不需要 Authorization
         // 如果请求的是小程序接口（/v1/client 或 /v2/client），使用小程序用户 token
         // 否则使用 admin 用户 token
         let token = "";
-        if (config.url && (config.url.includes("/v1/client") || config.url.includes("/v2/client"))) {
-          // 小程序接口，使用小程序用户 token
-          token = mpUserStore?.token || "";
-        } else {
-          // Admin 接口，使用 admin 用户 token
-          token = userStore.token;
+        if (!isRefreshRequest) {
+          if (config.url && (config.url.includes("/v1/client") || config.url.includes("/v2/client"))) {
+            // 小程序/PC 客户端接口，使用客户端用户 token
+            token = mpUserStore?.token || "";
+          } else {
+            // Admin 接口，使用 admin 用户 token
+            token = userStore.token;
+          }
         }
 
         // 设置 Authorization header（Bearer Token）
@@ -132,7 +138,7 @@ class RequestHttp {
      *  服务器换返回信息 -> [拦截统一处理] -> 客户端JS获取到信息
      */
     this.service.interceptors.response.use(
-      (response: AxiosResponse & { config: CustomAxiosRequestConfig }) => {
+      async (response: AxiosResponse & { config: CustomAxiosRequestConfig }) => {
         const { data, config } = response;
 
         const userStore = useUserStore();
@@ -140,17 +146,35 @@ class RequestHttp {
 
         axiosCanceler.removePending(config);
         config.loading && tryHideFullScreenLoading();
-        // 登录失效
+        // 登录失效 (401)
         if (data.code == ResultEnum.OVERDUE) {
-          // 根据请求 URL 判断是哪个模块的 token 失效（支持v1和v2版本）
-          if (config.url && (config.url.includes("/v1/client") || config.url.includes("/v2/client"))) {
-            // 小程序用户 token 失效
-            if (mpUserStore) {
-              mpUserStore.resetUser();
+          const isClientRequest = config.url && (config.url.includes("/v1/client") || config.url.includes("/v2/client"));
+          const isRefreshRequest = config.url && config.url.includes("/auth/refresh");
+          const isRetryRequest = (config as CustomAxiosRequestConfig & { _retry?: boolean })._retry;
+
+          // 401 时先尝试用 refreshToken 刷新，刷新成功则重试原请求（refresh 接口本身不重试，避免死循环）
+          // Admin 和 Client 都支持 token 刷新，避免操作中 token 过期直接退出
+          const store = isClientRequest ? mpUserStore : userStore;
+          if (!isRefreshRequest && !isRetryRequest && store?.refreshToken) {
+            try {
+              const success = await store.refreshToken();
+              if (success) {
+                (config as CustomAxiosRequestConfig & { _retry?: boolean })._retry = true;
+                if (config.headers) {
+                  config.headers.Authorization = `Bearer ${store.token}`;
+                }
+                return this.service.request(config);
+              }
+            } catch {
+              // 刷新失败，继续走下面的登出逻辑
             }
+          }
+
+          // 刷新失败或没有 refreshToken：清除 token 并跳转登录
+          if (isClientRequest) {
+            if (mpUserStore) mpUserStore.resetUser();
             router.replace(MP_LOGIN_URL);
           } else {
-          // Admin 用户 token 失效
             userStore.resetUser();
             router.replace(LOGIN_URL);
           }

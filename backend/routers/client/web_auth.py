@@ -128,9 +128,9 @@ async def account_login(
         if not user_with_level:
             raise ServerErrorException("用户数据异常")
 
-        # 6. 生成 JWT token（包含 access_token 和 refresh_token）
-        access_token = create_access_token(data={"sub": str(user_with_level.id)})
-        refresh_token = create_refresh_token(data={"sub": str(user_with_level.id)})
+        # 6. 生成 JWT token（PC 端 7 天有效期，与 refresh_token 一致）
+        access_token = create_access_token(data={"sub": str(user_with_level.id)}, client_long_session=True)
+        refresh_token = create_refresh_token(data={"sub": str(user_with_level.id), "client_type": "pc"})
 
         # 7. 构建用户信息（使用公共函数，包含完整的等级信息）
         user_info = build_user_info(user_with_level)
@@ -140,7 +140,7 @@ async def account_login(
             "success": True,
             "token": access_token,
             "refreshToken": refresh_token,
-            "expiresIn": settings.JWT_ACCESS_TOKEN_EXPIRE_MINUTES * 60,  # 秒数
+            "expiresIn": settings.JWT_CLIENT_ACCESS_TOKEN_EXPIRE_DAYS * 24 * 3600,  # 秒数（7天）
             "userInfo": user_info.model_dump(),
         }
 
@@ -285,9 +285,9 @@ async def qrcode_login(
         if not user_with_level:
             raise ServerErrorException("用户数据异常")
 
-        # 4. 生成 JWT token（包含 access_token 和 refresh_token）
-        access_token = create_access_token(data={"sub": str(user_with_level.id)})
-        refresh_token = create_refresh_token(data={"sub": str(user_with_level.id)})
+        # 4. 生成 JWT token（PC 扫码登录 7 天有效期）
+        access_token = create_access_token(data={"sub": str(user_with_level.id)}, client_long_session=True)
+        refresh_token = create_refresh_token(data={"sub": str(user_with_level.id), "client_type": "pc"})
 
         # 5. 构建用户信息（使用公共函数，包含完整的等级信息）
         user_info = build_user_info(user_with_level)
@@ -298,7 +298,7 @@ async def qrcode_login(
             "status": "authorized",
             "token": access_token,
             "refreshToken": refresh_token,
-            "expiresIn": settings.JWT_ACCESS_TOKEN_EXPIRE_MINUTES * 60,  # 秒数
+            "expiresIn": settings.JWT_CLIENT_ACCESS_TOKEN_EXPIRE_DAYS * 24 * 3600,  # 秒数（7天）
             "userInfo": user_info.model_dump()
         }
         await RedisCache.set(redis_key, json.dumps(login_data), expire=300)  # 5分钟过期

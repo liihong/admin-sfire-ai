@@ -3,7 +3,7 @@ Agent核心执行器（纯技术实现）
 负责路由决策、Prompt组装、LLM调用等纯技术操作
 不涉及业务逻辑（权限验证、余额检查、会话管理等）
 """
-from typing import Optional, AsyncGenerator, Tuple
+from typing import Optional, AsyncGenerator, Tuple, Dict, Any
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from loguru import logger
@@ -62,7 +62,8 @@ class AgentExecutor:
         persona_prompt: Optional[str] = None,
         temperature: Optional[float] = None,
         max_tokens: Optional[int] = None,
-        llm_client: Optional[BaseLLM] = None
+        llm_client: Optional[BaseLLM] = None,
+        extra_data: Optional[Dict[str, Any]] = None,
     ) -> AsyncGenerator[str, None]:
         """
         执行Agent（流式响应，纯技术实现）
@@ -114,6 +115,20 @@ class AgentExecutor:
             f"Prompt组装完成: {prompt_result.token_count} tokens, "
             f"使用了{len(prompt_result.skills_applied)}个技能"
         )
+        logger.info(
+            f"[调试] 最终提示词 对话流式(Agent ID={agent.id}) 长度={len(prompt_result.system_prompt)}:\n{prompt_result.system_prompt}"
+        )
+
+        # 将最终执行的提示词写入 extra_data，便于上游写入流水/调试
+        if isinstance(extra_data, dict):
+            extra_data["llm_system_prompt"] = prompt_result.system_prompt
+            extra_data["llm_user_prompt"] = prompt_result.user_message
+            extra_data["llm_messages"] = [
+                {"role": "system", "content": prompt_result.system_prompt},
+                {"role": "user", "content": prompt_result.user_message},
+            ]
+            extra_data["skills_applied"] = prompt_result.skills_applied
+            extra_data["prompt_token_count"] = prompt_result.token_count
         
         # 3. 解析LLM模型（如果未提供llm_client）
         if not llm_client:
@@ -153,7 +168,8 @@ class AgentExecutor:
         persona_prompt: Optional[str] = None,
         temperature: Optional[float] = None,
         max_tokens: Optional[int] = None,
-        llm_client: Optional[BaseLLM] = None
+        llm_client: Optional[BaseLLM] = None,
+        extra_data: Optional[Dict[str, Any]] = None,
     ) -> Tuple[str, str, list, int]:
         """
         执行Agent（非流式响应，纯技术实现）
@@ -183,6 +199,20 @@ class AgentExecutor:
             persona_prompt=persona_prompt,
             user_input=user_input
         )
+        logger.info(
+            f"[调试] 最终提示词 对话非流式(Agent ID={agent.id}) 长度={len(prompt_result.system_prompt)}:\n{prompt_result.system_prompt}"
+        )
+
+        # 将最终执行的提示词写入 extra_data，便于上游写入流水/调试
+        if isinstance(extra_data, dict):
+            extra_data["llm_system_prompt"] = prompt_result.system_prompt
+            extra_data["llm_user_prompt"] = prompt_result.user_message
+            extra_data["llm_messages"] = [
+                {"role": "system", "content": prompt_result.system_prompt},
+                {"role": "user", "content": prompt_result.user_message},
+            ]
+            extra_data["skills_applied"] = prompt_result.skills_applied
+            extra_data["prompt_token_count"] = prompt_result.token_count
         
         if not llm_client:
             llm_model = await self._resolve_llm_model(agent.model)

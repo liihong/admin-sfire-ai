@@ -157,11 +157,12 @@ const handleGenerate = async (
     // 构建包含新用户消息的消息列表
     const messagesWithNewUser = [...messages, { role: "user" as const, content: prompt }];
 
-    // 构建请求
+    // 构建请求（agent_id 用于 usage_count 统计，当 agent_type 为预设如 ip_collector 时后端仍能正确累加）
     const request: MPChatRequest = {
       conversation_id: ipCreationStore.currentConversationId || undefined,
       project_id: Number(activeProject.value.id),
       agent_type: currentAgent.type,
+      agent_id: currentAgent.id,
       messages: messagesWithNewUser as MPChatMessage[],
       stream: true
     };
@@ -247,9 +248,11 @@ const handleConversationCreate = () => {
   ipCreationStore.clearConversation();
   ipCreationStore.updateCurrentContent("");
 
-  // 生成 AI 欢迎语
+  // 欢迎语：优先使用数据库配置，为空则使用前端默认
   const agentName = selectedAgent.value?.name || "AI助手";
-  const welcomeMessage = `你好！我是${agentName}，很高兴为你服务。请告诉我你想创作什么内容吧~`;
+  const defaultWelcome = `你好！我是${agentName}，很高兴为你服务。请告诉我你想创作什么内容吧~`;
+  const welcomeMessage =
+    selectedAgent.value?.welcomeMessage?.trim() || defaultWelcome;
 
   // 添加欢迎语到对话历史
   ipCreationStore.addMessage("assistant", welcomeMessage);

@@ -920,17 +920,29 @@ async def refresh_token(
             raise BadRequestException("用户已被封禁")
 
         # 5. 生成新的access_token和refresh_token
-        # 小程序刷新时也使用长期有效的refresh_token（100年有效期）
-        new_access_token = create_access_token(data={"sub": str(user.id)})
-        new_refresh_token = create_refresh_token(data={"sub": str(user.id)}, long_lived=True)
+        # PC 客户端（client_type=pc）：7 天 access + 7 天 refresh
+        # 小程序（无 client_type 或 long_lived）：30 分钟 access + 100 年 refresh
+        client_type = payload.get("client_type")
+        is_pc_client = client_type == "pc"
 
-        logger.info(f"Token refreshed successfully for user: {user.id}")
+        new_access_token = create_access_token(
+            data={"sub": str(user.id)},
+            client_long_session=is_pc_client
+        )
+        if is_pc_client:
+            new_refresh_token = create_refresh_token(data={"sub": str(user.id), "client_type": "pc"})
+            expires_in = settings.JWT_CLIENT_ACCESS_TOKEN_EXPIRE_DAYS * 24 * 3600
+        else:
+            new_refresh_token = create_refresh_token(data={"sub": str(user.id)}, long_lived=True)
+            expires_in = settings.JWT_ACCESS_TOKEN_EXPIRE_MINUTES * 60
+
+        logger.info(f"Token refreshed successfully for user: {user.id}, client_type: {client_type}")
 
         return success(
             data={
                 "token": new_access_token,
                 "refreshToken": new_refresh_token,
-                "expiresIn": settings.JWT_ACCESS_TOKEN_EXPIRE_MINUTES * 60
+                "expiresIn": expires_in
             },
             msg="令牌刷新成功"
         )

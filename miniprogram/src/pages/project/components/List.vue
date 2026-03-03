@@ -71,8 +71,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, watch } from 'vue'
-import { onShow } from '@dcloudio/uni-app'
+import { ref, computed } from 'vue'
 import { useProjectStore, type Project } from '@/stores/project'
 import { useAuthStore } from '@/stores/auth'
 import { fetchProjects, deleteProject } from '@/api/project'
@@ -115,39 +114,7 @@ const canCreateProject = computed(() => {
 // 状态
 const isRefreshing = ref(false)
 
-// 初始化
-onMounted(async () => {
-  // 加载项目列表
-  isLoading.value = true
-  try {
-    await getProjectList()
-  } catch (error) {
-    console.error('Failed to fetch projects:', error)
-    uni.showToast({ title: '加载失败', icon: 'none' })
-  } finally {
-    isLoading.value = false
-  }
-})
-
-// 页面显示时检查是否需要刷新（备用方案，如果父组件没有处理）
-onShow(async () => {
-  // 检查 store 中的刷新标记（但不清除，因为父组件可能已经处理了）
-  // 这里只作为备用，如果父组件没有处理，这里会处理
-  if (projectStore.needRefresh) {
-    projectStore.setNeedRefresh(false)
-    // 刷新项目列表
-    isLoading.value = true
-    try {
-      await getProjectList()
-    } catch (error) {
-      console.error('Failed to refresh projects:', error)
-      uni.showToast({ title: '刷新失败', icon: 'none' })
-    } finally {
-      isLoading.value = false
-    }
-  }
-})
-
+// 数据由父页面 index.vue 加载并写入 store，此处仅负责展示和下拉刷新
 async function getProjectList() {
   const response = await fetchProjects()
   // 更新 store 状态（projectList 现在是 computed，会自动从 store 读取）

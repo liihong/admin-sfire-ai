@@ -17,6 +17,7 @@ v-for="(item, index) in displayFeatureList"
 <script setup lang="ts">
 import { computed } from 'vue'
 import type { FeaturedModuleItem } from '@/api/home'
+import { useAgentStore } from '@/stores/agent'
 
 export interface FeatureItem {
   icon: string
@@ -30,11 +31,12 @@ interface Props {
 }
 
 // 默认功能列表（当没有从数据库获取到数据时使用）
+// 全能对话使用 aichat 页面，不传 IP 信息，直接与智能体对话
 const defaultFeatureList: FeatureItem[] = [
-  { icon: 'edit-pen', label: '脚本洗稿', route: '/pages/copywriting/index', iconSize: 20 },
-  { icon: 'folder', label: '图文封面', route: '/pages/cover/index', iconSize: 20 },
-  { icon: 'star', label: '爆款标题', route: '/pages/title/index', iconSize: 20 },
-  { icon: 'chat', label: '全能对话', route: '/pages/chat/index', iconSize: 20 }
+  { icon: 'edit-pen', label: '脚本洗稿', route: '/pages/aichat/index?agentId=1', iconSize: 20 },
+  { icon: 'folder', label: '图文封面', route: '/pages/aichat/index?agentId=1', iconSize: 20 },
+  { icon: 'star', label: '爆款标题', route: '/pages/aichat/index?agentId=1', iconSize: 20 },
+  { icon: 'chat', label: '全能对话', route: '/pages/aichat/index?agentId=1', iconSize: 20 }
 ]
 
 const props = withDefaults(defineProps<Props>(), {
@@ -52,9 +54,27 @@ const emit = defineEmits<{
   featureClick: [item: FeatureItem]
 }>()
 
+const agentStore = useAgentStore()
+
 const handleFeatureClick = (item: FeaturedModuleItem | FeatureItem) => {
   emit('featureClick', item)
   if (item.route) {
+    // 如果入口路由带有 agentId，则把 label 写入 active_agent_info
+    // 这样对话页标题可以优先展示 label，而不是落回默认值
+    const match = /[?&]agentId=([^&]+)/.exec(item.route)
+    if (match) {
+      const agentId = decodeURIComponent(match[1])
+      agentStore.setActiveAgent(
+        {
+          id: agentId,
+          name: item.label,
+          label: item.label,
+          icon: '',
+          description: ''
+        },
+        { persist: true }
+      )
+    }
     uni.navigateTo({ url: item.route })
   }
 }
