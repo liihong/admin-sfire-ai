@@ -80,9 +80,9 @@ export const useMPUserStore = defineStore({
     userDetail: null
   }),
   getters: {
-    // 是否已登录
+    // 是否已登录（以 token 为准，兼容账号密码登录用户可能无 openid）
     isLogin: state => {
-      return !!state.token && !!state.userInfo.openid;
+      return !!state.token;
     },
     // 获取算力余额（数字）
     computePower: state => {
@@ -156,8 +156,9 @@ export const useMPUserStore = defineStore({
         return false;
       }
     },
-    // 获取用户信息
+    // 获取用户信息（仅在有 client token 时调用）
     async fetchUserInfo() {
+      if (!this.token) return false;
       try {
         const { data } = await getMPUserInfoApi();
         if (data?.userInfo) {
@@ -170,8 +171,9 @@ export const useMPUserStore = defineStore({
         return false;
       }
     },
-    // 获取用户详细信息
+    // 获取用户详细信息（仅在有 client token 时调用，避免在 admin 场景误触发 client 接口）
     async fetchUserDetail() {
+      if (!this.token) return false;
       try {
         const { data } = await getMPUserDetailInfoApi();
         if (data) {

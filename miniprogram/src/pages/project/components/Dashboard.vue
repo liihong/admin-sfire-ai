@@ -25,7 +25,6 @@
      <QuickCommandGrid :entries="commandList" @click="handleNavigate" />
 
     <!-- 历史对话 -->
-      <BaseSection>历史对话</BaseSection>
       <ConversationHistory @click="handleConversationClick" />
       <!-- 底部安全区 -->
       <view class="bottom-safe-area"></view>

@@ -25,21 +25,20 @@
       <!-- 热点列表 -->
       <view v-if="hotspotList.length > 0" class="hotspot-list">
         <view
-          v-for="item in hotspotList"
-          :key="item.rank"
+          v-for="(item, index) in hotspotList"
+          :key="item.id"
           class="hotspot-item"
         >
           <view class="hotspot-content">
             <view class="hotspot-rank">
-              <text class="rank-number">{{ item.rank }}</text>
+              <text class="rank-number">{{ index + 1 }}</text>
             </view>
             <view class="hotspot-info">
               <text class="hotspot-title">{{ item.title }}</text>
               <view class="hotspot-meta">
-                <text v-if="item.hot_value" class="hot-value">
-                  🔥 {{ formatHotValue(item.hot_value) }}
+                <text v-if="item.hot" class="hot-value">
+                  🔥 {{ formatHotValue(item.hot) }}
                 </text>
-                <text v-if="item.label" class="hotspot-label">{{ item.label }}</text>
               </view>
             </view>
           </view>
@@ -71,7 +70,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, onMounted } from 'vue'
 import { getHotspotList, type HotspotItem } from '@/api/hotspot'
 import { getQuickEntries, type QuickEntry } from '@/api/quickEntry'
 import { useProjectStore } from '@/stores/project'
@@ -128,11 +127,11 @@ async function loadHotspotList() {
   loading.value = true
   
   try {
-    const response = await getHotspotList('hot')
+    const response = await getHotspotList()
     
-    if (response.code === 200 && response.data?.list) {
-      hotspotList.value = response.data.list
-      updateTime.value = response.data.update_time || ''
+    if (response.code === 200 && Array.isArray(response.data)) {
+      hotspotList.value = response.data
+      updateTime.value = response.data[0]?.timestamp ? formatTimestamp(response.data[0].timestamp) : ''
     } else {
       uni.showToast({
         title: response.msg || '加载失败',
@@ -159,13 +158,28 @@ function handleRefresh() {
 }
 
 /**
- * 格式化热度值
+ * 格式化热度值（hot 为字符串）
  */
-function formatHotValue(value: number): string {
-  if (value >= 10000) {
-    return `${(value / 10000).toFixed(1)}万`
+function formatHotValue(value: string): string {
+  const num = Number(value)
+  if (Number.isNaN(num)) return value
+  if (num >= 10000) {
+    return `${(num / 10000).toFixed(1)}万`
   }
-  return String(value)
+  return String(num)
+}
+
+/**
+ * 格式化时间戳显示
+ */
+function formatTimestamp(ts: string): string {
+  if (!ts) return ''
+  try {
+    const date = new Date(ts)
+    return `${date.getMonth() + 1}-${date.getDate()} ${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`
+  } catch {
+    return ts
+  }
 }
 
 /**

@@ -67,6 +67,8 @@ class QrcodeStatusResponse(BaseModel):
     """检查登录状态响应"""
     status: str = Field(..., description="状态: waiting-等待授权, authorized-已授权, expired-已过期")
     token: Optional[str] = Field(default=None, description="JWT token（仅当status为authorized时返回）")
+    refreshToken: Optional[str] = Field(default=None, description="刷新令牌（仅当status为authorized时返回，7天有效）")
+    expiresIn: Optional[int] = Field(default=None, description="token有效期秒数（仅当status为authorized时返回，7天=604800）")
     userInfo: Optional[UserInfo] = Field(default=None, description="用户信息（仅当status为authorized时返回）")
 
 
@@ -340,8 +342,10 @@ async def check_qrcode_status(
         status = data.get("status", "waiting")
 
         if status == "authorized":
-            # 已授权，返回token和用户信息
+            # 已授权，返回token、refreshToken、expiresIn和用户信息（PC端7天免登录）
             token = data.get("token")
+            refresh_token = data.get("refreshToken")
+            expires_in = data.get("expiresIn")
             user_info_dict = data.get("userInfo", {})
             user_info = UserInfo(**user_info_dict)
 
@@ -351,6 +355,8 @@ async def check_qrcode_status(
             return QrcodeStatusResponse(
                 status="authorized",
                 token=token,
+                refreshToken=refresh_token,
+                expiresIn=expires_in,
                 userInfo=user_info
             )
         else:

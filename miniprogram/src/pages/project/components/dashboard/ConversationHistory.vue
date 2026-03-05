@@ -1,5 +1,21 @@
 <template>
   <view class="conversation-history">
+    <!-- 标题栏 + 更多按钮 -->
+    <BaseSection>
+      历史对话
+      <template #right>
+        <view
+          v-if="showMoreButton"
+          class="more-btn-inline"
+          hover-class="more-btn-hover"
+          hover-stay-time="0"
+          @tap.stop="handleMoreClick"
+        >
+          <text class="more-btn-text">更多</text>
+        </view>
+      </template>
+    </BaseSection>
+
     <!-- 加载中状态 -->
     <view v-if="loading" class="loading-wrapper">
       <text class="loading-text">加载中...</text>
@@ -39,6 +55,7 @@
 import { ref, computed, watch } from 'vue'
 import { getConversationList, type Conversation } from '@/api/conversation'
 import { useProjectStore } from '@/stores/project'
+import BaseSection from '@/components/base/BaseSection.vue'
 
 // Store
 const projectStore = useProjectStore()
@@ -47,16 +64,26 @@ const activeProject = computed(() => projectStore.activeProject)
 // 对话列表数据
 const conversationList = ref<Conversation[]>([])
 const loading = ref(false)
+const totalCount = ref(0)
+
+// 是否显示更多按钮：有对话且总数>5 时显示
+const showMoreButton = computed(() => {
+  if (conversationList.value.length === 0) return false
+  return totalCount.value > 5
+})
 
 // 定义事件
 const emit = defineEmits<{
   click: [conversation: Conversation]
 }>()
 
+const DEFAULT_PAGE_SIZE = 5
+
 /**
  * 加载历史对话列表
+ * @param pageSize 每页数量，默认 5
  */
-async function loadConversations() {
+async function loadConversations(pageSize: number = DEFAULT_PAGE_SIZE) {
   // 如果没有激活的项目，不发送请求
   if (!activeProject.value?.id) {
     conversationList.value = []
@@ -67,7 +94,7 @@ async function loadConversations() {
   loading.value = true
   try {
     const projectId = parseInt(activeProject.value.id)
-    
+
     if (isNaN(projectId)) {
       console.error('[ConversationHistory] 项目ID无效:', activeProject.value.id)
       conversationList.value = []
@@ -77,24 +104,42 @@ async function loadConversations() {
 
     const response = await getConversationList({
       pageNum: 1,
-      pageSize: 5, // 显示最近 5 条对话
+      pageSize,
       status: 'active',
       project_id: projectId,
     })
 
-    if (response.code === 200 && response.data?.list) {
-      conversationList.value = response.data.list
+    if (response.code === 200 && response.data) {
+      conversationList.value = response.data.list || []
+      totalCount.value = response.data.total ?? 0
     } else {
       console.error('[ConversationHistory] 获取对话列表失败:', response.msg)
       conversationList.value = []
+      totalCount.value = 0
     }
   } catch (error) {
     console.error('[ConversationHistory] 加载历史对话失败:', error)
     conversationList.value = []
+    totalCount.value = 0
     // 不显示错误提示，避免干扰用户体验
   } finally {
     loading.value = false
   }
+}
+
+/**
+ * 更多按钮点击：跳转到历史对话列表页
+ */
+function handleMoreClick() {
+  const projectId = activeProject.value?.id
+  if (!projectId) {
+    uni.showToast({ title: '请先选择项目', icon: 'none' })
+    return
+  }
+  uni.navigateTo({
+    url: `/pages/conversation/list?projectId=${encodeURIComponent(projectId)}`,
+    fail: () => uni.showToast({ title: '页面跳转失败', icon: 'none' }),
+  })
 }
 
 /**
@@ -134,11 +179,10 @@ watch(
   () => activeProject.value?.id,
   (newId, oldId) => {
     if (newId && newId !== oldId) {
-      // 只有当项目ID变化时才加载，避免重复请求
-      loadConversations()
+      loadConversations(DEFAULT_PAGE_SIZE)
     } else if (!newId) {
-      // 如果没有激活项目，清空列表
       conversationList.value = []
+      totalCount.value = 0
       loading.value = false
     }
   },
@@ -237,6 +281,25 @@ watch(
       font-size: $font-size-sm;
       color: $text-placeholder;
     }
+  }
+
+  .more-btn-inline {
+    padding: 12rpx 28rpx;
+    min-height: 56rpx;
+    min-width: 88rpx;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    .more-btn-text {
+      font-size: $font-size-sm;
+      color: $primary-orange;
+      font-weight: 500;
+    }
+  }
+
+  .more-btn-hover {
+    opacity: 0.7;
   }
 }
 </style>

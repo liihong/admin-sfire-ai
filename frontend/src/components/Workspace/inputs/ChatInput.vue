@@ -146,7 +146,7 @@ const currentContent = computed(() => ipCreationStore.currentContent);
 
 const messages = computed(() => props.conversationHistory);
 
-const userAvatar = computed(() => mpUserStore.userDetail.avatar);
+const userAvatar = computed(() => mpUserStore.userDetail?.avatar || "");
 
 // AI 头像和名称
 const agentAvatar = computed(() => {

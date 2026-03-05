@@ -94,8 +94,6 @@ const mpUserStore = useMPUserStore();
 
 type LoginMode = "qrcode" | "account";
 const loginMode = ref<LoginMode>("qrcode");
-// 本地持久化 key，确保 PC 端登录后自动免登录
-const MP_PERSIST_KEY = "sfire-mp-user";
 
 const loginFormRef = ref<InstanceType<typeof ElForm>>();
 const loading = ref(false);
@@ -119,40 +117,6 @@ const qrcodeError = ref("");
 const qrcodeImageUrl = ref("");
 const sceneStr = ref("");
 let qrcodeCheckInterval: any = null;
-
-// 将登录态写入 localStorage，防止刷新后丢失
-const persistLoginState = () => {
-  try {
-    const cachePayload = {
-      token: mpUserStore.token,
-      userInfo: mpUserStore.userInfo,
-      userDetail: mpUserStore.userDetail
-    };
-    localStorage.setItem(MP_PERSIST_KEY, JSON.stringify(cachePayload));
-  } catch (error) {
-    console.error("缓存登录状态失败:", error);
-  }
-};
-
-// 从 localStorage 恢复登录态，未命中返回 false
-const restoreLoginFromCache = () => {
-  const cache = localStorage.getItem(MP_PERSIST_KEY);
-  if (!cache) return false;
-  try {
-    const parsed = JSON.parse(cache);
-    if (parsed?.token && parsed?.userInfo?.openid) {
-      mpUserStore.setToken(parsed.token);
-      mpUserStore.setUserInfo(parsed.userInfo);
-      if (parsed.userDetail) {
-        mpUserStore.setUserDetail(parsed.userDetail);
-      }
-      return true;
-    }
-  } catch (error) {
-    console.error("解析本地登录缓存失败:", error);
-  }
-  return false;
-};
 
 // 图片加载成功处理
 const handleImageLoad = () => {
@@ -222,10 +186,11 @@ const startQrcodeCheck = () => {
         qrcodeCheckInterval = null;
         
         if (data.token && data.userInfo) {
-          // 保存token和用户信息
-          mpUserStore.setToken(data.token);
+          // 保存token、refreshToken、expiresIn和用户信息（PC端7天免登录）
+          const expiresIn = data.expiresIn ?? 7 * 24 * 3600; // 默认7天
+          mpUserStore.setToken(data.token, expiresIn);
+          if (data.refreshToken) mpUserStore.setRefreshToken(data.refreshToken);
           mpUserStore.setUserInfo(data.userInfo);
-          persistLoginState();
           
           ElMessage.success("登录成功");
           router.push(MP_HOME_URL);
@@ -257,7 +222,6 @@ const handleWechatLogin = async (code: string, phoneCode?: string) => {
 
     if (success) {
       ElMessage.success("登录成功");
-      persistLoginState();
       router.push(MP_HOME_URL);
     }
   } catch (error: any) {
@@ -283,7 +247,6 @@ const handleAccountLogin = async () => {
       
       if (success) {
         ElMessage.success("登录成功");
-        persistLoginState();
         router.push(MP_HOME_URL);
       }
     } catch (error: any) {
@@ -295,11 +258,8 @@ const handleAccountLogin = async () => {
 };
 
 onMounted(() => {
-  // 优先尝试从本地缓存恢复，保证PC端刷新后也能免登录
-  const restored = restoreLoginFromCache();
-
-  // 如果已登录（含恢复成功），跳转到首页
-  if (restored || mpUserStore.isLogin) {
+  // 已登录（pinia persist 自动恢复）则跳转首页
+  if (mpUserStore.isLogin) {
     router.push(MP_HOME_URL);
     return;
   }

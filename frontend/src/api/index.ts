@@ -151,6 +151,7 @@ class RequestHttp {
           const isClientRequest = config.url && (config.url.includes("/v1/client") || config.url.includes("/v2/client"));
           const isRefreshRequest = config.url && config.url.includes("/auth/refresh");
           const isRetryRequest = (config as CustomAxiosRequestConfig & { _retry?: boolean })._retry;
+          const currentPath = router.currentRoute.value?.path || "";
 
           // 401 时先尝试用 refreshToken 刷新，刷新成功则重试原请求（refresh 接口本身不重试，避免死循环）
           // Admin 和 Client 都支持 token 刷新，避免操作中 token 过期直接退出
@@ -170,15 +171,28 @@ class RequestHttp {
             }
           }
 
-          // 刷新失败或没有 refreshToken：清除 token 并跳转登录
+          // 刷新失败或没有 refreshToken：根据请求类型与当前路由，决定是否清除 token 并跳转
+          // 关键：Admin 操作时不应因 Client 接口 401 而跳转到 Client 登录页，反之亦然
           if (isClientRequest) {
-            if (mpUserStore) mpUserStore.resetUser();
-            router.replace(MP_LOGIN_URL);
+            // Client 接口 401：仅当当前在 Client 路由时才清除并跳转 Client 登录
+            if (currentPath.startsWith("/mp")) {
+              if (mpUserStore) mpUserStore.resetUser();
+              router.replace(MP_LOGIN_URL);
+              ElMessage.error(data.msg);
+            } else {
+              // 当前在 Admin 路由却收到 Client 接口 401（异常情况，如多 tab 或误调用），仅提示不跳转
+              ElMessage.warning(data.msg || "客户端登录已失效，如需使用工作台请重新登录");
+            }
           } else {
-            userStore.resetUser();
-            router.replace(LOGIN_URL);
+            // Admin 接口 401：仅当当前在 Admin 路由时才清除并跳转 Admin 登录
+            if (!currentPath.startsWith("/mp")) {
+              userStore.resetUser();
+              router.replace(LOGIN_URL);
+              ElMessage.error(data.msg);
+            } else {
+              ElMessage.warning(data.msg || "管理员登录已失效");
+            }
           }
-          ElMessage.error(data.msg);
           return Promise.reject(data);
         }
         // 全局错误信息拦截（防止下载文件的时候返回数据流，没有 code 直接报错）

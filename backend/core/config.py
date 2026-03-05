@@ -63,6 +63,10 @@ class Settings(BaseSettings):
     # 第三方 API 配置（Dashboard 监控用）
     TIKHUB_API_KEY: str = ""  # Tikhub API Key
     OPENAI_API_KEY: str = ""  # OpenAI API Key
+
+    # Coze 工作流配置（热点榜单等）
+    COZE_PAT_TOKEN: str = ""  # Coze 个人访问令牌（开放平台-开发者-个人访问令牌）
+    COZE_HOTSPOT_WORKFLOW_ID: str = ""  # 热点榜单工作流 ID
     
     # 微信小程序配置
     WECHAT_APP_ID: str = ""  # 微信小程序 AppID

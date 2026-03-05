@@ -119,6 +119,15 @@ const loadProject = async () => {
       fetch('http://127.0.0.1:7243/ingest/53b38dcf-6225-4ab9-a06a-816278989907',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'workspace/index.vue:loadProject',message:'setting activeProject',data:{projectId:project.id,currentActiveId:ipCreationStore.activeProject?.id},timestamp:Date.now(),sessionId:'debug-session',runId:'post-fix',hypothesisId:'H2'})}).catch(()=>{});
       // #endregion
       ipCreationStore.setActiveProject(project);
+
+      // 项目加载后，若已有选中的智能体且对话历史为空，补充欢迎语（解决 loadProject 与 AgentSelectorPopup 的竞态）
+      const agent = ipCreationStore.selectedAgent;
+      if (agent && ipCreationStore.conversationHistory.length === 0) {
+        const agentName = agent.name || "AI助手";
+        const defaultWelcome = `你好！我是${agentName}，很高兴为你服务。请告诉我你想创作什么内容吧~`;
+        const welcomeMessage = agent.welcomeMessage?.trim() || defaultWelcome;
+        ipCreationStore.addMessage("assistant", welcomeMessage);
+      }
     } else {
       ElMessage.error("项目不存在");
       router.push("/mp/home");

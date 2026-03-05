@@ -184,6 +184,14 @@
         "navigationStyle": "custom",
         "disableScroll": true
       }
+    },
+    {
+      "path": "pages/conversation/list",
+      "style": {
+        "navigationBarTitleText": "历史对话",
+        "navigationStyle": "custom",
+        "disableScroll": true
+      }
     }
   ],
   "globalStyle": {

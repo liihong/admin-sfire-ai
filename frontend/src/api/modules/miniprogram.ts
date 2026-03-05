@@ -317,6 +317,8 @@ export interface QrcodeGenerateResponse {
 export interface QrcodeStatusResponse {
   status: "waiting" | "authorized" | "expired";
   token?: string;
+  refreshToken?: string;
+  expiresIn?: number; // 秒数，7天=604800
   userInfo?: {
     openid: string;
     nickname: string;
