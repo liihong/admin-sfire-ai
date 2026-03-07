@@ -3,8 +3,8 @@ Client Coze Endpoints
 C端 Coze 工作流接口（小程序 & PC官网）
 支持热点榜单等功能，通过 Coze 工作流 API 获取数据
 """
+import asyncio
 import json
-import httpx
 from typing import List, Any
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel, Field
@@ -15,12 +15,14 @@ from core.config import settings
 from utils.response import success
 from utils.exceptions import ServerErrorException
 from loguru import logger
+from db.redis import RedisCache
 
 router = APIRouter()
 
-# Coze 工作流 API
-COZE_WORKFLOW_RUN_URL = "https://api.coze.cn/v1/workflow/run"
-COZE_REQUEST_TIMEOUT = 90
+# 热点榜单缓存配置
+HOTSPOT_CACHE_KEY = "coze:hotspot-list"
+HOTSPOT_CACHE_TTL = 300  # 5 分钟
+HOTSPOT_STREAM_TIMEOUT = 30  # Coze 工作流超时（秒）
 
 
 class HotspotItem(BaseModel):
@@ -35,32 +37,47 @@ class HotspotItem(BaseModel):
 
 def _extract_hotspot_list_from_coze_response(coze_data: Any) -> List[dict]:
     """
-    从 Coze 工作流返回的 data 中提取热点列表
-    支持多种嵌套结构：直接数组、output[0].data、data 等
+    从 Coze 工作流返回中提取热点列表
+    支持多种嵌套结构：直接数组、output[0].data、data、original_result 等
     """
     if isinstance(coze_data, list):
         return coze_data
 
     if isinstance(coze_data, dict):
-        # 优先取 data 数组
+        # 1. 顶层 data 数组
         if "data" in coze_data and isinstance(coze_data["data"], list):
             return coze_data["data"]
-        # 取 output 第一个元素的 data
+        # 2. original_result（Coze 内部格式）
+        if "original_result" in coze_data and coze_data["original_result"] is not None:
+            return _extract_hotspot_list_from_coze_response(coze_data["original_result"])
+        # 3. output[0].data 等
         if "output" in coze_data and isinstance(coze_data["output"], list) and len(coze_data["output"]) > 0:
             first_output = coze_data["output"][0]
-            if isinstance(first_output, dict) and "data" in first_output and isinstance(first_output["data"], list):
-                return first_output["data"]
+            if isinstance(first_output, dict):
+                for key in ("data", "list", "items", "result", "results"):
+                    if key in first_output and isinstance(first_output[key], list):
+                        return first_output[key]
             if isinstance(first_output, list):
                 return first_output
+        # 4. 其他常见键
+        for key in ("list", "items", "result", "results"):
+            if key in coze_data and isinstance(coze_data[key], list):
+                return coze_data[key]
 
     return []
 
 
-def _validate_and_normalize_item(item: Any, index: int) -> dict | None:
+def _validate_and_normalize_item(item: Any) -> dict | None:
     """校验并标准化单条热点数据"""
     if not isinstance(item, dict):
         return None
-    title = item.get("title") or item.get("word") or ""
+    title = (
+        item.get("title")
+        or item.get("word")
+        or item.get("keyword")
+        or item.get("name")
+        or ""
+    )
     if not title:
         return None
     return {
@@ -80,11 +97,13 @@ async def get_hotspot_list(
     """
     获取抖音热点榜单
 
-    通过 Coze 工作流 API 获取热点数据，返回格式：
+    通过 Coze 工作流 API（stream）获取热点数据，返回格式：
     [{"hot", "id", "mobileUrl", "timestamp", "title", "url"}, ...]
 
     路径：GET /api/v1/client/coze/hotspot-list
     """
+    from cozepy import Coze, TokenAuth, COZE_CN_BASE_URL, WorkflowEventType
+
     pat_token = settings.COZE_PAT_TOKEN
     workflow_id = settings.COZE_HOTSPOT_WORKFLOW_ID
 
@@ -92,60 +111,88 @@ async def get_hotspot_list(
         logger.warning("Coze 热点工作流未配置: COZE_PAT_TOKEN 或 COZE_HOTSPOT_WORKFLOW_ID 为空")
         raise ServerErrorException("热点榜单服务未配置，请联系管理员")
 
+    # 尝试从缓存获取
     try:
-        async with httpx.AsyncClient(timeout=COZE_REQUEST_TIMEOUT) as client:
-            response = await client.post(
-                COZE_WORKFLOW_RUN_URL,
-                headers={
-                    "Authorization": f"Bearer {pat_token}",
-                    "Content-Type": "application/json",
-                },
-                json={
-                    "workflow_id": workflow_id,
-                    "parameters": {},
-                },
-            )
+        cached = await RedisCache.get_json(HOTSPOT_CACHE_KEY)
+        if cached is not None:
+            return success(data=cached, msg="获取成功")
+    except Exception:
+        pass  # 缓存不可用时继续请求 Coze
 
-            if response.status_code != 200:
-                logger.error(f"Coze 工作流请求失败: status={response.status_code}, body={response.text[:500]}")
-                raise ServerErrorException("获取热点榜单失败，请稍后重试")
+    try:
+        coze = Coze(
+            auth=TokenAuth(token=pat_token),
+            base_url=COZE_CN_BASE_URL,
+        )
 
-            body = response.json()
-            coze_code = body.get("code", -1)
-            if coze_code != 0:
-                coze_msg = body.get("msg", "未知错误")
-                logger.error(f"Coze 工作流执行失败: code={coze_code}, msg={coze_msg}")
-                raise ServerErrorException(f"获取热点榜单失败: {coze_msg}")
+        def _run_stream() -> List[Any]:
+            """同步执行 stream，收集所有 MESSAGE 的 content 和 ext"""
+            items: List[Any] = []
+            stream = coze.workflows.runs.stream(workflow_id=workflow_id)
+            for event in stream:
+                if event.event == WorkflowEventType.MESSAGE and event.message:
+                    msg = event.message
+                    if msg.content:
+                        items.append(("content", msg.content))
+                    if msg.ext:
+                        items.append(("ext", msg.ext))
+                elif event.event == WorkflowEventType.ERROR and event.error:
+                    logger.error(f"Coze 工作流错误: {event.error}")
+                    raise RuntimeError("获取热点榜单失败，请稍后重试")
+                elif event.event == WorkflowEventType.INTERRUPT and event.interrupt:
+                    logger.warning(f"Coze 工作流被中断: {event.interrupt}")
+            return items
 
-            data_raw = body.get("data")
-            if not data_raw:
-                logger.warning("Coze 工作流返回的 data 为空")
-                return success(data=[], msg="暂无热点数据")
+        # 在线程池中执行同步 stream，避免阻塞事件循环，并设置超时
+        items = await asyncio.wait_for(
+            asyncio.to_thread(_run_stream),
+            timeout=HOTSPOT_STREAM_TIMEOUT,
+        )
 
-            # data 可能是 JSON 字符串，需二次解析
-            if isinstance(data_raw, str):
+        if not items:
+            logger.warning("Coze 工作流未返回有效数据")
+            return success(data=[], msg="暂无热点数据")
+
+        # 遍历所有 content/ext，找到包含 data 数组的有效数据
+        raw_list: List[dict] = []
+        for tag, val in items:
+            if tag == "content":
                 try:
-                    parsed = json.loads(data_raw)
-                except json.JSONDecodeError as e:
-                    logger.error(f"解析 Coze data 失败: {e}")
-                    raise ServerErrorException("热点数据解析失败")
-            else:
-                parsed = data_raw
+                    p = json.loads(val)
+                except json.JSONDecodeError:
+                    continue
+            else:  # ext 已是 dict
+                p = val
+            raw = _extract_hotspot_list_from_coze_response(p)
+            if raw:
+                raw_list = raw
+                break
 
-            raw_list = _extract_hotspot_list_from_coze_response(parsed)
-            result = []
-            for idx, item in enumerate(raw_list):
-                normalized = _validate_and_normalize_item(item, idx)
-                if normalized:
-                    result.append(normalized)
+        if not raw_list:
+            logger.warning(f"Coze 无法解析出热点列表，共 {len(items)} 条消息")
+            return success(data=[], msg="暂无热点数据")
 
-            return success(data=result, msg="获取成功")
+        result = []
+        for item in raw_list:
+            normalized = _validate_and_normalize_item(item)
+            if normalized:
+                result.append(normalized)
+
+        # 写入缓存
+        try:
+            await RedisCache.set_json(HOTSPOT_CACHE_KEY, result, expire=HOTSPOT_CACHE_TTL)
+        except Exception:
+            pass  # 缓存写入失败不影响返回
+
+        return success(data=result, msg="获取成功")
 
     except ServerErrorException:
         raise
-    except httpx.TimeoutException:
-        logger.error("Coze 工作流请求超时")
-        raise ServerErrorException("请求超时，请稍后重试")
+    except asyncio.TimeoutError:
+        logger.error("Coze 热点工作流请求超时")
+        raise ServerErrorException("获取热点榜单超时，请稍后重试")
+    except RuntimeError as e:
+        raise ServerErrorException(str(e))
     except Exception as e:
         logger.exception(f"Coze 热点榜单异常: {e}")
         raise ServerErrorException("获取热点榜单失败，请稍后重试")

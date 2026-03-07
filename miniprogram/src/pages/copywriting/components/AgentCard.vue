@@ -129,7 +129,7 @@ function formatStyleTags(tone: string): string {
  * 跳转到项目列表
  */
 function handleGoToProjectList() {
-  uni.navigateTo({ url: '/pages/project/index' })
+  uni.switchTab({ url: '/pages/project/index' })
 }
 </script>
 

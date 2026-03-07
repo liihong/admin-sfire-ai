@@ -8,7 +8,7 @@
 <!-- iPhone 灵动岛安全区适配 -->
 <view 
     class="safe-area-top" 
-    :style="{ height: safeAreaHeight + 'rpx' }"
+:style="{ height: safeAreaHeight - 5 + 'rpx' }"
   ></view>
     <!-- 页面头部 -->
     <view class="header-container">

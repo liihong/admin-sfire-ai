@@ -64,7 +64,7 @@ const handleBannerTap = (item: BannerItem) => {
 
 .founder-message {
   margin-bottom: $spacing-md;
-  padding: 0 $spacing-md;
+  padding: 0 20rpx 0 $spacing-md; /* 右侧距 10px */
 
   .founder-swiper {
     height: 350rpx;
@@ -132,5 +132,21 @@ const handleBannerTap = (item: BannerItem) => {
       }
     }
   }
+}
+</style>
+
+<!-- 轮播指示点改为横线（需穿透到 swiper 内部，不能 scoped） -->
+<style lang="scss">
+.founder-message .wx-swiper-dots .wx-swiper-dot {
+  width: 40rpx;
+  height: 8rpx;
+  border-radius: 4rpx;
+  background: rgba(255, 255, 255, 0.3);
+}
+.founder-message .wx-swiper-dots .wx-swiper-dot-active {
+  width: 40rpx;
+  height: 8rpx;
+  border-radius: 4rpx;
+  background: #ffffff;
 }
 </style>

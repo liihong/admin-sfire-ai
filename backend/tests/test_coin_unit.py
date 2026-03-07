@@ -20,6 +20,12 @@ def test_coin_config():
 
     config = CoinConfig()
 
+    # 断言新配置参数（优化后）
+    assert config.TOKEN_TO_COIN_RATE == Decimal("0.004"), "TOKEN_TO_COIN_RATE 应为 0.004"
+    assert config.DEFAULT_BASE_FEE == Decimal("5.0"), "DEFAULT_BASE_FEE 应为 5.0"
+    assert config.FREEZE_ESTIMATE_MULTIPLIER == Decimal("1.2"), "FREEZE_ESTIMATE_MULTIPLIER 应为 1.2"
+    logger.info(f"✓ 配置参数: TOKEN_TO_COIN_RATE={config.TOKEN_TO_COIN_RATE}, DEFAULT_BASE_FEE={config.DEFAULT_BASE_FEE}, FREEZE_ESTIMATE_MULTIPLIER={config.FREEZE_ESTIMATE_MULTIPLIER}")
+
     # 测试基础计算
     cost = config.calculate_default_cost(1000, 500)
     logger.info(f"✓ 默认配置计算: 1000输入 + 500输出 = {cost} 火源币")
@@ -138,6 +144,30 @@ def test_token_estimation():
     logger.success("测试4 通过 ✓\n")
 
 
+def test_usage_from_api_token_extraction():
+    """测试 usage_from_api 的 token 提取与计费（优先使用实际 token）"""
+    logger.info("========== 测试5: usage_from_api 计费逻辑 ==========")
+
+    # OpenAI 格式: prompt_tokens, completion_tokens
+    usage_openai = {"prompt_tokens": 1000, "completion_tokens": 500}
+    input_tokens = usage_openai.get("prompt_tokens") or usage_openai.get("input_tokens")
+    output_tokens = usage_openai.get("completion_tokens") or usage_openai.get("output_tokens")
+    cost = CoinConfig.calculate_default_cost(input_tokens, output_tokens)
+    assert cost == 15, f"预期 15 火源币, 实际 {cost}"
+    logger.info(f"✓ OpenAI 格式 usage: 1000 输入 + 500 输出 = {cost} 火源币")
+
+    # 部分 API 格式: input_tokens, output_tokens
+    usage_alt = {"input_tokens": 2000, "output_tokens": 800}
+    input_tokens = usage_alt.get("prompt_tokens") or usage_alt.get("input_tokens")
+    output_tokens = usage_alt.get("completion_tokens") or usage_alt.get("output_tokens")
+    cost = CoinConfig.calculate_default_cost(input_tokens, output_tokens)
+    # (2000 + 2400) * 0.004 + 5 = 22.6 -> 23
+    assert cost == 23, f"预期 23 火源币, 实际 {cost}"
+    logger.info(f"✓ 备用格式 usage: 2000 输入 + 800 输出 = {cost} 火源币")
+
+    logger.success("测试5 通过 ✓\n")
+
+
 def main():
     """主测试函数"""
     logger.info("🚀 开始测试火源币算力系统 (单元测试)\n")
@@ -148,6 +178,7 @@ def main():
         test_cost_formula()
         test_model_rates()
         test_token_estimation()
+        test_usage_from_api_token_extraction()
 
         logger.success("=" * 60)
         logger.success("🎉 所有单元测试通过!\n")
@@ -162,7 +193,8 @@ def main():
         logger.info(f"   - 输入Token权重 (A): {CoinConfig.DEFAULT_INPUT_WEIGHT}")
         logger.info(f"   - 输出Token权重 (B): {CoinConfig.DEFAULT_OUTPUT_WEIGHT}")
         logger.info(f"   - 基础调度费: {CoinConfig.DEFAULT_BASE_FEE} 火源币")
-        logger.info(f"   - Token换算比例: {CoinConfig.TOKEN_TO_COIN_RATE}\n")
+        logger.info(f"   - Token换算比例: {CoinConfig.TOKEN_TO_COIN_RATE}")
+        logger.info(f"   - 预冻结估算系数: {CoinConfig.FREEZE_ESTIMATE_MULTIPLIER}\n")
 
         logger.info("3️⃣ 模型倍率示例:")
         for model in ["gpt-4o-mini", "claude-3-5-sonnet", "deepseek-chat"]:

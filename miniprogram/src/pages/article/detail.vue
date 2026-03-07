@@ -3,11 +3,29 @@
     <!-- 顶部导航栏 -->
    <BaseHeader title="文章详情" @back="goBack">
       <template #right>
-        <view @tap="handleShare">
+        <view class="share-trigger" @tap="showShareMenu = true">
           <text class="share-icon">分享</text>
         </view>
      </template>
     </BaseHeader>
+
+    <!-- 分享弹窗：必须使用 button 的 open-type 才能触发微信分享 -->
+    <view class="share-mask" v-if="showShareMenu" @tap="showShareMenu = false">
+      <view class="share-sheet" @tap.stop>
+        <view class="share-sheet-title">分享到</view>
+        <view class="share-options">
+          <button class="share-option-btn" open-type="share" @tap="showShareMenu = false">
+            <text class="share-option-icon">👤</text>
+            <text class="share-option-text">分享给好友</text>
+          </button>
+          <button class="share-option-btn" open-type="shareTimeline" @tap="showShareMenu = false">
+            <text class="share-option-icon">⭕</text>
+            <text class="share-option-text">分享到朋友圈</text>
+          </button>
+        </view>
+        <button class="share-cancel-btn" @tap="showShareMenu = false">取消</button>
+      </view>
+    </view>
 
     <!-- 加载状态 -->
     <view class="loading-container" v-if="isLoading">
@@ -100,6 +118,9 @@ const isLoading = ref(false)
 // 错误信息
 const error = ref<string>('')
 
+// 分享菜单显示状态
+const showShareMenu = ref(false)
+
 // 页面加载时获取文章ID
 onLoad((options: any) => {
   if (options.id) {
@@ -143,14 +164,6 @@ function goBack() {
     fail: () => {
       uni.switchTab({ url: '/pages/index/index' })
     }
-  })
-}
-
-// 分享功能
-function handleShare() {
-  uni.showShareMenu({
-    withShareTicket: true,
-    menus: ['shareAppMessage', 'shareTimeline']
   })
 }
 
@@ -241,9 +254,88 @@ function formatTime(timeStr?: string): string {
   position: relative;
 }
 
+.share-trigger {
+  padding: 8rpx 0;
+}
+
 .share-icon {
   font-size: 28rpx;
   color: $brand-orange;
+}
+
+// 分享弹窗
+.share-mask {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  z-index: 999;
+  display: flex;
+  align-items: flex-end;
+}
+
+.share-sheet {
+  width: 100%;
+  background: $white;
+  border-radius: 24rpx 24rpx 0 0;
+  padding: $spacing-lg;
+  padding-bottom: calc($spacing-lg + env(safe-area-inset-bottom));
+}
+
+.share-sheet-title {
+  font-size: 28rpx;
+  color: $text-second;
+  text-align: center;
+  margin-bottom: $spacing-lg;
+}
+
+.share-options {
+  display: flex;
+  gap: $spacing-lg;
+  justify-content: center;
+  margin-bottom: $spacing-lg;
+}
+
+.share-option-btn {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12rpx;
+  padding: $spacing-lg;
+  background: $bg-light;
+  border-radius: $radius-md;
+  border: none;
+  font-size: 28rpx;
+  color: $text-main;
+
+  &::after {
+    border: none;
+  }
+}
+
+.share-option-icon {
+  font-size: 48rpx;
+}
+
+.share-option-text {
+  font-size: 26rpx;
+}
+
+.share-cancel-btn {
+  width: 100%;
+  padding: 24rpx;
+  background: $bg-light;
+  border-radius: $radius-md;
+  border: none;
+  font-size: 28rpx;
+  color: $text-main;
+
+  &::after {
+    border: none;
+  }
 }
 
 // 加载状态
@@ -380,7 +472,8 @@ function formatTime(timeStr?: string): string {
 // 文章正文卡片
 .article-body-card {
   background: $white;
-  margin-bottom: $spacing-md;
+  margin: $spacing-md;
+    padding: $spacing-md;
   min-height: 400rpx;
 }
 

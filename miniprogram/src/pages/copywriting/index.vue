@@ -23,9 +23,14 @@
     <scroll-view class="chat-container" scroll-y :scroll-top="scrollTop" :scroll-with-animation="true"
       @scrolltoupper="onScrollToUpper">
 
-      <view v-for="msg in chatHistory" :key="`${msg.role}-${msg.timestamp}`" class="message-wrapper" :class="msg.role">
-        <view v-if="msg.role === 'user'" class="message-bubble user-bubble">
-          <text class="bubble-text">{{ msg.content }}</text>
+      <view v-for="(msg, idx) in chatHistory" :key="idx" class="message-wrapper" :class="msg.role">
+        <view v-if="msg.role === 'user'" class="message-row user-row">
+          <view class="message-bubble user-bubble">
+            <text class="bubble-text">{{ msg.content }}</text>
+          </view>
+          <view class="user-avatar">
+            <image class="avatar-img" :src="userAvatarUrl" mode="aspectFill" />
+          </view>
         </view>
 
         <view v-else-if="msg.role === 'assistant'" class="message-row assistant-row">
@@ -46,6 +51,15 @@
         <view v-else-if="msg.role === 'system_hint'" class="system-hint-wrapper">
           <view class="system-hint-bubble">
             <text class="hint-text">{{ msg.content }}</text>
+          </view>
+        </view>
+
+        <view v-else-if="msg.role === 'membership_hint'" class="system-hint-wrapper">
+          <view class="membership-hint-bubble">
+            <text class="hint-text">{{ msg.content }}</text>
+            <view class="membership-btn" @tap="goToMembership">
+              <text class="btn-text">去开通</text>
+            </view>
           </view>
         </view>
       </view>
@@ -69,33 +83,35 @@
       <view class="scroll-bottom-spacer"></view>
     </scroll-view>
 
-    <view class="input-bar">
-      <view class="input-container">
-        <view class="clear-btn" @tap="clearChat">
-          <SvgIcon name="delete" size="36" color="#666" />
-        </view>
+    <view class="bottom-bar" :style="{ bottom: keyboardHeight + 'px' }">
+      <view class="input-bar">
+        <view class="input-container">
+          <!-- <view class="clear-btn" @tap="clearChat">
+            <SvgIcon name="delete" size="36" color="#666" />
+          </view> -->
 
-        <view class="input-wrapper">
-          <textarea v-model="inputText" class="chat-input" :placeholder="inputPlaceholder" :maxlength="2000"
-            :auto-height="true" :show-confirm-bar="false" :adjust-position="true" :cursor-spacing="20"
-            @confirm="sendMessage" @linechange="onInputLineChange" />
-        </view>
+          <view class="input-wrapper">
+            <textarea v-model="inputText" class="chat-input" :placeholder="inputPlaceholder" :maxlength="2000"
+              :auto-height="true" :show-confirm-bar="false" :adjust-position="false" :cursor-spacing="20"
+              @confirm="sendMessage" @linechange="onInputLineChange" />
+          </view>
 
-        <view class="send-btn" :class="{ active: canSend, disabled: !canSend || isGenerating }" @tap="sendMessage">
-          <SvgIcon :name="isGenerating ? 'ready2' : 'send'" size="36"
-            :color="canSend && !isGenerating ? '#fff' : '#999'" />
+          <view class="send-btn" :class="{ active: canSend, disabled: !canSend || isGenerating }" @tap="sendMessage">
+            <SvgIcon :name="isGenerating ? 'ready2' : 'send'" size="36"
+              :color="canSend && !isGenerating ? '#fff' : '#999'" />
+          </view>
         </view>
       </view>
-    </view>
 
-    <view class="ai-disclaimer">
-      <text class="disclaimer-text">本内容由 AI 生成，不代表开发者立场。</text>
+      <view class="ai-disclaimer">
+        <text class="disclaimer-text">本内容由 AI 生成，不代表开发者立场。</text>
+      </view>
     </view>
   </view>
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, watch, onMounted, nextTick } from 'vue'
+import { ref, reactive, computed, watch, onMounted, onUnmounted, nextTick } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import { useAuthStore } from '@/stores/auth'
 import { useProjectStore } from '@/stores/project'
@@ -146,7 +162,7 @@ const currentPersonaSettings = computed(() => {
 })
 
 interface ChatMessage {
-  role: 'user' | 'assistant' | 'system_hint'
+  role: 'user' | 'assistant' | 'system_hint' | 'membership_hint'
   content: string
   timestamp: number
 }
@@ -158,10 +174,16 @@ const scrollTop = ref(0)
 const conversationId = ref<number | undefined>(undefined)
 // 标记是否是从历史对话跳转的（从历史对话跳转时不需要设置默认指令）
 const isFromConversationHistory = ref(false)
+const keyboardHeight = ref(0)
 // 滚动计数器，用于触发滚动到底部
 let scrollCounter = 0
 
 const canSend = computed(() => inputText.value.trim().length > 0)
+
+const userAvatarUrl = computed(() => {
+  const info = authStore.userInfo
+  return info?.avatar || info?.avatarUrl || '/static/default-avatar.png'
+})
 
 const inputPlaceholder = computed(() => {
   return '向智能体发送创作指令...'
@@ -208,11 +230,36 @@ function onInputLineChange() {
   // 输入框高度变化时的处理
 }
 
+function goToMembership() {
+  uni.navigateTo({
+    url: '/pages/mine/membership'
+  })
+}
+
 async function sendMessage() {
   if (!canSend.value || isGenerating.value) return
 
   const loggedIn = await authStore.requireLogin()
   if (!loggedIn) return
+
+  // 前端判断：非会员直接提示，不请求后端
+  const level = authStore.userInfo?.level
+  if (level === 'normal' || !level) {
+    const userMessage = inputText.value.trim()
+    inputText.value = ''
+    chatHistory.push({
+      role: 'user',
+      content: userMessage,
+      timestamp: Date.now()
+    })
+    chatHistory.push({
+      role: 'membership_hint',
+      content: '您还没有开通会员，没有办法和智能体对话',
+      timestamp: Date.now()
+    })
+    scrollToBottom()
+    return
+  }
 
   const userMessage = inputText.value.trim()
 
@@ -492,13 +539,24 @@ onLoad(async (options?: PageOptions) => {
   }
 })
 
+const onKeyboardHeightChange = (res: { height: number }) => {
+  keyboardHeight.value = res.height || 0
+}
+
 onMounted(async () => {
   scrollToBottom()
+
+  // 监听键盘高度，配合 adjust-position=false 避免整页上推、头部被顶走
+  uni.onKeyboardHeightChange(onKeyboardHeightChange)
 
   // 只有从快捷指令跳转时才设置默认指令，从历史对话跳转时不设置
   if (!isFromConversationHistory.value && !inputText.value.trim() && quickEntryStore.activeQuickEntry?.instructions) {
     inputText.value = quickEntryStore.activeQuickEntry.instructions
   }
+})
+
+onUnmounted(() => {
+  uni.offKeyboardHeightChange(onKeyboardHeightChange)
 })
 
 watch(
@@ -533,12 +591,15 @@ $border-light: rgba(0, 0, 0, 0.06);
 }
 
 .nav-header {
+  position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
   display: flex;
   flex-direction: column;
   background: rgba(255, 255, 255, 0.9);
   backdrop-filter: blur(20px);
   border-bottom: 1rpx solid $border-light;
-  position: relative;
   z-index: 100;
 
   .nav-content {
@@ -614,11 +675,15 @@ $border-light: rgba(0, 0, 0, 0.06);
 .persona-card-wrapper {
   flex-shrink: 0;
   overflow: visible;
+  padding-top: 220rpx;
+    /* 固定头部占位：安全区 + nav-content */
 }
 
 .chat-container {
   flex: 1;
   padding: 0 24rpx;
+  padding-bottom: 200rpx;
+    /* 底部输入栏占位，避免被 fixed 底部栏遮挡 */
   overflow: hidden;
 }
 
@@ -641,6 +706,24 @@ $border-light: rgba(0, 0, 0, 0.06);
   align-items: flex-start;
   max-width: 85%;
 
+  &.user-row {
+      margin-left: auto;
+  
+      .user-avatar {
+        width: 72rpx;
+        height: 72rpx;
+        border-radius: 50%;
+        overflow: hidden;
+        margin-left: 16rpx;
+        flex-shrink: 0;
+        background: #E8ECEF;
+  
+        .avatar-img {
+          width: 100%;
+          height: 100%;
+        }
+      }
+    }
   &.assistant-row {
     .ai-avatar {
       width: 72rpx;
@@ -732,6 +815,38 @@ $border-light: rgba(0, 0, 0, 0.06);
   }
 }
 
+.membership-hint-bubble {
+  background: rgba(255, 107, 53, 0.08);
+  padding: 24rpx 28rpx;
+  border-radius: 20rpx;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16rpx;
+
+  .hint-text {
+    font-size: 26rpx;
+    color: $text-secondary;
+    text-align: center;
+  }
+
+  .membership-btn {
+    padding: 12rpx 32rpx;
+    background: linear-gradient(135deg, $primary-orange, $primary-orange-light);
+    border-radius: 32rpx;
+    box-shadow: 0 4rpx 12rpx rgba(255, 107, 53, 0.3);
+
+    .btn-text {
+      font-size: 26rpx;
+      color: #fff;
+      font-weight: 500;
+    }
+
+    &:active {
+      opacity: 0.9;
+    }
+  }
+}
 .loading-bubble {
   display: flex;
   align-items: center;
@@ -787,11 +902,21 @@ $border-light: rgba(0, 0, 0, 0.06);
   height: 200rpx;
 }
 
+.bottom-bar {
+  position: fixed;
+  left: 0;
+  right: 0;
+  width: 100%;
+  z-index: 99;
+  background: linear-gradient(165deg, #F8FAFF 0%, #EEF2FF 50%, #FFF5F0 100%);
+  padding-bottom: constant(safe-area-inset-bottom);
+  padding-bottom: env(safe-area-inset-bottom);
+}
 .ai-disclaimer {
   padding: 16rpx 24rpx;
   text-align: center;
   background: rgba(255, 255, 255, 0.95);
-  padding-bottom: calc(env(safe-area-inset-bottom));
+  /* 底部安全区由 .bottom-bar 的 padding-bottom 统一处理 */
 
   .disclaimer-text {
     font-size: 22rpx;

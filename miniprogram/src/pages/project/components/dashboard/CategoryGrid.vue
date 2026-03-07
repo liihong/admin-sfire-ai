@@ -98,7 +98,6 @@ function handleClick(item: CategoryItem) {
 
     .category-label {
       font-size: $font-size-sm;
-      font-weight: 900;
       color: $text-primary;
       text-align: center;
     }

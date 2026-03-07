@@ -13,13 +13,13 @@ from decimal import Decimal
 class CoinConfig:
     """火源币配置常量"""
 
-    # Token与火源币的换算基础比例 (1 Token = 0.001 火源币)
-    TOKEN_TO_COIN_RATE = Decimal("0.001")
+    # Token与火源币的换算基础比例 (1 Token = 0.004 火源币)
+    TOKEN_TO_COIN_RATE = Decimal("0.004")
 
     # 默认权重配置
     DEFAULT_INPUT_WEIGHT = Decimal("1.0")    # 输入Token权重
     DEFAULT_OUTPUT_WEIGHT = Decimal("3.0")   # 输出Token权重 (输出成本是输入的3倍)
-    DEFAULT_BASE_FEE = Decimal("10.0")       # 基础调度费(火源币)
+    DEFAULT_BASE_FEE = Decimal("5.0")        # 基础调度费(火源币)
 
     # 模型默认倍率
     DEFAULT_RATE_MULTIPLIER = Decimal("1.0")
@@ -28,7 +28,7 @@ class CoinConfig:
     VIOLATION_PENALTY_MULTIPLIER = Decimal("0.1")
 
     # 预冻结估算系数 (按最大输出Token数的倍数预冻结)
-    FREEZE_ESTIMATE_MULTIPLIER = Decimal("1.5")
+    FREEZE_ESTIMATE_MULTIPLIER = Decimal("1.2")
 
     # 错误码免单配置
     FREE_ERROR_CODES = [500, 502, 503, 504]

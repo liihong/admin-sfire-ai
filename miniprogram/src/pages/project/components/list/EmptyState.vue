@@ -18,14 +18,16 @@
     </view>
 
     <!-- 长按钮（使用公共样式） -->
-    <view class="pill-button" @tap="handleAction">
-      <SvgIcon name="add" size="40" color="#FFFFFF" />
-      <text class="pill-button-text">开启第一个项目</text>
+    <!-- 微信小程序中 text 子元素可能阻止 tap 冒泡，需在子元素上也绑定事件 -->
+    <view class="pill-button" hover-class="pill-button-hover" @tap="handleAction">
+      <SvgIcon name="add" size="40" color="#FFFFFF" @tap.stop="handleAction" />
+      <text class="pill-button-text" @tap.stop="handleAction">开启第一个项目</text>
     </view>
   </view>
 </template>
 
 <script setup lang="ts">
+import BaseHeader from '@/components/base/BaseHeader.vue'
 import SvgIcon from '@/components/base/SvgIcon.vue'
 
 // Emits
@@ -115,5 +117,11 @@ function handleAction() {
   color: #999999; // 浅灰色
   text-align: center;
   line-height: 1.6;
+}
+
+// 微信小程序 hover-class 按下态（确保按钮可点击）
+.pill-button-hover {
+  transform: scale(0.98);
+  opacity: 0.95;
 }
 </style>

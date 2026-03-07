@@ -27,13 +27,12 @@ withDefaults(defineProps<Props>(), {
 @import '@/styles/_variables.scss';
 
 .base-section {
-  padding: $spacing-sm 0 $spacing-sm;
   
   &__header {
       display: flex;
       align-items: center;
       justify-content: space-between;
-      margin-bottom: 24rpx;
+      margin-bottom: 10rpx;
   }
   
                                                                                                                                 &__header-left {

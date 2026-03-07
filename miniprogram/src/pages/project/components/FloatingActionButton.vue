@@ -2,7 +2,7 @@
   <view class="fab-container" :style="fabStyle" @tap="$emit('click')">
     <view class="fab-button">
      <!-- <u-icon name="edit-pen" color="#FFFFFF" size="24"></u-icon> -->
-      <SvgIcon name="linggan" size="50" color="#FFFFFF" />
+     <SvgIcon name="linggan" size="50" color="#FFFFFF" />
     </view>
   </view>
 </template>

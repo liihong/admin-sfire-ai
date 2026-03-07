@@ -377,7 +377,7 @@ function handleSwitchProject() {
   min-height: 100vh;
   background: linear-gradient(180deg, #FAFBFC 0%, #F5F7FA 100%);
   position: relative;
-  
+  top: -15rpx;
   // 优雅的背景装饰
   &::before {
     content: '';

@@ -60,7 +60,56 @@ class AIService:
         # 创建后台任务
         asyncio.create_task(_do_update())
 
-    
+    def _apply_cache_control_for_claude(
+        self,
+        messages: List[dict],
+        model_id: str,
+    ) -> List[dict]:
+        """
+        为 Claude 模型的 system 消息添加 cache_control，使系统提示词能命中缓存。
+        兼容 OpenRouter、Anthropic 原生 API 等。
+        """
+        if not model_id or "claude" not in model_id.lower():
+            return messages
+
+        result = []
+        for msg in messages:
+            if msg.get("role") != "system":
+                result.append(msg)
+                continue
+
+            content = msg.get("content", "")
+            if not content:
+                result.append(msg)
+                continue
+
+            # 将 system 消息转为带 cache_control 的格式
+            if isinstance(content, str):
+                result.append({
+                    "role": "system",
+                    "content": [
+                        {
+                            "type": "text",
+                            "text": content,
+                            "cache_control": {"type": "ephemeral"},
+                        }
+                    ],
+                })
+            elif isinstance(content, list):
+                # 已是数组格式，为每个 text 块添加 cache_control
+                new_content = []
+                for block in content:
+                    if isinstance(block, dict) and block.get("type") == "text":
+                        new_block = {**block, "cache_control": {"type": "ephemeral"}}
+                        new_content.append(new_block)
+                    else:
+                        new_content.append(block)
+                result.append({"role": "system", "content": new_content})
+            else:
+                result.append(msg)
+
+        return result
+
     async def _get_model_config(self, model_id: str) -> tuple[Optional[str], Optional[str]]:
         """
         根据模型ID获取模型配置（API key 和 base_url）
@@ -164,6 +213,11 @@ class AIService:
                 pass
         except Exception:
             pass
+
+        # 为 Claude 模型的 system 消息添加 cache_control，使系统提示词能命中缓存
+        formatted_messages = self._apply_cache_control_for_claude(
+            formatted_messages, actual_model_id
+        )
         
         # 规范化 base_url 并构建完整 URL
         normalized_base_url = base_url.rstrip('/')
@@ -216,12 +270,18 @@ class AIService:
                 # 🔍 详细错误日志
                 # 查找system prompt长度(可能在任何位置)
                 system_prompt_length = 'N/A'
-                for msg in formatted_messages:
-                    if msg.get('role') == 'system':
-                        system_prompt_length = len(msg.get('content', ''))
+                for m in formatted_messages:
+                    if m.get('role') == 'system':
+                        c = m.get('content', '')
+                        if isinstance(c, str):
+                            system_prompt_length = len(c)
+                        elif isinstance(c, list):
+                            system_prompt_length = sum(
+                                len(b.get('text', '')) for b in c
+                                if isinstance(b, dict) and b.get('type') == 'text'
+                            )
                         break
 
-                    
                 logger.error(f"❌ [API] LLM API请求失败 (非流式):")
                 logger.error(f"  - HTTP Status: {response.status_code}")
                 logger.error(f"  - API URL: {api_url}")
@@ -331,6 +391,11 @@ class AIService:
                 pass
         except Exception:
             pass
+
+        # 为 Claude 模型的 system 消息添加 cache_control，使系统提示词能命中缓存
+        formatted_messages = self._apply_cache_control_for_claude(
+            formatted_messages, actual_model_id
+        )
         
         # 调用 API（流式）
         usage_info = None
@@ -367,7 +432,16 @@ class AIService:
         # 打印消息结构(但不打印完整内容,避免日志过长)
         for i, msg in enumerate(formatted_messages):
             role = msg.get('role', 'unknown')
-            content_len = len(msg.get('content', ''))
+            c = msg.get('content', '')
+            if isinstance(c, str):
+                content_len = len(c)
+            elif isinstance(c, list):
+                content_len = sum(
+                    len(b.get('text', '')) for b in c
+                    if isinstance(b, dict) and b.get('type') == 'text'
+                )
+            else:
+                content_len = 0
             logger.info(f"  - Message {i+1}: role={role}, content_length={content_len}")
 
         # 构建请求体
@@ -414,12 +488,18 @@ class AIService:
                         # 🔍 详细错误日志
                         # 查找system prompt长度(可能在任何位置)
                         system_prompt_length = 'N/A'
-                        for msg in formatted_messages:
-                            if msg.get('role') == 'system':
-                                system_prompt_length = len(msg.get('content', ''))
+                        for m in formatted_messages:
+                            if m.get('role') == 'system':
+                                c = m.get('content', '')
+                                if isinstance(c, str):
+                                    system_prompt_length = len(c)
+                                elif isinstance(c, list):
+                                    system_prompt_length = sum(
+                                        len(b.get('text', '')) for b in c
+                                        if isinstance(b, dict) and b.get('type') == 'text'
+                                    )
                                 break
 
-                        logger.error(f"{msg}")    
                         logger.error(f"❌ [API] LLM API请求失败:")
                         logger.error(f"  - HTTP Status: {response.status_code}")
                         logger.error(f"  - API URL: {api_url}")
@@ -510,24 +590,32 @@ class AIService:
                                 # 保存 usage 信息（通常在最后一个 chunk 中）
                                 if "usage" in data:
                                     usage_info = data["usage"]
-                                
+
                                 # 提取 delta content
                                 choices = data.get("choices", [])
-                                if choices and "delta" in choices[0]:
-                                    delta = choices[0]["delta"]
-                                    content = delta.get("content", "")
-                                    
-                                    if content:
-                                        # 格式化为前端需要的格式
-                                        chunk_data = {
-                                            "id": data.get("id", ""),
-                                            "delta": {
-                                                "content": content,
-                                                "role": delta.get("role"),
-                                            },
-                                            "finish_reason": choices[0].get("finish_reason"),
-                                        }
-                                        yield json.dumps(chunk_data)
+                                delta = choices[0]["delta"] if choices and "delta" in choices[0] else {}
+                                content = delta.get("content", "")
+
+                                if content:
+                                    # 格式化为前端需要的格式，附带 usage 供调用方计费使用
+                                    chunk_data = {
+                                        "id": data.get("id", ""),
+                                        "delta": {
+                                            "content": content,
+                                            "role": delta.get("role"),
+                                        },
+                                        "finish_reason": choices[0].get("finish_reason") if choices else None,
+                                    }
+                                    if "usage" in data:
+                                        chunk_data["usage"] = data["usage"]
+                                    yield json.dumps(chunk_data)
+                                elif "usage" in data:
+                                    # 最后一个 chunk 可能仅有 usage 无 content，单独 yield 供调用方计费
+                                    chunk_data = {
+                                        "usage": data["usage"],
+                                        "finish_reason": choices[0].get("finish_reason") if choices else None,
+                                    }
+                                    yield json.dumps(chunk_data)
                             except json.JSONDecodeError as e:
                                 logger.warning(f"Failed to parse SSE data: {data_str[:100]} - {e}")
                                 continue

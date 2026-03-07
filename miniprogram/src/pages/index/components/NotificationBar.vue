@@ -1,5 +1,5 @@
 <template>
- <view class="notification-bar" v-if="announcements && announcements.length > 0">
+ <view class="notification-bar" v-if="announcements && announcements.length > 0" @click="handleClick">
     <view class="notification-left">
      <SvgIcon name="notice" size="32" color="#FF8800" />
       <text class="notification-label">上新</text>
@@ -42,6 +42,7 @@ const handleClick = () => {
 .notification-bar {
   display: flex;
   align-items: center;
+  cursor: pointer;
   padding: 24rpx 32rpx;
   background: $white;
   margin-bottom: $spacing-md;

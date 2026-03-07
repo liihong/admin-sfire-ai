@@ -2,12 +2,12 @@
   <view class="actions-wrapper">
     <!-- 主操作按钮 -->
     <view class="main-actions">
-      <view class="action-btn generate-btn" @tap="handleGenerate">
+     <!-- <view class="action-btn generate-btn" @tap="handleGenerate">
         <u-icon name="edit-pen" color="#FFFFFF" size="18"></u-icon>
         <text class="action-text">生成文案</text>
-      </view>
-      <view class="action-btn chat-btn" @tap="handleChat">
-        <u-icon name="chat" color="#86909C" size="18"></u-icon>
+   </view> -->
+      <view class="action-btn generate-btn" @tap="handleChat">
+        <u-icon name="chat" color="#FFFFFF" size="18"></u-icon>
         <text class="action-text">AI对话</text>
       </view>
     </view>

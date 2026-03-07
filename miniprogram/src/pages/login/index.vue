@@ -590,11 +590,13 @@ $wechat-green: #07C160;
 .agreement-section {
   padding: 40rpx 60rpx;
   z-index: $z-index-base;
+  display: flex;
+    justify-content: center;
 }
 
 .agreement-wrapper {
   display: flex;
-  align-items: flex-start;
+  align-items: flex-end;
   justify-content: center;
   gap: $spacing-sm;
 }
@@ -625,7 +627,6 @@ $wechat-green: #07C160;
   flex: 1;
   font-size: $font-size-sm;
   line-height: 1.6;
-  text-align: center;
 }
 
 .normal-text {

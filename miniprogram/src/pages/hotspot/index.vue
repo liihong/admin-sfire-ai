@@ -72,7 +72,6 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { getHotspotList, type HotspotItem } from '@/api/hotspot'
-import { getQuickEntries, type QuickEntry } from '@/api/quickEntry'
 import { useProjectStore } from '@/stores/project'
 import { useAuthStore } from '@/stores/auth'
 import { useAgentStore } from '@/stores/agent'
@@ -88,34 +87,11 @@ const hotspotList = ref<HotspotItem[]>([])
 const loading = ref(false)
 const refreshing = ref(false)
 const updateTime = ref('')
-const hotspotAgentId = ref<string | null>(null) // 热点功能对应的智能体ID
-
-/**
- * 加载热点功能配置（获取智能体ID）
- */
-async function loadHotspotConfig() {
-  try {
-    const response = await getQuickEntries('category')
-    
-    if (response.code === 200 && response.data?.entries) {
-      // 查找 unique_key 为 'hotspot' 的条目
-      const hotspotEntry = response.data.entries.find(
-        (entry: QuickEntry) => entry.unique_key === 'hotspot'
-      )
-      
-      if (hotspotEntry && hotspotEntry.action_value) {
-        hotspotAgentId.value = hotspotEntry.action_value
-      }
-    }
-  } catch (error) {
-    console.error('加载热点配置失败:', error)
-  }
-}
+const hotspotAgentId = 16 // 热点功能对应的智能体ID（固定值）
 
 // 初始化
 onMounted(() => {
   loadHotspotList()
-  loadHotspotConfig()
 })
 
 /**
@@ -205,29 +181,20 @@ async function handleUseHotspot(item: HotspotItem) {
     return
   }
   
-  // 使用接口返回的 action_value 字段作为智能体ID
-  if (!hotspotAgentId.value) {
-    uni.showToast({
-      title: '智能体配置未找到',
-      icon: 'none'
-    })
-    return
-  }
-  
   // 自动生成快捷指令文案
   const ipName = projectStore.activeProject?.name || '我的IP'
   const quickCommand = `请根据热点"${item.title}"，结合我的IP信息（${ipName}），创作一条30秒的抖音口播文案。要求：1. 开头吸引眼球；2. 结合热点和IP特色；3. 结尾有行动号召。`
   
   // 跳转到AI对话页面
   agentStore.setActiveAgent({
-    id: String(hotspotAgentId.value),
+    id: String(hotspotAgentId),
     name: '蹭热点',
     label: '蹭热点',
     icon: '',
     description: ''
   })
   uni.navigateTo({
-    url: `/pages/copywriting/index?agentId=${hotspotAgentId.value}&content=${encodeURIComponent(quickCommand)}`,
+    url: `/pages/copywriting/index?agentId=${hotspotAgentId}&content=${encodeURIComponent(quickCommand)}`,
     fail: (err) => {
       console.error('页面跳转失败:', err)
       uni.showToast({

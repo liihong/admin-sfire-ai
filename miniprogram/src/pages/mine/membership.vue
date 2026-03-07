@@ -1,15 +1,7 @@
 <template>
   <view class="page-wrapper">
     <!-- 页面头部 -->
-    <view class="page-header">
-      <SafeAreaTop />
-      <view class="header-back" @tap="goBack">
-        <text class="back-icon">←</text>
-      </view>
-      <view class="header-content">
-        <text class="header-title">开通会员</text>
-      </view>
-    </view>
+   <BaseHeader title="开通会员" @back="goBack" />
 
     <scroll-view scroll-y class="page-container">
      <!-- 会员特权介绍卡片 - 重新设计 -->
@@ -141,7 +133,7 @@
 
 <script setup lang="ts">
 import { ref } from 'vue'
-import SafeAreaTop from '@/components/common/SafeAreaTop.vue'
+import BaseHeader from '@/components/base/BaseHeader.vue'
 
 // 返回上一页
 const goBack = () => {
@@ -184,49 +176,6 @@ const benefitsList = ref([
   flex-direction: column;
   background: $bg-light;
   overflow: hidden;
-}
-
-.page-header {
-  position: relative;
-  z-index: 100;
-  background: $white;
-    border-bottom: 1rpx solid $border-color;
-    box-shadow: $shadow-sm;
-}
-
-.header-back {
-  position: absolute;
-  left: 32rpx;
-  top: 50%;
-  transform: translateY(-50%);
-  width: 64rpx;
-  height: 64rpx;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 2;
-  border-radius: 50%;
-    background: rgba(0, 0, 0, 0.05);
-}
-
-.back-icon {
-  font-size: 36rpx;
-    color: $text-main;
-    font-weight: 600;
-}
-
-.header-content {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 24rpx 0;
-  min-height: 88rpx;
-}
-
-.header-title {
-  font-size: 36rpx;
-  font-weight: 600;
-    color: $text-main;
 }
 
 .page-container {

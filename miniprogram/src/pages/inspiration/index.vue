@@ -2,11 +2,6 @@
   <view class="inspiration-page">
     <!-- 顶部导航栏 -->
     <BaseHeader title="我的灵感" @back="goBack">
-      <template #right>
-        <view @tap="showFilterMenu = !showFilterMenu">
-          <SvgIcon name="linggan" size="30" color="#1D2129" />
-        </view>
-      </template>
     </BaseHeader>
     
     <!-- 搜索框 -->
@@ -356,7 +351,7 @@ async function handleGenerate(inspiration: Inspiration) {
 // 跳转AI对话
 function handleChat(inspiration: Inspiration) {
   uni.navigateTo({
-    url: `/pages/copywriting/index?inspiration_id=${inspiration.id}&content=${encodeURIComponent(inspiration.content)}`,
+    url: `/pages/copywriting/index?agentId=20&inspiration_id=${inspiration.id}&content=${encodeURIComponent(inspiration.content)}`,
   })
 }
 

@@ -87,7 +87,7 @@ function handleClick(entry: QuickEntry) {
 
   .command-card {
     @include card-style;
-    padding: $spacing-md;
+    padding: $spacing-sm;
     display: flex;
     align-items: center;
     gap: 20rpx;
@@ -112,7 +112,7 @@ function handleClick(entry: QuickEntry) {
       min-width: 0;
 
       .command-title {
-        font-size: $font-size-md;
+        font-size: $font-size-sm;
         font-weight: 600;
         color: $text-main;
         white-space: nowrap;

@@ -48,8 +48,8 @@
       <view class="upgrade-content">
         <view class="upgrade-text">
           <text class="upgrade-subtitle">UPGRADE PRIORITY</text>
-          <text class="upgrade-title">开通 更高等级会员</text>
-         <text class="upgrade-desc">解锁更多IP席位和无限智能体</text>
+          <text class="upgrade-title">开通会员</text>
+          <text class="upgrade-desc">解锁IP席位和无限智能体</text>
         </view>
         <view class="upgrade-btn" @tap="goToMembership">
           <text class="upgrade-btn-text">立即开通</text>
@@ -170,15 +170,16 @@ const formatNumber = (num: string | number): string => {
   return numStr.replace(/\B(?=(\d{3})+(?!\d))/g, ',')
 }
 
-// 功能菜单列表
-const menuList = ref([
+// 功能菜单列表（第一条「我的灵感」仅登录后展示）
+const allMenuList = [
   {
     id: 'inspiration',
     name: '我的灵感',
     desc: '每一次灵感，都是潜在的爆款选题',
     icon: 'linggan',
     iconBg: '#F37021', // 橙色背景
-    path: '/pages/inspiration/index'
+    path: '/pages/inspiration/index',
+    requiresLogin: true
   },
   {
     id: 'referral',
@@ -186,7 +187,8 @@ const menuList = ref([
     desc: '邀请好友一起体验，获得算力奖励',
     icon: 'send',
     iconBg: '#3B82F6', // 蓝色背景
-    path: '/pages/mine/referral/index'
+    path: '/pages/mine/referral/index',
+    requiresLogin: false
   },
   {
     id: 'contact',
@@ -194,9 +196,14 @@ const menuList = ref([
     desc: '升级会员或寻求帮助',
     icon: 'service',
     iconBg: '#10B981', // 绿色背景
-    path: '/pages/mine/contact/index'
+    path: '/pages/mine/contact/index',
+    requiresLogin: false
   }
-])
+]
+
+const menuList = computed(() => {
+  return allMenuList.filter(item => !item.requiresLogin || authStore.isLoggedIn)
+})
 
 /**
  * 刷新用户信息（从服务器获取最新信息）

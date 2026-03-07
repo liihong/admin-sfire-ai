@@ -1,28 +1,24 @@
 <template>
   <view 
     class="safe-area-top" 
-    :style="{ height: safeAreaHeight + 'rpx' }"
+:style="{ height: safeAreaHeight + 'px' }"
   ></view>
 </template>
 
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 
-// 安全区高度（rpx）
+// 安全区高度（px，直接使用系统返回值，适配各机型）
 const safeAreaHeight = ref(0)
 
 onMounted(() => {
   try {
-    // 使用微信官方 API 获取安全区域信息（推荐方案）
     const systemInfo = uni.getSystemInfoSync()
-    const safeAreaInsets = (systemInfo.safeAreaInsets as { top?: number; bottom?: number; left?: number; right?: number }) || {}
+    const safeAreaInsets = (systemInfo.safeAreaInsets as { top?: number }) || {}
     const statusBarHeight = systemInfo.statusBarHeight || 0
-    
-    // 优先使用 safeAreaInsets.top，否则使用 statusBarHeight
-    // 注意：uni.getSystemInfoSync() 返回的是 px，需要转换为 rpx（乘以 2）
-    const topHeight = safeAreaInsets.top || statusBarHeight || 0
-    safeAreaHeight.value = topHeight * 2 // px 转 rpx
 
+    // 直接使用 px，不做 rpx 转换，适配 iPhone 12/13/15 Pro 等各机型
+    safeAreaHeight.value = safeAreaInsets.top ?? statusBarHeight ?? 0
   } catch (error) {
     console.warn('[SafeAreaTop] 获取安全区域信息失败:', error)
     safeAreaHeight.value = 0

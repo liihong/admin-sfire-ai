@@ -388,6 +388,7 @@ async def settle_coin_cost(
     is_stream: bool = False,
     system_prompt: str = "",
     messages_for_ai: list = None,
+    usage_from_api: Optional[dict] = None,
 ) -> bool:
     """
     算力结算（复用函数）
@@ -402,16 +403,37 @@ async def settle_coin_cost(
         db_agent: 数据库智能体对象（可选）
         agent_type: 智能体类型（可选）
         is_stream: 是否为流式响应
+        usage_from_api: API 返回的 usage（含 prompt_tokens/completion_tokens），优先使用实际 token 计费
     
     Returns:
         是否结算成功
     """
     try:
-        # 估算实际token使用
-        input_tokens = coin_service.estimate_tokens_from_text(user_prompt)
-        output_tokens = coin_service.estimate_tokens_from_text(assistant_content)
-        
-        logger.info(f"💰 [原子结算] Token估算完成: 输入={input_tokens}, 输出={output_tokens}")
+        input_tokens = None
+        output_tokens = None
+
+        # 优先使用 API 返回的实际 token 数（兼容 OpenAI prompt_tokens/completion_tokens 及部分 API 的 input_tokens/output_tokens）
+        if usage_from_api and isinstance(usage_from_api, dict):
+            input_tokens = usage_from_api.get("prompt_tokens") or usage_from_api.get("input_tokens")
+            output_tokens = usage_from_api.get("completion_tokens") or usage_from_api.get("output_tokens")
+            if input_tokens is not None and output_tokens is not None:
+                input_tokens = int(input_tokens)
+                output_tokens = int(output_tokens)
+                logger.info(f"💰 [原子结算] 使用 API 实际 Token: 输入={input_tokens}, 输出={output_tokens}")
+
+        # 回退到估算（API 未返回 usage 或格式不完整时）
+        if input_tokens is None or output_tokens is None:
+            input_text_parts = []
+            if messages_for_ai:
+                for m in messages_for_ai:
+                    content = m.get("content", "") if isinstance(m, dict) else getattr(m, "content", "")
+                    if content:
+                        input_text_parts.append(str(content))
+            if not input_text_parts:
+                input_text_parts = [system_prompt or "", user_prompt or ""]
+            input_tokens = coin_service.estimate_tokens_from_text("".join(input_text_parts))
+            output_tokens = coin_service.estimate_tokens_from_text(assistant_content)
+            logger.info(f"💰 [原子结算] Token 估算完成（回退）: 输入={input_tokens}(含system+历史), 输出={output_tokens}")
         
         # 计算实际消耗金额
         actual_cost = await coin_service.calculate_cost(
@@ -846,7 +868,13 @@ async def generate_chat(
 
         try:
             # 1️⃣ 先计算预估成本（不涉及数据库操作）
-            user_input_text = user_prompt
+            # 构建完整输入文本（system prompt + 对话历史）用于预冻结估算，与结算时一致
+            full_input_parts = [final_system_prompt or ""]
+            for msg in optimized_messages or []:
+                content = msg.content if hasattr(msg, "content") else (msg.get("content", "") if isinstance(msg, dict) else "")
+                if content:
+                    full_input_parts.append(str(content))
+            user_input_text = "".join(full_input_parts)
 
             estimated_cost = await coin_service.estimate_max_cost(
                 model_id=llm_model.id,
@@ -1071,6 +1099,7 @@ async def generate_chat(
             # 流式响应
             async def generate_stream():
                 nonlocal assistant_content, task_id, freeze_info
+                usage_from_api = None
                 try:
                     # 首先发送 conversation_id（让前端能够更新会话ID）
                     yield f"data: {json.dumps({'conversation_id': conversation_id}, ensure_ascii=False)}\n\n"
@@ -1111,6 +1140,9 @@ async def generate_chat(
                                     )
                                 
                                 return
+                            # 捕获 API 返回的 usage，供算力结算使用
+                            if "usage" in chunk_data:
+                                usage_from_api = chunk_data["usage"]
                             # 提取 content（AIService 返回的格式）
                             delta = chunk_data.get("delta", {})
                             content = delta.get("content", "")
@@ -1144,7 +1176,8 @@ async def generate_chat(
                                 coin_service=coin_service,
                                 db_agent=db_agent,
                                 agent_type=request.agent_type,
-                                is_stream=True
+                                is_stream=True,
+                                usage_from_api=usage_from_api
                             )
                             if not settle_success:
                                 logger.error(f"❌ [原子结算] settle_coin_cost返回False，结算可能失败，用户ID={current_user.id}, request_id={freeze_info['request_id']}")
@@ -1278,7 +1311,8 @@ async def generate_chat(
                     coin_service=coin_service,
                     db_agent=db_agent,
                     agent_type=request.agent_type,
-                    is_stream=False
+                    is_stream=False,
+                    usage_from_api=result.get("usage")
                 )
             else:
                 if not task_id:
