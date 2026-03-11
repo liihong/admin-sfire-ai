@@ -143,8 +143,8 @@ async def refresh_token(
         if not user.is_active:
             raise BadRequestException("用户已被封禁")
 
-        # 5. 生成新的access_token和refresh_token
-        new_access_token = create_access_token(data={"sub": str(user.id)})
+        # 5. 生成新的access_token和refresh_token（Admin 使用 8 小时有效期）
+        new_access_token = create_access_token(data={"sub": str(user.id)}, admin_long_session=True)
         new_refresh_token = create_refresh_token(data={"sub": str(user.id)})
 
         logger.info(f"Admin token refreshed successfully for user: {user.id}")
@@ -153,7 +153,7 @@ async def refresh_token(
             data={
                 "access_token": new_access_token,
                 "refresh_token": new_refresh_token,
-                "expires_in": settings.JWT_ACCESS_TOKEN_EXPIRE_MINUTES * 60
+                "expires_in": settings.JWT_ADMIN_ACCESS_TOKEN_EXPIRE_HOURS * 3600
             },
             msg="令牌刷新成功"
         )

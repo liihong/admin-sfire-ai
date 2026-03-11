@@ -91,13 +91,16 @@ function handleRemove(index: number) {
   display: flex;
   flex-wrap: wrap;
   gap: $spacing-sm;
-  padding: $spacing-sm;
-  background: $bg-light;
+  padding: $spacing-md;
+  background: $white;
+  border: 2rpx solid rgba(0, 0, 0, 0.08);
   border-radius: $radius-md;
   min-height: 100rpx;
+  box-shadow: $shadow-sm;
   
   &--taboo {
     background: rgba($color-error, 0.05);
+    border-color: rgba($color-error, 0.15);
   }
   
   .tag-item {

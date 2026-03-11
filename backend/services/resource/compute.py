@@ -4,7 +4,7 @@ Compute Log Service
 """
 from datetime import datetime
 from decimal import Decimal
-from typing import List, Optional
+from typing import List, Optional, Tuple
 
 from sqlalchemy import select, func, and_, or_
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -55,13 +55,17 @@ class ComputeService:
     
     def _format_log_response(self, log: ComputeLog, user: Optional[User] = None) -> dict:
         """格式化算力流水响应数据"""
+        # 充值类型时，金额列显示支付金额（元）；其他类型显示算力变动
+        display_amount = float(log.amount)
+        payment_amount = float(log.payment_amount) if log.payment_amount is not None else None
         return {
             "id": str(log.id),
             "userId": str(log.user_id),
             "username": user.username if user else None,
             "type": log.type.value,
             "typeName": COMPUTE_TYPE_NAMES.get(log.type, "未知"),
-            "amount": float(log.amount),
+            "amount": display_amount,
+            "paymentAmount": payment_amount,  # 充值时的支付金额（元），非充值时为 None
             "beforeBalance": float(log.before_balance),
             "afterBalance": float(log.after_balance),
             "remark": log.remark,
@@ -303,9 +307,21 @@ class ComputeService:
             user_id: 用户ID
         
         Returns:
-            统计信息
+            统计信息（含算力余额、流水汇总）
         """
-        # 按类型分组统计
+        # 1. 查询用户当前算力余额（User 表）
+        user_result = await self.db.execute(
+            select(User.balance, User.frozen_balance).where(User.id == user_id)
+        )
+        user_row = user_result.one_or_none()
+        if user_row:
+            balance = user_row[0] or Decimal("0")
+            frozen_balance = user_row[1] or Decimal("0")
+            available_balance = balance - frozen_balance
+        else:
+            balance = frozen_balance = available_balance = Decimal("0")
+
+        # 2. 按类型分组统计流水
         query = (
             select(
                 ComputeLog.type,
@@ -319,6 +335,9 @@ class ComputeService:
         rows = result.all()
         
         statistics = {
+            "balance": float(balance),
+            "frozenBalance": float(frozen_balance),
+            "availableBalance": float(available_balance),
             "totalRecharge": Decimal("0"),
             "totalConsume": Decimal("0"),
             "totalRefund": Decimal("0"),
@@ -341,7 +360,176 @@ class ComputeService:
             if key:
                 statistics[key] = total or Decimal("0")
         
+        # 统一转为 float，便于 JSON 序列化
+        for key in type_mapping.values():
+            val = statistics[key]
+            statistics[key] = float(val) if isinstance(val, Decimal) else val
+        
         return statistics
+
+    def _recharge_valid_condition(self):
+        """
+        充值有效条件：排除未支付订单
+        - 系统充值（有 operator_id）保留
+        - 用户支付订单：仅保留已支付（payment_status 为 paid 或 None）
+        """
+        return or_(
+            ComputeLog.operator_id.isnot(None),
+            ComputeLog.payment_status.is_(None),
+            ComputeLog.payment_status == "paid",
+        )
+
+    async def get_system_statistics(self) -> dict:
+        """
+        获取系统级算力统计
+        
+        Returns:
+            totalConsume: 系统总消耗（正数）
+            totalRecharge: 系统总充值（正数，仅统计有效充值）
+        """
+        # 总消耗：CONSUME 类型，取绝对值求和
+        consume_result = await self.db.execute(
+            select(func.coalesce(func.sum(func.abs(ComputeLog.amount)), 0)).where(
+                ComputeLog.type == ComputeType.CONSUME
+            )
+        )
+        total_consume = consume_result.scalar() or Decimal("0")
+
+        # 总充值：RECHARGE 类型，仅统计有效充值
+        recharge_conditions = [
+            ComputeLog.type == ComputeType.RECHARGE,
+            self._recharge_valid_condition(),
+        ]
+        recharge_result = await self.db.execute(
+            select(func.coalesce(func.sum(ComputeLog.amount), 0)).where(
+                and_(*recharge_conditions)
+            )
+        )
+        total_recharge = recharge_result.scalar() or Decimal("0")
+        # 充值 amount 为正数，直接使用
+
+        return {
+            "totalConsume": float(total_consume),
+            "totalRecharge": float(total_recharge),
+        }
+
+    async def get_user_summary_list(
+        self,
+        page_num: int = 1,
+        page_size: int = 10,
+        username: Optional[str] = None,
+        start_time: Optional[str] = None,
+        end_time: Optional[str] = None,
+    ) -> Tuple[List[dict], int]:
+        """
+        获取用户算力汇总列表（按用户分组统计消耗与充值）
+        
+        Args:
+            page_num: 页码
+            page_size: 每页数量
+            username: 用户名模糊搜索
+            start_time: 开始时间（ISO 格式）
+            end_time: 结束时间（ISO 格式）
+        
+        Returns:
+            (列表数据, 总数)
+        """
+        # 时间条件
+        time_cond = []
+        if start_time:
+            try:
+                time_cond.append(ComputeLog.created_at >= datetime.fromisoformat(start_time.replace("Z", "+00:00")))
+            except ValueError:
+                pass
+        if end_time:
+            try:
+                time_cond.append(ComputeLog.created_at <= datetime.fromisoformat(end_time.replace("Z", "+00:00")))
+            except ValueError:
+                pass
+
+        # 消耗子查询
+        consume_cond = [ComputeLog.type == ComputeType.CONSUME]
+        if time_cond:
+            consume_cond.extend(time_cond)
+        consume_subq = (
+            select(
+                ComputeLog.user_id,
+                func.coalesce(func.sum(func.abs(ComputeLog.amount)), 0).label("totalConsume"),
+            )
+            .where(and_(*consume_cond))
+            .group_by(ComputeLog.user_id)
+        ).subquery()
+
+        # 充值子查询（仅有效充值）
+        recharge_cond = [
+            ComputeLog.type == ComputeType.RECHARGE,
+            self._recharge_valid_condition(),
+        ]
+        if time_cond:
+            recharge_cond.extend(time_cond)
+        recharge_subq = (
+            select(
+                ComputeLog.user_id,
+                func.coalesce(func.sum(ComputeLog.amount), 0).label("totalRecharge"),
+            )
+            .where(and_(*recharge_cond))
+            .group_by(ComputeLog.user_id)
+        ).subquery()
+
+        # 主查询：从消耗或充值中有记录的用户出发，左连接两个子查询和 User
+        from sqlalchemy import union
+        user_ids_consume = select(ComputeLog.user_id).where(ComputeLog.type == ComputeType.CONSUME).distinct()
+        user_ids_recharge = select(ComputeLog.user_id).where(
+            and_(ComputeLog.type == ComputeType.RECHARGE, self._recharge_valid_condition())
+        ).distinct()
+        if time_cond:
+            user_ids_consume = user_ids_consume.where(and_(*time_cond))
+            user_ids_recharge = user_ids_recharge.where(and_(*time_cond))
+        user_ids_union = union(user_ids_consume, user_ids_recharge).subquery()
+
+        # 关联消耗、充值、用户信息
+        query = (
+            select(
+                user_ids_union.c.user_id,
+                func.coalesce(consume_subq.c.totalConsume, 0).label("totalConsume"),
+                func.coalesce(recharge_subq.c.totalRecharge, 0).label("totalRecharge"),
+                User.username,
+                User.phone,
+            )
+            .outerjoin(consume_subq, user_ids_union.c.user_id == consume_subq.c.user_id)
+            .outerjoin(recharge_subq, user_ids_union.c.user_id == recharge_subq.c.user_id)
+            .outerjoin(User, user_ids_union.c.user_id == User.id)
+        )
+        if username:
+            query = query.where(User.username.like(f"%{username}%"))
+
+        # 总数（先执行 count 子查询）
+        count_subq = query.subquery()
+        count_result = await self.db.execute(select(func.count()).select_from(count_subq))
+        total = count_result.scalar() or 0
+
+        # 分页数据，按总消耗降序
+        query = (
+            query.order_by(func.coalesce(consume_subq.c.totalConsume, 0).desc())
+            .offset((page_num - 1) * page_size)
+            .limit(page_size)
+        )
+        result = await self.db.execute(query)
+        rows = result.all()
+
+        items = []
+        for row in rows:
+            user_id, total_consume, total_recharge, row_username, row_phone = (
+                row[0], row[1], row[2], row[3], row[4]
+            )
+            items.append({
+                "userId": str(user_id),
+                "username": row_username,
+                "phone": row_phone,
+                "totalConsume": float(total_consume or 0),
+                "totalRecharge": float(total_recharge or 0),
+            })
+        return items, total
 
 
 

@@ -12,8 +12,8 @@ export namespace Dashboard {
   export interface StatsData {
     todayNewUsers: number; // 今日新增用户
     apiBalance: number; // API 余额
-    todayComputeUsage: number; // 今日算力消耗
-    todayOrderAmount: number; // 今日订单额
+    todayComputeUsage: number; // 今日消耗算力总和
+    todayOrderAmount: number; // 今日充值金额（元）
     // 对比数据（较昨日）
     userGrowthRate: number; // 用户增长率
     computeGrowthRate: number; // 算力消耗增长率

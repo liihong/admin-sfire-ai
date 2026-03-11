@@ -100,6 +100,21 @@ class ComputeStatistics(BaseModel):
     totalAdjustment: Decimal = Field(default=Decimal("0"), description="总调整")
 
 
+class SystemComputeStats(BaseModel):
+    """系统级算力统计"""
+    totalConsume: float = Field(..., description="系统总消耗")
+    totalRecharge: float = Field(..., description="系统总充值")
+
+
+class UserComputeSummary(BaseModel):
+    """用户算力汇总"""
+    userId: str = Field(..., description="用户ID")
+    username: Optional[str] = Field(None, description="用户名")
+    phone: Optional[str] = Field(None, description="手机号")
+    totalConsume: float = Field(..., description="总消耗")
+    totalRecharge: float = Field(..., description="总充值")
+
+
 
 
 

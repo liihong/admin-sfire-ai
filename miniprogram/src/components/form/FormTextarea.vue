@@ -73,19 +73,17 @@ function handleFocus(e: any) {
   &__textarea {
     width: 100%;
     min-height: 160rpx;
-    background: $bg-light;
+    background-color: $white;
+    border: 2rpx solid rgba(0, 0, 0, 0.08);
     border-radius: $radius-md;
     padding: $spacing-md $spacing-lg;
     font-size: $font-size-md;
     color: $text-main;
     line-height: 1.6;
-    border: 2rpx solid transparent;
     box-sizing: border-box;
-    
-    &:focus {
-      border-color: $primary-orange;
-      background: $white;
-    }
+    display: block;
+    box-shadow: $shadow-sm;
+    transition: border-color $transition-base, box-shadow $transition-base;
     
     &::placeholder {
       color: $text-placeholder;

@@ -5,7 +5,7 @@ C端路由聚合（小程序 & PC官网）
 """
 from fastapi import APIRouter
 
-from . import auth, creation, projects, tikhub, coze, web_auth, conversations, coin, security, permission, quick_entries, inspirations, home, article, upload
+from . import auth, creation, projects, tikhub, coze, web_auth, conversations, coin, security, permission, quick_entries, inspirations, home, article, upload, dictionary
 from . import tools as client_tools
 
 # 创建C端路由聚合器
@@ -59,3 +59,6 @@ client_router.include_router(upload.router, prefix="/upload", tags=["C端-文件
 
 # 工具包模块：声音复刻等通用工具
 client_router.include_router(client_tools.router, prefix="/tools", tags=["C端-便捷工具包"])
+
+# 数据字典模块：根据 dict_id 获取字典项（下拉选项等）
+client_router.include_router(dictionary.router, prefix="/dict", tags=["C端-数据字典"])

@@ -69,7 +69,7 @@
           <div class="card-content">
             <div class="card-value">
               <CountUp :end-val="statsData.todayComputeUsage" :duration="1.5" />
-              <span class="unit">次</span>
+              <span class="unit">算力</span>
             </div>
             <div class="card-label">今日算力消耗</div>
             <div class="card-trend" :class="statsData.computeGrowthRate >= 0 ? 'up' : 'down'">
@@ -93,7 +93,7 @@
               <span class="currency">¥</span>
               <CountUp :end-val="statsData.todayOrderAmount" :decimals="2" :duration="1.5" />
             </div>
-            <div class="card-label">今日订单额</div>
+            <div class="card-label">今日充值金额</div>
             <div class="card-trend" :class="statsData.orderGrowthRate >= 0 ? 'up' : 'down'">
               <el-icon v-if="statsData.orderGrowthRate >= 0"><CaretTop /></el-icon>
               <el-icon v-else><CaretBottom /></el-icon>
@@ -436,8 +436,8 @@ const fetchStatsData = async () => {
     Object.assign(statsData, {
       todayNewUsers: overview.new_users_today ?? 0,
       apiBalance: apiBalanceNum,
-      todayComputeUsage: apiMonitoring.today_api_calls ?? 0,
-      todayOrderAmount: parseFloat(apiMonitoring.today_cost) || 0,
+      todayComputeUsage: parseFloat(apiMonitoring.today_consume) || 0,
+      todayOrderAmount: parseFloat(apiMonitoring.today_recharge_amount) || 0,
       userGrowthRate: 0,
       computeGrowthRate: 0,
       orderGrowthRate: 0
@@ -454,7 +454,7 @@ const fetchStatsData = async () => {
     Object.assign(statsData, {
       todayNewUsers: 156,
       apiBalance: 8520.5,
-      todayComputeUsage: 23456,
+      todayComputeUsage: 356,
       todayOrderAmount: 12680.0,
       userGrowthRate: 12.5,
       computeGrowthRate: -5.2,

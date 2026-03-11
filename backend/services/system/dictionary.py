@@ -364,6 +364,37 @@ class DictionaryService:
         
         return [DictItemSimple.from_item(item) for item in items]
     
+    async def get_items_by_dict_id(
+        self,
+        dict_id: int,
+        enabled_only: bool = True
+    ) -> List[DictItemSimple]:
+        """
+        根据字典ID获取字典项列表（用于下拉选项等）
+        
+        Args:
+            dict_id: 字典ID
+            enabled_only: 是否只返回启用的项
+        
+        Returns:
+            字典项简单响应列表 [{label, value}]
+        """
+        dict_obj = await self.get_dict_by_id(dict_id, with_items=True)
+        
+        # 如果字典类型被禁用，返回空列表
+        if enabled_only and not dict_obj.is_enabled:
+            return []
+        
+        # 过滤并排序字典项
+        items = dict_obj.items
+        if enabled_only:
+            items = [item for item in items if item.is_enabled]
+        
+        # 按排序顺序排序
+        items = sorted(items, key=lambda x: (x.sort_order, x.id))
+        
+        return [DictItemSimple.from_item(item) for item in items]
+    
     async def get_multiple_dict_items(
         self,
         dict_codes: List[str],

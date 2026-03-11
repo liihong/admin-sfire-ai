@@ -136,9 +136,11 @@
     }
   }
 
-  // el-table 表格样式
+  // el-table 表格样式（ProTable 内表格占满父容器）
   .el-table {
     flex: 1;
+    width: 100%;
+    min-width: 0; /* flex 子项允许收缩，配合横向滚动 */
 
     // 修复 safari 浏览器表格错位 https://github.com/HalseySpicy/SFire-Admin/issues/83
     table {
@@ -192,6 +194,14 @@
     display: flex;
     justify-content: flex-end;
     margin-top: 20px;
+  }
+}
+
+/* el-table 全局宽度适配 - 占满父容器 */
+.el-table {
+  width: 100% !important;
+  table {
+    width: 100% !important;
   }
 }
 

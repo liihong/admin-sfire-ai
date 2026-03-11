@@ -285,6 +285,7 @@ class ProjectService:
             project.avatar_color = data.avatar_color
         
         # 处理人设配置（支持嵌套和扁平两种方式）
+        # 注意：保存设置时不更新 master_prompt，仅更新 persona_settings
         current_persona = project.get_persona_settings_dict()
         persona_updated = False
         

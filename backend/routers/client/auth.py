@@ -486,9 +486,23 @@ async def miniprogram_login(
             if user:
                 logger.info(f"User found by phone: id={user.id}, existing openid={user.openid}, existing unionid={user.unionid}, new openid={openid}, new unionid={unionid}")
         
+        # 检查已找到的用户是否被删除或封禁
+        if user and (user.is_deleted or not user.is_active):
+            raise BadRequestException(msg="该用户信息异常，请联系管理员")
+        
         is_new_user = False
         
         if not user:
+            # 创建新用户前，检查 openid/unionid 是否属于已删除或封禁用户（避免 Duplicate entry 错误并给出友好提示）
+            if openid:
+                existing_raw = await user_service.get_user_by_openid_raw(openid)
+                if existing_raw and (existing_raw.is_deleted or not existing_raw.is_active):
+                    raise BadRequestException(msg="该用户信息异常，请联系管理员")
+            if unionid:
+                existing_raw = await user_service.get_user_by_unionid_raw(unionid)
+                if existing_raw and (existing_raw.is_deleted or not existing_raw.is_active):
+                    raise BadRequestException(msg="该用户信息异常，请联系管理员")
+            
             # 用户不存在，创建新用户
             # 但在创建前，需要检查唯一性冲突
             # 检查 openid 是否已被其他用户使用（虽然理论上不可能，因为 openid 有唯一索引）

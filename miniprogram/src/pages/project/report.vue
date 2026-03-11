@@ -215,6 +215,14 @@ async function generateReport() {
 
   if (isLoadingReport.value) return
 
+  // 校验必填字段
+  const name = (formData.value.name ?? '').trim()
+  const industry = (formData.value.industry ?? '').trim()
+  if (!name || !industry) {
+    reportError.value = '请完善项目名称和行业信息后重试'
+    return
+  }
+
   isLoadingReport.value = true
   reportError.value = null
 
@@ -224,10 +232,10 @@ async function generateReport() {
   reportLoadingRef.value?.startStepProgress()
 
   try {
-    // 构建报告生成请求数据
+    // 构建报告生成请求数据（必填字段使用 ?? 确保始终发送，避免 undefined 被 JSON 序列化时省略）
     const reportRequest = {
-      name: formData.value.name,
-      industry: formData.value.industry,
+      name,
+      industry,
       introduction: formData.value.introduction || '',
       tone: formData.value.tone || '',
       target_audience: formData.value.target_audience || '',
@@ -301,7 +309,7 @@ async function handleSave() {
     // 使用数据转换工具函数，将表单数据转换为创建请求
     const requestData = formDataToCreateRequest(projectFormData)
 
-    // 创建项目（后端会自动生成Master Prompt）
+    // 创建项目
     const project = await createProject(requestData)
 
     // 更新 store 状态

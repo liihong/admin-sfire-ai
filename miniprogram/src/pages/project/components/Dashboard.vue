@@ -188,12 +188,12 @@ function handleMicClick() {
  */
 function navigateToPersona() {
   const id = activeProject.value?.id
-  if (!id) {
+  if (id == null || id === '') {
     uni.showToast({ title: '请先选择项目', icon: 'none' })
     return
   }
   uni.navigateTo({
-    url: `/pages/project/persona/index?id=${id}`
+    url: `/pages/project/persona/index?id=${String(id)}`
   })
 }
 

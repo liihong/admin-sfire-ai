@@ -8,7 +8,7 @@ from decimal import Decimal
 from typing import Optional, Tuple, List, Dict, Any
 import httpx
 from loguru import logger
-from sqlalchemy import func, select, and_
+from sqlalchemy import func, select, and_, or_
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from db.redis import RedisCache
@@ -171,8 +171,8 @@ class DashboardService:
         openrouter_balance = await self._get_openrouter_balance()
         openai_balance = await self._get_openai_balance()
         
-        # 2. 计算今日已消耗成本（从 ComputeLog 中统计 CONSUME 类型的记录）
-        today_cost_result = await self.db.execute(
+        # 2. 今日消耗算力总和（从 ComputeLog 中统计 CONSUME 类型的记录）
+        today_consume_result = await self.db.execute(
             select(func.sum(func.abs(ComputeLog.amount))).where(
                 and_(
                     ComputeLog.type == ComputeType.CONSUME,
@@ -181,25 +181,31 @@ class DashboardService:
                 )
             )
         )
-        today_cost = today_cost_result.scalar() or Decimal("0.0000")
+        today_consume = today_consume_result.scalar() or Decimal("0.0000")
         
-        # 3. 今日 API 调用次数（统计 ComputeLog 中的消费记录数量）
-        today_calls_result = await self.db.execute(
-            select(func.count(ComputeLog.id)).where(
+        # 3. 今日算力充值金额（元）：RECHARGE 类型 + 已支付 + 今日
+        recharge_valid = or_(
+            ComputeLog.operator_id.isnot(None),
+            ComputeLog.payment_status.is_(None),
+            ComputeLog.payment_status == "paid",
+        )
+        today_recharge_result = await self.db.execute(
+            select(func.coalesce(func.sum(ComputeLog.payment_amount), 0)).where(
                 and_(
-                    ComputeLog.type == ComputeType.CONSUME,
+                    ComputeLog.type == ComputeType.RECHARGE,
+                    recharge_valid,
                     ComputeLog.created_at >= today_start,
                     ComputeLog.created_at < today_end,
                 )
             )
         )
-        today_api_calls = today_calls_result.scalar() or 0
+        today_recharge_amount = today_recharge_result.scalar() or Decimal("0.0000")
         
         return ApiMonitoringStats(
             openrouter_balance=openrouter_balance,
             openai_balance=openai_balance,
-            today_cost=today_cost,
-            today_api_calls=today_api_calls,
+            today_consume=today_consume,
+            today_recharge_amount=today_recharge_amount,
         )
     
     async def _get_openrouter_balance(self) -> Optional[Decimal]:

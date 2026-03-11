@@ -422,7 +422,7 @@ class UserService(BaseService):
     
     async def get_user_by_openid(self, openid: str) -> Optional[User]:
         """
-        通过 openid 查找用户
+        通过 openid 查找用户（仅返回未删除用户）
         
         Args:
             openid: 微信 openid
@@ -437,10 +437,25 @@ class UserService(BaseService):
             )
         )
         return result.scalar_one_or_none()
+
+    async def get_user_by_openid_raw(self, openid: str) -> Optional[User]:
+        """
+        通过 openid 查找用户（包含已删除/封禁用户，用于登录时检测异常状态）
+        
+        Args:
+            openid: 微信 openid
+        
+        Returns:
+            用户对象，如果不存在则返回 None
+        """
+        result = await self.db.execute(
+            select(User).where(User.openid == openid)
+        )
+        return result.scalar_one_or_none()
     
     async def get_user_by_unionid(self, unionid: str) -> Optional[User]:
         """
-        通过 unionid 查找用户
+        通过 unionid 查找用户（仅返回未删除用户）
         
         Args:
             unionid: 微信 unionid（跨平台用户识别）
@@ -453,6 +468,21 @@ class UserService(BaseService):
                 User.unionid == unionid,
                 User.is_deleted == False
             )
+        )
+        return result.scalar_one_or_none()
+
+    async def get_user_by_unionid_raw(self, unionid: str) -> Optional[User]:
+        """
+        通过 unionid 查找用户（包含已删除/封禁用户，用于登录时检测异常状态）
+        
+        Args:
+            unionid: 微信 unionid（跨平台用户识别）
+        
+        Returns:
+            用户对象，如果不存在则返回 None
+        """
+        result = await self.db.execute(
+            select(User).where(User.unionid == unionid)
         )
         return result.scalar_one_or_none()
     

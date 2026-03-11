@@ -76,6 +76,17 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         logger.warning(f"⚠️ [定时任务] 订单过期清理任务启动失败: {e}")
 
+    # 启动冻结算力超时退还任务
+    try:
+        from tasks.freeze_timeout_task import freeze_timeout_worker
+        freeze_timeout_task = asyncio.create_task(
+            freeze_timeout_worker(scheduled_task_stop_event)
+        )
+        scheduled_task_workers.append(freeze_timeout_task)
+        logger.info("✅ [定时任务] 已启动冻结算力超时退还任务")
+    except Exception as e:
+        logger.warning(f"⚠️ [定时任务] 冻结算力超时退还任务启动失败: {e}")
+
     # 开发环境：自动创建缺失的表
     if settings.DEBUG:
         try:

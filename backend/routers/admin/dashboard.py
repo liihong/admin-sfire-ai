@@ -30,8 +30,8 @@ async def get_dashboard_stats(
     - **api_monitoring**: API 监控
         - openrouter_balance: OpenRouter 账户余额（美元）
         - openai_balance: OpenAI 账户余额
-        - today_cost: 今日已消耗成本
-        - today_api_calls: 今日 API 调用次数
+        - today_consume: 今日消耗算力总和
+        - today_recharge_amount: 今日算力充值金额（元）
     
     - **charts**: 图表数据
         - user_trend: 过去 7 天每天的新增用户数
@@ -91,8 +91,8 @@ async def get_api_monitoring_stats(
     仅返回 api_monitoring 部分的数据:
     - openrouter_balance: OpenRouter 账户余额（美元）
     - openai_balance: OpenAI 账户余额
-    - today_cost: 今日已消耗成本
-    - today_api_calls: 今日 API 调用次数
+    - today_consume: 今日消耗算力总和
+    - today_recharge_amount: 今日算力充值金额（元）
     """
     dashboard_service = DashboardService(db)
     stats = await dashboard_service.get_dashboard_stats(use_cache=True)

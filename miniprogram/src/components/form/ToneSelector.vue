@@ -60,15 +60,21 @@ function handleSelect(tone: string) {
   gap: $spacing-sm;
   
   .tone-tag {
-    padding: 16rpx 24rpx;
-    background: $bg-light;
+    padding: 16rpx 28rpx;
+    background: $white;
     border-radius: 32rpx;
-    border: 2rpx solid transparent;
+    border: 2rpx solid rgba(0, 0, 0, 0.08);
+    box-shadow: $shadow-sm;
     transition: all $transition-base;
     
+    &:active {
+      transform: scale(0.98);
+    }
+    
     &.selected {
-      background: linear-gradient(135deg, rgba($primary-orange, 0.1) 0%, rgba($primary-orange, 0.15) 100%);
+      background: linear-gradient(135deg, rgba($primary-orange, 0.12) 0%, rgba($primary-orange, 0.18) 100%);
       border-color: $primary-orange;
+      box-shadow: 0 4rpx 12rpx rgba($primary-orange, 0.2);
       
       .tag-text {
         color: $primary-orange;
@@ -78,7 +84,7 @@ function handleSelect(tone: string) {
     
     .tag-text {
       font-size: $font-size-md;
-      color: $text-second;
+      color: $text-main;
     }
   }
 }

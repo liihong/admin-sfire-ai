@@ -30,13 +30,13 @@ class ApiMonitoringStats(BaseModel):
     Attributes:
         openrouter_balance: OpenRouter 账户余额（美元）
         openai_balance: OpenAI 账户余额
-        today_cost: 今日已消耗成本
-        today_api_calls: 今日 API 调用次数
+        today_consume: 今日消耗算力总和
+        today_recharge_amount: 今日算力充值金额（元）
     """
     openrouter_balance: Optional[Decimal] = Field(None, description="OpenRouter 账户余额（美元）")
     openai_balance: Optional[Decimal] = Field(None, description="OpenAI 账户余额")
-    today_cost: Decimal = Field(Decimal("0.0000"), description="今日已消耗成本")
-    today_api_calls: int = Field(0, description="今日 API 调用次数")
+    today_consume: Decimal = Field(Decimal("0.0000"), description="今日消耗算力总和")
+    today_recharge_amount: Decimal = Field(Decimal("0.0000"), description="今日算力充值金额（元）")
 
 
 class UserTrendItem(BaseModel):

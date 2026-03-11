@@ -156,7 +156,8 @@ const fetchStatistics = async () => {
     const response = await getMPCoinStatisticsApi();
     if (response?.data) {
       statistics.value = response.data;
-      // 更新统计卡片
+      // 更新统计卡片：算力余额、累计消耗
+      stats[1].value = String(response.data.availableBalance ?? response.data.balance ?? mpUserStore.userDetail?.power ?? "0");
       stats[2].value = String(Math.abs(response.data.totalConsume || 0));
     }
   } catch (error: any) {

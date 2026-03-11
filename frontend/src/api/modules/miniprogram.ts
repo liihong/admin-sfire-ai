@@ -731,6 +731,9 @@ export const getMPCoinBalanceApi = () => {
  * 算力统计信息
  */
 export interface MPCoinStatistics {
+  balance: number;
+  frozenBalance: number;
+  availableBalance: number;
   totalRecharge: number;
   totalConsume: number;
   totalRefund: number;

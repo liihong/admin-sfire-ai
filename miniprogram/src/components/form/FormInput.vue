@@ -73,6 +73,23 @@ function handleFocus(e: any) {
   
   &__input {
     @include input-base;
+    display: block;
+    width: 100%;
+    height: 88rpx;
+    background-color: $white;
+    border: 2rpx solid rgba(0, 0, 0, 0.08);
+    border-radius: $radius-md;
+    padding: 0 $spacing-md;
+    font-size: $font-size-md;
+    color: $text-main;
+    line-height: 88rpx;
+    box-sizing: border-box;
+    box-shadow: $shadow-sm;
+    transition: border-color $transition-base, box-shadow $transition-base;
+
+    &::placeholder {
+      color: $text-placeholder;
+    }
   }
 }
 </style>

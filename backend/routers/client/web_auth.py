@@ -254,8 +254,21 @@ async def qrcode_login(
         if not user:
             user = await user_service.get_user_by_openid(openid)
 
+        # 检查已找到的用户是否被删除或封禁
+        if user and (user.is_deleted or not user.is_active):
+            raise BadRequestException(msg="该用户信息异常，请联系管理员")
+
         # 如果用户不存在，自动创建新用户
         if not user:
+            # 创建前检查 openid/unionid 是否属于已删除或封禁用户
+            if openid:
+                existing_raw = await user_service.get_user_by_openid_raw(openid)
+                if existing_raw and (existing_raw.is_deleted or not existing_raw.is_active):
+                    raise BadRequestException(msg="该用户信息异常，请联系管理员")
+            if unionid:
+                existing_raw = await user_service.get_user_by_unionid_raw(unionid)
+                if existing_raw and (existing_raw.is_deleted or not existing_raw.is_active):
+                    raise BadRequestException(msg="该用户信息异常，请联系管理员")
             username = generate_username()
             while await user_service.get_user_by_username(username):
                 username = generate_username()

@@ -85,6 +85,10 @@ function handleChange(e: any) {
     display: flex;
     align-items: center;
     justify-content: space-between;
+    background-color: $white;
+    border: 2rpx solid rgba(0, 0, 0, 0.08);
+    box-shadow: $shadow-sm;
+    transition: border-color $transition-base, box-shadow $transition-base;
     
     .picker-value {
       font-size: $font-size-md;
@@ -98,6 +102,7 @@ function handleChange(e: any) {
     .picker-arrow {
       font-size: 20rpx;
       color: $text-second;
+      opacity: 0.7;
     }
   }
 }

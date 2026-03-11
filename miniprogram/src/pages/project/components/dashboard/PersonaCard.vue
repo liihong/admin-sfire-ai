@@ -34,7 +34,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { DEFAULT_PERSONA_SETTINGS, DEFAULT_INDUSTRY } from '@/stores/project'
-import type { Project } from '@/api/project'
+import type { Project } from '@/types/project'
 import SvgIcon from '@/components/base/SvgIcon.vue'
 
 interface Props {
@@ -118,6 +118,7 @@ defineEmits<{
     display: flex;
     align-items: flex-start;
     gap: $spacing-md;
+    overflow: hidden;
 
     .persona-avatar {
       width: 96rpx;
@@ -142,6 +143,7 @@ defineEmits<{
       gap: $spacing-sm;
       flex: 1;
       min-width: 0;
+      overflow: hidden;
 
       .project-label {
         font-size: $font-size-sm;
@@ -164,6 +166,7 @@ defineEmits<{
         display: flex;
         flex-wrap: wrap;
         gap: 12rpx;
+        min-width: 0;
 
         .tag-item {
           display: flex;
@@ -189,6 +192,10 @@ defineEmits<{
             font-size: 22rpx;
             color: #475569;
             line-height: 1.2;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            max-width: 200rpx;
           }
         }
       }
@@ -201,6 +208,9 @@ defineEmits<{
     align-items: center;
     gap: 8rpx;
     flex-shrink: 0;
+    position: relative;
+    z-index: 2;
+    background: rgb(255 247 237);
 
     .edit-icon-wrapper {
       width: 70rpx;

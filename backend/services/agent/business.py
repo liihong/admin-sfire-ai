@@ -379,10 +379,11 @@ class AgentBusinessService:
         if not project:
             raise ForbiddenException(msg="项目不存在或无权访问")
         
-        if project.persona_settings or project.master_prompt:
+        if project.persona_settings:
+            # 仅使用 persona_settings 构建人设提示，不使用 master_prompt
             persona_prompt = PromptBuilder.extract_persona_prompt(
                 project.persona_settings or {},
-                master_prompt=project.master_prompt
+                master_prompt=""
             )
             logger.debug(f"已注入IP基因: 项目={project.name}")
             return persona_prompt

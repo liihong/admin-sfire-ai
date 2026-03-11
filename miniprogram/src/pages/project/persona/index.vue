@@ -172,11 +172,12 @@ async function loadProject() {
   }
 
   try {
-    let p = projectStore.projectList.find((item) => item.id === projectId.value)
+    const idStr = String(projectId.value)
+    let p = projectStore.projectList.find((item) => String(item.id) === idStr)
     if (!p) {
       const response = await fetchProjects()
       projectStore.setProjectList(response.projects, response.active_project_id)
-      p = projectStore.projectList.find((item) => item.id === projectId.value)
+      p = projectStore.projectList.find((item) => String(item.id) === idStr)
     }
     project.value = p || null
     if (!project.value) {
@@ -231,33 +232,43 @@ onLoad((options) => {
 @import '@/styles/_variables.scss';
 
 .persona-page {
+  height: 100vh;
   min-height: 100vh;
-  background-color: $bg-light;
+  background: linear-gradient(180deg, #FAFBFC 0%, #F5F7FA 100%);
   display: flex;
   flex-direction: column;
+  overflow: hidden;
 }
 
 .content-scroll {
   flex: 1;
-  /* 减去 BaseHeader(~200rpx) 和底部保存栏(~180rpx) */
+  min-height: 0;
   height: calc(100vh - 380rpx);
   padding: $spacing-md $spacing-lg;
+  box-sizing: border-box;
 }
 
 .setting-section {
   margin-bottom: $spacing-xl;
+  padding: $spacing-lg;
+  background: $white;
+  border-radius: $radius-lg;
+  box-shadow: $shadow-sm;
   
   .section-title {
     font-size: $font-size-md;
     font-weight: 600;
     color: $text-main;
     margin-bottom: $spacing-md;
+    padding-bottom: $spacing-sm;
+    border-bottom: 2rpx solid rgba(0, 0, 0, 0.06);
     display: block;
   }
 }
 
+/* 底部留白需大于 footer 高度，避免滚动时「内容禁忌」等最后一项被按钮遮挡 */
 .bottom-spacer {
-  height: $spacing-xl;
+  height: 280rpx;
 }
 
 .footer-bar {
@@ -265,10 +276,12 @@ onLoad((options) => {
   bottom: 0;
   left: 0;
   right: 0;
+  z-index: 10;
   padding: $spacing-md $spacing-lg;
+  padding-bottom: calc($spacing-md + constant(safe-area-inset-bottom));
   padding-bottom: calc($spacing-md + env(safe-area-inset-bottom));
   background: $white;
-  box-shadow: 0 -4rpx 16rpx rgba(0, 0, 0, 0.06);
+  box-shadow: 0 -4rpx 16rpx rgba(0, 0, 0, 0.08);
 }
 
 .save-btn {
@@ -278,7 +291,7 @@ onLoad((options) => {
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 8rpx 24rpx rgba($primary-orange, 0.3);
+  box-shadow: 0 8rpx 24rpx rgba($primary-orange, 0.35);
   transition: all $transition-base;
   
   &.loading {

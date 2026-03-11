@@ -29,6 +29,7 @@ from .quick_entry import QuickEntry, EntryType, ActionType, EntryTag
 from .inspiration import Inspiration, InspirationStatus
 from .recharge_package import RechargePackage
 from .user_voice_speaker import UserVoiceSpeaker
+from .ticket import Ticket, TicketType, TicketStatus
 
 __all__ = [
     "BaseModel",
@@ -68,4 +69,7 @@ __all__ = [
     "InspirationStatus",
     "RechargePackage",
     "UserVoiceSpeaker",
+    "Ticket",
+    "TicketType",
+    "TicketStatus",
 ]

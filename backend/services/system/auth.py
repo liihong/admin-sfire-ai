@@ -57,8 +57,8 @@ class AuthService:
             logger.warning(f"Login failed: admin user disabled - {username}")
             raise UnauthorizedException(msg="用户已被封禁")
 
-        # 创建访问令牌和刷新令牌
-        access_token = create_access_token(data={"sub": str(user.id)})
+        # 创建访问令牌和刷新令牌（Admin 使用 8 小时有效期，可配合 refresh_token 续期）
+        access_token = create_access_token(data={"sub": str(user.id)}, admin_long_session=True)
         refresh_token = create_refresh_token(data={"sub": str(user.id)})
 
         logger.info(f"AdminUser logged in successfully: {username}")
@@ -66,7 +66,7 @@ class AuthService:
         return {
             "access_token": access_token,
             "refresh_token": refresh_token,
-            "expires_in": settings.JWT_ACCESS_TOKEN_EXPIRE_MINUTES * 60  # 秒数
+            "expires_in": settings.JWT_ADMIN_ACCESS_TOKEN_EXPIRE_HOURS * 3600  # 秒数
         }
     
     async def get_user_by_token(self, user_id: int) -> AdminUser:

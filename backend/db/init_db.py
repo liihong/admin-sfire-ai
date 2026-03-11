@@ -129,6 +129,16 @@ async def init_menus(session: AsyncSession) -> None:
                     "sort_order": 1,
                     "is_keep_alive": True,
                 },
+                # 工单管理 (子级)
+                {
+                    "name": "ticket",
+                    "path": "/finance/ticket",
+                    "component": "/finance/ticket/index",
+                    "title": "工单管理",
+                    "icon": "Tickets",
+                    "sort_order": 2,
+                    "is_keep_alive": True,
+                },
             ],
         },
         # 应用配置 (父级)

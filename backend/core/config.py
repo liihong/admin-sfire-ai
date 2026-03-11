@@ -56,6 +56,8 @@ class Settings(BaseSettings):
     JWT_REFRESH_TOKEN_EXPIRE_DAYS: int = 7
     # PC 客户端 access_token 有效期（天），设为 7 则登录后 7 天内无需重新登录；小程序端保持 30 分钟
     JWT_CLIENT_ACCESS_TOKEN_EXPIRE_DAYS: int = 7
+    # Admin 后台 access_token 有效期（小时），设为 8 则登录后 8 小时内无需重新登录；可通过 refresh_token 续期
+    JWT_ADMIN_ACCESS_TOKEN_EXPIRE_HOURS: int = 8
 
     # 跨域配置
     CORS_ORIGINS: List[str] = ["http://0.0.0.0:8000", "http://0.0.0.0:9000"]
