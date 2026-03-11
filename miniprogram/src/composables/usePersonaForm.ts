@@ -5,7 +5,7 @@
  * 
  * 使用场景：
  * - 创建模式：IPCollectDialog 组件（多步骤收集）
- * - 编辑模式：PersonaDrawer 组件（单表单编辑）
+ * - 编辑模式：pages/project/persona 人设配置页面
  * 
  * 数据流转：
  * - 创建流程：formData → formDataToCreateRequest() → createProject() → ProjectModel → store

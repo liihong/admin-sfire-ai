@@ -219,7 +219,6 @@ async function handleDeleteProject(project: Project) {
 .project-list-wrapper {
   position: relative;
   z-index: 10;
-  padding: 0 32rpx;
   padding-bottom: 40rpx;
 }
 
@@ -262,8 +261,8 @@ async function handleDeleteProject(project: Project) {
 
   .active-indicator {
     position: absolute;
-    top: 5rpx;
-      right: 5rpx;
+    top: 0rpx;
+      right: 0rpx;
     width: 40rpx;
     height: 40rpx;
     background: linear-gradient(135deg, $primary-orange 0%, $primary-orange-alt 100%);

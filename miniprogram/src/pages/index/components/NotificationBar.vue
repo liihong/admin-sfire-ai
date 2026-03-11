@@ -74,6 +74,7 @@ const handleClick = () => {
   .notification-content {
     flex: 1;
     overflow: hidden;
+    margin-bottom: -2rpx;
 
     .notification-text {
       font-size: 24rpx;

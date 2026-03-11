@@ -63,7 +63,8 @@
       "path": "pages/mine/index",
       "style": {
         "navigationBarTitleText": "我的",
-        "disableScroll": true
+        "enablePullDownRefresh": true,
+        "backgroundTextStyle": "dark"
       }
     },
     {
@@ -134,6 +135,14 @@
       "path": "pages/project/create",
       "style": {
         "navigationBarTitleText": "创建项目",
+        "navigationStyle": "custom",
+        "disableScroll": true
+      }
+    },
+    {
+      "path": "pages/project/persona/index",
+      "style": {
+        "navigationBarTitleText": "IP 人设配置",
         "navigationStyle": "custom",
         "disableScroll": true
       }

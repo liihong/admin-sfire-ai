@@ -1,6 +1,5 @@
 <template>
-  <view class="empty-state">
-   <BaseHeader title="创建你操盘的IP" />
+ <view class="empty-state">
     <!-- 中心图形：浅橙色圆形 + 火焰图标 -->
     <view class="empty-icon-wrapper">
       <view class="empty-icon-circle">
@@ -27,7 +26,6 @@
 </template>
 
 <script setup lang="ts">
-import BaseHeader from '@/components/base/BaseHeader.vue'
 import SvgIcon from '@/components/base/SvgIcon.vue'
 
 // Emits

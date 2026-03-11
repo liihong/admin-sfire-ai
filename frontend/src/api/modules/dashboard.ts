@@ -35,11 +35,6 @@ export namespace Dashboard {
     call_count: number;
   }
 
-  // 系统预警配置
-  export interface AlertConfig {
-    apiBalanceThreshold: number; // API 余额预警阈值
-    computeThreshold: number; // 算力消耗预警阈值
-  }
 }
 
 // 获取核心统计数据
@@ -55,9 +50,4 @@ export const getUserTrend = (days: number = 7) => {
 // 获取智能体调用排行（Top 5）
 export const getAgentRank = (limit: number = 5) => {
   return http.get<Dashboard.AgentRankItem[]>(PORT1 + `/dashboard/agent-rank`, { limit });
-};
-
-// 获取预警配置
-export const getAlertConfig = () => {
-  return http.get<Dashboard.AlertConfig>(PORT1 + `/dashboard/alert-config`);
 };

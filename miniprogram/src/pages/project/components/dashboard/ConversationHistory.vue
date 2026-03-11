@@ -173,6 +173,11 @@ function handleClick(conversation: Conversation) {
   emit('click', conversation)
 }
 
+// 暴露给父组件调用，用于下拉刷新
+defineExpose({
+  loadConversations,
+})
+
 // 监听项目变化，重新加载对话列表
 // 使用 immediate: true 确保在组件挂载时如果已有激活项目也会加载
 watch(

@@ -105,7 +105,7 @@
 
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted } from 'vue'
-import { onShow } from '@dcloudio/uni-app'
+import { onShow, onPullDownRefresh } from '@dcloudio/uni-app'
 import { updateUserInfo, getCurrentUserInfo, uploadAvatar } from '@/api/user'
 import { useAuthStore } from '@/stores/auth'
 import SvgIcon from '@/components/base/SvgIcon.vue'
@@ -326,6 +326,12 @@ onMounted(() => {
 // 页面显示时刷新用户信息（从服务器获取最新数据）
 onShow(() => {
   refreshUserInfo()
+})
+
+// 下拉刷新（主要刷新用户会员状态、算力等）
+onPullDownRefresh(async () => {
+  await refreshUserInfo()
+  uni.stopPullDownRefresh()
 })
 </script>
 

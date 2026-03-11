@@ -63,6 +63,7 @@ class Settings(BaseSettings):
     # 第三方 API 配置（Dashboard 监控用）
     TIKHUB_API_KEY: str = ""  # Tikhub API Key
     OPENAI_API_KEY: str = ""  # OpenAI API Key
+    OPENROUTER_API_KEY: str = ""  # OpenRouter API Key（管理密钥，用于查询余额）
 
     # Coze 工作流配置（热点榜单等）
     COZE_PAT_TOKEN: str = ""  # Coze 个人访问令牌（开放平台-开发者-个人访问令牌）

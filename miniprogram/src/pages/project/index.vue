@@ -2,7 +2,8 @@
   <view class="project-index-page">
     <SafeAreaTop />
     <!-- 操作台视图 - 有激活项目时显示 -->
-    <ProjectDashboard v-if="hasActiveProject && !isLoading" :isInTabBar="true" @switch-project="openProjectDrawer" />
+    <ProjectDashboard ref="dashboardRef" v-if="hasActiveProject && !isLoading" :isInTabBar="true"
+      @switch-project="openProjectDrawer" />
 
     <!-- 空状态视图 - 没有项目时显示 -->
     <view v-if="!hasActiveProject && !isLoading && projectList.length === 0" class="empty-state-container">
@@ -43,7 +44,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch } from 'vue'
+import { ref, computed, watch, onUnmounted } from 'vue'
 import { useProjectStore } from '@/stores/project'
 import { fetchProjects } from '@/api/project'
 
@@ -56,29 +57,34 @@ import EmptyState from './components/list/EmptyState.vue'
 import { onShow, onLoad } from '@dcloudio/uni-app'
 
 const projectStore = useProjectStore()
+const dashboardRef = ref<InstanceType<typeof ProjectDashboard> | null>(null)
 const isLoading = ref(true)
 const loadError = ref(false) // 标记是否加载失败
 const refreshKey = ref(0) // 用于强制刷新 List 组件
 const drawerVisible = ref(false) // 控制抽屉显示/隐藏
 const isInitialLoading = ref(false) // 防止 onLoad 与 onShow 重复请求
+const isMounted = ref(true) // 组件是否仍挂载，用于避免卸载后更新状态导致崩溃
 
 const hasActiveProject = computed(() => projectStore.hasActiveProject)
 const projectList = computed(() => projectStore.projectList)
 
+onUnmounted(() => {
+  isMounted.value = false
+})
+
 // 监听 hasActiveProject 变化，当切换列表时确保 isLoading 为 false
 watch(hasActiveProject, (newVal, oldVal) => {
-  // 当从有激活项目切换到无激活项目时，确保 isLoading 为 false
+  if (!isMounted.value) return
   if (oldVal === true && newVal === false) {
     isLoading.value = false
     loadError.value = false
-    // 强制刷新 List 组件
     refreshKey.value++
   }
 })
 
 // 监听项目列表变化，如果没有项目且没有激活项目，显示空状态
 watch([hasActiveProject, projectList], ([hasActive, list]) => {
-  // 如果没有激活项目且项目列表为空，确保 isLoading 为 false 以显示空状态
+  if (!isMounted.value) return
   if (!hasActive && list.length === 0) {
     isLoading.value = false
     loadError.value = false
@@ -130,29 +136,21 @@ function refreshPage(_?: boolean) {
 // 刷新项目列表
 async function refreshProjectList() {
   try {
+    if (!isMounted.value) return
     isLoading.value = true
     loadError.value = false
-    console.log('[ProjectIndex] 开始加载项目列表...')
     const response = await fetchProjects()
-    console.log('[ProjectIndex] 项目列表加载成功:', {
-      projectsCount: response.projects?.length || 0,
-      activeProjectId: response.active_project_id
-    })
+    if (!isMounted.value) return
     projectStore.setProjectList(response.projects, response.active_project_id)
-    // 更新 key 强制重新渲染组件（确保显示最新数据）
     refreshKey.value++
-    console.log('[ProjectIndex] Store 状态:', {
-      hasActiveProject: projectStore.hasActiveProject,
-      projectListLength: projectStore.projectList.length
-    })
   } catch (error) {
     console.error('[ProjectIndex] 刷新项目列表失败:', error)
+    if (!isMounted.value) return
     loadError.value = true
-    // 确保即使出错也显示错误状态，而不是一直加载
-    isLoading.value = false
   } finally {
-    isLoading.value = false
-    console.log('[ProjectIndex] 加载完成，isLoading:', isLoading.value)
+    if (isMounted.value) {
+      isLoading.value = false
+    }
   }
 }
 
@@ -166,15 +164,21 @@ async function initLoad() {
       isInitialLoading.value = true
       await refreshProjectList()
     } else {
-      isLoading.value = false
-      loadError.value = false
+      if (isMounted.value) {
+        isLoading.value = false
+        loadError.value = false
+      }
     }
   } catch (error) {
     console.error('[ProjectIndex] 初始化加载失败:', error)
-    isLoading.value = false
-    loadError.value = true
+    if (isMounted.value) {
+      isLoading.value = false
+      loadError.value = true
+    }
   } finally {
-    isInitialLoading.value = false
+    if (isMounted.value) {
+      isInitialLoading.value = false
+    }
   }
 }
 
@@ -182,17 +186,21 @@ async function initLoad() {
 onLoad(() => {
   initLoad().catch(error => {
     console.error('onLoad 执行失败:', error)
-    isLoading.value = false
-    loadError.value = true
+    if (isMounted.value) {
+      isLoading.value = false
+      loadError.value = true
+    }
   })
 })
 
 // 页面显示时检查是否需要刷新（从其他页面返回时）
 onShow(() => {
+  if (!isMounted.value) return
   // 如果 onLoad 的 initLoad 正在执行，跳过避免重复请求
   if (isInitialLoading.value) return
 
   const needRefresh = projectStore.checkAndClearRefresh()
+  const needRefreshConversation = projectStore.checkAndClearConversationRefresh()
   const hasNoData = projectStore.projectList.length === 0
 
   if (needRefresh || hasNoData) {
@@ -200,8 +208,15 @@ onShow(() => {
       console.error('onShow 刷新失败:', error)
     })
   } else {
-    isLoading.value = false
-    loadError.value = false
+    if (isMounted.value) {
+      isLoading.value = false
+      loadError.value = false
+    }
+  }
+
+  // 从 AI 对话页返回时，主动刷新工作台历史对话
+  if (needRefreshConversation && hasActiveProject.value) {
+    dashboardRef.value?.refreshConversationHistory?.()
   }
 })
 

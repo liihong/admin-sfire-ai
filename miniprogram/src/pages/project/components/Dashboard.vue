@@ -9,11 +9,12 @@
     />
 
     <!-- 主内容区 -->
-    <scroll-view class="main-scroll" scroll-y>
+    <scroll-view class="main-scroll" scroll-y :refresher-enabled="true" :refresher-triggered="refreshing"
+      @refresherrefresh="handleRefresh">
       <!-- 当前活跃人设卡片 -->
       <PersonaCard
-:project="activeProject"
-        @click="showPersonaDrawer = true"
+        :project="activeProject"
+        @click="navigateToPersona"
       />
 
       <!-- 今天拍点啥 - 分类网格 -->
@@ -25,18 +26,11 @@
      <QuickCommandGrid :entries="commandList" @click="handleNavigate" />
 
     <!-- 历史对话 -->
-      <ConversationHistory @click="handleConversationClick" />
+      <ConversationHistory ref="conversationHistoryRef" @click="handleConversationClick" />
       <!-- 底部安全区 -->
       <view class="bottom-safe-area"></view>
     </scroll-view>
 
-    <!-- 人设编辑抽屉 -->
-    <PersonaDrawer
-      :visible="showPersonaDrawer"
-      :project="activeProject"
-      @update:visible="showPersonaDrawer = $event"
-      @saved="handlePersonaSaved"
-    />
    <!-- 灵感捕捉悬浮按钮 -->
     <FloatingActionButton @click="showInspirationCard = true" />
 
@@ -59,7 +53,6 @@ import TopBar from './dashboard/TopBar.vue'
 import PersonaCard from './dashboard/PersonaCard.vue'
 import CategoryGrid from './dashboard/CategoryGrid.vue'
 import QuickCommandGrid from './dashboard/QuickCommandGrid.vue'
-import PersonaDrawer from './PersonaDrawer.vue'
 import FloatingActionButton from './FloatingActionButton.vue'
 import InspirationCard from '@/pages/inspiration/components/InspirationCard.vue'
 import ConversationHistory from './dashboard/ConversationHistory.vue'
@@ -82,7 +75,8 @@ const { initProject } = useProject({ autoLoad: false })
 const { navigateTo } = useNavigation()
 
 // 状态
-const showPersonaDrawer = ref(false)
+const refreshing = ref(false)
+const conversationHistoryRef = ref<InstanceType<typeof ConversationHistory> | null>(null)
 const showInspirationCard = ref(false)
 const inspirationText = ref('')
 const userName = ref('创作者')
@@ -152,9 +146,11 @@ onMounted(async () => {
   // 加载快捷入口数据
   await loadQuickEntries()
 
-  // 如果是编辑模式，打开抽屉
-  if (editMode) {
-    showPersonaDrawer.value = true
+  // 如果是编辑模式，跳转到人设配置页面
+  if (editMode && projectId) {
+    uni.navigateTo({
+      url: `/pages/project/persona/index?id=${projectId}`
+    })
   }
 })
 
@@ -187,9 +183,18 @@ function handleMicClick() {
   uni.showToast({ title: '语音功能即将上线', icon: 'none' })
 }
 
-// 处理人设保存
-function handlePersonaSaved() {
-  // 人设保存后的回调
+/**
+ * 跳转到人设配置页面
+ */
+function navigateToPersona() {
+  const id = activeProject.value?.id
+  if (!id) {
+    uni.showToast({ title: '请先选择项目', icon: 'none' })
+    return
+  }
+  uni.navigateTo({
+    url: `/pages/project/persona/index?id=${id}`
+  })
 }
 
 // 处理导航
@@ -331,6 +336,18 @@ function handleCategoryClick(category: {
   })
 }
 
+/**
+ * 下拉刷新：重新加载历史对话，有新对话会自动展示
+ */
+async function handleRefresh() {
+  refreshing.value = true
+  try {
+    await conversationHistoryRef.value?.loadConversations()
+  } finally {
+    refreshing.value = false
+  }
+}
+
 // 处理历史对话点击
 function handleConversationClick(conversation: Conversation) {
   // 构建跳转参数
@@ -366,6 +383,17 @@ function handleConversationClick(conversation: Conversation) {
 function handleSwitchProject() {
   emit('switch-project')
 }
+
+/**
+ * 刷新历史对话（供父组件在 onShow 时调用）
+ */
+function refreshConversationHistory() {
+  conversationHistoryRef.value?.loadConversations()
+}
+
+defineExpose({
+  refreshConversationHistory,
+})
 </script>
 
 <style lang="scss" scoped>

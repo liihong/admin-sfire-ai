@@ -85,7 +85,7 @@ function handleClick() {
 
                                 &.is-selected {
                                   border-color: $primary-orange;
-                                  border-width: 3rpx;
+                                  border-width: 4rpx;
                                   background: linear-gradient(135deg, #eff6ff 0%, #ffffff 100%);
                                   box-shadow: 0 4rpx 20rpx rgba(59, 130, 246, 0.2);
                                 }
@@ -97,8 +97,8 @@ function handleClick() {
 
 .selected-badge {
   position: absolute;
-  top: 24rpx;
-  right: 24rpx;
+  top: -1rpx;
+    right: -1rpx;
   width: 48rpx;
   height: 48rpx;
   background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);

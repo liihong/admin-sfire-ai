@@ -154,7 +154,7 @@ $text-muted: #999;
 .system-card {
   background: $bg-card;
   border-radius: 28rpx;
-  padding: 32rpx;
+  padding: 20rpx;
   margin: 24rpx;
   margin-bottom: 32rpx;
   border: 2rpx solid transparent;

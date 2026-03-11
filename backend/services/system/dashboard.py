@@ -167,8 +167,8 @@ class DashboardService:
         today_start = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
         today_end = today_start + timedelta(days=1)
         
-        # 1. 获取外部 API 余额（Tikhub/OpenAI）
-        tikhub_balance = await self._get_tikhub_balance()
+        # 1. 获取外部 API 余额（OpenRouter/OpenAI）
+        openrouter_balance = await self._get_openrouter_balance()
         openai_balance = await self._get_openai_balance()
         
         # 2. 计算今日已消耗成本（从 ComputeLog 中统计 CONSUME 类型的记录）
@@ -196,43 +196,47 @@ class DashboardService:
         today_api_calls = today_calls_result.scalar() or 0
         
         return ApiMonitoringStats(
-            tikhub_balance=tikhub_balance,
+            openrouter_balance=openrouter_balance,
             openai_balance=openai_balance,
             today_cost=today_cost,
             today_api_calls=today_api_calls,
         )
     
-    async def _get_tikhub_balance(self) -> Optional[Decimal]:
+    async def _get_openrouter_balance(self) -> Optional[Decimal]:
         """
-        获取 Tikhub 账户余额
+        获取 OpenRouter 账户余额（美元）
         
-        调用 Tikhub API 获取当前账户余额
+        调用 OpenRouter API 获取当前账户 credits
+        需要管理密钥（Management API Key）
         
         Returns:
-            Optional[Decimal]: 账户余额，获取失败返回 None
+            Optional[Decimal]: 账户余额（美元），获取失败返回 None
         """
-        tikhub_api_key = getattr(settings, 'TIKHUB_API_KEY', None)
-        if not tikhub_api_key:
-            logger.debug("TIKHUB_API_KEY not configured")
+        api_key = getattr(settings, 'OPENROUTER_API_KEY', None)
+        if not api_key:
+            logger.debug("OPENROUTER_API_KEY not configured")
             return None
         
         try:
             async with httpx.AsyncClient(timeout=10.0) as client:
                 response = await client.get(
-                    "https://api.tikhub.io/api/v1/users/me",
-                    headers={"Authorization": f"Bearer {tikhub_api_key}"}
+                    "https://openrouter.ai/api/v1/credits",
+                    headers={"Authorization": f"Bearer {api_key}"}
                 )
                 
                 if response.status_code == 200:
                     data = response.json()
-                    # 根据 Tikhub API 响应结构提取余额
-                    balance = data.get("data", {}).get("balance", 0)
-                    return Decimal(str(balance))
+                    # OpenRouter 返回: { "data": { "total_credits": x, "total_usage": y } }
+                    credits_data = data.get("data", {})
+                    total_credits = Decimal(str(credits_data.get("total_credits", 0)))
+                    total_usage = Decimal(str(credits_data.get("total_usage", 0)))
+                    balance = total_credits - total_usage
+                    return balance
                 else:
-                    logger.warning(f"Tikhub API returned status {response.status_code}")
+                    logger.warning(f"OpenRouter API returned status {response.status_code}")
                     return None
         except Exception as e:
-            logger.warning(f"Failed to get Tikhub balance: {e}")
+            logger.warning(f"Failed to get OpenRouter balance: {e}")
             return None
     
     async def _get_openai_balance(self) -> Optional[Decimal]:

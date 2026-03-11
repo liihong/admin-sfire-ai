@@ -5,14 +5,18 @@
 
     <!-- 当前算力余额 -->
     <view class="balance-section">
-     <view class="balance-content">
-       <view class="balance-label">当前算力</view>
+      <view class="balance-glow"></view>
+      <view class="balance-content">
+        <view class="balance-label-row">
+          <text class="balance-label">当前算力</text>
+          <view class="balance-badge">余额</view>
+        </view>
         <view class="balance-value-row">
           <text class="balance-value">{{ balance }}</text>
           <text class="balance-unit">算力</text>
         </view>
       </view>
-   </view>
+    </view>
 
     <!-- 套餐列表 -->
     <scroll-view class="package-list-wrapper" scroll-y>
@@ -292,27 +296,54 @@ async function checkOrderStatus(orderId: string) {
 }
 
 
-// 余额区域
+// 余额区域 - 区别于套餐卡片的特殊样式
 .balance-section {
   position: relative;
   z-index: 5;
-  background: #ffffff;
-  border-radius: 24rpx;
-  padding: 32rpx;
   margin: 0 32rpx 24rpx;
-  box-shadow: 0 4rpx 24rpx rgba(99, 102, 241, 0.08);
+  border-radius: 28rpx;
+  overflow: hidden;
+  background: linear-gradient(145deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+  box-shadow: 0 12rpx 40rpx rgba(15, 52, 96, 0.4), 0 0 0 1rpx rgba(255, 255, 255, 0.08) inset;
+}
+
+.balance-glow {
+  position: absolute;
+  top: -80rpx;
+  right: -80rpx;
+  width: 200rpx;
+  height: 200rpx;
+  background: radial-gradient(circle, rgba(245, 158, 11, 0.25) 0%, transparent 70%);
+  pointer-events: none;
 }
 
 .balance-content {
+  position: relative;
   display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 24rpx;
+  flex-direction: column;
+  gap: 16rpx;
+  padding: 36rpx 32rpx;
 }
+
+.balance-label-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
 .balance-label {
-  font-size: 30rpx;
-    font-weight: 600;
-    color: #1f2937;
+  font-size: 28rpx;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.balance-badge {
+  padding: 6rpx 16rpx;
+  background: rgba(245, 158, 11, 0.25);
+  border-radius: 20rpx;
+  font-size: 22rpx;
+  color: #fbbf24;
+  font-weight: 600;
 }
 
 .balance-value-row {
@@ -322,15 +353,17 @@ async function checkOrderStatus(orderId: string) {
 }
 
 .balance-value {
-  font-size: 64rpx;
+  font-size: 72rpx;
   font-weight: 700;
-  color: #f59e0b;
+  color: #ffffff;
   font-family: 'DIN Alternate', 'Helvetica Neue', sans-serif;
+  text-shadow: 0 2rpx 8rpx rgba(0, 0, 0, 0.2);
+  letter-spacing: 2rpx;
 }
 
 .balance-unit {
   font-size: 28rpx;
-  color: #6b7280;
+  color: rgba(255, 255, 255, 0.6);
   font-weight: 500;
 }
 

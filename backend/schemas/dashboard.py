@@ -28,12 +28,12 @@ class ApiMonitoringStats(BaseModel):
     API 监控统计数据
     
     Attributes:
-        tikhub_balance: Tikhub 账户余额
+        openrouter_balance: OpenRouter 账户余额（美元）
         openai_balance: OpenAI 账户余额
         today_cost: 今日已消耗成本
         today_api_calls: 今日 API 调用次数
     """
-    tikhub_balance: Optional[Decimal] = Field(None, description="Tikhub 账户余额")
+    openrouter_balance: Optional[Decimal] = Field(None, description="OpenRouter 账户余额（美元）")
     openai_balance: Optional[Decimal] = Field(None, description="OpenAI 账户余额")
     today_cost: Decimal = Field(Decimal("0.0000"), description="今日已消耗成本")
     today_api_calls: int = Field(0, description="今日 API 调用次数")

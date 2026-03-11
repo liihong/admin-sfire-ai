@@ -20,7 +20,7 @@
       <AgentCard :project="activeProject" :persona-settings="currentPersonaSettings" />
     </view>
 
-    <scroll-view class="chat-container" scroll-y :scroll-top="scrollTop" :scroll-with-animation="true"
+    <scroll-view class="chat-container" scroll-y :scroll-into-view="scrollIntoView" :scroll-with-animation="true"
       @scrolltoupper="onScrollToUpper">
 
       <view v-for="(msg, idx) in chatHistory" :key="idx" class="message-wrapper" :class="msg.role">
@@ -80,7 +80,7 @@
         </view>
       </view>
 
-      <view class="scroll-bottom-spacer"></view>
+      <view id="scroll-bottom-anchor" class="scroll-bottom-spacer"></view>
     </scroll-view>
 
     <view class="bottom-bar" :style="{ bottom: keyboardHeight + 'px' }">
@@ -131,6 +131,8 @@ const quickEntryStore = useQuickEntryStore()
 
 // 固定返回 IP 操作台 tab 页面
 function goBack() {
+  // 标记返回工作台时需要刷新历史对话
+  projectStore.setNeedRefreshConversation(true)
   uni.navigateBack({
     fail: () => {
       uni.switchTab({ url: '/pages/project/index' })
@@ -170,13 +172,11 @@ interface ChatMessage {
 const chatHistory = reactive<ChatMessage[]>([])
 const inputText = ref('')
 const isGenerating = ref(false)
-const scrollTop = ref(0)
+const scrollIntoView = ref('')
 const conversationId = ref<number | undefined>(undefined)
 // 标记是否是从历史对话跳转的（从历史对话跳转时不需要设置默认指令）
 const isFromConversationHistory = ref(false)
 const keyboardHeight = ref(0)
-// 滚动计数器，用于触发滚动到底部
-let scrollCounter = 0
 
 const canSend = computed(() => inputText.value.trim().length > 0)
 
@@ -215,10 +215,10 @@ function clearChat() {
 }
 
 function scrollToBottom() {
+  // 先清空再设置，确保 scroll-into-view 值变化以触发滚动（小程序同值不触发）
+  scrollIntoView.value = ''
   nextTick(() => {
-    // 使用递增计数器，确保每次调用都有不同的值，避免触发无限循环
-    scrollCounter++
-    scrollTop.value = scrollCounter
+    scrollIntoView.value = 'scroll-bottom-anchor'
   })
 }
 
@@ -675,13 +675,13 @@ $border-light: rgba(0, 0, 0, 0.06);
 .persona-card-wrapper {
   flex-shrink: 0;
   overflow: visible;
-  padding-top: 220rpx;
+  padding-top: 170rpx;
     /* 固定头部占位：安全区 + nav-content */
 }
 
 .chat-container {
   flex: 1;
-  padding: 0 24rpx;
+  padding: 0 10rpx;
   padding-bottom: 200rpx;
     /* 底部输入栏占位，避免被 fixed 底部栏遮挡 */
   overflow: hidden;
@@ -710,8 +710,8 @@ $border-light: rgba(0, 0, 0, 0.06);
       margin-left: auto;
   
       .user-avatar {
-        width: 72rpx;
-        height: 72rpx;
+        width: 60rpx;
+          height: 60rpx;
         border-radius: 50%;
         overflow: hidden;
         margin-left: 16rpx;
@@ -726,8 +726,8 @@ $border-light: rgba(0, 0, 0, 0.06);
     }
   &.assistant-row {
     .ai-avatar {
-      width: 72rpx;
-      height: 72rpx;
+      width: 60rpx;
+        height: 60rpx;
       border-radius: 50%;
       background: linear-gradient(135deg, #667EEA, #764BA2);
       display: flex;
@@ -745,7 +745,7 @@ $border-light: rgba(0, 0, 0, 0.06);
 }
 
 .message-bubble {
-  padding: 24rpx 28rpx;
+  padding: 24rpx 20rpx;
   border-radius: 24rpx;
   position: relative;
 

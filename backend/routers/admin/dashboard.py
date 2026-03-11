@@ -28,7 +28,7 @@ async def get_dashboard_stats(
         - total_balance: 平台总算力余额
     
     - **api_monitoring**: API 监控
-        - tikhub_balance: Tikhub 账户余额
+        - openrouter_balance: OpenRouter 账户余额（美元）
         - openai_balance: OpenAI 账户余额
         - today_cost: 今日已消耗成本
         - today_api_calls: 今日 API 调用次数
@@ -89,7 +89,7 @@ async def get_api_monitoring_stats(
     获取 API 监控统计数据
     
     仅返回 api_monitoring 部分的数据:
-    - tikhub_balance: Tikhub 账户余额
+    - openrouter_balance: OpenRouter 账户余额（美元）
     - openai_balance: OpenAI 账户余额
     - today_cost: 今日已消耗成本
     - today_api_calls: 今日 API 调用次数

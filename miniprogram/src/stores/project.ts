@@ -54,6 +54,9 @@ export const useProjectStore = defineStore('project', () => {
   // 是否需要刷新列表（用于页面跳转后刷新）
   const needRefresh = ref(false)
 
+  // 是否需要刷新历史对话（从 AI 对话页返回工作台时刷新）
+  const needRefreshConversation = ref(false)
+
   // 用户是否主动清除了激活项目（用于防止自动激活）
   const isManuallyCleared = ref(false)
 
@@ -256,6 +259,24 @@ export const useProjectStore = defineStore('project', () => {
     }
     return false
   }
+
+  /**
+   * 设置需要刷新历史对话标记（从 AI 对话页返回工作台时调用）
+   */
+  function setNeedRefreshConversation(need: boolean) {
+    needRefreshConversation.value = need
+  }
+
+  /**
+   * 检查并清除历史对话刷新标记（返回是否需要刷新）
+   */
+  function checkAndClearConversationRefresh(): boolean {
+    if (needRefreshConversation.value) {
+      needRefreshConversation.value = false
+      return true
+    }
+    return false
+  }
   
   /**
    * 生成带有人设上下文的系统提示词
@@ -364,6 +385,8 @@ export const useProjectStore = defineStore('project', () => {
     setLoading,
     setNeedRefresh,
     checkAndClearRefresh,
+    setNeedRefreshConversation,
+    checkAndClearConversationRefresh,
     getPersonaSystemPrompt,
     
     // IP收集表单持久化

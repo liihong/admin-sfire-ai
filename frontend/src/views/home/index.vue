@@ -1,6 +1,6 @@
 <template>
   <div class="dashboard-container">
-    <!-- API 余额预警 -->
+    <!-- OpenRouter 余额预警 -->
     <Transition name="alert-slide">
       <el-alert
         v-if="showAlert"
@@ -12,7 +12,7 @@
         @close="showAlert = false"
       >
         <template #default>
-          <span>当前 API 余额: <strong>{{ formatCurrency(statsData.apiBalance) }}</strong>，低于预警阈值 {{ formatCurrency(alertThreshold) }}，请及时充值！</span>
+          <span>当前 OpenRouter 余额: <strong>{{ formatCurrency(statsData.apiBalance) }}</strong>，低于预警阈值 {{ formatCurrency(alertThreshold) }}，请及时充值！</span>
         </template>
       </el-alert>
     </Transition>
@@ -47,10 +47,10 @@
           </div>
           <div class="card-content">
             <div class="card-value">
-              <span class="currency">¥</span>
+              <span class="currency">$</span>
               <CountUp :end-val="statsData.apiBalance" :decimals="2" :duration="1.5" />
             </div>
-            <div class="card-label">API 余额</div>
+            <div class="card-label">OpenRouter 余额</div>
             <div class="card-extra">
               <el-tag :type="statsData.apiBalance > alertThreshold ? 'success' : 'danger'" size="small">
                 {{ statsData.apiBalance > alertThreshold ? "余额充足" : "余额不足" }}
@@ -184,7 +184,7 @@ import {
 import { ECOption } from "@/components/ECharts/config";
 import ECharts from "@/components/ECharts/index.vue";
 import CountUp from "./components/CountUp.vue";
-import { getStatsData, getUserTrend, getAgentRank, getAlertConfig, Dashboard } from "@/api/modules/dashboard";
+import { getStatsData, getUserTrend, getAgentRank, Dashboard } from "@/api/modules/dashboard";
 
 // ==================== 数据定义 ====================
 
@@ -206,10 +206,10 @@ const trendType = ref<"new" | "active">("new");
 // 智能体排行数据
 const agentRankData = ref<Dashboard.AgentRankItem[]>([]);
 
-// 预警相关
+// 预警相关（OpenRouter 余额低于此阈值时显示预警，单位：美元）
 const showAlert = ref(false);
-const alertThreshold = ref(1000); // 默认预警阈值
-const alertMessage = ref("API 余额不足预警");
+const alertThreshold = ref(5); // 默认预警阈值 $5
+const alertMessage = ref("OpenRouter API 余额不足预警");
 
 // 刷新相关
 const isRefreshing = ref(false);
@@ -409,9 +409,9 @@ const agentRankOption = computed<ECOption>(() => {
 
 // ==================== 方法定义 ====================
 
-// 格式化货币
+// 格式化货币（OpenRouter 余额单位为美元）
 const formatCurrency = (value: number) => {
-  return "¥" + value.toLocaleString("zh-CN", { minimumFractionDigits: 2 });
+  return "$" + value.toLocaleString("zh-CN", { minimumFractionDigits: 2 });
 };
 
 // 获取当前时间
@@ -423,15 +423,31 @@ const getCurrentTime = () => {
   });
 };
 
-// 获取统计数据
+// 获取统计数据（后端返回 overview + api_monitoring，需映射为前端格式）
 const fetchStatsData = async () => {
   try {
     const { data } = await getStatsData();
-    Object.assign(statsData, data);
+    const overview = data?.overview || {};
+    const apiMonitoring = data?.api_monitoring || {};
+    // 优先使用 OpenRouter 余额，若无则用 OpenAI
+    const balance = apiMonitoring.openrouter_balance ?? apiMonitoring.openai_balance ?? 0;
+    const apiBalanceNum = typeof balance === "number" ? balance : parseFloat(balance) || 0;
 
-    // 检查是否需要显示预警
-    if (statsData.apiBalance < alertThreshold.value) {
+    Object.assign(statsData, {
+      todayNewUsers: overview.new_users_today ?? 0,
+      apiBalance: apiBalanceNum,
+      todayComputeUsage: apiMonitoring.today_api_calls ?? 0,
+      todayOrderAmount: parseFloat(apiMonitoring.today_cost) || 0,
+      userGrowthRate: 0,
+      computeGrowthRate: 0,
+      orderGrowthRate: 0
+    });
+
+    // 余额不足时显示预警
+    if (apiBalanceNum < alertThreshold.value) {
       showAlert.value = true;
+    } else {
+      showAlert.value = false;
     }
   } catch (error) {
     // 使用模拟数据
@@ -447,11 +463,15 @@ const fetchStatsData = async () => {
   }
 };
 
-// 获取用户趋势数据
+// 获取用户趋势数据（后端返回 { date, count }，映射为 { date, newUsers, activeUsers }）
 const fetchUserTrend = async () => {
   try {
     const { data } = await getUserTrend(7);
-    userTrendData.value = data;
+    userTrendData.value = (data || []).map((item: { date: string; count?: number }) => ({
+      date: item.date,
+      newUsers: item.count ?? 0,
+      activeUsers: 0
+    }));
   } catch (error) {
     // 使用模拟数据
     const today = new Date();
@@ -481,16 +501,6 @@ const fetchAgentRank = async () => {
       { id: "4", name: "数据分析", icon: "📊", call_count: 7650 },
       { id: "5", name: "翻译大师", icon: "🌐", call_count: 5430 }
     ];
-  }
-};
-
-// 获取预警配置
-const fetchAlertConfig = async () => {
-  try {
-    const { data } = await getAlertConfig();
-    alertThreshold.value = data.apiBalanceThreshold;
-  } catch (error) {
-    alertThreshold.value = 1000;
   }
 };
 
@@ -536,7 +546,7 @@ const stopAutoRefresh = () => {
 onMounted(async () => {
   // 初始化加载数据
   isRefreshing.value = true;
-  await Promise.all([fetchAlertConfig(), fetchStatsData(), fetchUserTrend(), fetchAgentRank()]);
+  await Promise.all([fetchStatsData(), fetchUserTrend(), fetchAgentRank()]);
   lastUpdateTime.value = getCurrentTime();
   isRefreshing.value = false;
 
