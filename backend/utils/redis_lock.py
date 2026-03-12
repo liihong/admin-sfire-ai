@@ -161,7 +161,7 @@ class RedisLock:
         
         try:
             await redis.incr(count_key)
-            await redis.expire(count_key, 3600)  # 1小时过期
+            await redis.expire(count_key, 600)  # 10分钟过期
             return True
         except Exception as e:
             logger.error(f"增加用户并发计数异常: {e}")

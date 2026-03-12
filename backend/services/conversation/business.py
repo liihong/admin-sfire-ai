@@ -71,9 +71,9 @@ class ConversationBusinessService:
             BadRequestException: 并发限制或去重检查失败
         """
         # 1. 检查用户并发限制
-        can_create = await RedisLock.check_user_conversation_limit(user_id, max_count=10)
+        can_create = await RedisLock.check_user_conversation_limit(user_id, max_count=50)
         if not can_create:
-            raise BadRequestException("您同时进行的会话数量已达上限（10个），请先完成或删除现有会话")
+            raise BadRequestException("您同时进行的会话数量已达上限（50个），请先完成或删除现有会话")
         
         # 2. 检查会话去重（相同agent+project，5分钟内）
         duplicate_conversation_id = await RedisLock.check_conversation_duplicate(
