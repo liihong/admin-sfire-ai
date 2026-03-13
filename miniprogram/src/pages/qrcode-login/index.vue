@@ -50,7 +50,40 @@
       <view v-else-if="authStatus === 'error'" class="status-container">
         <view class="error-icon">✕</view>
         <text class="status-text error-text">{{ errorMessage }}</text>
-        <button class="retry-btn" @tap="handleRetry">重试</button>
+        <view class="error-actions">
+          <button class="retry-btn" @tap="handleRetry">重试</button>
+          <button
+            v-if="scene && isAgreed"
+            class="pc-login-btn"
+            open-type="getPhoneNumber"
+            @getphonenumber="handlePcLogin"
+          >
+            手机号授权登录
+          </button>
+          <button
+            v-else-if="scene"
+            class="pc-login-btn pc-login-btn-disabled"
+            @tap="handlePcLoginTap"
+          >
+            手机号授权登录
+          </button>
+        </view>
+        <text v-if="scene" class="pc-login-tip">扫码授权失败？使用手机号完成PC端登录</text>
+      </view>
+    </view>
+
+    <!-- 隐私协议（PC登录时需要） -->
+    <view v-if="authStatus === 'error' && scene" class="agreement-section">
+      <view class="agreement-wrapper" @tap="toggleAgreement">
+        <view class="checkbox-circle" :class="{ checked: isAgreed }">
+          <text v-if="isAgreed" class="check-icon">✓</text>
+        </view>
+        <view class="agreement-text">
+          <text>使用手机号登录即表示同意</text>
+          <text class="link-text" @tap.stop="openUserAgreement">《用户协议》</text>
+          <text>与</text>
+          <text class="link-text" @tap.stop="openPrivacyPolicy">《隐私政策》</text>
+        </view>
       </view>
     </view>
 
@@ -64,7 +97,7 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
-import { qrcodeLogin } from '@/api/user'
+import { qrcodeLogin, loginWithPhoneForPc } from '@/api/user'
 import { wxLogin, exitMiniProgram, getSceneFromOptions } from '@/utils/wechat'
 
 // 页面加载参数类型定义
@@ -82,6 +115,8 @@ const errorMessage = ref('')
 const scene = ref('')
 // 防重复提交标志
 const isProcessing = ref(false)
+// 是否同意隐私协议（PC登录需要）
+const isAgreed = ref(false)
 
 /**
  * 错误码常量定义
@@ -149,13 +184,12 @@ const performQrcodeLogin = async () => {
       scene: scene.value
     })
 
-    // 3. 检查响应结果
-    if (response.code === 200 && response.data?.success) {
-      // 授权成功
+    // 3. 检查响应结果（兼容 {code, data} 和 {success} 两种格式）
+    const res = response as any
+    if ((res.code === 200 && res.data?.success) || res.success === true) {
       authStatus.value = 'success'
     } else {
-      // 授权失败
-      throw new Error(response.msg || '授权失败，请重试')
+      throw new Error(res.msg || res.message || '授权失败，请重试')
     }
   } catch (error: any) {
     console.error('Qrcode login error:', error)
@@ -176,6 +210,107 @@ const handleRetry = () => {
 }
 
 /**
+ * 切换协议同意状态
+ */
+const toggleAgreement = () => {
+  isAgreed.value = !isAgreed.value
+}
+
+/**
+ * 点击PC登录按钮（未同意协议时）
+ */
+const handlePcLoginTap = () => {
+  if (!isAgreed.value) {
+    uni.showToast({
+      title: '请先同意用户协议与隐私政策',
+      icon: 'none',
+      duration: 2000
+    })
+  }
+}
+
+/**
+ * PC登录：手机号授权完成PC端登录
+ */
+const handlePcLogin = async (e: any) => {
+  if (!isAgreed.value) {
+    uni.showToast({
+      title: '请先同意用户协议与隐私政策',
+      icon: 'none',
+      duration: 2000
+    })
+    return
+  }
+
+  if (e.detail.errMsg && e.detail.errMsg.includes('deny')) {
+    uni.showToast({
+      title: '您已取消授权',
+      icon: 'none',
+      duration: 2000
+    })
+    return
+  }
+
+  const phoneCode = e.detail.code
+  if (!phoneCode) {
+    uni.showToast({
+      title: '获取手机号失败，请重试',
+      icon: 'none',
+      duration: 2000
+    })
+    return
+  }
+
+  if (isProcessing.value) return
+  isProcessing.value = true
+  authStatus.value = 'loading'
+  errorMessage.value = ''
+
+  try {
+    const loginResult = await wxLogin()
+    if (!loginResult.code) {
+      throw new Error('获取登录凭证失败')
+    }
+
+    const response = await loginWithPhoneForPc({
+      code: loginResult.code,
+      phone_code: phoneCode,
+      scene: scene.value
+    }) as any
+
+    if (response.code === 200 && response.data?.success) {
+      authStatus.value = 'success'
+    } else {
+      throw new Error(response.msg || response.message || '授权失败，请重试')
+    }
+  } catch (error: any) {
+    console.error('PC login error:', error)
+    authStatus.value = 'error'
+    errorMessage.value = parseErrorMessage(error)
+  } finally {
+    isProcessing.value = false
+  }
+}
+
+/**
+ * 打开用户协议
+ */
+const openUserAgreement = () => {
+  uni.navigateTo({
+    url: '/pages/agreement/user'
+  })
+}
+
+/**
+ * 打开隐私政策
+ */
+const openPrivacyPolicy = () => {
+  uni.navigateTo({
+    url: '/pages/agreement/privacy'
+  })
+}
+
+/**
  * 关闭小程序
  */
 const handleCloseMiniProgram = () => {
@@ -185,9 +320,9 @@ const handleCloseMiniProgram = () => {
 /**
  * 页面加载时获取场景值并开始授权
  */
-onLoad((options: PageLoadOptions) => {
+onLoad((options?: PageLoadOptions) => {
   // 使用工具函数获取场景值，支持多种获取方式
-  const sceneValue = getSceneFromOptions(options)
+  const sceneValue = getSceneFromOptions(options || {})
   
   if (sceneValue) {
     scene.value = sceneValue
@@ -449,8 +584,8 @@ $bg-ultra-light: #FDFEFE;
 }
 
 .close-btn,
-.retry-btn {
-  width: 100%;
+.retry-btn,
+.pc-login-btn {
   height: 88rpx;
   background: linear-gradient(135deg, $brand-orange 0%, $brand-orange-alt 100%);
   border-radius: 50rpx;
@@ -464,21 +599,98 @@ $bg-ultra-light: #FDFEFE;
   transition: all $transition-slow ease;
 }
 
+.close-btn {
+  width: 100%;
+}
+
 .close-btn::after,
-.retry-btn::after {
+.retry-btn::after,
+.pc-login-btn::after {
   border: none;
 }
 
 .close-btn:active,
-.retry-btn:active {
+.retry-btn:active,
+.pc-login-btn:active {
   transform: scale(0.98);
   opacity: 0.9;
 }
 
+.error-actions {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: $spacing-md;
+  margin-top: $spacing-lg;
+}
+
 .retry-btn {
+  width: 100%;
   background: rgba(255, 136, 0, 0.1);
   color: $brand-orange;
   box-shadow: 0 2rpx 8rpx rgba(255, 136, 0, 0.2);
+  margin-top: 0;
+}
+
+.pc-login-btn {
+  width: 100%;
+  margin-top: 0;
+}
+
+.pc-login-btn-disabled {
+  opacity: 0.6;
+}
+
+.pc-login-tip {
+  font-size: $font-size-xs;
+  color: $text-muted;
+  text-align: center;
+  margin-top: $spacing-sm;
+}
+
+.agreement-section {
+  padding: 20rpx 60rpx 40rpx;
+  z-index: $z-index-base;
+}
+
+.agreement-wrapper {
+  display: flex;
+  align-items: flex-start;
+  gap: $spacing-sm;
+}
+
+.checkbox-circle {
+  width: 36rpx;
+  height: 36rpx;
+  border: 2rpx solid #cccccc;
+  border-radius: $radius-circle;
+  @include flex-center;
+  flex-shrink: 0;
+  transition: all $transition-slow ease;
+  margin-top: 4rpx;
+}
+
+.checkbox-circle.checked {
+  background: $brand-orange;
+  border-color: $brand-orange;
+}
+
+.check-icon {
+  font-size: 22rpx;
+  color: $white;
+  font-weight: 700;
+}
+
+.agreement-text {
+  flex: 1;
+  font-size: $font-size-xs;
+  line-height: 1.6;
+  color: $text-secondary;
+}
+
+.agreement-text .link-text {
+  color: $brand-orange;
+  font-weight: 500;
 }
 
 .footer {

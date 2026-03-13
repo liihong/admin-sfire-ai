@@ -210,7 +210,7 @@ async def generate_qrcode():
         raise ServerErrorException(f"生成小程序码失败: {str(e)}")
 
 
-@router.post("/qrcode/login", response_model=QrcodeLoginResponse)
+@router.post("/qrcode/login")
 async def qrcode_login(
     request: QrcodeLoginRequest,
     db: AsyncSession = Depends(get_db)
@@ -320,9 +320,9 @@ async def qrcode_login(
 
         logger.info(f"QR code login successful: scene={request.scene}, user_id={user_with_level.id}")
 
-        return QrcodeLoginResponse(
-            success=True,
-            message="登录成功"
+        return success(
+            data=QrcodeLoginResponse(success=True, message="登录成功").model_dump(),
+            msg="登录成功"
         )
 
     except (BadRequestException, ServerErrorException):

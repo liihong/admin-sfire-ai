@@ -15,7 +15,10 @@ from sqlalchemy import select
 from pydantic import BaseModel, Field
 from loguru import logger
 
+import json
+
 from db import get_db
+from db.redis import RedisCache
 from models.user import User
 from core.security import create_access_token, create_refresh_token, decode_token
 from core.config import settings
@@ -33,6 +36,7 @@ class LoginRequest(BaseModel):
     """微信小程序登录请求"""
     code: str = Field(..., description="微信登录 code，从 uni.login() 获取")
     phone_code: Optional[str] = Field(default=None, description="手机号授权 code，从 getPhoneNumber 获取")
+    scene: Optional[str] = Field(default=None, description="扫码场景值，提供时表示PC扫码登录，需同时提供phone_code，登录结果存入Redis供PC轮询")
 
 
 class UserLevelInfo(BaseModel):
@@ -451,8 +455,25 @@ async def miniprogram_login(
     接收微信 code，调用微信 API 获取 openid，创建或获取用户，返回 JWT token
     
     - **code**: 微信登录 code，从小程序端 uni.login() 获取
+    - **phone_code**: 可选，手机号授权 code
+    - **scene**: 可选，扫码场景值；提供时表示PC扫码登录（手机号授权），需同时提供 phone_code，结果存入 Redis 供 PC 轮询
     """
     try:
+        # 0. 若提供 scene（PC扫码登录），校验 scene 并强制要求 phone_code
+        if request.scene:
+            redis_key = f"mp:login:scene:{request.scene}"
+            scene_data_str = await RedisCache.get(redis_key)
+            if not scene_data_str:
+                raise BadRequestException("二维码已过期或无效，请重新扫描")
+            try:
+                scene_data = json.loads(scene_data_str)
+                if scene_data.get("status") != "waiting":
+                    raise BadRequestException("二维码已被使用或已过期")
+            except json.JSONDecodeError:
+                raise BadRequestException("二维码数据异常，请重新扫描")
+            if not request.phone_code:
+                raise BadRequestException("PC扫码登录需要手机号授权")
+
         # 1. 调用微信 API 获取 openid
         openid, unionid = await get_wechat_openid(request.code)
         logger.info(f"Login attempt: openid={openid}, unionid={unionid if unionid else 'None'}")
@@ -463,6 +484,8 @@ async def miniprogram_login(
             logger.info(f"Received phone_code, attempting to get phone number")
             phone_number = await get_wechat_phone_number(request.phone_code)
             logger.info(f"Phone number result: {phone_number if phone_number else 'None'}")
+            if request.scene and not phone_number:
+                raise BadRequestException("获取手机号失败，请重试")
         
         # 3. 查找或创建用户（确保手机号、openid、unionid 的唯一性绑定）
         user_service = UserService(db)
@@ -601,21 +624,34 @@ async def miniprogram_login(
         if not user_with_level:
             raise ServerErrorException("用户数据异常")
         
-        # 5. 生成 JWT token（包含 access_token 和 refresh_token）
-        # 小程序登录使用长期有效的refresh_token（100年有效期，用户不删除小程序则永不过期）
-        access_token = create_access_token(data={"sub": str(user_with_level.id)})
-        refresh_token = create_refresh_token(data={"sub": str(user_with_level.id)}, long_lived=True)
-
         # 6. 构建用户信息（包含完整的等级信息）
         user_info = build_user_info(user_with_level)
 
-        # 返回统一格式的响应，兼容前端期望的格式
+        # 7. 若为 PC 扫码登录（提供 scene），生成 PC 端 token 并存入 Redis
+        if request.scene:
+            redis_key = f"mp:login:scene:{request.scene}"
+            access_token = create_access_token(data={"sub": str(user_with_level.id)}, client_long_session=True)
+            refresh_token = create_refresh_token(data={"sub": str(user_with_level.id), "client_type": "pc"})
+            login_data = {
+                "status": "authorized",
+                "token": access_token,
+                "refreshToken": refresh_token,
+                "expiresIn": settings.JWT_CLIENT_ACCESS_TOKEN_EXPIRE_DAYS * 24 * 3600,
+                "userInfo": user_info.model_dump()
+            }
+            await RedisCache.set(redis_key, json.dumps(login_data), expire=300)
+            logger.info(f"PC扫码手机号登录成功: scene={request.scene}, user_id={user_with_level.id}")
+            return success(data={"success": True}, msg="登录成功")
+
+        # 8. 小程序登录：生成 token 并返回
+        access_token = create_access_token(data={"sub": str(user_with_level.id)})
+        refresh_token = create_refresh_token(data={"sub": str(user_with_level.id)}, long_lived=True)
         return success(
             data={
                 "success": True,
                 "token": access_token,
                 "refreshToken": refresh_token,
-                "expiresIn": settings.JWT_ACCESS_TOKEN_EXPIRE_MINUTES * 60,  # 秒数
+                "expiresIn": settings.JWT_ACCESS_TOKEN_EXPIRE_MINUTES * 60,
                 "userInfo": user_info.model_dump(),
                 "is_new_user": is_new_user
             },

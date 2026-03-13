@@ -191,6 +191,20 @@ export function qrcodeLogin(data: QrcodeLoginRequest) {
 }
 
 /**
+ * 手机号授权完成PC扫码登录（复用 auth/login，传入 scene 时结果存入 Redis 供 PC 轮询）
+ * @param data 包含 code、phone_code、scene
+ */
+export function loginWithPhoneForPc(data: { code: string; phone_code: string; scene: string }) {
+  return request<{ success: boolean }>({
+    url: '/api/v1/client/auth/login',
+    method: 'POST',
+    data,
+    needToken: false,
+    showLoading: false
+  })
+}
+
+/**
  * 上传头像响应类型
  */
 export interface UploadAvatarResponse {
