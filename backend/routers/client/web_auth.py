@@ -332,12 +332,13 @@ async def qrcode_login(
         raise ServerErrorException(f"登录失败: {str(e)}")
 
 
-@router.get("/qrcode/status", response_model=QrcodeStatusResponse)
+@router.get("/qrcode/status")
 async def check_qrcode_status(
     scene_str: str = Query(..., description="场景值")
 ):
     """
     检查小程序码登录状态（PC端轮询）
+    返回统一格式：{code, data, msg}
     """
     try:
         redis_key = f"mp:login:scene:{scene_str}"
@@ -345,11 +346,12 @@ async def check_qrcode_status(
 
         if not data_str:
             # Redis中没有数据，说明已过期或不存在
-            return QrcodeStatusResponse(
+            payload = QrcodeStatusResponse(
                 status="expired",
                 token=None,
                 userInfo=None
             )
+            return success(data=payload.model_dump(), msg="已过期")
 
         data = json.loads(data_str)
         status = data.get("status", "waiting")
@@ -365,28 +367,31 @@ async def check_qrcode_status(
             # 清除Redis中的临时数据
             await RedisCache.delete(redis_key)
 
-            return QrcodeStatusResponse(
+            payload = QrcodeStatusResponse(
                 status="authorized",
                 token=token,
                 refreshToken=refresh_token,
                 expiresIn=expires_in,
                 userInfo=user_info
             )
+            return success(data=payload.model_dump(), msg="已授权")
         else:
             # 等待授权
-            return QrcodeStatusResponse(
+            payload = QrcodeStatusResponse(
                 status="waiting",
                 token=None,
                 userInfo=None
             )
+            return success(data=payload.model_dump(), msg="等待授权")
 
     except json.JSONDecodeError:
         logger.error(f"解析Redis数据失败: scene_str={scene_str}")
-        return QrcodeStatusResponse(
+        payload = QrcodeStatusResponse(
             status="expired",
             token=None,
             userInfo=None
         )
+        return success(data=payload.model_dump(), msg="已过期")
     except Exception as e:
         logger.error(f"检查登录状态失败: {str(e)}", exc_info=True)
         raise ServerErrorException(f"检查登录状态失败: {str(e)}")

@@ -190,7 +190,10 @@ const startQrcodeCheck = () => {
           const expiresIn = data.expiresIn ?? 7 * 24 * 3600; // 默认7天
           mpUserStore.setToken(data.token, expiresIn);
           if (data.refreshToken) mpUserStore.setRefreshToken(data.refreshToken);
-          mpUserStore.setUserInfo(data.userInfo);
+          // 后端返回 avatar，前端 store 使用 avatarUrl，需做字段映射
+          const userInfo = data.userInfo as Record<string, unknown>;
+          const avatarUrl = (userInfo?.avatarUrl ?? userInfo?.avatar ?? "") as string;
+          mpUserStore.setUserInfo({ ...userInfo, avatarUrl });
           
           ElMessage.success("登录成功");
           router.push(MP_HOME_URL);
