@@ -46,34 +46,45 @@
         <button class="close-btn" @tap="handleCloseMiniProgram">关闭小程序</button>
       </view>
 
-      <!-- 错误状态 -->
+      <!-- 错误状态（有 scene 时显示重试按钮） -->
       <view v-else-if="authStatus === 'error'" class="status-container">
         <view class="error-icon">✕</view>
         <text class="status-text error-text">{{ errorMessage }}</text>
+        <view v-if="scene" class="error-actions">
+          <button v-if="isAgreed" class="pc-login-btn" open-type="getPhoneNumber" @getphonenumber="handlePcLogin">
+            授权登录
+          </button>
+          <button v-else class="pc-login-btn pc-login-btn-disabled" @tap="handlePcLoginTap">
+            授权登录
+          </button>
+        </view>
+      </view>
+
+      <!-- 待登录状态：显示登录按钮，需手机号授权 -->
+      <view v-else-if="authStatus === 'idle'" class="status-container">
+        <text class="status-text">点击下方按钮，使用手机号完成PC端登录</text>
         <view class="error-actions">
-          <button class="retry-btn" @tap="handleRetry">重试</button>
           <button
-            v-if="scene && isAgreed"
+v-if="isAgreed"
             class="pc-login-btn"
             open-type="getPhoneNumber"
             @getphonenumber="handlePcLogin"
           >
-            手机号授权登录
+            授权登录
           </button>
           <button
-            v-else-if="scene"
+v-else
             class="pc-login-btn pc-login-btn-disabled"
             @tap="handlePcLoginTap"
           >
-            手机号授权登录
+            授权登录
           </button>
         </view>
-        <text v-if="scene" class="pc-login-tip">扫码授权失败？使用手机号完成PC端登录</text>
       </view>
     </view>
 
-    <!-- 隐私协议（PC登录时需要） -->
-    <view v-if="authStatus === 'error' && scene" class="agreement-section">
+    <!-- 隐私协议（idle/error 时显示） -->
+    <view v-if="(authStatus === 'idle' || authStatus === 'error') && scene" class="agreement-section">
       <view class="agreement-wrapper" @tap="toggleAgreement">
         <view class="checkbox-circle" :class="{ checked: isAgreed }">
           <text v-if="isAgreed" class="check-icon">✓</text>
@@ -97,7 +108,7 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
-import { qrcodeLogin, loginWithPhoneForPc } from '@/api/user'
+import { loginWithPhoneForPc } from '@/api/user'
 import { wxLogin, exitMiniProgram, getSceneFromOptions } from '@/utils/wechat'
 
 // 页面加载参数类型定义
@@ -109,8 +120,8 @@ interface PageLoadOptions {
   [key: string]: any
 }
 
-// 授权状态：loading-加载中, success-成功, error-失败
-const authStatus = ref<'loading' | 'success' | 'error'>('loading')
+// 授权状态：idle-待登录, loading-加载中, success-成功, error-失败
+const authStatus = ref<'idle' | 'loading' | 'success' | 'error'>('idle')
 const errorMessage = ref('')
 const scene = ref('')
 // 防重复提交标志
@@ -149,64 +160,6 @@ const parseErrorMessage = (error: any): string => {
 
   // 默认返回原始错误消息
   return errorMsg
-}
-
-/**
- * 执行扫码登录授权
- */
-const performQrcodeLogin = async () => {
-  // 防止重复提交
-  if (isProcessing.value) {
-    return
-  }
-
-  // 检查场景值
-  if (!scene.value) {
-    authStatus.value = 'error'
-    errorMessage.value = '二维码无效，请重新扫描'
-    return
-  }
-
-  isProcessing.value = true
-  authStatus.value = 'loading'
-  errorMessage.value = ''
-
-  try {
-    // 1. 获取微信登录 code
-    const loginResult = await wxLogin()
-    if (!loginResult.code) {
-      throw new Error('获取登录凭证失败')
-    }
-
-    // 2. 调用扫码登录接口
-    const response = await qrcodeLogin({
-      code: loginResult.code,
-      scene: scene.value
-    })
-
-    // 3. 检查响应结果（兼容 {code, data} 和 {success} 两种格式）
-    const res = response as any
-    if ((res.code === 200 && res.data?.success) || res.success === true) {
-      authStatus.value = 'success'
-    } else {
-      throw new Error(res.msg || res.message || '授权失败，请重试')
-    }
-  } catch (error: any) {
-    console.error('Qrcode login error:', error)
-    authStatus.value = 'error'
-    errorMessage.value = parseErrorMessage(error)
-  } finally {
-    isProcessing.value = false
-  }
-}
-
-/**
- * 重试授权
- */
-const handleRetry = () => {
-  if (!isProcessing.value) {
-    performQrcodeLogin()
-  }
 }
 
 /**
@@ -318,18 +271,14 @@ const handleCloseMiniProgram = () => {
 }
 
 /**
- * 页面加载时获取场景值并开始授权
+ * 页面加载时获取场景值，展示登录按钮（不自动授权，需用户点击获取手机号）
  */
 onLoad((options?: PageLoadOptions) => {
-  // 使用工具函数获取场景值，支持多种获取方式
   const sceneValue = getSceneFromOptions(options || {})
-  
   if (sceneValue) {
     scene.value = sceneValue
-    // 自动开始授权流程
-    performQrcodeLogin()
+    authStatus.value = 'idle'
   } else {
-    // 场景值缺失，显示错误
     authStatus.value = 'error'
     errorMessage.value = '二维码无效，请重新扫描'
   }
