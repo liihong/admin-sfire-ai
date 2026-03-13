@@ -740,6 +740,12 @@ export interface MPCoinStatistics {
   totalReward: number;
   totalCommission: number;
   totalAdjustment: number;
+  /** 月消耗 */
+  monthConsumption: number;
+  /** 累计产生内容（AI 助手消息数） */
+  totalContent: number;
+  /** 已陪伴您 x 天 */
+  withDay: number;
 }
 
 /**

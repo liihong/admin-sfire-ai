@@ -3,7 +3,7 @@ Unified Response Format for Geeker-Admin Compatibility
 统一响应格式，确保与 Geeker-Admin 前端兼容
 """
 from typing import Any, Generic, TypeVar, Optional, List
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 T = TypeVar("T")
 
@@ -13,15 +13,10 @@ class Response(BaseModel, Generic[T]):
     统一响应格式
     
     格式: {"code": 200, "data": ..., "msg": "..."}
-    
-    Attributes:
-        code: 状态码 (200=成功, 400=参数错误, 401=未授权, 403=禁止, 404=不存在, 500=服务器错误)
-        data: 响应数据
-        msg: 响应消息
     """
-    code: int = 200
-    data: Optional[T] = None
-    msg: str = "操作成功"
+    code: int = Field(200, description="状态码：200-成功, 400-参数错误, 401-未授权, 403-禁止, 404-不存在, 500-服务器错误")
+    data: Optional[T] = Field(None, description="响应数据")
+    msg: str = Field("操作成功", description="响应消息")
 
     class Config:
         json_schema_extra = {
@@ -34,33 +29,18 @@ class Response(BaseModel, Generic[T]):
 
 
 class PageData(BaseModel, Generic[T]):
-    """
-    分页数据结构
-    
-    Attributes:
-        list: 数据列表
-        pageNum: 当前页码
-        pageSize: 每页数量
-        total: 总数量
-    """
-    list: List[T] = []
-    pageNum: int = 1
-    pageSize: int = 10
-    total: int = 0
+    """分页数据结构"""
+    list: List[T] = Field(default_factory=list, description="数据列表")
+    pageNum: int = Field(1, description="当前页码")
+    pageSize: int = Field(10, description="每页数量")
+    total: int = Field(0, description="总数量")
 
 
 class PageResponse(BaseModel, Generic[T]):
-    """
-    分页响应格式
-    
-    Attributes:
-        code: 状态码
-        data: 分页数据
-        msg: 响应消息
-    """
-    code: int = 200
-    data: PageData[T]
-    msg: str = "操作成功"
+    """分页响应格式"""
+    code: int = Field(200, description="状态码")
+    data: PageData[T] = Field(..., description="分页数据")
+    msg: str = Field("操作成功", description="响应消息")
 
 
 def success(

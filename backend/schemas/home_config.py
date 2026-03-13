@@ -21,9 +21,9 @@ class HomeConfigBase(BaseModel):
 class HomeConfigUpdate(BaseModel):
     """更新首页配置请求"""
     config_value: Optional[str] = Field(None, description="配置值（JSON格式字符串）")
-    config_type: Optional[ConfigType] = None
-    description: Optional[str] = Field(None, max_length=256)
-    is_enabled: Optional[bool] = None
+    config_type: Optional[ConfigType] = Field(None, description="配置类型：string/json/array")
+    description: Optional[str] = Field(None, max_length=256, description="配置说明")
+    is_enabled: Optional[bool] = Field(None, description="是否启用")
 
 
 class HomeConfigResponse(BaseModel):

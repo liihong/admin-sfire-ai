@@ -34,16 +34,16 @@ class ArticleCreate(ArticleBase):
 
 class ArticleUpdate(BaseModel):
     """更新文章请求"""
-    category: Optional[ArticleCategory] = None
-    title: Optional[str] = Field(None, min_length=1, max_length=256)
-    content: Optional[str] = Field(None, min_length=1)
-    summary: Optional[str] = Field(None, max_length=500)
-    cover_image: Optional[str] = Field(None, max_length=512)
-    tags: Optional[List[str]] = None
-    sort_order: Optional[int] = Field(None, ge=0)
-    publish_time: Optional[datetime] = None
-    is_published: Optional[bool] = None
-    is_enabled: Optional[bool] = None
+    category: Optional[ArticleCategory] = Field(None, description="文章类型：founder_story/operation_article/customer_case/announcement")
+    title: Optional[str] = Field(None, min_length=1, max_length=256, description="文章标题")
+    content: Optional[str] = Field(None, min_length=1, description="文章内容（富文本）")
+    summary: Optional[str] = Field(None, max_length=500, description="文章摘要/简介")
+    cover_image: Optional[str] = Field(None, max_length=512, description="封面图URL")
+    tags: Optional[List[str]] = Field(None, description="标签数组")
+    sort_order: Optional[int] = Field(None, ge=0, description="排序顺序")
+    publish_time: Optional[datetime] = Field(None, description="发布时间")
+    is_published: Optional[bool] = Field(None, description="是否已发布")
+    is_enabled: Optional[bool] = Field(None, description="是否启用")
 
 
 class ArticleResponse(BaseModel):

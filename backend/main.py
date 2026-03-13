@@ -129,12 +129,18 @@ def create_app() -> FastAPI:
     """创建 FastAPI 应用实例"""
     app = FastAPI(
         title=settings.APP_NAME,
-        description="SFire Admin 管理后台 API",
+        description="SFire Admin 管理后台 API - 接口文档中参数与返回字段均包含中文说明",
         version="1.0.0",
         docs_url="/docs" if settings.DEBUG else None,
         redoc_url="/redoc" if settings.DEBUG else None,
         openapi_url="/openapi.json" if settings.DEBUG else None,
         lifespan=lifespan,
+        openapi_tags=[
+            {"name": "C端接口", "description": "小程序与PC官网接口：认证、项目管理、内容生成、灵感、文章等"},
+            {"name": "B端接口", "description": "管理后台接口：用户管理、智能体、系统配置、数据统计等"},
+            {"name": "B端接口（v2-技能组装）", "description": "技能组装模式下的智能体与技能管理"},
+            {"name": "C端接口（v2-执行）", "description": "v2版本执行接口"},
+        ],
     )
 
     # 注册 CORS 中间件

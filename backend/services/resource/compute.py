@@ -13,6 +13,7 @@ from loguru import logger
 
 from models.user import User
 from models.compute import ComputeLog, ComputeType
+from models.conversation import Conversation, ConversationMessage
 from schemas.compute import ComputeLogQueryParams
 from utils.pagination import paginate, build_order_by, PageResult
 from utils.exceptions import NotFoundException, BadRequestException
@@ -307,19 +308,21 @@ class ComputeService:
             user_id: 用户ID
         
         Returns:
-            统计信息（含算力余额、流水汇总）
+            统计信息（含算力余额、流水汇总、月消耗、累计产生内容、陪伴天数）
         """
-        # 1. 查询用户当前算力余额（User 表）
+        # 1. 查询用户当前算力余额及注册时间（User 表）
         user_result = await self.db.execute(
-            select(User.balance, User.frozen_balance).where(User.id == user_id)
+            select(User.balance, User.frozen_balance, User.created_at).where(User.id == user_id)
         )
         user_row = user_result.one_or_none()
         if user_row:
             balance = user_row[0] or Decimal("0")
             frozen_balance = user_row[1] or Decimal("0")
             available_balance = balance - frozen_balance
+            user_created_at = user_row[2]
         else:
             balance = frozen_balance = available_balance = Decimal("0")
+            user_created_at = None
 
         # 2. 按类型分组统计流水
         query = (
@@ -364,6 +367,44 @@ class ComputeService:
         for key in type_mapping.values():
             val = statistics[key]
             statistics[key] = float(val) if isinstance(val, Decimal) else val
+
+        # 3. 月消耗：当月 CONSUME 类型流水绝对值之和
+        now = datetime.utcnow()
+        month_start = datetime(now.year, now.month, 1)
+        month_consume_result = await self.db.execute(
+            select(func.coalesce(func.sum(func.abs(ComputeLog.amount)), 0)).where(
+                and_(
+                    ComputeLog.user_id == user_id,
+                    ComputeLog.type == ComputeType.CONSUME,
+                    ComputeLog.created_at >= month_start,
+                )
+            )
+        )
+        month_consumption = float(month_consume_result.scalar() or 0)
+
+        # 4. 累计产生内容：AI 助手消息数量
+        content_result = await self.db.execute(
+            select(func.count(ConversationMessage.id))
+            .select_from(ConversationMessage)
+            .join(Conversation, ConversationMessage.conversation_id == Conversation.id)
+            .where(
+                and_(
+                    Conversation.user_id == user_id,
+                    ConversationMessage.role == "assistant",
+                )
+            )
+        )
+        total_content = content_result.scalar() or 0
+
+        # 5. 已陪伴天数：注册至今天数
+        with_day = 0
+        if user_created_at:
+            delta = datetime.utcnow() - user_created_at
+            with_day = max(0, delta.days)
+
+        statistics["monthConsumption"] = month_consumption
+        statistics["totalContent"] = total_content
+        statistics["withDay"] = with_day
         
         return statistics
 

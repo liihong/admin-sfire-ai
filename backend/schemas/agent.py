@@ -67,15 +67,15 @@ class AgentCreate(AgentBase):
 
 class AgentUpdate(BaseModel):
     """更新智能体请求"""
-    name: Optional[str] = Field(None, min_length=1, max_length=128)
-    icon: Optional[str] = Field(None, max_length=256)
-    description: Optional[str] = None
-    welcomeMessage: Optional[str] = Field(None, description="欢迎语")
-    systemPrompt: Optional[str] = Field(None, min_length=1)
-    model: Optional[str] = Field(None, max_length=128)
-    config: Optional[AgentConfig] = None
-    sortOrder: Optional[int] = Field(None, ge=0)
-    status: Optional[StatusType] = None
+    name: Optional[str] = Field(None, min_length=1, max_length=128, description="智能体名称")
+    icon: Optional[str] = Field(None, max_length=256, description="图标URL或图标标识")
+    description: Optional[str] = Field(None, description="描述信息")
+    welcomeMessage: Optional[str] = Field(None, description="欢迎语（用户进入对话时展示）")
+    systemPrompt: Optional[str] = Field(None, min_length=1, description="系统提示词")
+    model: Optional[str] = Field(None, max_length=128, description="使用的AI模型")
+    config: Optional[AgentConfig] = Field(None, description="配置参数")
+    sortOrder: Optional[int] = Field(None, ge=0, description="排序顺序")
+    status: Optional[StatusType] = Field(None, description="状态：0-下架, 1-上架")
     # 技能组装模式字段（向后兼容，可选）
     agentMode: Optional[int] = Field(None, ge=0, le=1, description="运行模式：0-普通模式, 1-Skill组装模式")
     skillIds: Optional[List[int]] = Field(None, description="技能ID数组（按顺序）")
@@ -220,19 +220,19 @@ class v2:
     
     class AgentUpdateV2(BaseModel):
         """更新Agent请求（v2版本）"""
-        name: Optional[str] = Field(None, min_length=1, max_length=128)
-        icon: Optional[str] = Field(None, max_length=256)
-        description: Optional[str] = None
-        agent_mode: Optional[AgentMode] = None
-        system_prompt: Optional[str] = None
-        model: Optional[str] = Field(None, max_length=128)
-        config: Optional["AgentConfigV2"] = None
-        sort_order: Optional[int] = Field(None, ge=0)
-        status: Optional[V2StatusType] = None
-        skill_ids: Optional[List[int]] = None
-        skill_variables: Optional[Dict[int, Dict[str, str]]] = None
-        routing_description: Optional[str] = None
-        is_routing_enabled: Optional[int] = None
+        name: Optional[str] = Field(None, min_length=1, max_length=128, description="智能体名称")
+        icon: Optional[str] = Field(None, max_length=256, description="图标URL或图标标识")
+        description: Optional[str] = Field(None, description="描述信息")
+        agent_mode: Optional[AgentMode] = Field(None, description="运行模式：0-普通, 1-Skill组装")
+        system_prompt: Optional[str] = Field(None, description="系统提示词")
+        model: Optional[str] = Field(None, max_length=128, description="使用的AI模型")
+        config: Optional["AgentConfigV2"] = Field(None, description="配置参数")
+        sort_order: Optional[int] = Field(None, ge=0, description="排序顺序")
+        status: Optional[V2StatusType] = Field(None, description="状态：0-下架, 1-上架")
+        skill_ids: Optional[List[int]] = Field(None, description="技能ID数组（按顺序）")
+        skill_variables: Optional[Dict[int, Dict[str, str]]] = Field(None, description="技能变量配置")
+        routing_description: Optional[str] = Field(None, description="路由特征描述")
+        is_routing_enabled: Optional[int] = Field(None, description="是否启用智能路由：0-否 1-是")
         is_system: Optional[int] = Field(None, ge=0, le=1, description="是否为系统自用智能体：0-否，1-是")
     
     class AgentResponseV2(BaseModel):
@@ -339,11 +339,11 @@ class v2:
     
     class SkillUpdate(BaseModel):
         """更新技能请求"""
-        name: Optional[str] = Field(None, min_length=1, max_length=100)
-        category: Optional[str] = None
-        meta_description: Optional[str] = None
-        content: Optional[str] = Field(None, min_length=1)
-        status: Optional[int] = None
+        name: Optional[str] = Field(None, min_length=1, max_length=100, description="技能名称")
+        category: Optional[str] = Field(None, description="分类：model/hook/rule/audit")
+        meta_description: Optional[str] = Field(None, description="特征简述(路由用)")
+        content: Optional[str] = Field(None, min_length=1, description="实际Prompt片段")
+        status: Optional[int] = Field(None, description="状态：1-启用 0-禁用")
     
     class SkillResponse(SkillBase):
         """技能响应"""

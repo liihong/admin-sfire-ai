@@ -66,15 +66,15 @@ class CoinCostResponse(BaseModel):
 
 class CoinTransactionLogResponse(BaseModel):
     """算力流水响应"""
-    id: int
-    type: str
-    type_name: str
-    amount: Decimal
-    before_balance: Decimal
-    after_balance: Decimal
-    remark: Optional[str]
-    task_id: Optional[str]
-    created_at: str
+    id: int = Field(..., description="流水记录ID")
+    type: str = Field(..., description="变动类型：recharge/consume/refund/reward/freeze/unfreeze等")
+    type_name: str = Field(..., description="变动类型中文名称")
+    amount: Decimal = Field(..., description="变动金额（正数增加，负数减少）")
+    before_balance: Decimal = Field(..., description="变动前余额")
+    after_balance: Decimal = Field(..., description="变动后余额")
+    remark: Optional[str] = Field(None, description="备注说明")
+    task_id: Optional[str] = Field(None, description="关联任务ID")
+    created_at: str = Field(..., description="创建时间")
 
 
 class CoinRechargeRequest(BaseModel):

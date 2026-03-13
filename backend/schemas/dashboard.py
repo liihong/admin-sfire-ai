@@ -130,7 +130,7 @@ class AgentRankItem(BaseModel):
 
 class DashboardStatsResponse(BaseModel):
     """Dashboard 统计响应"""
-    code: int = 200
-    data: DashboardStats
-    msg: str = "获取成功"
+    code: int = Field(200, description="状态码")
+    data: DashboardStats = Field(..., description="统计数据")
+    msg: str = Field("获取成功", description="响应消息")
 

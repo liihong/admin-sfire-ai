@@ -31,14 +31,14 @@ class LLMModelCreate(LLMModelBase):
 
 class LLMModelUpdate(BaseModel):
     """更新大模型请求"""
-    name: Optional[str] = Field(None, min_length=1, max_length=128)
-    model_id: Optional[str] = Field(None, min_length=1, max_length=128)
-    provider: Optional[ProviderType] = None
+    name: Optional[str] = Field(None, min_length=1, max_length=128, description="模型显示名称")
+    model_id: Optional[str] = Field(None, min_length=1, max_length=128, description="模型标识（API中的模型名称）")
+    provider: Optional[ProviderType] = Field(None, description="提供商：openai/anthropic/deepseek")
     api_key: Optional[str] = Field(None, description="API Key（留空则不修改）")
-    base_url: Optional[str] = Field(None, max_length=512)
-    is_enabled: Optional[bool] = None
-    sort_order: Optional[int] = Field(None, ge=0)
-    remark: Optional[str] = None
+    base_url: Optional[str] = Field(None, max_length=512, description="API基础URL（为空则使用默认URL）")
+    is_enabled: Optional[bool] = Field(None, description="是否启用")
+    sort_order: Optional[int] = Field(None, ge=0, description="排序顺序")
+    remark: Optional[str] = Field(None, description="备注")
 
 
 class LLMModelResponse(BaseModel):

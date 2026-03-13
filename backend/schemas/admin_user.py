@@ -24,12 +24,12 @@ class AdminUserCreate(AdminUserBase):
 
 class AdminUserUpdate(BaseModel):
     """更新管理员用户请求"""
-    username: Optional[str] = Field(None, min_length=2, max_length=64)
-    email: Optional[EmailStr] = None
+    username: Optional[str] = Field(None, min_length=2, max_length=64, description="用户名")
+    email: Optional[EmailStr] = Field(None, description="邮箱")
     password: Optional[str] = Field(None, min_length=6, max_length=50, description="密码（留空则不修改）")
-    role_id: Optional[int] = None
-    is_active: Optional[bool] = None
-    remark: Optional[str] = None
+    role_id: Optional[int] = Field(None, description="角色ID")
+    is_active: Optional[bool] = Field(None, description="是否激活")
+    remark: Optional[str] = Field(None, description="备注")
 
 
 class AdminUserResponse(BaseModel):

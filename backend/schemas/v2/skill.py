@@ -23,11 +23,11 @@ class SkillCreate(SkillBase):
 
 class SkillUpdate(BaseModel):
     """更新技能请求"""
-    name: Optional[str] = Field(None, min_length=1, max_length=100)
-    category: Optional[str] = None
-    meta_description: Optional[str] = None
-    content: Optional[str] = Field(None, min_length=1)
-    status: Optional[int] = None
+    name: Optional[str] = Field(None, min_length=1, max_length=100, description="技能名称")
+    category: Optional[str] = Field(None, description="分类：model/hook/rule/audit")
+    meta_description: Optional[str] = Field(None, description="特征简述(路由用)")
+    content: Optional[str] = Field(None, min_length=1, description="实际Prompt片段")
+    status: Optional[int] = Field(None, description="状态：1-启用 0-禁用")
 
 
 class SkillResponse(SkillBase):

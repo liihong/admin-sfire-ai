@@ -36,15 +36,15 @@ class BannerCreate(BannerBase):
 
 class BannerUpdate(BaseModel):
     """更新Banner请求"""
-    title: Optional[str] = Field(None, min_length=1, max_length=128)
-    image_url: Optional[str] = Field(None, min_length=1, max_length=512)
-    link_url: Optional[str] = Field(None, max_length=512)
-    link_type: Optional[LinkType] = None
-    position: Optional[BannerPosition] = None
-    sort_order: Optional[int] = Field(None, ge=0)
-    start_time: Optional[datetime] = None
-    end_time: Optional[datetime] = None
-    is_enabled: Optional[bool] = None
+    title: Optional[str] = Field(None, min_length=1, max_length=128, description="Banner标题")
+    image_url: Optional[str] = Field(None, min_length=1, max_length=512, description="图片URL")
+    link_url: Optional[str] = Field(None, max_length=512, description="跳转链接")
+    link_type: Optional[LinkType] = Field(None, description="链接类型：none/internal/external")
+    position: Optional[BannerPosition] = Field(None, description="Banner位置：home_top/home_middle/home_bottom")
+    sort_order: Optional[int] = Field(None, ge=0, description="排序顺序")
+    start_time: Optional[datetime] = Field(None, description="开始展示时间")
+    end_time: Optional[datetime] = Field(None, description="结束展示时间")
+    is_enabled: Optional[bool] = Field(None, description="是否启用")
 
 
 class BannerResponse(BaseModel):

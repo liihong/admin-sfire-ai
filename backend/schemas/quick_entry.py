@@ -41,18 +41,18 @@ class QuickEntryCreate(QuickEntryBase):
 
 class QuickEntryUpdate(BaseModel):
     """更新快捷入口请求"""
-    unique_key: Optional[str] = Field(None, min_length=1, max_length=64)
-    type: Optional[EntryType] = None
-    title: Optional[str] = Field(None, min_length=1, max_length=128)
-    subtitle: Optional[str] = Field(None, max_length=256)
-    instructions: Optional[str] = Field(None, description="快捷指令内容")
-    icon_class: Optional[str] = Field(None, min_length=1, max_length=64)
-    bg_color: Optional[str] = Field(None, max_length=16)
-    action_type: Optional[ActionType] = None
-    action_value: Optional[str] = Field(None, min_length=1)
-    tag: Optional[EntryTag] = None
-    priority: Optional[int] = Field(None, ge=0)
-    status: Optional[int] = Field(None, ge=0, le=2)
+    unique_key: Optional[str] = Field(None, min_length=1, max_length=64, description="唯一标识")
+    type: Optional[EntryType] = Field(None, description="入口类型: category/command")
+    title: Optional[str] = Field(None, min_length=1, max_length=128, description="标题")
+    subtitle: Optional[str] = Field(None, max_length=256, description="副标题")
+    instructions: Optional[str] = Field(None, description="快捷指令内容（用于自动填充到输入框）")
+    icon_class: Optional[str] = Field(None, min_length=1, max_length=64, description="图标类名（RemixIcon）")
+    bg_color: Optional[str] = Field(None, max_length=16, description="背景色（十六进制）")
+    action_type: Optional[ActionType] = Field(None, description="动作类型: agent/skill/prompt")
+    action_value: Optional[str] = Field(None, min_length=1, description="动作值（agent_id/skill_id/prompt文本）")
+    tag: Optional[EntryTag] = Field(None, description="标签: none/new/hot")
+    priority: Optional[int] = Field(None, ge=0, description="排序权重（数字越小越靠前）")
+    status: Optional[int] = Field(None, ge=0, le=2, description="状态：0-禁用, 1-启用, 2-即将上线")
 
 
 class QuickEntryResponse(BaseModel):
