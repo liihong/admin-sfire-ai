@@ -8,8 +8,6 @@ import random
 from typing import Optional
 from loguru import logger
 
-from db.redis import get_redis
-
 
 def generate_sequence() -> int:
     """
@@ -61,6 +59,7 @@ async def generate_message_sequence(conversation_id: int) -> int:
     Returns:
         int: 序列号（如果Redis不可用，fallback到时间戳模式）
     """
+    from db.redis import get_redis
     redis = await get_redis()
     if not redis:
         logger.debug("Redis不可用，使用时间戳模式生成序列号")
