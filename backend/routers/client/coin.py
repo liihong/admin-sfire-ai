@@ -275,15 +275,16 @@ async def get_consumption_trend(
 
 @router.get("/coin/consumption-by-agent", summary="按智能体分类统计算力消耗")
 async def get_consumption_by_agent(
-    start_time: Optional[str] = Query(default=None, description="开始时间(ISO格式)，不传则统计全部"),
-    end_time: Optional[str] = Query(default=None, description="结束时间(ISO格式)，不传则统计全部"),
+    days: Optional[int] = Query(default=None, ge=1, le=365, description="统计天数，传则按最近N天过滤"),
+    startTime: Optional[str] = Query(default=None, description="开始时间(ISO格式)，不传则统计全部"),
+    endTime: Optional[str] = Query(default=None, description="结束时间(ISO格式)，不传则统计全部"),
     current_user: User = Depends(get_current_miniprogram_user),
     db: AsyncSession = Depends(get_db)
 ):
     """
     按智能体分类统计用户算力消耗（总计）
     
-    不传时间参数则统计全部；为0的数据不返回。
+    days/startTime/endTime 均不传则统计全部；传 days 则按最近N天过滤；为0的数据不返回。
 
     Returns:
         {
@@ -297,20 +298,25 @@ async def get_consumption_by_agent(
             "msg": "查询成功"
         }
     """
-    from datetime import datetime
+    from datetime import datetime, date, timedelta
     try:
         start_dt = None
         end_dt = None
-        if start_time:
-            try:
-                start_dt = datetime.fromisoformat(start_time.replace("Z", "+00:00"))
-            except ValueError:
-                pass
-        if end_time:
-            try:
-                end_dt = datetime.fromisoformat(end_time.replace("Z", "+00:00"))
-            except ValueError:
-                pass
+        if days is not None:
+            today = date.today()
+            start_dt = datetime.combine(today - timedelta(days=days - 1), datetime.min.time())
+            end_dt = datetime.combine(today, datetime.max.time())
+        else:
+            if startTime:
+                try:
+                    start_dt = datetime.fromisoformat(startTime.replace("Z", "+00:00"))
+                except ValueError:
+                    pass
+            if endTime:
+                try:
+                    end_dt = datetime.fromisoformat(endTime.replace("Z", "+00:00"))
+                except ValueError:
+                    pass
         service = ComputeService(db)
         result = await service.get_consumption_by_agent(
             user_id=current_user.id,
