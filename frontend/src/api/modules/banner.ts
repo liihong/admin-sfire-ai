@@ -13,7 +13,7 @@ export interface BannerItem {
   image_url: string;
   link_url?: string;
   link_type: "none" | "internal" | "external";
-  position: "home_top" | "home_middle" | "home_bottom";
+  position: "home_top" | "home_middle" | "home_bottom" | "web";
   sort_order: number;
   start_time?: string;
   end_time?: string;
@@ -46,7 +46,7 @@ export const addBanner = (params: {
   image_url: string;
   link_url?: string;
   link_type?: "none" | "internal" | "external";
-  position?: "home_top" | "home_middle" | "home_bottom";
+  position?: "home_top" | "home_middle" | "home_bottom" | "web";
   sort_order?: number;
   start_time?: string;
   end_time?: string;
@@ -62,7 +62,7 @@ export const editBanner = (params: {
   image_url?: string;
   link_url?: string;
   link_type?: "none" | "internal" | "external";
-  position?: "home_top" | "home_middle" | "home_bottom";
+  position?: "home_top" | "home_middle" | "home_bottom" | "web";
   sort_order?: number;
   start_time?: string;
   end_time?: string;

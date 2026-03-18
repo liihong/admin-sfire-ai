@@ -25,7 +25,7 @@ export interface BannerItem {
   image_url: string
   link_url?: string
   link_type: 'none' | 'internal' | 'external'
-  position: 'home_top' | 'home_middle' | 'home_bottom'
+  position: 'home_top' | 'home_middle' | 'home_bottom' | 'web'
   sort_order: number
 }
 
@@ -41,6 +41,7 @@ export interface HomeContentResponse {
     home_top: BannerItem[]
     home_middle: BannerItem[]
     home_bottom: BannerItem[]
+    web?: BannerItem[]
   }
   founder_stories: ArticleItem[]
   operation_articles: ArticleItem[]
@@ -64,11 +65,13 @@ export interface HomeContentApiResponse {
  * - announcements: 公告列表
  * - customer_cases: 客户案例列表
  * - featured_modules: 推荐模块列表（功能入口）
+ * @param position 可选，Banner位置筛选：home_top/home_middle/home_bottom/web，Web端可传 'web'
  */
-export function getHomeContent() {
+export function getHomeContent(params?: { position?: string }) {
   return request<HomeContentResponse>({
     url: '/api/v1/client/home',
     method: 'GET',
+    data: params,
     showLoading: false
   })
 }

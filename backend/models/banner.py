@@ -30,6 +30,7 @@ class BannerPosition(enum.Enum):
     HOME_TOP = "home_top"           # 首页顶部
     HOME_MIDDLE = "home_middle"     # 首页中部
     HOME_BOTTOM = "home_bottom"     # 首页底部
+    WEB = "web"                     # web端
 
 
 class Banner(BaseModel):
@@ -86,7 +87,7 @@ class Banner(BaseModel):
         default=BannerPosition.HOME_TOP,
         server_default="home_top",
         nullable=False,
-        comment="Banner位置: home_top-首页顶部, home_middle-首页中部, home_bottom-首页底部",
+        comment="Banner位置: home_top-首页顶部, home_middle-首页中部, home_bottom-首页底部, web-web端",
     )
     
     # === 时间控制字段 ===

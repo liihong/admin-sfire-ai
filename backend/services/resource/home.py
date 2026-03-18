@@ -25,9 +25,12 @@ class HomeService:
         self.banner_service = BannerService(db)
         self.article_service = ArticleService(db)
     
-    async def get_home_content(self) -> Dict:
+    async def get_home_content(self, position: Optional[str] = None) -> Dict:
         """
         获取首页内容（聚合接口）
+        
+        Args:
+            position: Banner位置筛选，可选 home_top/home_middle/home_bottom/web，不传则返回所有位置
         
         返回：
             - banners: Banner列表（按位置分组）
@@ -41,7 +44,7 @@ class HomeService:
             首页内容字典
         """
         # 并行获取所有数据
-        banners_task = self._get_enabled_banners()
+        banners_task = self._get_enabled_banners(position=position)
         founder_stories_task = self._get_articles_by_category(ArticleCategory.FOUNDER_STORY, limit=5)
         operation_articles_task = self._get_articles_by_category(ArticleCategory.OPERATION_ARTICLE, limit=10)
         announcements_task = self._get_articles_by_category(ArticleCategory.ANNOUNCEMENT, limit=3)
@@ -65,9 +68,12 @@ class HomeService:
             "featured_modules": featured_modules,
         }
     
-    async def _get_enabled_banners(self) -> Dict[str, List[Dict]]:
+    async def _get_enabled_banners(self, position: Optional[str] = None) -> Dict[str, List[Dict]]:
         """
         获取启用的Banner（按位置分组）
+        
+        Args:
+            position: 位置筛选，可选 home_top/home_middle/home_bottom/web，不传则返回所有位置
         
         Returns:
             按位置分组的Banner字典
@@ -75,39 +81,47 @@ class HomeService:
         now = datetime.now()
         
         # 查询启用的Banner，且时间范围内有效
-        query = select(Banner).where(
-            and_(
-                Banner.is_enabled == True,
-                # 时间范围检查：如果没有设置时间，或者当前时间在时间范围内
-                (
-                    (Banner.start_time.is_(None)) | (Banner.start_time <= now)
-                ),
-                (
-                    (Banner.end_time.is_(None)) | (Banner.end_time >= now)
-                )
-            )
-        ).order_by(asc(Banner.sort_order), desc(Banner.created_at))
+        conditions = [
+            Banner.is_enabled == True,
+            (
+                (Banner.start_time.is_(None)) | (Banner.start_time <= now)
+            ),
+            (
+                (Banner.end_time.is_(None)) | (Banner.end_time >= now)
+            ),
+        ]
+        filter_position: Optional[str] = None
+        if position:
+            try:
+                position_enum = BannerPosition(position)
+                conditions.append(Banner.position == position_enum)
+                filter_position = position
+            except ValueError:
+                pass  # 无效的 position 值则忽略筛选
+        
+        query = select(Banner).where(and_(*conditions)).order_by(
+            asc(Banner.sort_order), desc(Banner.created_at)
+        )
         
         result = await self.db.execute(query)
         banners = result.scalars().all()
         
-        # 按位置分组
+        # 按位置分组（支持按 position 筛选时只返回该位置）
+        all_positions = ["home_top", "home_middle", "home_bottom", "web"]
         banners_by_position: Dict[str, List[Dict]] = {
-            "home_top": [],
-            "home_middle": [],
-            "home_bottom": [],
+            p: [] for p in (all_positions if not filter_position else [filter_position])
         }
         
         for banner in banners:
-            position = banner.position.value
-            if position in banners_by_position:
-                banners_by_position[position].append({
+            pos = banner.position.value
+            if pos in banners_by_position:
+                banners_by_position[pos].append({
                     "id": banner.id,
                     "title": banner.title,
                     "image_url": banner.image_url,
                     "link_url": banner.link_url,
                     "link_type": banner.link_type.value,
-                    "position": position,
+                    "position": pos,
                     "sort_order": banner.sort_order,
                 })
         

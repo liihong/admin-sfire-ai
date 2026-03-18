@@ -90,6 +90,7 @@
             <el-option label="首页顶部" value="home_top" />
             <el-option label="首页中部" value="home_middle" />
             <el-option label="首页底部" value="home_bottom" />
+            <el-option label="Web端" value="web" />
           </el-select>
         </el-form-item>
         <el-form-item label="排序顺序" prop="sort_order">
@@ -160,7 +161,7 @@ const formData = reactive({
   image_url: "",
   link_url: "",
   link_type: "none" as "none" | "internal" | "external",
-  position: "home_top" as "home_top" | "home_middle" | "home_bottom",
+  position: "home_top" as "home_top" | "home_middle" | "home_bottom" | "web",
   sort_order: 0,
   start_time: "",
   end_time: "",
@@ -237,7 +238,8 @@ const getPositionTagType = (position: string): "success" | "warning" | "info" | 
   const typeMap: Record<string, "success" | "warning" | "info" | "primary" | "danger"> = {
     home_top: "danger",
     home_middle: "warning",
-    home_bottom: "info"
+    home_bottom: "info",
+    web: "primary"
   };
   return typeMap[position] || "info";
 };
@@ -246,7 +248,8 @@ const getPositionLabel = (position: string) => {
   const labelMap: Record<string, string> = {
     home_top: "首页顶部",
     home_middle: "首页中部",
-    home_bottom: "首页底部"
+    home_bottom: "首页底部",
+    web: "Web端"
   };
   return labelMap[position] || position;
 };
@@ -412,7 +415,8 @@ const columns = reactive<ColumnProps<BannerItem>[]>([
         options: [
           { label: "首页顶部", value: "home_top" },
           { label: "首页中部", value: "home_middle" },
-          { label: "首页底部", value: "home_bottom" }
+          { label: "首页底部", value: "home_bottom" },
+          { label: "Web端", value: "web" }
         ]
       }
     }

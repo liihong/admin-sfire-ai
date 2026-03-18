@@ -1,9 +1,10 @@
 """
 首页内容 Endpoints
-首页内容聚合接口（小程序端）
+首页内容聚合接口（小程序端/Web端）
 独立于文章管理接口，专门为首页提供聚合数据
 """
-from fastapi import APIRouter, Depends
+from typing import Optional
+from fastapi import APIRouter, Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from db import get_db
@@ -15,24 +16,28 @@ router = APIRouter()
 
 @router.get("", summary="获取首页内容")
 async def get_home_content(
+    position: Optional[str] = Query(
+        None,
+        description="Banner位置筛选：home_top/home_middle/home_bottom/web，不传则返回所有位置"
+    ),
     db: AsyncSession = Depends(get_db),
 ):
     """
     获取首页内容（聚合接口）
     
     返回首页所需的所有数据：
-    - banners: Banner列表（按位置分组：home_top, home_middle, home_bottom）
+    - banners: Banner列表（按位置分组：home_top, home_middle, home_bottom, web）
     - founder_stories: 创始人故事列表（用于轮播）
     - operation_articles: 运营干货列表（用于横向滚动）
     - announcements: 公告列表（最新公告）
     - customer_cases: 客户案例列表（可选）
     
-    该接口独立于文章管理接口，专门为首页优化，提升性能和可维护性
+    支持 position 参数按位置过滤 Banner，如 Web 端可传 position=web
     
     路径：GET /api/v1/client/home
     """
     home_service = HomeService(db)
-    content = await home_service.get_home_content()
+    content = await home_service.get_home_content(position=position)
     
     return success(data=content, msg="获取成功")
 

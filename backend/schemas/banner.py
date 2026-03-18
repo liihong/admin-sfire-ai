@@ -13,7 +13,7 @@ from .common import PageParams
 LinkType = Literal["none", "internal", "external"]
 
 # Banner位置类型
-BannerPosition = Literal["home_top", "home_middle", "home_bottom"]
+BannerPosition = Literal["home_top", "home_middle", "home_bottom", "web"]
 
 
 class BannerBase(BaseModel):
@@ -40,7 +40,7 @@ class BannerUpdate(BaseModel):
     image_url: Optional[str] = Field(None, min_length=1, max_length=512, description="图片URL")
     link_url: Optional[str] = Field(None, max_length=512, description="跳转链接")
     link_type: Optional[LinkType] = Field(None, description="链接类型：none/internal/external")
-    position: Optional[BannerPosition] = Field(None, description="Banner位置：home_top/home_middle/home_bottom")
+    position: Optional[BannerPosition] = Field(None, description="Banner位置：home_top/home_middle/home_bottom/web")
     sort_order: Optional[int] = Field(None, ge=0, description="排序顺序")
     start_time: Optional[datetime] = Field(None, description="开始展示时间")
     end_time: Optional[datetime] = Field(None, description="结束展示时间")
