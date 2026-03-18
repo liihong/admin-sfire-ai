@@ -77,6 +77,30 @@
         </div>
       </el-form-item>
 
+      <el-form-item label="避坑指南" prop="precautions">
+        <el-input
+          v-model="formData.precautions"
+          type="textarea"
+          :rows="3"
+          placeholder="注意事项、禁止行为等（可选）"
+          maxlength="2000"
+          show-word-limit
+        />
+        <div class="form-tip">如：禁止绝对化表述、虚假稀缺、空泛说教等</div>
+      </el-form-item>
+
+      <el-form-item label="跨行应用启发" prop="fission_ideas">
+        <el-input
+          v-model="formData.fission_ideas"
+          type="textarea"
+          :rows="3"
+          placeholder="跨行业应用思路、迁移启发（可选）"
+          maxlength="2000"
+          show-word-limit
+        />
+        <div class="form-tip">如：母婴→餐饮的场景映射思路</div>
+      </el-form-item>
+
       <el-form-item label="状态" prop="status">
         <el-radio-group v-model="formData.status">
           <el-radio :label="1">启用</el-radio>
@@ -127,6 +151,8 @@ const formData = reactive({
   category: "model" as Skill.CategoryType,
   meta_description: "",
   content: "",
+  precautions: "",
+  fission_ideas: "",
   status: 1
 });
 
@@ -143,6 +169,8 @@ const resetForm = () => {
   formData.category = "model";
   formData.meta_description = "";
   formData.content = "";
+  formData.precautions = "";
+  formData.fission_ideas = "";
   formData.status = 1;
   formRef.value?.clearValidate();
 };
@@ -158,6 +186,8 @@ watch(
         category: data.category,
         meta_description: data.meta_description || "",
         content: data.content,
+        precautions: data.precautions || "",
+        fission_ideas: data.fission_ideas || "",
         status: data.status
       });
     } else {

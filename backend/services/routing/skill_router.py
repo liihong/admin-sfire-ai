@@ -366,18 +366,25 @@ class SkillRouter:
             )
             
             logger.info(f"LLM路由调用成功: 返回内容长度={len(response)}")
-            logger.debug(f"LLM路由返回内容: {response[:500]}...")  # 只记录前500字符
+            if response:
+                logger.debug(f"LLM路由返回内容: {response[:500]}...")  # 只记录前500字符
+            else:
+                logger.warning("LLM返回内容为空，请检查模型配置或API")
         except Exception as e:
             logger.error(f"LLM路由调用失败: {e}", exc_info=True)
             raise ValueError(f"LLM路由调用失败: {str(e)}")
         
         # 6. 解析JSON返回结果，提取target_ids
         logger.info("开始解析LLM返回的JSON结果")
+        if not response or not response.strip():
+            logger.error("LLM返回内容为空，无法解析JSON。可能原因: 模型未正确返回、API超时、模型不支持该任务")
+            raise ValueError("LLM返回内容为空")
         try:
             # 尝试直接解析JSON
             parsed_result = json.loads(response)
             logger.debug(f"JSON解析成功: {parsed_result}")
-        except json.JSONDecodeError:
+        except json.JSONDecodeError as e:
+            logger.warning(f"JSON直接解析失败: {e}，尝试其他解析方式。原始返回(前500字符): {repr(response[:500])}")
             # 尝试提取markdown代码块中的JSON
             json_match = re.search(r'```(?:json)?\s*(\{.*?\})\s*```', response, re.DOTALL)
             if json_match:
@@ -392,6 +399,7 @@ class SkillRouter:
                         ids = [int(x.strip()) for x in re.findall(r'\d+', ids_str)]
                         parsed_result = {"target_ids": ids}
                     else:
+                        logger.error(f"无法解析LLM返回的JSON。完整原始返回: {repr(response)}")
                         raise ValueError("无法解析LLM返回的JSON")
             else:
                 # 尝试使用正则表达式提取target_ids数组
@@ -401,6 +409,7 @@ class SkillRouter:
                     ids = [int(x.strip()) for x in re.findall(r'\d+', ids_str)]
                     parsed_result = {"target_ids": ids}
                 else:
+                    logger.error(f"无法解析LLM返回的JSON。完整原始返回: {repr(response)}")
                     raise ValueError("无法解析LLM返回的JSON")
         
         # 7. 验证技能ID有效性（过滤不在dynamic_skills中的ID）

@@ -18,12 +18,17 @@ class SkillLibrary(BaseModel):
         - category: 分类（model/hook/rule/audit）
         - meta_description: 特征描述（用于路由匹配）
         - content: 实际Prompt片段
+        - precautions: 避坑指南
+        - fission_ideas: 跨行应用启发
         - status: 状态（1-启用, 0-禁用）
     """
     __tablename__ = "skill_library"
     __table_args__ = (
         Index("ix_skill_library_category", "category"),
         Index("ix_skill_library_status", "status"),
+        # 复合索引：列表查询常用 status + order by id，或 status + category
+        Index("ix_skill_library_status_id", "status", "id"),
+        Index("ix_skill_library_status_category", "status", "category"),
         {"comment": "技能库表"},
     )
 
@@ -49,6 +54,18 @@ class SkillLibrary(BaseModel):
         Text,
         nullable=False,
         comment="实际Prompt片段",
+    )
+
+    precautions: Mapped[Optional[str]] = mapped_column(
+        Text,
+        nullable=True,
+        comment="避坑指南",
+    )
+
+    fission_ideas: Mapped[Optional[str]] = mapped_column(
+        Text,
+        nullable=True,
+        comment="跨行应用启发",
     )
 
     status: Mapped[int] = mapped_column(

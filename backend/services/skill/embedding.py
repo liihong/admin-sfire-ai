@@ -43,11 +43,13 @@ class SkillEmbeddingService:
         Returns:
             向量数组，失败返回None
         """
-        # 构建向量化文本：名称 + 分类 + 特征描述 + 内容
+        # 构建向量化文本：名称 + 分类 + 特征描述 + 内容 + 避坑 + 跨行启发（提升检索相关性）
         text = f"""技能名称：{skill.name}
 分类：{skill.category}
 特征描述：{skill.meta_description or '无'}
-内容：{skill.content}"""
+内容：{skill.content}
+避坑指南：{getattr(skill, 'precautions', None) or '无'}
+跨行应用启发：{getattr(skill, 'fission_ideas', None) or '无'}"""
 
         try:
             embedding = await self.embedding_service.generate_embedding(text)
@@ -77,7 +79,7 @@ class SkillEmbeddingService:
             # 构建向量ID（使用skill前缀避免冲突）
             vector_id = f"skill_{skill.id}"
 
-            # 构建元数据
+            # 构建元数据（含 precautions、fission_ideas 供 Prompt 模板使用）
             metadata = {
                 "type": "skill",
                 "skill_id": skill.id,
@@ -85,6 +87,8 @@ class SkillEmbeddingService:
                 "category": skill.category,
                 "meta_description": skill.meta_description or "",
                 "content": skill.content,
+                "precautions": getattr(skill, "precautions", None) or "",
+                "fission_ideas": getattr(skill, "fission_ideas", None) or "",
                 "status": skill.status,
             }
 
@@ -148,51 +152,45 @@ class SkillEmbeddingService:
             logger.error(f"更新技能embedding失败: {e}")
             return False
 
-    async def batch_generate_embeddings(
+    async def batch_generate_embeddings_from_skills(
         self,
-        db: AsyncSession,
+        skills: List[SkillLibrary],
         batch_size: int = 10
     ) -> Dict[str, int]:
         """
-        批量为所有技能生成embedding
+        从已加载的技能列表批量生成embedding并导入向量库（无需持有数据库连接）
+
+        适用于长时间批量导入场景，可先查询技能后关闭连接，再执行耗时的 embedding 生成，
+        避免 MySQL 连接空闲超时（如 WinError 121）。
 
         Args:
-            db: 数据库会话
-            batch_size: 批次大小
+            skills: 技能对象列表（需已从数据库加载并 detach）
+            batch_size: 每处理多少条记录打印一次进度
 
         Returns:
             统计信息 {success: 成功数, failed: 失败数, total: 总数}
         """
+        total = len(skills)
+        success_count = 0
+        failed_count = 0
+
         try:
-            # 查询所有启用的技能
-            result = await db.execute(
-                select(SkillLibrary).filter(SkillLibrary.status == 1)
-            )
-            skills = result.scalars().all()
-
-            total = len(skills)
-            success_count = 0
-            failed_count = 0
-
             logger.info(f"开始批量生成技能embedding，共 {total} 个技能")
 
             for i, skill in enumerate(skills):
                 try:
-                    # 生成embedding
                     embedding = await self.generate_skill_embedding(skill)
                     if embedding is None:
                         failed_count += 1
                         logger.warning(f"技能 {skill.name} (ID={skill.id}) embedding生成失败")
                         continue
 
-                    # 添加到向量库
                     success = await self.add_skill_to_vector_db(skill, embedding)
                     if success:
                         success_count += 1
                     else:
                         failed_count += 1
 
-                    # 每处理batch_size个记录一次日志
                     if (i + 1) % batch_size == 0:
                         logger.info(f"已处理 {i + 1}/{total} 个技能")
 
@@ -200,14 +198,42 @@ class SkillEmbeddingService:
                     failed_count += 1
                     logger.error(f"处理技能 {skill.name} (ID={skill.id}) 失败: {e}")
 
-            stats = {
-                "total": total,
-                "success": success_count,
-                "failed": failed_count
-            }
-
+            stats = {"total": total, "success": success_count, "failed": failed_count}
             logger.info(f"批量生成完成: {stats}")
             return stats
+
+        except Exception as e:
+            logger.error(f"批量生成embedding失败: {e}")
+            return {"total": total, "success": success_count, "failed": failed_count}
+
+    async def batch_generate_embeddings(
+        self,
+        db: AsyncSession,
+        batch_size: int = 10,
+        include_disabled: bool = False
+    ) -> Dict[str, int]:
+        """
+        批量为技能生成embedding并导入向量库
+
+        Args:
+            db: 数据库会话
+            batch_size: 批次大小（每处理多少条记录打印一次进度）
+            include_disabled: 是否包含已禁用的技能，默认False只导入status=1的
+
+        Returns:
+            统计信息 {success: 成功数, failed: 失败数, total: 总数}
+        """
+        try:
+            # 查询技能（默认仅启用，include_disabled=True 时查全部）
+            stmt = select(SkillLibrary)
+            if not include_disabled:
+                stmt = stmt.filter(SkillLibrary.status == 1)
+            result = await db.execute(stmt)
+            skills = list(result.scalars().all())  # 转为 list 确保数据已加载
+
+            scope = "全部" if include_disabled else "启用"
+            logger.info(f"已查询 {scope} 技能，共 {len(skills)} 个")
+            return await self.batch_generate_embeddings_from_skills(skills, batch_size)
 
         except Exception as e:
             logger.error(f"批量生成embedding失败: {e}")

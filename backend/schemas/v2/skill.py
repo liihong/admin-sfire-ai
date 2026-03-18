@@ -13,6 +13,8 @@ class SkillBase(BaseModel):
     category: str = Field(..., description="分类：model/hook/rule/audit")
     meta_description: Optional[str] = Field(None, description="特征简述(路由用)")
     content: str = Field(..., min_length=1, description="实际Prompt片段")
+    precautions: Optional[str] = Field(None, description="避坑指南")
+    fission_ideas: Optional[str] = Field(None, description="跨行应用启发")
     status: int = Field(default=1, description="状态：1-启用 0-禁用")
 
 
@@ -27,6 +29,8 @@ class SkillUpdate(BaseModel):
     category: Optional[str] = Field(None, description="分类：model/hook/rule/audit")
     meta_description: Optional[str] = Field(None, description="特征简述(路由用)")
     content: Optional[str] = Field(None, min_length=1, description="实际Prompt片段")
+    precautions: Optional[str] = Field(None, description="避坑指南")
+    fission_ideas: Optional[str] = Field(None, description="跨行应用启发")
     status: Optional[int] = Field(None, description="状态：1-启用 0-禁用")
 
 

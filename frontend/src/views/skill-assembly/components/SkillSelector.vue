@@ -18,7 +18,7 @@
           </el-input>
         </div>
 
-        <el-tabs v-model="activeCategory" class="category-tabs">
+        <el-tabs v-model="activeCategory" class="category-tabs" @tab-change="handleCategoryChange">
           <el-tab-pane label="全部" name="all">
             <div class="skill-list">
               <div
@@ -33,7 +33,17 @@
                 <span class="skill-name">{{ skill.name }}</span>
                 <el-icon class="add-icon"><Plus /></el-icon>
               </div>
-              <el-empty v-if="filteredSkills.length === 0" description="暂无技能" :image-size="80" />
+              <el-empty v-if="filteredSkills.length === 0 && !loading" description="暂无技能" :image-size="80" />
+            </div>
+            <div v-if="pagination.total > pagination.size" class="pagination-wrapper">
+              <el-pagination
+                v-model:current-page="pagination.page"
+                :page-size="pagination.size"
+                :total="pagination.total"
+                layout="prev, pager, next"
+                small
+                @current-change="handlePageChange"
+              />
             </div>
           </el-tab-pane>
           <el-tab-pane label="Model" name="model">
@@ -48,6 +58,17 @@
                 <span class="skill-name">{{ skill.name }}</span>
                 <el-icon class="add-icon"><Plus /></el-icon>
               </div>
+              <el-empty v-if="filteredSkills.length === 0 && !loading" description="暂无技能" :image-size="80" />
+            </div>
+            <div v-if="pagination.total > pagination.size" class="pagination-wrapper">
+              <el-pagination
+                v-model:current-page="pagination.page"
+                :page-size="pagination.size"
+                :total="pagination.total"
+                layout="prev, pager, next"
+                small
+                @current-change="handlePageChange"
+              />
             </div>
           </el-tab-pane>
           <el-tab-pane label="Hook" name="hook">
@@ -62,6 +83,17 @@
                 <span class="skill-name">{{ skill.name }}</span>
                 <el-icon class="add-icon"><Plus /></el-icon>
               </div>
+              <el-empty v-if="filteredSkills.length === 0 && !loading" description="暂无技能" :image-size="80" />
+            </div>
+            <div v-if="pagination.total > pagination.size" class="pagination-wrapper">
+              <el-pagination
+                v-model:current-page="pagination.page"
+                :page-size="pagination.size"
+                :total="pagination.total"
+                layout="prev, pager, next"
+                small
+                @current-change="handlePageChange"
+              />
             </div>
           </el-tab-pane>
           <el-tab-pane label="Rule" name="rule">
@@ -76,6 +108,17 @@
                 <span class="skill-name">{{ skill.name }}</span>
                 <el-icon class="add-icon"><Plus /></el-icon>
               </div>
+              <el-empty v-if="filteredSkills.length === 0 && !loading" description="暂无技能" :image-size="80" />
+            </div>
+            <div v-if="pagination.total > pagination.size" class="pagination-wrapper">
+              <el-pagination
+                v-model:current-page="pagination.page"
+                :page-size="pagination.size"
+                :total="pagination.total"
+                layout="prev, pager, next"
+                small
+                @current-change="handlePageChange"
+              />
             </div>
           </el-tab-pane>
           <el-tab-pane label="Audit" name="audit">
@@ -90,6 +133,17 @@
                 <span class="skill-name">{{ skill.name }}</span>
                 <el-icon class="add-icon"><Plus /></el-icon>
               </div>
+              <el-empty v-if="filteredSkills.length === 0 && !loading" description="暂无技能" :image-size="80" />
+            </div>
+            <div v-if="pagination.total > pagination.size" class="pagination-wrapper">
+              <el-pagination
+                v-model:current-page="pagination.page"
+                :page-size="pagination.size"
+                :total="pagination.total"
+                layout="prev, pager, next"
+                small
+                @current-change="handlePageChange"
+              />
             </div>
           </el-tab-pane>
         </el-tabs>
@@ -167,11 +221,11 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch, onMounted } from "vue";
+import { ref, reactive, computed, watch, onMounted } from "vue";
 import { ElMessage } from "element-plus";
 import { Search, Plus, Close, Rank } from "@element-plus/icons-vue";
 import draggable from "vuedraggable";
-import { getSkillList } from "@/api/modules/skillAssembly";
+import { getSkillList, getSkillDetail } from "@/api/modules/skillAssembly";
 import { Skill } from "@/api/interface";
 
 interface Props {
@@ -189,35 +243,97 @@ const props = defineProps<Props>();
 const emit = defineEmits<Emits>();
 
 const allSkills = ref<Skill.ResSkillItem[]>([]);
+const skillCache = ref<Map<number, Skill.ResSkillItem>>(new Map()); // 缓存已加载技能，用于回填已选项
 const searchKeyword = ref("");
 const activeCategory = ref("all");
+const loading = ref(false);
 const variableDialogVisible = ref(false);
 const currentSkillId = ref<number | null>(null);
 const currentSkillVariables = ref<Record<string, string>>({});
 
 const selectedSkillsList = ref<any[]>([]);
 
-// 加载技能列表
+const pagination = reactive({
+  page: 1,
+  size: 100,
+  total: 0
+});
+
+// 同步已选技能列表（用于编辑时回填，从 skillCache + allSkills 获取）
+const syncSelectedSkills = () => {
+  const ids = props.modelValue || [];
+  if (ids.length === 0) {
+    selectedSkillsList.value = [];
+    return;
+  }
+  const cache = skillCache.value;
+  const current = allSkills.value || [];
+  selectedSkillsList.value = ids
+    .map(id => cache.get(id) ?? current.find(s => s.id === id))
+    .filter(Boolean)
+    .sort((a, b) => ids.indexOf(a!.id) - ids.indexOf(b!.id));
+};
+
+// 加载技能列表（分页，size=100）
 const loadSkills = async () => {
+  loading.value = true;
   try {
-    const response = await getSkillList({ page: 1, size: 100, status: 1 });
-    allSkills.value = response.data.list;
+    const params: { page: number; size: number; status: number; category?: string } = {
+      page: pagination.page,
+      size: pagination.size,
+      status: 1
+    };
+    if (activeCategory.value !== "all") {
+      params.category = activeCategory.value;
+    }
+    const response = await getSkillList(params);
+    const list = response.data.list || [];
+    allSkills.value = list;
+    pagination.total = response.data.total ?? 0;
+    // 写入缓存
+    list.forEach((s: Skill.ResSkillItem) => skillCache.value.set(s.id, s));
+    syncSelectedSkills();
+    // 编辑时：已选技能可能不在当前页，需单独拉取
+    fetchMissingSelectedSkills();
   } catch (error) {
     console.error("加载技能列表失败:", error);
     ElMessage.error("加载技能列表失败");
+  } finally {
+    loading.value = false;
   }
 };
 
-// 过滤技能
+const handlePageChange = (page: number) => {
+  pagination.page = page;
+  loadSkills();
+};
+
+const handleCategoryChange = () => {
+  pagination.page = 1;
+  loadSkills();
+};
+
+// 编辑时拉取不在当前页的已选技能
+const fetchMissingSelectedSkills = async () => {
+  const ids = props.modelValue || [];
+  const missing = ids.filter(id => !skillCache.value.has(id));
+  if (missing.length === 0) return;
+  for (const id of missing) {
+    try {
+      const res = await getSkillDetail(id);
+      if (res.data) skillCache.value.set(id, res.data);
+    } catch {
+      // 技能可能已删除，忽略
+    }
+  }
+  syncSelectedSkills();
+};
+
+// 过滤技能（分类由后端分页处理，此处仅做搜索过滤和排除已选）
 const filteredSkills = computed(() => {
   let skills = allSkills.value || [];
 
-  // 分类过滤
-  if (activeCategory.value !== "all") {
-    skills = skills.filter(s => s.category === activeCategory.value);
-  }
-
-  // 搜索过滤
+  // 搜索过滤（当前页内）
   if (searchKeyword.value) {
     const keyword = searchKeyword.value.toLowerCase();
     skills = skills.filter(s =>
@@ -233,10 +349,14 @@ const filteredSkills = computed(() => {
 
 // 添加技能
 const addSkill = (skill: Skill.ResSkillItem) => {
+  skillCache.value.set(skill.id, skill);
   const newIds = [...(props.modelValue || []), skill.id];
   emit("update:modelValue", newIds);
 
-  selectedSkillsList.value = (allSkills.value || []).filter(s => newIds.includes(s.id));
+  selectedSkillsList.value = newIds
+    .map(id => skillCache.value.get(id) ?? allSkills.value?.find(s => s.id === id))
+    .filter(Boolean)
+    .sort((a, b) => newIds.indexOf(a!.id) - newIds.indexOf(b!.id));
   emit("change", selectedSkillsList.value);
 };
 
@@ -246,7 +366,10 @@ const removeSkill = (index: number) => {
   const newIds = currentIds.filter((_, i) => i !== index);
   emit("update:modelValue", newIds);
 
-  selectedSkillsList.value = (allSkills.value || []).filter(s => newIds.includes(s.id));
+  selectedSkillsList.value = newIds
+    .map(id => skillCache.value.get(id) ?? allSkills.value?.find(s => s.id === id))
+    .filter(Boolean)
+    .sort((a, b) => newIds.indexOf(a!.id) - newIds.indexOf(b!.id));
   emit("change", selectedSkillsList.value);
 };
 
@@ -265,8 +388,8 @@ const configureVariables = (skillId: number) => {
   const existingVars = props.variables?.[skillId] || {};
   currentSkillVariables.value = { ...existingVars };
 
-  // 解析技能内容，提取变量（简单的正则匹配）
-  const skill = allSkills.value.find(s => s.id === skillId);
+  // 解析技能内容，提取变量（从缓存或当前页查找）
+  const skill = skillCache.value.get(skillId) ?? allSkills.value.find(s => s.id === skillId);
   if (skill) {
     const varPattern = /\{\{([^}]+)\}\}/g;
     const matches = skill.content.match(varPattern);
@@ -308,19 +431,17 @@ const getCategoryType = (category: string) => {
   return typeMap[category] || "";
 };
 
-// 监听外部变化
+// 监听 modelValue 变化（编辑时父组件传入 skillIds/skill_ids 后触发回填）
 watch(
   () => props.modelValue,
-  (newIds) => {
-    if (newIds && newIds.length > 0) {
-      selectedSkillsList.value = (allSkills.value || [])
-        .filter(s => newIds.includes(s.id))
-        .sort((a, b) => newIds.indexOf(a.id) - newIds.indexOf(b.id));
-    } else {
-      selectedSkillsList.value = [];
-    }
-  },
+  () => syncSelectedSkills(),
   { immediate: true }
+);
+
+// 监听 allSkills 变化（技能列表加载完成后补充回填，解决异步加载时序问题）
+watch(
+  () => allSkills.value,
+  () => syncSelectedSkills()
 );
 
 // 初始化
@@ -347,6 +468,7 @@ onMounted(() => {
     flex-direction: column;
     overflow: hidden;
     min-width: 500px;
+    min-height: 0; /* flex 子项需设置，否则 overflow 无法正确滚动 */
   }
 
   .section-header {
@@ -359,7 +481,9 @@ onMounted(() => {
 
   .skill-list {
     flex: 1;
+    min-height: 0;
     overflow-y: auto;
+    overflow-x: hidden;
     padding: 8px 0;
 
     .skill-item {
@@ -415,16 +539,34 @@ onMounted(() => {
   .category-tabs {
     display: flex;
     flex-direction: column;
-    height: 100%;
+    flex: 1;
+    min-height: 0;
+    overflow: hidden;
+
+    :deep(.el-tabs__header) {
+      flex-shrink: 0;
+    }
 
     :deep(.el-tabs__content) {
       flex: 1;
+      min-height: 0;
       overflow-y: auto;
+    }
+
+    :deep(.el-tab-pane) {
+      height: 100%;
     }
   }
 
   .draggable-list {
     min-height: 100px;
+  }
+
+  .pagination-wrapper {
+    flex-shrink: 0;
+    padding: 8px 0;
+    display: flex;
+    justify-content: center;
   }
 }
 </style>

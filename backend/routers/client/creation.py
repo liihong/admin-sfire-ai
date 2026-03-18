@@ -22,6 +22,7 @@ from services.agent.admin import AgentAdminService
 from services.conversation.business import ConversationBusinessService
 from services.content import AIService
 from services.coin import CoinServiceFactory
+from services.system.permission import PermissionService
 from middleware.balance_checker import BalanceCheckerMiddleware
 from services.shared.prompt_builder import PromptBuilder
 from constants.agent import get_agent_config, get_all_agents, AgentType, AGENT_CONFIGS
@@ -626,7 +627,13 @@ async def generate_chat(
 ):
     """对话式创作接口（支持向量检索和异步保存）"""
     try:
-        # 0. 初始化会话服务
+        # 0. 会员到期检查：如已到期则直接返回
+        permission_service = PermissionService(db)
+        permission = await permission_service.get_user_permission(current_user.id)
+        if permission.get("is_vip_expired"):
+            raise BadRequestException("会员已到期，请联系管理员。")
+
+        # 0.1 初始化会话服务
         conversation_service = ConversationBusinessService(db)
 
         # 0.1. 解析 agent_id（agents 表主键，唯一标识）

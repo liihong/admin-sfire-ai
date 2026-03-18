@@ -2,7 +2,7 @@
 技能库管理路由（v2版本）
 后台管理接口
 """
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, BackgroundTasks
 from sqlalchemy.ext.asyncio import AsyncSession
 from loguru import logger
 
@@ -18,6 +18,47 @@ from utils.response import success, page_response, ResponseMsg
 from utils.exceptions import NotFoundException, BadRequestException
 
 router = APIRouter(prefix="/skills", tags=["技能库管理"])
+
+
+async def _sync_skill_embedding(skill_id: int):
+    """后台任务：将技能同步到向量库（启用则更新，禁用则删除）"""
+    try:
+        from db import session as db_session
+        from services.skill.embedding import get_skill_embedding_service
+
+        if db_session.async_session_maker is None:
+            await db_session.init_db()
+        async with db_session.async_session_maker() as db:
+            service = get_skill_embedding_service()
+            skill = await SkillService.get_by_id(db, skill_id)
+            if skill:
+                if skill.status == 1:
+                    await service.update_skill_embedding(db, skill_id)
+                else:
+                    await service.delete_skill_embedding(skill_id)
+    except Exception as e:
+        logger.warning(f"技能 {skill_id} 向量库同步失败（可稍后手动执行导入脚本）: {e}")
+
+
+async def _delete_skill_embedding(skill_id: int):
+    """后台任务：从向量库删除技能（物理删除技能时调用）"""
+    try:
+        from services.skill.embedding import get_skill_embedding_service
+
+        service = get_skill_embedding_service()
+        await service.delete_skill_embedding(skill_id)
+    except Exception as e:
+        logger.warning(f"技能 {skill_id} 向量库删除失败: {e}")
+
+
+def _add_sync_embedding_task(background_tasks: BackgroundTasks, skill_id: int):
+    """添加向量库同步后台任务"""
+    background_tasks.add_task(_sync_skill_embedding, skill_id)
+
+
+def _add_delete_embedding_task(background_tasks: BackgroundTasks, skill_id: int):
+    """添加向量库删除后台任务"""
+    background_tasks.add_task(_delete_skill_embedding, skill_id)
 
 
 @router.get("/list")
@@ -86,6 +127,7 @@ async def get_skill(skill_id: int, db: AsyncSession = Depends(_get_db)):
 @router.post("/")
 async def create_skill(
     skill_data: SkillCreate,
+    background_tasks: BackgroundTasks,
     db: AsyncSession = Depends(_get_db),
 ):
     """
@@ -94,6 +136,9 @@ async def create_skill(
     try:
         skill = await SkillService.create(db, skill_data.model_dump())
         logger.info(f"创建技能成功: {skill.name} (ID={skill.id})")
+        # 后台同步到向量库（仅启用技能需同步）
+        if skill.status == 1:
+            _add_sync_embedding_task(background_tasks, skill.id)
         return success(data=SkillResponse.model_validate(skill).model_dump(), msg="创建成功")
     except Exception as e:
         logger.error(f"创建技能失败: {e}")
@@ -104,6 +149,7 @@ async def create_skill(
 async def update_skill(
     skill_id: int,
     skill_data: SkillUpdate,
+    background_tasks: BackgroundTasks,
     db: AsyncSession = Depends(_get_db),
 ):
     """
@@ -113,12 +159,15 @@ async def update_skill(
     if not skill:
         raise NotFoundException(msg="技能不存在")
     logger.info(f"更新技能成功: {skill.name} (ID={skill_id})")
+    # 后台同步到向量库（启用则更新，禁用则删除）
+    _add_sync_embedding_task(background_tasks, skill.id)
     return success(data=SkillResponse.model_validate(skill).model_dump(), msg="更新成功")
 
 
 @router.delete("/{skill_id}")
 async def delete_skill(
     skill_id: int,
+    background_tasks: BackgroundTasks,
     db: AsyncSession = Depends(_get_db),
 ):
     """
@@ -132,6 +181,8 @@ async def delete_skill(
     if not result:
         raise NotFoundException(msg="技能不存在")
     logger.info(f"删除技能成功: ID={skill_id}")
+    # 从向量库移除
+    _add_delete_embedding_task(background_tasks, skill_id)
     return success(msg="删除成功")
 
 

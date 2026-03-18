@@ -33,8 +33,6 @@ class SkillService:
         Returns:
             (技能列表, 总数)
         """
-        query = select(SkillLibrary)
-
         # 筛选条件
         conditions = []
         if category:
@@ -42,20 +40,20 @@ class SkillService:
         if status is not None:
             conditions.append(SkillLibrary.status == status)
 
-        if conditions:
-            query = query.filter(*conditions)
-
-        # 获取总数
-        count_query = select(func.count()).select_from(SkillLibrary)
+        # 总数查询：count(id) 便于利用主键索引
+        count_query = select(func.count(SkillLibrary.id)).select_from(SkillLibrary)
         if conditions:
             count_query = count_query.filter(*conditions)
-        result = await db.execute(count_query)
-        total = result.scalar()
+        count_result = await db.execute(count_query)
+        total = count_result.scalar() or 0
 
-        # 分页查询
-        query = query.order_by(SkillLibrary.id.desc()).offset((page - 1) * size).limit(size)
-        result = await db.execute(query)
-        skills = result.scalars().all()
+        # 列表查询
+        list_query = select(SkillLibrary)
+        if conditions:
+            list_query = list_query.filter(*conditions)
+        list_query = list_query.order_by(SkillLibrary.id.desc()).offset((page - 1) * size).limit(size)
+        list_result = await db.execute(list_query)
+        skills = list_result.scalars().all()
 
         return skills, total
 
@@ -83,9 +81,9 @@ class SkillService:
         if not skill:
             return None
 
-        # 更新字段
+        # 更新字段（允许将可选字段设为 None 以清空）
         for key, value in skill_data.items():
-            if hasattr(skill, key) and value is not None:
+            if hasattr(skill, key):
                 setattr(skill, key, value)
 
         await db.commit()

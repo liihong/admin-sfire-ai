@@ -5,6 +5,7 @@ This module provides a unified interface for different LLM providers:
 - DeepSeek (OpenAI compatible format)
 - Claude (Anthropic API)
 - Doubao (Volcengine/火山引擎 API)
+- Google (Gemini, OpenAI compatible format)
 """
 from abc import ABC, abstractmethod
 from typing import Optional, Dict, Any, AsyncGenerator, Union
@@ -535,6 +536,122 @@ class DoubaoLLM(BaseLLM):
                             continue
 
 
+class GoogleLLM(BaseLLM):
+    """
+    Google Gemini LLM implementation using OpenAI-compatible API format.
+    
+    Supports Google AI Studio (generativelanguage.googleapis.com) and other
+    OpenAI-compatible proxies for Gemini models.
+    """
+    
+    DEFAULT_BASE_URL = "https://generativelanguage.googleapis.com/v1beta/openai"
+    DEFAULT_MODEL = "gemini-2.0-flash"
+
+    def __init__(
+        self,
+        api_key: Optional[str] = None,
+        base_url: Optional[str] = None,
+        model: Optional[str] = None
+    ):
+        if not api_key:
+            raise ValueError("Google API key is required. Must be explicitly provided.")
+        super().__init__(api_key)
+        self.base_url = base_url or self.DEFAULT_BASE_URL
+        raw_model = model or self.DEFAULT_MODEL
+        # 使用自定义 base_url（如网关）时保留完整 model_id（如 google/gemini-xxx），
+        # 使用默认 Google API 时仅传模型名（如 gemini-xxx）
+        if base_url and base_url != self.DEFAULT_BASE_URL:
+            self.model = raw_model
+        else:
+            self.model = raw_model.split("/")[-1] if "/" in raw_model else raw_model
+
+    def _get_request_url(self) -> str:
+        """构建请求 URL"""
+        normalized = self.base_url.rstrip("/")
+        if "/chat/completions" in normalized:
+            return normalized
+        if "/v1" in normalized or normalized.endswith("/v1"):
+            return f"{normalized}/chat/completions"
+        return f"{normalized}/v1/chat/completions"
+
+    async def generate_text(self, prompt: str, **kwargs) -> str:
+        """Generate text using Google Gemini API (OpenAI compatible format)."""
+        headers = {
+            "Authorization": f"Bearer {self.api_key}",
+            "Content-Type": "application/json",
+            "X-My-Gate-Key": "Huoyuan2026",
+        }
+        payload = {
+            "model": kwargs.get("model", self.model),
+            "messages": [{"role": "user", "content": prompt}],
+            "temperature": kwargs.get("temperature", 0.7),
+            "max_tokens": kwargs.get("max_tokens", 2048),
+            "stream": False,
+        }
+        if "system_prompt" in kwargs:
+            payload["messages"].insert(0, {
+                "role": "system",
+                "content": kwargs["system_prompt"]
+            })
+        request_url = self._get_request_url()
+        async with httpx.AsyncClient(timeout=60.0) as client:
+            response = await client.post(request_url, headers=headers, json=payload)
+            try:
+                response.raise_for_status()
+            except httpx.HTTPStatusError as e:
+                body = e.response.text
+                from loguru import logger
+                logger.error(
+                    f"Google/Gemini API 请求失败: {e.response.status_code} {e.response.reason_phrase}. "
+                    f"URL={request_url}, model={payload.get('model')}. 响应体: {body[:500]}"
+                )
+                raise
+            data = response.json()
+            return data["choices"][0]["message"]["content"] or ""
+
+    async def generate_stream(self, prompt: str, **kwargs) -> AsyncGenerator[str, None]:
+        """Generate text in streaming mode using Google Gemini API."""
+        headers = {
+            "Authorization": f"Bearer {self.api_key}",
+            "Content-Type": "application/json",
+            "X-My-Gate-Key": "Huoyuan2026",
+        }
+        payload = {
+            "model": kwargs.get("model", self.model),
+            "messages": [{"role": "user", "content": prompt}],
+            "temperature": kwargs.get("temperature", 0.7),
+            "max_tokens": kwargs.get("max_tokens", 2048),
+            "stream": True,
+        }
+        if "system_prompt" in kwargs:
+            payload["messages"].insert(0, {
+                "role": "system",
+                "content": kwargs["system_prompt"]
+            })
+        request_url = self._get_request_url()
+        async with httpx.AsyncClient(timeout=120.0) as client:
+            async with client.stream("POST", request_url, headers=headers, json=payload) as response:
+                try:
+                    response.raise_for_status()
+                except httpx.HTTPStatusError as e:
+                    await e.response.aread()
+                    print(f"Google Gemini 服务器报错: {e.response.text}")
+                    raise
+                async for line in response.aiter_lines():
+                    if line.startswith("data: "):
+                        data = line[6:]
+                        if data == "[DONE]":
+                            break
+                        try:
+                            import json
+                            chunk = json.loads(data)
+                            content = chunk["choices"][0]["delta"].get("content", "")
+                            if content:
+                                yield content
+                        except (json.JSONDecodeError, KeyError, IndexError):
+                            continue
+
+
 class LLMFactory:
     """
     Factory class for creating LLM instances.
@@ -544,6 +661,7 @@ class LLMFactory:
         "deepseek": DeepSeekLLM,
         "doubao": DoubaoLLM,
         "claude": ClaudeLLM,
+        "google": GoogleLLM,
     }
     
     @classmethod

@@ -517,6 +517,8 @@ export namespace Skill {
     category: CategoryType;
     meta_description?: string;
     content: string;
+    precautions?: string;
+    fission_ideas?: string;
     status: StatusType;
     created_at: string;
   }
@@ -533,6 +535,8 @@ export namespace Skill {
     category: CategoryType;
     meta_description?: string;
     content: string;
+    precautions?: string;
+    fission_ideas?: string;
     status?: StatusType;
   }
 
@@ -542,6 +546,8 @@ export namespace Skill {
     category?: CategoryType;
     meta_description?: string;
     content?: string;
+    precautions?: string;
+    fission_ideas?: string;
     status?: StatusType;
   }
 
@@ -574,6 +580,8 @@ export namespace AgentV2 {
     category: string;
     meta_description?: string;
     content: string;
+    precautions?: string;
+    fission_ideas?: string;
     status: number;
     created_at: string;
   }

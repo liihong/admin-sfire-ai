@@ -60,7 +60,7 @@ class LLMModel(BaseModel):
     provider: Mapped[str] = mapped_column(
         String(32),
         nullable=False,
-        comment="提供商：openai/anthropic/deepseek",
+        comment="提供商：openai/anthropic/deepseek/google",
     )
     
     # === API 配置 ===
