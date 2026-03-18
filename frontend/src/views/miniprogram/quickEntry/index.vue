@@ -177,6 +177,25 @@
           <div class="form-tip">快捷指令库类型时，点击入口会自动填充到输入框</div>
         </el-form-item>
 
+        <el-form-item label="Agent类型" prop="agent_type">
+          <el-select
+            v-model="formData.agent_type"
+            placeholder="请选择Agent类型分类"
+            style="width: 100%"
+            clearable
+            :loading="agentTypeLoading"
+            @focus="loadAgentTypeOptions"
+          >
+            <el-option
+              v-for="opt in agentTypeOptions"
+              :key="opt.value"
+              :label="opt.label"
+              :value="opt.value"
+            />
+          </el-select>
+          <div class="form-tip">从sys_dict id=3的字典项中选择</div>
+        </el-form-item>
+
         <el-form-item label="图标类名" prop="icon_class">
           <el-input
             v-model="formData.icon_class"
@@ -349,6 +368,7 @@ import {
 } from "@/api/modules/quickEntry";
 import { getAgentList } from "@/api/modules/agent";
 import { getSkillList } from "@/api/modules/skillAssembly";
+import { getDictItemsByDictId } from "@/api/modules/dictionary";
 
 // 数据
 const entryList = ref<QuickEntryItem[]>([]);
@@ -375,6 +395,10 @@ const skillList = ref<Array<{ id: number; name: string }>>([]);
 const agentLoading = ref(false);
 const skillLoading = ref(false);
 
+// Agent类型分类（sys_dict id=3）
+const agentTypeOptions = ref<Array<{ label: string; value: string }>>([]);
+const agentTypeLoading = ref(false);
+
 // 表单数据
 const formData = reactive<QuickEntryCreate & { id?: number }>({
   unique_key: "",
@@ -382,6 +406,7 @@ const formData = reactive<QuickEntryCreate & { id?: number }>({
   title: "",
   subtitle: "",
   instructions: "",
+  agent_type: "",
   icon_class: "",
   bg_color: "",
   action_type: "agent",
@@ -488,6 +513,7 @@ const openDrawer = async (title: string, row?: QuickEntryItem) => {
           title: response.data.title,
           subtitle: response.data.subtitle || "",
           instructions: response.data.instructions || "",
+          agent_type: response.data.agent_type || "",
           icon_class: response.data.icon_class,
           bg_color: response.data.bg_color || "",
           action_type: response.data.action_type,
@@ -510,6 +536,7 @@ const openDrawer = async (title: string, row?: QuickEntryItem) => {
       title: "",
       subtitle: "",
       instructions: "",
+      agent_type: "",
       icon_class: "",
       bg_color: "",
       action_type: "agent",
@@ -566,6 +593,25 @@ const loadSkills = async () => {
   }
 };
 
+// 加载Agent类型分类选项（sys_dict id=3）
+const loadAgentTypeOptions = async () => {
+  if (agentTypeOptions.value.length > 0) return;
+  agentTypeLoading.value = true;
+  try {
+    const response = await getDictItemsByDictId(3, true);
+    if (response.code === 200 && response.data?.items) {
+      agentTypeOptions.value = response.data.items.map((item: { label: string; value: string }) => ({
+        label: item.label,
+        value: item.value
+      }));
+    }
+  } catch (error: any) {
+    ElMessage.error(error?.msg || "加载Agent类型选项失败");
+  } finally {
+    agentTypeLoading.value = false;
+  }
+};
+
 // 提交表单
 const handleSubmit = async () => {
   if (!formRef.value) return;
@@ -579,6 +625,7 @@ const handleSubmit = async () => {
           title: formData.title,
           subtitle: formData.subtitle || undefined,
           instructions: formData.instructions || undefined,
+          agent_type: formData.agent_type || undefined,
           icon_class: formData.icon_class,
           bg_color: formData.bg_color || undefined,
           action_type: formData.action_type,

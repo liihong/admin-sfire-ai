@@ -160,6 +160,13 @@ export const getDictItemsByCode = (dict_code: string, enabled_only: boolean = tr
 };
 
 /**
+ * 根据字典ID获取字典项（用于下拉选项）
+ */
+export const getDictItemsByDictId = (dict_id: number, enabled_only: boolean = true) => {
+  return http.get<{ items: Dictionary.DictItemSimple[] }>(PORT1 + `/dictionary/items/options`, { dict_id, enabled_only });
+};
+
+/**
  * 获取字典项详情
  */
 export const getDictItemDetail = (id: number) => {

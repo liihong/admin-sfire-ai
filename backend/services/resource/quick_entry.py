@@ -33,6 +33,7 @@ class QuickEntryService(BaseService):
             "title": entry.title,
             "subtitle": entry.subtitle,
             "instructions": entry.instructions,
+            "agent_type": entry.agent_type,
             "icon_class": entry.icon_class,
             "bg_color": entry.bg_color,
             "action_type": entry.action_type.value,

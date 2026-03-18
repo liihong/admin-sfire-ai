@@ -13,6 +13,7 @@ export interface QuickEntry {
   title: string
   subtitle: string | null
   instructions: string | null
+  agent_type: string | null
   icon_class: string
   bg_color: string | null
   action_type: 'agent' | 'skill' | 'prompt' | 'url'
@@ -34,12 +35,14 @@ export interface QuickEntryListResponse {
 /**
  * 获取快捷入口列表
  * @param type 入口类型筛选（category-今天拍点啥, command-快捷指令库）
+ * @param agentType Agent类型筛选（关联sys_dict id=3的字典项）
  */
-export function getQuickEntries(type?: 'category' | 'command') {
-  let url = '/api/v1/client/quick-entries'
-  if (type) {
-    url += `?type=${type}`
-  }
+export function getQuickEntries(type?: 'category' | 'command', agentType?: string) {
+  const params = new URLSearchParams()
+  if (type) params.append('type', type)
+  if (agentType) params.append('agent_type', agentType)
+  const query = params.toString()
+  const url = query ? `/api/v1/client/quick-entries?${query}` : '/api/v1/client/quick-entries'
   return request<QuickEntryListResponse>({
     url,
     method: 'GET',

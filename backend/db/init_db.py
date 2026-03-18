@@ -162,6 +162,28 @@ async def init_menus(session: AsyncSession) -> None:
                 },
             ],
         },
+        # 系统管理 (父级)
+        {
+            "name": "system",
+            "path": "/system",
+            "redirect": "/system/dictManage",
+            "title": "系统管理",
+            "icon": "Tools",
+            "sort_order": 6,
+            "is_keep_alive": True,
+            "children": [
+                # 字典管理 (子级)
+                {
+                    "name": "dictManage",
+                    "path": "/system/dictManage",
+                    "component": "/system/dictManage/index",
+                    "title": "字典管理",
+                    "icon": "Menu",
+                    "sort_order": 1,
+                    "is_keep_alive": True,
+                },
+            ],
+        },
     ]
     
     # 创建菜单（递归处理父子关系）

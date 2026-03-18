@@ -87,6 +87,12 @@ class QuickEntry(BaseModel):
         comment="快捷指令内容（用于自动填充到输入框）",
     )
     
+    agent_type: Mapped[Optional[str]] = mapped_column(
+        String(64),
+        nullable=True,
+        comment="Agent类型分类（关联sys_dict id=3的字典项）",
+    )
+    
     icon_class: Mapped[str] = mapped_column(
         String(64),
         nullable=False,

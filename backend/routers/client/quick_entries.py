@@ -18,6 +18,7 @@ router = APIRouter()
 @router.get("", summary="获取启用的快捷入口列表")
 async def get_quick_entries(
     type: Optional[str] = Query(None, description="入口类型筛选（category-今天拍点啥, command-快捷指令库）"),
+    agent_type: Optional[str] = Query(None, description="Agent类型筛选（关联sys_dict id=3的字典项）"),
     db: AsyncSession = Depends(get_db),
 ):
     """
@@ -37,6 +38,10 @@ async def get_quick_entries(
     if type:
         type_enum = EntryType(type)
         conditions.append(QuickEntry.type == type_enum)
+    
+    # 按 agent_type 筛选
+    if agent_type:
+        conditions.append(QuickEntry.agent_type == agent_type)
     
     # 查询数据（按 priority 排序）
     query = select(QuickEntry)

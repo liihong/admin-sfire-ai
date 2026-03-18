@@ -187,6 +187,23 @@ async def get_dict_item_list(
     )
 
 
+@router.get("/items/options", summary="根据字典ID获取字典项（下拉选项）")
+async def get_items_by_dict_id(
+    dict_id: int = Query(..., description="字典ID（如sys_dict.id=3）"),
+    enabled_only: bool = Query(True, description="是否只返回启用的项"),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    根据字典ID获取字典项列表（用于下拉选项）
+    
+    返回格式：[{label: "显示标签", value: "选项值"}]
+    """
+    service = DictionaryService(db)
+    items = await service.get_items_by_dict_id(dict_id=dict_id, enabled_only=enabled_only)
+    
+    return success(data={"items": [item.model_dump() for item in items]})
+
+
 @router.get("/items/by-code/{dict_code}", summary="根据字典编码获取字典项")
 async def get_items_by_code(
     dict_code: str,
