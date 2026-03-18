@@ -63,8 +63,8 @@ async def get_balance(
 
 @router.get("/coin/transactions", summary="查询算力流水")
 async def get_transactions(
-    page_num: int = Query(default=1, ge=1, description="页码"),
-    page_size: int = Query(default=10, ge=1, le=1000, description="每页数量"),
+    pageNum: int = Query(default=1, ge=1, description="页码"),
+    pageSize: int = Query(default=10, ge=1, le=1000, description="每页数量"),
     log_type: Optional[str] = Query(default=None, description="流水类型"),
     current_user: User = Depends(get_current_miniprogram_user),
     db: AsyncSession = Depends(get_db)
@@ -88,8 +88,8 @@ async def get_transactions(
         service = ComputeService(db)
         result = await service.get_user_compute_logs(
             user_id=current_user.id,
-            page_num=page_num,
-            page_size=page_size,
+            page_num=pageNum,
+            page_size=pageSize,
             log_type=log_type
         )
 
@@ -239,6 +239,85 @@ async def get_statistics(
         statistics = await service.get_user_statistics(current_user.id)
 
         return success(data=statistics, msg="查询成功")
+    except Exception as e:
+        return fail(msg=f"查询失败: {str(e)}", code=500)
+
+
+@router.get("/coin/consumption-trend", summary="算力消耗趋势")
+async def get_consumption_trend(
+    days: int = Query(default=7, ge=1, le=30, description="统计天数，默认7天"),
+    current_user: User = Depends(get_current_miniprogram_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    获取用户算力消耗趋势（按日期统计）
+    
+    按日期分别统计每天消耗的算力，按最新时间倒序，默认返回最近7天数据。
+
+    Returns:
+        {
+            "code": 200,
+            "data": [
+                {"date": "2025-03-18", "amount": 150},
+                {"date": "2025-03-17", "amount": 80},
+                ...
+            ],
+            "msg": "查询成功"
+        }
+    """
+    try:
+        service = ComputeService(db)
+        trend = await service.get_consumption_trend(user_id=current_user.id, days=days)
+        return success(data=trend, msg="查询成功")
+    except Exception as e:
+        return fail(msg=f"查询失败: {str(e)}", code=500)
+
+
+@router.get("/coin/consumption-by-agent", summary="按智能体分类统计算力消耗")
+async def get_consumption_by_agent(
+    start_time: Optional[str] = Query(default=None, description="开始时间(ISO格式)，不传则统计全部"),
+    end_time: Optional[str] = Query(default=None, description="结束时间(ISO格式)，不传则统计全部"),
+    current_user: User = Depends(get_current_miniprogram_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    按智能体分类统计用户算力消耗（总计）
+    
+    不传时间参数则统计全部；为0的数据不返回。
+
+    Returns:
+        {
+            "code": 200,
+            "data": [
+                {"agentId": 1, "agentName": "IP定位助手", "amount": 500},
+                {"agentId": 2, "agentName": "文案生成", "amount": 200},
+                {"agentId": 0, "agentName": "其他", "amount": 50},
+                ...
+            ],
+            "msg": "查询成功"
+        }
+    """
+    from datetime import datetime
+    try:
+        start_dt = None
+        end_dt = None
+        if start_time:
+            try:
+                start_dt = datetime.fromisoformat(start_time.replace("Z", "+00:00"))
+            except ValueError:
+                pass
+        if end_time:
+            try:
+                end_dt = datetime.fromisoformat(end_time.replace("Z", "+00:00"))
+            except ValueError:
+                pass
+        service = ComputeService(db)
+        result = await service.get_consumption_by_agent(
+            user_id=current_user.id,
+            start_time=start_dt,
+            end_time=end_dt,
+        )
+        return success(data=result, msg="查询成功")
     except Exception as e:
         return fail(msg=f"查询失败: {str(e)}", code=500)
 

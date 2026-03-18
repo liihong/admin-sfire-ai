@@ -2,16 +2,17 @@
 Compute Log Service
 算力流水服务
 """
-from datetime import datetime
+from datetime import datetime, date, timedelta
 from decimal import Decimal
 from typing import List, Optional, Tuple
 
-from sqlalchemy import select, func, and_, or_
+from sqlalchemy import select, func, and_, or_, text
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload
 from loguru import logger
 
 from models.user import User
+from models.agent import Agent
 from models.compute import ComputeLog, ComputeType
 from models.conversation import Conversation, ConversationMessage
 from schemas.compute import ComputeLogQueryParams
@@ -407,6 +408,120 @@ class ComputeService:
         statistics["withDay"] = with_day
         
         return statistics
+
+    async def get_consumption_trend(self, user_id: int, days: int = 7) -> List[dict]:
+        """
+        获取用户算力消耗趋势（按日期统计，最近N天）
+        
+        Args:
+            user_id: 用户ID
+            days: 统计天数，默认7天
+        
+        Returns:
+            按日期倒序的列表，每项包含 date(YYYY-MM-DD)、amount(当日消耗算力)
+        """
+        # 计算日期范围：今天往前推 days 天
+        today = date.today()
+        start_date = today - timedelta(days=days - 1)
+        start_datetime = datetime.combine(start_date, datetime.min.time())
+        end_datetime = datetime.combine(today, datetime.max.time())
+        
+        # 按日期分组统计 CONSUME 类型的消耗（取绝对值求和）
+        # MySQL: func.date(created_at) 按日期分组
+        query = (
+            select(
+                func.date(ComputeLog.created_at).label("log_date"),
+                func.coalesce(func.sum(func.abs(ComputeLog.amount)), 0).label("amount"),
+            )
+            .where(
+                and_(
+                    ComputeLog.user_id == user_id,
+                    ComputeLog.type == ComputeType.CONSUME,
+                    ComputeLog.created_at >= start_datetime,
+                    ComputeLog.created_at <= end_datetime,
+                )
+            )
+            .group_by(func.date(ComputeLog.created_at))
+            .order_by(func.date(ComputeLog.created_at).desc())
+        )
+        result = await self.db.execute(query)
+        rows = result.all()
+        
+        # 构建日期到消耗的映射
+        date_to_amount = {str(row[0]): float(row[1] or 0) for row in rows}
+        
+        # 生成最近 days 天的完整列表（含无消耗的日期，补0），按日期倒序（最新在前）
+        trend_list = []
+        for i in range(days):
+            d = today - timedelta(days=i)
+            date_str = d.strftime("%Y-%m-%d")
+            trend_list.append({
+                "date": date_str,
+                "amount": date_to_amount.get(date_str, 0),
+            })
+        
+        return trend_list
+
+    async def get_consumption_by_agent(
+        self,
+        user_id: int,
+        start_time: Optional[datetime] = None,
+        end_time: Optional[datetime] = None,
+    ) -> List[dict]:
+        """
+        按智能体分类统计用户算力消耗（总计）
+        
+        Args:
+            user_id: 用户ID
+            start_time: 开始时间（可选，不传则统计全部）
+            end_time: 结束时间（可选，不传则统计全部）
+        
+        Returns:
+            按消耗倒序的列表，每项包含 agent_id、agent_name、amount
+            为0的数据不返回；无 agent_id 的归为「其他」
+        """
+        # 使用 MySQL JSON 函数按 extra_data.agent_id 分组
+        # 兼容：无 agent_id 的记录归为 0（其他）
+        params = {"user_id": user_id, "start_time": start_time, "end_time": end_time}
+        sql = text("""
+            SELECT
+                COALESCE(CAST(JSON_UNQUOTE(JSON_EXTRACT(extra_data, '$.agent_id')) AS UNSIGNED), 0) AS agent_id,
+                SUM(ABS(amount)) AS total
+            FROM compute_logs
+            WHERE user_id = :user_id AND type = 'consume'
+                AND (:start_time IS NULL OR created_at >= :start_time)
+                AND (:end_time IS NULL OR created_at <= :end_time)
+            GROUP BY agent_id
+            HAVING total > 0
+            ORDER BY total DESC
+        """)
+        result = await self.db.execute(sql, params)
+        rows = result.all()
+        
+        if not rows:
+            return []
+        
+        # 获取 agent_id 列表（排除 0）
+        agent_ids = [int(row[0]) for row in rows if row[0] and int(row[0]) > 0]
+        agent_names = {}
+        if agent_ids:
+            agent_result = await self.db.execute(
+                select(Agent.id, Agent.name).where(Agent.id.in_(agent_ids))
+            )
+            agent_names = {row[0]: row[1] for row in agent_result.all()}
+        
+        # 构建返回列表
+        result_list = []
+        for row in rows:
+            agent_id = int(row[0]) if row[0] else 0
+            agent_name = agent_names.get(agent_id, "其他") if agent_id > 0 else "其他"
+            result_list.append({
+                "agentId": agent_id,
+                "agentName": agent_name,
+                "amount": float(row[1] or 0),
+            })
+        
+        return result_list
 
     def _recharge_valid_condition(self):
         """
