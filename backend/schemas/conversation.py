@@ -76,6 +76,7 @@ class ConversationResponse(BaseModel):
     total_tokens: int = Field(default=0, description="总token数")
     message_count: int = Field(default=0, description="消息数量")
     status: str = Field(..., description="状态")
+    agent_name: Optional[str] = Field(None, description="智能体名称（根据agent_id联查）")
     created_at: datetime = Field(..., description="创建时间")
     updated_at: Optional[datetime] = Field(None, description="更新时间")
     

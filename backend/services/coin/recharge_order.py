@@ -126,8 +126,8 @@ class RechargeOrderService:
                 # 4. 创建订单记录（先插入数据库，便于统计）
                 # 注意：先插入数据库再调用支付，可以统计所有点击支付的请求
                 # 即使支付服务调用失败，订单记录也会保留，用于数据分析和统计
-                # 设置订单过期时间（30分钟后过期）
-                order_expire_at = datetime.now() + timedelta(minutes=30)
+                # 设置订单过期时间（1小时后过期）
+                order_expire_at = datetime.now() + timedelta(hours=1)
                 
                 order_log = ComputeLog(
                     user_id=user_id,
@@ -275,18 +275,12 @@ class RechargeOrderService:
                 "message": "订单已处理"
             }
         
-        if order_log.payment_status not in ["pending", "failed"]:
+        # 允许 pending、failed、cancelled 状态处理回调。cancelled 可能是定时任务因过期标记的，
+        # 但用户已通过微信完成支付，必须为其充值算力，否则会造成资金损失。
+        if order_log.payment_status not in ["pending", "failed", "cancelled"]:
             raise BadRequestException(f"订单状态异常，无法处理: {order_log.payment_status}")
         
-        # 检查订单是否过期（仅对pending状态的订单）
-        if order_log.payment_status == "pending" and order_log.order_expire_at:
-            if datetime.now() > order_log.order_expire_at:
-                logger.warning(f"订单已过期: {order_id}, 过期时间={order_log.order_expire_at}")
-                # 更新订单状态为已取消
-                order_log.payment_status = "cancelled"
-                order_log.remark = f"{order_log.remark}（订单已过期）"
-                await self.db.flush()
-                raise BadRequestException("订单已过期，无法处理支付回调")
+        # 注意：支付回调不再因订单过期而拒绝。订单过期仅用于前端展示和定时任务清理未支付订单。
         
         # 4.5. 验证支付金额（防止金额篡改攻击）
         if order_log.payment_amount and callback_amount:

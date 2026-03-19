@@ -74,8 +74,12 @@ async def get_conversation_list(
         params=params
     )
     
-    # 转换为响应格式
-    items = [ConversationResponse.model_validate(conv) for conv in result.list]
+    # 转换为响应格式（包含 agent_name 根据 agent_id 联查）
+    items = []
+    for conv in result.list:
+        data = ConversationResponse.model_validate(conv).model_dump()
+        data["agent_name"] = conv.agent.name if conv.agent else None
+        items.append(ConversationResponse(**data))
     
     return page_response(
         items=items,

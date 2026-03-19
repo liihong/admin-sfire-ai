@@ -17,6 +17,8 @@ export interface QuickEntryItem {
   subtitle?: string;
   instructions?: string;
   agent_type?: string;
+  /** Agent类型对应的字典名称（sys_dict id=3） */
+  agent_type_name?: string;
   icon_class: string;
   bg_color?: string;
   action_type: "agent" | "skill" | "prompt";

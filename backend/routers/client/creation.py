@@ -318,13 +318,12 @@ async def create_or_get_conversation(
     
     Args:
         agent_id: agents 表主键（request.agent_id 或从 agent_type 解析）
-        db_agent: Agent 对象（用于 agent_name），可选
+        db_agent: Agent 对象，可选
     """
     from schemas.conversation import ConversationCreate
     
     conversation_id = request.conversation_id
-    agent_name = db_agent.name if db_agent else "新对话"
-    
+
     if not conversation_id:
         # 创建新会话
         first_message = ""
@@ -335,7 +334,7 @@ async def create_or_get_conversation(
                     first_message += "..."
                 break
         
-        title = f"{agent_name}: {first_message}" if first_message else agent_name
+        title = first_message if first_message else "新对话"
         conversation_data = ConversationCreate(
             agent_id=agent_id,
             project_id=request.project_id,
@@ -363,7 +362,7 @@ async def create_or_get_conversation(
                     if len(msg.content) > 30:
                         first_message += "..."
                     break
-            title = f"{agent_name}: {first_message}" if first_message else agent_name
+            title = first_message if first_message else "新对话"
             conversation_data = ConversationCreate(
                 agent_id=agent_id,
                 project_id=request.project_id,

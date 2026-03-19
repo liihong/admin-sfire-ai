@@ -2,12 +2,13 @@
 Quick Entry Service
 快捷入口管理服务层
 """
-from typing import List, Tuple, Optional
+from typing import List, Tuple, Optional, Dict
 from sqlalchemy import select, func, and_, desc, asc
 from sqlalchemy.ext.asyncio import AsyncSession
 from loguru import logger
 
 from models.quick_entry import QuickEntry, EntryType, ActionType, EntryTag
+from models.dictionary import DictionaryItem
 from schemas.quick_entry import (
     QuickEntryCreate,
     QuickEntryUpdate,
@@ -18,14 +19,32 @@ from utils.exceptions import NotFoundException, BadRequestException
 from services.base import BaseService
 
 
+# agent_type 关联的字典 ID（sys_dict id=3）
+AGENT_TYPE_DICT_ID = 3
+
+
 class QuickEntryService(BaseService):
     """快捷入口管理服务类"""
     
     def __init__(self, db: AsyncSession):
         super().__init__(db, QuickEntry, "快捷入口", check_soft_delete=False)
     
-    def _format_response(self, entry: QuickEntry) -> dict:
-        """格式化快捷入口响应"""
+    async def _get_agent_type_names(self, agent_types: set) -> Dict[str, str]:
+        """根据 agent_type 集合查询字典名称（sys_dict id=3）"""
+        if not agent_types:
+            return {}
+        query = select(DictionaryItem.item_value, DictionaryItem.item_label).where(
+            and_(
+                DictionaryItem.dict_id == AGENT_TYPE_DICT_ID,
+                DictionaryItem.item_value.in_(agent_types),
+                DictionaryItem.is_enabled == True,
+            )
+        )
+        result = await self.db.execute(query)
+        return {row[0]: row[1] for row in result.all()}
+    
+    def _format_response(self, entry: QuickEntry, agent_type_name: Optional[str] = None) -> dict:
+        """格式化快捷入口响应，agent_type_name 为数据字典对应的名称"""
         return {
             "id": entry.id,
             "unique_key": entry.unique_key,
@@ -34,6 +53,7 @@ class QuickEntryService(BaseService):
             "subtitle": entry.subtitle,
             "instructions": entry.instructions,
             "agent_type": entry.agent_type,
+            "agent_type_name": agent_type_name,
             "icon_class": entry.icon_class,
             "bg_color": entry.bg_color,
             "action_type": entry.action_type.value,
@@ -92,8 +112,15 @@ class QuickEntryService(BaseService):
         result = await self.db.execute(query)
         entries = result.scalars().all()
         
-        # 格式化响应
-        entry_list = [self._format_response(entry) for entry in entries]
+        # 查询 agent_type 对应的字典名称
+        agent_types = {e.agent_type for e in entries if e.agent_type}
+        agent_type_names = await self._get_agent_type_names(agent_types)
+        
+        # 格式化响应，附加 agent_type_name
+        entry_list = [
+            self._format_response(entry, agent_type_names.get(entry.agent_type) if entry.agent_type else None)
+            for entry in entries
+        ]
         
         return entry_list, total
     
@@ -108,7 +135,11 @@ class QuickEntryService(BaseService):
             快捷入口信息
         """
         entry = await super().get_by_id(entry_id, error_msg="快捷入口不存在")
-        return self._format_response(entry)
+        agent_type_name = None
+        if entry.agent_type:
+            agent_type_names = await self._get_agent_type_names({entry.agent_type})
+            agent_type_name = agent_type_names.get(entry.agent_type)
+        return self._format_response(entry, agent_type_name)
     
     async def create_quick_entry(self, entry_data: QuickEntryCreate) -> dict:
         """
@@ -138,7 +169,11 @@ class QuickEntryService(BaseService):
         await self.db.flush()
         await self.db.refresh(entry)
         
-        return self._format_response(entry)
+        agent_type_name = None
+        if entry.agent_type:
+            agent_type_names = await self._get_agent_type_names({entry.agent_type})
+            agent_type_name = agent_type_names.get(entry.agent_type)
+        return self._format_response(entry, agent_type_name)
     
     async def update_quick_entry(self, entry_id: int, entry_data: QuickEntryUpdate) -> dict:
         """
@@ -179,7 +214,11 @@ class QuickEntryService(BaseService):
         await self.db.flush()
         await self.db.refresh(entry)
         
-        return self._format_response(entry)
+        agent_type_name = None
+        if entry.agent_type:
+            agent_type_names = await self._get_agent_type_names({entry.agent_type})
+            agent_type_name = agent_type_names.get(entry.agent_type)
+        return self._format_response(entry, agent_type_name)
     
     async def delete_quick_entry(self, entry_id: int) -> None:
         """
@@ -210,7 +249,11 @@ class QuickEntryService(BaseService):
         await self.db.flush()
         await self.db.refresh(entry)
         
-        return self._format_response(entry)
+        agent_type_name = None
+        if entry.agent_type:
+            agent_type_names = await self._get_agent_type_names({entry.agent_type})
+            agent_type_name = agent_type_names.get(entry.agent_type)
+        return self._format_response(entry, agent_type_name)
     
     async def update_quick_entry_sort(self, sort_items: List[dict]) -> None:
         """

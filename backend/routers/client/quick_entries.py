@@ -25,6 +25,7 @@ async def get_quick_entries(
     获取启用的快捷入口列表
     
     只返回 status=1（启用）的入口，按 priority 排序
+    根据 agent_type 增加 agent_type_name 字段，显示数据字典对应的名称
     """
     quick_entry_service = QuickEntryService(db)
     
@@ -52,8 +53,18 @@ async def get_quick_entries(
     result = await db.execute(query)
     entries = result.scalars().all()
     
-    # 格式化响应
-    entry_list = [quick_entry_service._format_response(entry) for entry in entries]
+    # 查询 agent_type 对应的字典名称（sys_dict id=3）
+    agent_types = {e.agent_type for e in entries if e.agent_type}
+    agent_type_names = await quick_entry_service._get_agent_type_names(agent_types)
+    
+    # 格式化响应，附加 agent_type_name
+    entry_list = []
+    for entry in entries:
+        item = quick_entry_service._format_response(
+            entry,
+            agent_type_names.get(entry.agent_type) if entry.agent_type else None,
+        )
+        entry_list.append(item)
     
     return success(data={"entries": entry_list}, msg="获取成功")
 

@@ -14,6 +14,8 @@ export interface QuickEntry {
   subtitle: string | null
   instructions: string | null
   agent_type: string | null
+  /** Agent类型对应的字典名称（sys_dict id=3） */
+  agent_type_name: string | null
   icon_class: string
   bg_color: string | null
   action_type: 'agent' | 'skill' | 'prompt' | 'url'

@@ -6,6 +6,7 @@ Conversation数据访问层（DAO）
 from typing import List, Optional, Dict
 from sqlalchemy import select, func, and_, desc, asc, update
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 from loguru import logger
 
 from models.conversation import (
@@ -174,6 +175,7 @@ class ConversationDAO:
         conditions.append(exists_subquery)
         
         query = query.where(and_(*conditions))
+        query = query.options(selectinload(Conversation.agent))
         query = query.order_by(desc(Conversation.updated_at))
         
         count_query = select(func.count(Conversation.id)).where(and_(*conditions))
