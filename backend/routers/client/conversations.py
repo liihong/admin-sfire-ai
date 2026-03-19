@@ -117,12 +117,18 @@ async def get_conversation_detail(
     # 使用 ConversationResponse 而不是 ConversationDetailResponse
     base_data = ConversationResponse.model_validate(conversation).model_dump()
 
-    # 手动添加 messages 和其他字段
+    # 安全获取 agent_name 和 project_name（agent/project 可能因外键 SET NULL 而已删除）
+    base_data["agent_name"] = (
+        getattr(conversation.agent, "name", None) if conversation.agent else None
+    )
+    base_data["project_name"] = (
+        getattr(conversation.project, "name", None) if conversation.project else None
+    )
+
+    # 手动添加 messages 和其他字段（base_data 已包含 agent_name/project_name，勿重复传递）
     detail = ConversationDetailResponse(
         **base_data,
         messages=[ConversationMessageResponse.model_validate(msg) for msg in messages],
-        agent_name=conversation.agent.name if conversation.agent else None,
-        project_name=conversation.project.name if conversation.project else None,
     )
 
     return success(data=detail, msg="获取成功")

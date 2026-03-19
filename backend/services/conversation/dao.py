@@ -117,6 +117,12 @@ class ConversationDAO:
         if user_id:
             query = query.where(Conversation.user_id == user_id)
         
+        # 预加载 agent 和 project，避免详情接口中懒加载导致 500 错误
+        query = query.options(
+            selectinload(Conversation.agent),
+            selectinload(Conversation.project),
+        )
+        
         result = await self.db.execute(query)
         conversation = result.scalar_one_or_none()
         
