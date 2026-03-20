@@ -258,6 +258,11 @@ async function generateReport() {
     // 报告生成成功
     reportData.value = response
 
+    // 仅用报告的人格标签更新关键词，保留用户输入的 tone/introduction/target_pains/target_audience 等
+    if (formData.value && response?.report?.persona_tags?.length) {
+      formData.value = { ...formData.value, keywords: [...response.report.persona_tags] }
+    }
+
   } catch (error: unknown) {
     // 停止步骤动画
     reportLoadingRef.value?.stopProgress()

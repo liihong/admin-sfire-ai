@@ -66,7 +66,7 @@ export default defineConfig(({ mode }: ConfigEnv): UserConfig => {
     },
     build: {
       outDir: "dist",
-      minify: "terser",
+      minify: "esbuild",
       terserOptions: {
         compress: {
           // 生产环境移除 console
