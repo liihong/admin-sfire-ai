@@ -223,6 +223,21 @@ export async function generateIPReport(
 // ============== 项目 CRUD 操作 ==============
 
 /**
+ * 切换当前激活的项目（同步到后端）
+ */
+export async function switchProject(projectId: string | number): Promise<void> {
+  const response = await request<{ success: boolean }>({
+    url: '/api/v1/client/projects/switch',
+    method: 'POST',
+    data: { project_id: String(projectId) }
+  })
+
+  if (response.code !== 200) {
+    throw new Error(response.msg || '切换项目失败')
+  }
+}
+
+/**
  * 获取项目列表
  */
 export async function fetchProjects(): Promise<FetchProjectsResponse> {

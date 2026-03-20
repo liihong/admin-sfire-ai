@@ -40,7 +40,7 @@
             </div>
             <div class="agent-info">
               <h3 class="agent-name">{{ agent.name }}</h3>
-              <p class="agent-model">{{ agent.model }}</p>
+              <p class="agent-model">{{ agent.modelName ?? agent.model }}</p>
             </div>
             <el-switch
               v-model="agent.status"

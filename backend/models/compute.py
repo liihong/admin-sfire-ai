@@ -75,6 +75,7 @@ class ComputeLog(BaseModel):
         Index("ix_compute_logs_order_id", "order_id"),         # order_id 索引
         Index("ix_compute_logs_task_id", "task_id"),           # task_id 索引
         Index("ix_compute_logs_user_type", "user_id", "type"), # 复合索引
+        Index("ix_compute_logs_type_created_at", "type", "created_at"),  # 按类型+时间查询优化（dashboard 统计）
         # 订单号唯一索引（充值订单的order_id必须唯一）
         # 注意：需要在数据库迁移脚本中添加唯一约束：UNIQUE KEY `uk_compute_logs_order_id` (`order_id`) WHERE `type` = 'recharge' AND `order_id` IS NOT NULL
         {"comment": "算力变动记录表"},

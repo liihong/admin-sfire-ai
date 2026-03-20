@@ -60,7 +60,7 @@ export function useProject(options?: {
         } else if (!projectStore.hasActiveProject) {
           // 如果没有指定项目 ID 且没有激活项目
           if (projectStore.projectCount === 0) {
-            uni.redirectTo({ url: '/pages/project/list' })
+            uni.redirectTo({ url: '/pages/project/index' })
             return false
           }
           if (projectStore.projectCount > 0) {
@@ -71,7 +71,7 @@ export function useProject(options?: {
       } catch (error) {
         console.error('Failed to init project:', error)
         if (projectStore.projectCount === 0) {
-          uni.redirectTo({ url: '/pages/project/list' })
+          uni.redirectTo({ url: '/pages/project/index' })
           return false
         }
       }

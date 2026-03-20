@@ -45,7 +45,7 @@
                       <el-tag size="small" :type="agent.status === 1 ? 'success' : 'info'">
                         {{ agent.status === 1 ? "上架" : "下架" }}
                       </el-tag>
-                      <span class="meta-item">模型: {{ agent.model }}</span>
+                      <span class="meta-item">模型: {{ agent.modelName ?? agent.model }}</span>
                       <span class="meta-item">使用次数: {{ agent.usageCount }}</span>
                     </div>
                   </div>
@@ -141,10 +141,13 @@ const loading = ref(false);
 const total = ref(0);
 
 // 按 is_system 分类：0-否（第一行），1-是（第二行）
-const agentSections = computed(() => [
-  { type: "nonSystem", title: "非系统智能体", agents: agentList.value.filter((a) => (a.isSystem ?? 0) === 0) },
-  { type: "system", title: "系统智能体", agents: agentList.value.filter((a) => (a.isSystem ?? 0) === 1) }
-]);
+const agentSections = computed(() => {
+  const list = (agentList.value || []).filter(Boolean);
+  return [
+    { type: "nonSystem", title: "非系统智能体", agents: list.filter((a) => (a?.isSystem ?? 0) === 0) },
+    { type: "system", title: "系统智能体", agents: list.filter((a) => (a?.isSystem ?? 0) === 1) }
+  ];
+});
 
 // 分页
 const pagination = reactive({

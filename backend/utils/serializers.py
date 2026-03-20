@@ -9,12 +9,50 @@ from schemas.agent import AgentConfig
 from models.llm_model import LLMModel
 
 
-def agent_to_response(agent: Agent) -> dict:
-    """将 Agent 模型转换为响应格式"""
+def agent_to_client_detail_response(agent: Agent, model_name: Optional[str] = None) -> dict:
+    """将 Agent 模型转换为 C 端详情响应格式（不包含提示词 systemPrompt）
+    
+    Args:
+        agent: Agent 模型实例
+        model_name: 可选，模型显示名称
+    """
     config_data = agent.config or {}
     config = AgentConfig(**config_data)
     
     return {
+        "id": agent.id,
+        "name": agent.name,
+        "icon": agent.icon,
+        "description": agent.description or "",
+        "welcomeMessage": agent.welcome_message or "",
+        "model": agent.model,
+        "modelName": model_name if model_name is not None else agent.model,
+        "config": config.model_dump(),
+        "sortOrder": agent.sort_order,
+        "agentMode": agent.agent_mode,
+        "status": agent.status,
+        "usageCount": agent.usage_count,
+        "createTime": agent.created_at.strftime("%Y-%m-%d %H:%M:%S"),
+        "updateTime": agent.updated_at.strftime("%Y-%m-%d %H:%M:%S") if agent.updated_at else "",
+        "skillIds": agent.skill_ids,
+        "skillVariables": agent.skill_variables,
+        "routingDescription": agent.routing_description or "",
+        "isRoutingEnabled": agent.is_routing_enabled,
+        "isSystem": agent.is_system,
+    }
+
+
+def agent_to_response(agent: Agent, model_name: Optional[str] = None) -> dict:
+    """将 Agent 模型转换为响应格式
+    
+    Args:
+        agent: Agent 模型实例
+        model_name: 可选，模型显示名称（用于列表展示，不传则前端可继续用 model ID）
+    """
+    config_data = agent.config or {}
+    config = AgentConfig(**config_data)
+    
+    result = {
         "id": str(agent.id),
         "name": agent.name,
         "icon": agent.icon,
@@ -22,6 +60,7 @@ def agent_to_response(agent: Agent) -> dict:
         "welcomeMessage": agent.welcome_message or "",
         "systemPrompt": agent.system_prompt,
         "model": agent.model,
+        "modelName": model_name if model_name is not None else agent.model,
         "config": config.model_dump(),
         "sortOrder": agent.sort_order,
         # 智能体模式：0-普通模式, 1-Skill 组装模式
@@ -36,6 +75,7 @@ def agent_to_response(agent: Agent) -> dict:
         # 系统自用标识
         "isSystem": agent.is_system,
     }
+    return result
 
 
 def llm_model_to_response(model: LLMModel) -> dict:

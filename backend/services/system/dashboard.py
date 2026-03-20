@@ -2,6 +2,7 @@
 Dashboard Statistics Service
 Dashboard 统计服务
 """
+import asyncio
 import json
 from datetime import datetime, timedelta
 from decimal import Decimal
@@ -69,7 +70,7 @@ class DashboardService:
                 except (json.JSONDecodeError, Exception) as e:
                     logger.warning(f"Failed to parse cached dashboard stats: {e}")
         
-        # 从数据库获取新数据
+        # 注意：SQLAlchemy AsyncSession 不支持同一 session 的并发操作，需串行执行
         overview = await self._get_overview_stats()
         api_monitoring = await self._get_api_monitoring_stats()
         charts = await self._get_chart_stats()
@@ -108,9 +109,7 @@ class DashboardService:
         
         # 1. 总用户数
         total_users_result = await self.db.execute(
-            select(func.count(User.id)).where(
-                User.is_deleted == False
-            )
+            select(func.count(User.id)).where(User.is_deleted == False)
         )
         total_users = total_users_result.scalar() or 0
         
@@ -126,8 +125,7 @@ class DashboardService:
         )
         new_users_today = new_users_result.scalar() or 0
         
-        # 3. 今日活跃用户（根据 updated_at 作为最后活跃时间的代理）
-        # 注意：实际项目中可能需要一个专门的 last_login_at 字段
+        # 3. 今日活跃用户
         active_users_result = await self.db.execute(
             select(func.count(User.id)).where(
                 and_(
@@ -142,9 +140,7 @@ class DashboardService:
         
         # 4. 平台总算力余额
         total_balance_result = await self.db.execute(
-            select(func.sum(User.balance)).where(
-                User.is_deleted == False
-            )
+            select(func.sum(User.balance)).where(User.is_deleted == False)
         )
         total_balance = total_balance_result.scalar() or Decimal("0.0000")
         
@@ -167,11 +163,13 @@ class DashboardService:
         today_start = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
         today_end = today_start + timedelta(days=1)
         
-        # 1. 获取外部 API 余额（OpenRouter/OpenAI）
-        openrouter_balance = await self._get_openrouter_balance()
-        openai_balance = await self._get_openai_balance()
+        # 1. 外部 API 余额（OpenRouter/OpenAI 可并行，不占用 DB session）
+        openrouter_balance, openai_balance = await asyncio.gather(
+            self._get_openrouter_balance(),
+            self._get_openai_balance(),
+        )
         
-        # 2. 今日消耗算力总和（从 ComputeLog 中统计 CONSUME 类型的记录）
+        # 2. 今日消耗算力总和
         today_consume_result = await self.db.execute(
             select(func.sum(func.abs(ComputeLog.amount))).where(
                 and_(
@@ -183,7 +181,7 @@ class DashboardService:
         )
         today_consume = today_consume_result.scalar() or Decimal("0.0000")
         
-        # 3. 今日算力充值金额（元）：RECHARGE 类型 + 已支付 + 今日
+        # 3. 今日算力充值金额
         recharge_valid = or_(
             ComputeLog.operator_id.isnot(None),
             ComputeLog.payment_status.is_(None),
@@ -224,7 +222,7 @@ class DashboardService:
             return None
         
         try:
-            async with httpx.AsyncClient(timeout=10.0) as client:
+            async with httpx.AsyncClient(timeout=5.0) as client:
                 response = await client.get(
                     "https://openrouter.ai/api/v1/credits",
                     headers={"Authorization": f"Bearer {api_key}"}
@@ -262,7 +260,7 @@ class DashboardService:
             return None
         
         try:
-            async with httpx.AsyncClient(timeout=10.0) as client:
+            async with httpx.AsyncClient(timeout=5.0) as client:
                 # 获取订阅信息
                 response = await client.get(
                     "https://api.openai.com/dashboard/billing/credit_grants",

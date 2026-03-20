@@ -617,6 +617,33 @@ async def list_agents(
     return success(data={"agents": agents}, msg="获取成功")
 
 
+@router.get("/agents/{agent_id}", summary="获取智能体详情（不含提示词）")
+async def get_agent_detail(
+    agent_id: int,
+    db: AsyncSession = Depends(get_db),
+):
+    """获取单个智能体详情，仅返回上架且非系统自用的智能体，不返回提示词"""
+    from sqlalchemy import select, and_
+    from models.agent import Agent
+    from utils.serializers import agent_to_client_detail_response
+
+    result = await db.execute(
+        select(Agent).where(
+            and_(
+                Agent.id == agent_id,
+                Agent.status == 1,  # 只返回上架的智能体
+                Agent.is_system == 0  # 过滤掉系统自用智能体
+            )
+        )
+    )
+    agent = result.scalar_one_or_none()
+    if not agent:
+        raise NotFoundException(msg="智能体不存在或已下架")
+
+    data = agent_to_client_detail_response(agent)
+    return success(data=data, msg="获取成功")
+
+
 @router.post("/chat")
 async def generate_chat(
     request: ChatRequest,

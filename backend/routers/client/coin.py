@@ -498,17 +498,26 @@ async def payment_callback(
     order_id_hint = "未知"
     
     try:
+        # 0. 获取回调数据（body 只能读取一次）
+        raw_body = await request.body()
+        logger.info(
+            f"[支付回调] 收到请求: Content-Length={len(raw_body)}, "
+            f"Content-Type={request.headers.get('content-type', '')}"
+        )
         # 1. 验证IP白名单
         client_ip = request.client.host if request.client else None
         if not client_ip:
-            # 尝试从X-Forwarded-For获取真实IP
+            # 尝试从X-Forwarded-For获取真实IP（Nginx/负载均衡场景）
             forwarded_for = request.headers.get("X-Forwarded-For")
             if forwarded_for:
                 client_ip = forwarded_for.split(",")[0].strip()
             else:
                 client_ip = "127.0.0.1"
         
-        if not verify_ip_whitelist(client_ip, settings.WECHAT_PAY_IP_WHITELIST):
+        logger.info(f"[支付回调] 客户端IP={client_ip} (X-Forwarded-For={request.headers.get('X-Forwarded-For', '')})")
+        
+        # IP白名单：若未配置则跳过验证（可选配置）
+        if settings.WECHAT_PAY_IP_WHITELIST and not verify_ip_whitelist(client_ip, settings.WECHAT_PAY_IP_WHITELIST):
             logger.warning(
                 f"支付回调IP不在白名单: IP={client_ip}, "
                 f"白名单={settings.WECHAT_PAY_IP_WHITELIST}"
@@ -516,9 +525,8 @@ async def payment_callback(
             xml_response = _build_xml_response("FAIL", "IP验证失败")
             return Response(content=xml_response, media_type="application/xml")
         
-        # 2. 获取回调数据（微信支付v2使用XML格式）
-        xml_data = await request.body()
-        callback_data = _parse_xml_callback(xml_data.decode('utf-8'))
+        # 2. 解析回调数据（微信支付v2使用XML格式）
+        callback_data = _parse_xml_callback(raw_body.decode('utf-8'))
         
         # 提取订单号用于错误日志
         order_id_hint = callback_data.get("out_trade_no", "未知")

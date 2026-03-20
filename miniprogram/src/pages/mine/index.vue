@@ -12,8 +12,8 @@
               mode="aspectFill"
             />
             <!-- 皇冠图标 -->
-           <view class="crown-badge" v-if="userInfo.level && userInfo.level !== 'normal'">
-             <text class="crown-text">{{ userInfo.level?.[0]?.toUpperCase() || '' }}</text>
+           <view class="crown-badge" v-if="userInfo.level_code && userInfo.level_code !== 'normal'">
+             <text class="crown-text">{{ userInfo.level_code?.[0]?.toUpperCase() || '' }}</text>
             </view>
          </button>
           <!-- #endif -->
@@ -22,7 +22,7 @@
             <image class="avatar" :src="userInfo.avatar || '/static/default-avatar.png'" mode="aspectFill" />
             <!-- 皇冠图标 -->
            <view class="crown-badge">
-              <text class="crown-text">{{ userInfo.level?.[0]?.toUpperCase() || '' }}</text>
+              <text class="crown-text">{{ userInfo.level_code?.[0]?.toUpperCase() || '' }}</text>
            </view>
          </view>
           <!-- #endif -->
@@ -32,8 +32,8 @@
           </view>
           <text v-else class="phone-number">{{ displayPhone }}</text>
           <view class="tags-row" v-if="authStore.isLoggedIn">
-           <text class="vip-tag" v-if="userInfo.level && userInfo.level !== 'normal'">
-              {{ userInfo.level.toUpperCase() }} 用户
+           <text class="vip-tag" v-if="userInfo.level_code && userInfo.level_code !== 'normal'">
+              {{ userInfo.level_code.toUpperCase() }} 用户
             </text>
             <text class="expire-tag" v-if="userInfo.expireDate">
               {{ userInfo.expireDate }} 过期
@@ -44,7 +44,7 @@
     </view>
 
     <!-- 会员升级卡片 -->
-   <view class="upgrade-card" v-if="userInfo.level === 'normal'">
+   <view class="upgrade-card" v-if="userInfo.level_code === 'normal'">
       <view class="upgrade-content">
         <view class="upgrade-text">
           <text class="upgrade-subtitle">UPGRADE PRIORITY</text>
@@ -58,7 +58,7 @@
     </view>
 
     <!-- 我的算力卡片 -->
-    <view class="stat-card" v-if="userInfo.level !== 'normal'">
+    <view class="stat-card" v-if="userInfo.level_code !== 'normal'">
       <view class="stat-header">
         <view class="stat-title-wrapper">
           <SvgIcon name="suanli" size="32" color="#F37021" />
@@ -130,7 +130,7 @@ const userInfo = computed(() => {
       partner_balance: '0.00',
       partnerStatus: '普通用户',
       partner_status: '普通用户',
-      level: 'normal'
+      level_code: 'normal'
     }
   }
 
@@ -148,7 +148,7 @@ const userInfo = computed(() => {
     partner_balance: storeUserInfo.partner_balance || storeUserInfo.partnerBalance || '0.00',
     partnerStatus: storeUserInfo.partnerStatus || storeUserInfo.partner_status || '普通用户',
     partner_status: storeUserInfo.partner_status || storeUserInfo.partnerStatus || '普通用户',
-    level: storeUserInfo.level || 'normal'
+    level_code: storeUserInfo.level_code || 'normal'
   }
 })
 

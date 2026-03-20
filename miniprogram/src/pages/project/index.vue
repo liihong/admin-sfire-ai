@@ -46,6 +46,7 @@
 <script setup lang="ts">
 import { ref, computed, watch, onUnmounted } from 'vue'
 import { useProjectStore } from '@/stores/project'
+import { useQuickEntryStore } from '@/stores/quickEntry'
 import { fetchProjects } from '@/api/project'
 
 import ProjectList from './components/List.vue'
@@ -57,6 +58,7 @@ import EmptyState from './components/list/EmptyState.vue'
 import { onShow, onLoad } from '@dcloudio/uni-app'
 
 const projectStore = useProjectStore()
+const quickEntryStore = useQuickEntryStore()
 const dashboardRef = ref<InstanceType<typeof ProjectDashboard> | null>(null)
 const isLoading = ref(true)
 const loadError = ref(false) // 标记是否加载失败
@@ -81,6 +83,14 @@ watch(hasActiveProject, (newVal, oldVal) => {
     refreshKey.value++
   }
 })
+
+// 有激活项目且加载完成时，立即加载快捷指令（在 project index 层触发，确保接口一定会请求）
+watch([hasActiveProject, isLoading], ([hasActive, loading]) => {
+  if (!isMounted.value) return
+  if (hasActive && !loading) {
+    quickEntryStore.loadQuickEntryList()
+  }
+}, { immediate: true })
 
 // 监听项目列表变化，如果没有项目且没有激活项目，显示空状态
 watch([hasActiveProject, projectList], ([hasActive, list]) => {
@@ -110,6 +120,10 @@ function handleProjectSelected() {
   }
   // 强制刷新 List 组件（如果当前显示的是列表页面）
   refreshKey.value++
+  // 切换项目后刷新工作台历史对话
+  if (hasActiveProject.value) {
+    dashboardRef.value?.refreshConversationHistory?.()
+  }
 }
 
 /**

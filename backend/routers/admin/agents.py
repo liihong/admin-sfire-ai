@@ -4,9 +4,11 @@ Agent Management Endpoints
 """
 from typing import Optional
 from fastapi import APIRouter, Depends, Query
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from db import get_db
+from models.llm_model import LLMModel
 from schemas.agent import (
     AgentCreate,
     AgentUpdate,
@@ -40,6 +42,7 @@ async def get_agents(
     获取智能体列表（分页）
     
     支持按名称、状态、智能体模式筛选
+    返回 modelName 供列表展示（模型名称而非 ID）
     """
     agent_service = AgentService(db)
     
@@ -52,7 +55,19 @@ async def get_agents(
     )
     
     result = await agent_service.get_agent_list(params)
-    items = [agent_to_response(agent) for agent in result.list]
+    
+    # 收集所有 agent 使用的 model ID，批量查询模型名称
+    model_ids = [int(mid) for mid in {str(a.model) for a in result.list if a.model} if str(mid).isdigit()]
+    model_name_map: dict[str, str] = {}
+    if model_ids:
+        stmt = select(LLMModel.id, LLMModel.name).where(LLMModel.id.in_(model_ids))
+        rows = (await db.execute(stmt)).all()
+        model_name_map = {str(r.id): r.name for r in rows}
+    
+    items = [
+        agent_to_response(agent, model_name=model_name_map.get(str(agent.model), "未知"))
+        for agent in result.list
+    ]
     
     return page_response(
         items=items,

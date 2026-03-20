@@ -48,7 +48,6 @@ import { useAgentStore } from '@/stores/agent'
 import { useProject } from '@/composables/useProject'
 import { useNavigation } from '@/composables/useNavigation'
 import { createInspiration } from '@/api/inspiration'
-import { getQuickEntries, type QuickEntry } from '@/api/quickEntry'
 import TopBar from './dashboard/TopBar.vue'
 import PersonaCard from './dashboard/PersonaCard.vue'
 import CategoryGrid from './dashboard/CategoryGrid.vue'
@@ -81,55 +80,10 @@ const showInspirationCard = ref(false)
 const inspirationText = ref('')
 const userName = ref('创作者')
 const userPoints = ref(1280)
-// 修改 categoryList 类型，保留 action_type、action_value 和 instructions 字段
-const categoryList = ref<Array<{
-  key: string
-  label: string
-  icon: string
-  color: string
-  id?: number
-  action_type?: 'agent' | 'skill' | 'prompt' | 'url'
-  action_value?: string
-  instructions?: string | null
-}>>([])
-const commandList = ref<QuickEntry[]>([])
 
-/**
- * 加载快捷入口数据（category 和 command）
- */
-async function loadQuickEntries() {
-  try {
-    // 并行请求两种类型的数据
-    const [categoryResponse, commandResponse] = await Promise.all([
-      getQuickEntries('category'),
-      getQuickEntries('command')
-    ])
-
-    // 处理分类数据，保留 action_type、action_value 和 instructions（用于默认指令提示语）
-    if (categoryResponse.code === 200 && categoryResponse.data?.entries) {
-      categoryList.value = categoryResponse.data.entries.map((entry: QuickEntry) => ({
-        key: entry.unique_key || String(entry.id),
-        label: entry.title,
-        icon: entry.icon_class,
-        color: entry.bg_color || '#F69C0E',
-        id: entry.id,
-        action_type: entry.action_type,
-        action_value: entry.action_value,
-        instructions: entry.instructions
-      }))
-    }
-
-    // 处理快捷指令数据
-    if (commandResponse.code === 200 && commandResponse.data?.entries) {
-      commandList.value = commandResponse.data.entries
-    }
-  } catch (error) {
-    uni.showToast({
-      title: '加载数据失败',
-      icon: 'none'
-    })
-  }
-}
+// 快捷入口数据由 project index 的 watch 触发 loadQuickEntryList，从 store 读取
+const categoryList = computed(() => quickEntryStore.categoryList)
+const commandList = computed(() => quickEntryStore.commandList)
 
 // 初始化
 onMounted(async () => {
@@ -140,11 +94,9 @@ onMounted(async () => {
   const editMode = urlParams.edit === 'true'
   const projectId = urlParams.id
 
-  // 初始化项目
-  await initProject(projectId)
-
-  // 加载快捷入口数据
-  await loadQuickEntries()
+  await initProject(projectId).catch(err => {
+    console.error('[Dashboard] initProject failed:', err)
+  })
 
   // 如果是编辑模式，跳转到人设配置页面
   if (editMode && projectId) {
@@ -337,12 +289,15 @@ function handleCategoryClick(category: {
 }
 
 /**
- * 下拉刷新：重新加载历史对话，有新对话会自动展示
+ * 下拉刷新：重新加载历史对话 + 快捷入口
  */
 async function handleRefresh() {
   refreshing.value = true
   try {
-    await conversationHistoryRef.value?.loadConversations()
+    await Promise.all([
+      conversationHistoryRef.value?.loadConversations(),
+      quickEntryStore.loadQuickEntryList(true) // 强制刷新快捷入口
+    ])
   } finally {
     refreshing.value = false
   }

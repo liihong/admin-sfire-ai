@@ -134,7 +134,7 @@ python scripts/test_password.py
 
 1. 创建测试用户:
 ```sql
-INSERT INTO users (username, phone, password_hash, nickname, is_active, level, vip_expire_date)
+INSERT INTO users (username, phone, password_hash, nickname, is_active, level_code, vip_expire_date)
 VALUES ('test_user', '13800138000', '$2b$12$...', '测试用户', 1, 'normal', NULL);
 ```
 

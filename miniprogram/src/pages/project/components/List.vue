@@ -74,7 +74,7 @@
 import { ref, computed } from 'vue'
 import { useProjectStore, type Project } from '@/stores/project'
 import { useAuthStore } from '@/stores/auth'
-import { fetchProjects, deleteProject } from '@/api/project'
+import { fetchProjects, deleteProject, switchProject } from '@/api/project'
 import BaseLoading from '@/components/common/BaseLoading.vue'
 import SvgIcon from '@/components/base/SvgIcon.vue'
 
@@ -135,17 +135,31 @@ async function onRefresh() {
 
 
 // 选择项目
-function handleSelectProject(project: Project) {
-  // 更新 store 状态（会自动保存到 localStorage）
-  projectStore.setActiveProjectLocal(project)
+async function handleSelectProject(project: Project) {
+  // 若已是当前项目，仅关闭抽屉
+  if (activeProject.value?.id === project.id) {
+    emit('projectSelected')
+    return
+  }
 
-  uni.showToast({
-    title: `已切换到：${project.name}`,
-    icon: 'success'
-  })
+  try {
+    // 先同步到后端，再更新本地状态
+    await switchProject(project.id)
+    projectStore.setActiveProjectLocal(project)
 
-  // 触发事件让父组件处理（关闭抽屉）
-  emit('projectSelected')
+    uni.showToast({
+      title: `已切换到：${project.name}`,
+      icon: 'success'
+    })
+
+    emit('projectSelected')
+  } catch (error: any) {
+    console.error('[ProjectList] 切换项目失败:', error)
+    uni.showToast({
+      title: error?.message || '切换失败，请重试',
+      icon: 'none'
+    })
+  }
 }
 
 // 编辑项目

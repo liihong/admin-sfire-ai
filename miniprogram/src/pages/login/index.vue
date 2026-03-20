@@ -212,10 +212,8 @@ const handleGetPhoneNumber = async (e: any) => {
       const userInfo = data.userInfo
       if (userInfo) {
         authStore.setUserInfo({
-          openid: userInfo.openid,
-          nickname: userInfo.nickname || '',
-          avatarUrl: userInfo.avatarUrl || userInfo.avatar_url || '/static/default-avatar.png',
-          level: userInfo.level || 'normal' // 添加必需的 level 字段
+          ...userInfo,
+          level_code: userInfo.level_code || 'normal'
         })
       }
 

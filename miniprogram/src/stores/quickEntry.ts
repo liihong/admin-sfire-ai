@@ -8,6 +8,7 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import type { QuickEntry } from '@/api/quickEntry'
+import { getQuickEntries } from '@/api/quickEntry'
 import { storage } from '@/utils/storage'
 
 // ============== 类型定义 ==============
@@ -23,6 +24,18 @@ export interface ActiveQuickEntry {
   action_value: string
 }
 
+/** 分类项（今天拍点啥） */
+export interface CategoryItem {
+  key: string
+  label: string
+  icon: string
+  color: string
+  id?: number
+  action_type?: 'agent' | 'skill' | 'prompt' | 'url'
+  action_value?: string
+  instructions?: string | null
+}
+
 // ============== Storage Key ==============
 const ACTIVE_QUICK_ENTRY_INFO_KEY = 'active_quick_entry_info'
 
@@ -34,6 +47,16 @@ export const useQuickEntryStore = defineStore('quickEntry', () => {
   
   // 当前选中的快捷指令
   const activeQuickEntry = ref<ActiveQuickEntry | null>(null)
+
+  // 今天拍点啥 - 分类列表
+  const categoryList = ref<CategoryItem[]>([])
+  // 快捷指令库列表
+  const commandList = ref<QuickEntry[]>([])
+
+  // 是否已加载过（避免重复请求）
+  const hasQuickEntryLoaded = ref(false)
+  // 是否正在加载
+  const isQuickEntryLoading = ref(false)
 
   // ============== Getters ==============
   
@@ -103,18 +126,74 @@ export const useQuickEntryStore = defineStore('quickEntry', () => {
     }
   }
 
+  /**
+   * 加载快捷入口列表（今天拍点啥 + 快捷指令库）
+   * @param forceRefresh 是否强制刷新（忽略已加载状态，用于下拉刷新等）
+   * @returns 是否加载成功
+   */
+  async function loadQuickEntryList(forceRefresh = false): Promise<boolean> {
+    if (isQuickEntryLoading.value) return false
+    if (hasQuickEntryLoaded.value && !forceRefresh) return true
+
+    isQuickEntryLoading.value = true
+    try {
+      const [categoryResponse, commandResponse] = await Promise.all([
+        getQuickEntries('category'),
+        getQuickEntries('command')
+      ])
+
+      if (categoryResponse.code === 200 && categoryResponse.data?.entries) {
+        categoryList.value = categoryResponse.data.entries.map((entry: QuickEntry) => ({
+          key: entry.unique_key || String(entry.id),
+          label: entry.title,
+          icon: entry.icon_class,
+          color: entry.bg_color || '#F69C0E',
+          id: entry.id,
+          action_type: entry.action_type,
+          action_value: entry.action_value,
+          instructions: entry.instructions
+        }))
+      } else {
+        categoryList.value = []
+      }
+
+      if (commandResponse.code === 200 && commandResponse.data?.entries) {
+        commandList.value = commandResponse.data.entries
+      } else {
+        commandList.value = []
+      }
+
+      hasQuickEntryLoaded.value = true
+      return true
+    } catch (error) {
+      console.error('[QuickEntryStore] 加载快捷入口失败:', error)
+      categoryList.value = []
+      commandList.value = []
+      const msg = (error as Error)?.message || '加载失败'
+      uni.showToast({ title: msg, icon: 'none' })
+      return false
+    } finally {
+      isQuickEntryLoading.value = false
+    }
+  }
+
   return {
     // State
     activeQuickEntry,
-    
+    categoryList,
+    commandList,
+    hasQuickEntryLoaded,
+    isQuickEntryLoading,
+
     // Getters
     hasActiveQuickEntry,
     getActiveQuickEntryInstructions,
-    
+
     // Actions
     setActiveQuickEntry,
     clearActiveQuickEntry,
-    loadActiveQuickEntryFromStorage
+    loadActiveQuickEntryFromStorage,
+    loadQuickEntryList
   }
 })
 

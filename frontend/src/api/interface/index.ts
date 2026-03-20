@@ -453,6 +453,7 @@ export namespace Agent {
     welcomeMessage?: string; // 欢迎语（用户进入对话时展示）
     systemPrompt: string;
     model: string;
+    modelName?: string; // 模型显示名称（列表展示用，后端根据 model ID 解析）
     config: AgentConfig;
     sortOrder: number;
     status: StatusType;

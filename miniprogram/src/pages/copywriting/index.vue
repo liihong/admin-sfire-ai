@@ -93,12 +93,13 @@
           <view class="input-wrapper">
             <textarea v-model="inputText" class="chat-input" :placeholder="inputPlaceholder" :maxlength="2000"
               :auto-height="true" :show-confirm-bar="false" :adjust-position="false" :cursor-spacing="20"
-              @confirm="sendMessage" @linechange="onInputLineChange" />
+              @confirm="handleTextareaConfirm" @linechange="onInputLineChange" />
           </view>
 
-          <view class="send-btn" :class="{ active: canSend, disabled: !canSend || isGenerating }" @tap="sendMessage">
-            <SvgIcon :name="isGenerating ? 'ready2' : 'send'" size="36"
-              :color="canSend && !isGenerating ? '#fff' : '#999'" />
+          <view class="send-btn" :class="{ active: canSend, disabled: !canSend || isGenerating }" @tap="handleSendTap">
+            <view v-if="isGenerating" class="send-btn-spinner"></view>
+            <SvgIcon v-else name="send" size="36"
+              :color="canSend ? '#fff' : '#999'" />
           </view>
         </view>
       </view>
@@ -177,6 +178,8 @@ const conversationId = ref<number | undefined>(undefined)
 // 标记是否是从历史对话跳转的（从历史对话跳转时不需要设置默认指令）
 const isFromConversationHistory = ref(false)
 const keyboardHeight = ref(0)
+/** 防止 @tap 和 @confirm 同时触发导致重复发送 */
+let isSendingLock = false
 
 const canSend = computed(() => inputText.value.trim().length > 0)
 
@@ -230,6 +233,16 @@ function onInputLineChange() {
   // 输入框高度变化时的处理
 }
 
+function handleSendTap() {
+  if (isGenerating.value || !canSend.value) return
+  sendMessage()
+}
+
+function handleTextareaConfirm() {
+  if (isGenerating.value || !canSend.value) return
+  sendMessage()
+}
+
 function goToMembership() {
   uni.navigateTo({
     url: '/pages/mine/membership'
@@ -238,13 +251,15 @@ function goToMembership() {
 
 async function sendMessage() {
   if (!canSend.value || isGenerating.value) return
-
-  const loggedIn = await authStore.requireLogin()
+  if (isSendingLock) return
+  isSendingLock = true
+  try {
+    const loggedIn = await authStore.requireLogin()
   if (!loggedIn) return
 
   // 前端判断：非会员直接提示，不请求后端
-  const level = authStore.userInfo?.level
-  if (level === 'normal' || !level) {
+  const levelCode = authStore.userInfo?.level_code
+  if (levelCode === 'normal' || !levelCode) {
     const userMessage = inputText.value.trim()
     inputText.value = ''
     chatHistory.push({
@@ -415,6 +430,9 @@ async function sendMessage() {
 
   } finally {
     isGenerating.value = false
+  }
+  } finally {
+    isSendingLock = false
   }
 }
 
@@ -898,6 +916,12 @@ $border-light: rgba(0, 0, 0, 0.06);
   }
 }
 
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
 .scroll-bottom-spacer {
   height: 200rpx;
 }
@@ -996,6 +1020,15 @@ $border-light: rgba(0, 0, 0, 0.06);
     &.disabled {
       opacity: 0.6;
       pointer-events: none;
+    }
+
+    .send-btn-spinner {
+      width: 40rpx;
+      height: 40rpx;
+      border: 4rpx solid rgba(255, 255, 255, 0.3);
+      border-top-color: #fff;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
     }
 
     &:active:not(.disabled) {

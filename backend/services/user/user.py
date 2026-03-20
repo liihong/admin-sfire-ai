@@ -85,10 +85,13 @@ class UserService(BaseService):
         conditions = [User.is_deleted == False]
         
         if params.username:
-            conditions.append(User.username.like(f"%{params.username}%"))
+            # 使用前缀匹配 LIKE 'xxx%' 以利用 username 索引，避免全表扫描
+            # 若需中间匹配，可考虑全文索引或搜索引擎
+            conditions.append(User.username.like(f"{params.username}%"))
         
         if params.phone:
-            conditions.append(User.phone.like(f"%{params.phone}%"))
+            # 使用前缀匹配以利用索引（phone 若有索引）
+            conditions.append(User.phone.like(f"{params.phone}%"))
         
         if params.level:
             # 按level_code查询

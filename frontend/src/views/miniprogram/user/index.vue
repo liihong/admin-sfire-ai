@@ -222,19 +222,21 @@ const columns = reactive<ColumnProps<UserType.ResUserList>[]>([
   {
     prop: "username",
     label: "用户名",
-    width: 120,
+    minWidth: 100,
     search: { el: "input", tooltip: "支持模糊搜索" }
   },
   {
     prop: "phone",
     label: "手机号",
-    width: 130,
-    search: { el: "input" }
+    minWidth: 120,
+    search: { el: "input" },
+    showOverflowTooltip: true
   },
   {
     prop: "level",
     label: "等级",
-    width: 100,
+    minWidth: 110,
+    showOverflowTooltip: true,
     enum: getUserLevelOptions,
     fieldNames: { label: "label", value: "value" },
     search: {
@@ -251,7 +253,8 @@ const columns = reactive<ColumnProps<UserType.ResUserList>[]>([
   {
     prop: "inviterName",
     label: "邀请人",
-    width: 100
+    minWidth: 100,
+    showOverflowTooltip: true
   },
   {
     prop: "createTime",
@@ -414,6 +417,18 @@ const handleResetPassword = async (row: UserType.ResUserList) => {
 </script>
 
 <style scoped lang="scss">
+/* 表格单元格紧凑显示：减小 padding，尽量完整展示手机号、名称等 */
+:deep(.el-table) {
+  .el-table__body .el-table__cell .cell {
+    padding-left: 8px;
+    padding-right: 8px;
+  }
+  .el-table__header th .cell {
+    padding-left: 8px;
+    padding-right: 8px;
+  }
+}
+
 .compute-info {
   display: flex;
   align-items: center;

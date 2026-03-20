@@ -231,21 +231,26 @@ async function processPayment(pkg: Package) {
         signType: paymentParams.signType,
         paySign: paymentParams.paySign,
         success: async (res: any) => {
-          // 支付成功，查询订单状态
-          await checkOrderStatus(orderData.order_id)
-
-          uni.showToast({
-            title: '充值成功',
-            icon: 'success'
-          })
-
-          // 刷新余额
-          await loadBalance()
-
-          // 延迟返回上一页
-          setTimeout(() => {
-            uni.navigateBack()
-          }, 1500)
+          uni.showLoading({ title: '正在确认到账...', mask: true })
+          // 支付成功，轮询订单状态直到到账（微信回调是异步的，可能延迟几秒）
+          const paid = await pollOrderUntilPaid(orderData.order_id)
+          uni.hideLoading()
+          if (paid) {
+            uni.showToast({
+              title: '充值成功',
+              icon: 'success'
+            })
+            await loadBalance()
+            setTimeout(() => uni.navigateBack(), 1500)
+          } else {
+            uni.showToast({
+              title: '支付成功，算力到账可能有延迟，请稍后刷新',
+              icon: 'none',
+              duration: 3000
+            })
+            await loadBalance()
+            setTimeout(() => uni.navigateBack(), 2500)
+          }
         },
         fail: (err: any) => {
           console.error('支付失败:', err)
@@ -273,16 +278,30 @@ async function processPayment(pkg: Package) {
   }
 }
 
-// 查询订单状态
-async function checkOrderStatus(orderId: string) {
-  try {
-    const response = await queryOrderStatus(orderId)
-    if (response.code !== 200) {
-      console.error('查询订单状态失败:', response.msg)
+/** 轮询间隔（毫秒） */
+const POLL_INTERVAL = 2000
+/** 最大轮询次数（约 60 秒） */
+const POLL_MAX_COUNT = 30
+
+/**
+ * 轮询订单状态直到已支付或超时
+ * 微信支付回调是异步的，用户支付成功后需等待微信服务器回调后端才能完成算力充值
+ */
+async function pollOrderUntilPaid(orderId: string): Promise<boolean> {
+  for (let i = 0; i < POLL_MAX_COUNT; i++) {
+    try {
+      const response = await queryOrderStatus(orderId)
+      if (response.code === 200 && response.data?.payment_status === 'paid') {
+        return true
+      }
+    } catch (error: any) {
+      console.error('查询订单状态失败:', error)
     }
-  } catch (error: any) {
-    console.error('查询订单状态失败:', error)
+    if (i < POLL_MAX_COUNT - 1) {
+      await new Promise(resolve => setTimeout(resolve, POLL_INTERVAL))
+    }
   }
+  return false
 }
 
 </script>

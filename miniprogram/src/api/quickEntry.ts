@@ -40,10 +40,10 @@ export interface QuickEntryListResponse {
  * @param agentType Agent类型筛选（关联sys_dict id=3的字典项）
  */
 export function getQuickEntries(type?: 'category' | 'command', agentType?: string) {
-  const params = new URLSearchParams()
-  if (type) params.append('type', type)
-  if (agentType) params.append('agent_type', agentType)
-  const query = params.toString()
+  const params: string[] = []
+  if (type) params.push(`type=${encodeURIComponent(type)}`)
+  if (agentType) params.push(`agent_type=${encodeURIComponent(agentType)}`)
+  const query = params.join('&')
   const url = query ? `/api/v1/client/quick-entries?${query}` : '/api/v1/client/quick-entries'
   return request<QuickEntryListResponse>({
     url,
