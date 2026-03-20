@@ -111,6 +111,7 @@ import { ref, reactive, computed, onMounted, onUnmounted, nextTick } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import { useAuthStore } from '@/stores/auth'
 import { useAgentStore } from '@/stores/agent'
+import { useProjectStore } from '@/stores/project'
 import { chatStream } from '@/api/generate'
 import { msgSecCheck } from '@/utils/security'
 import { getConversationDetail } from '@/api/conversation'
@@ -119,6 +120,7 @@ import SafeAreaTop from '@/components/common/SafeAreaTop.vue'
 
 const authStore = useAuthStore()
 const agentStore = useAgentStore()
+const projectStore = useProjectStore()
 
 interface ChatMessage {
   role: 'user' | 'assistant' | 'system_hint' | 'membership_hint'
@@ -283,12 +285,16 @@ async function sendMessage() {
       throw new Error('智能体ID不能为空')
     }
 
+    const projectId = projectStore.activeProject?.id
+      ? parseInt(projectStore.activeProject.id, 10)
+      : undefined
+
     await chatStream(
       {
         agent_type: agentType.toString(),
         conversation_id: conversationId.value,
         messages: messages,
-        project_id: undefined,
+        project_id: typeof projectId === 'number' && !isNaN(projectId) ? projectId : undefined,
         stream: true
       },
       {

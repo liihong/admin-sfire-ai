@@ -738,11 +738,24 @@ async def generate_chat(
             db_agent=db_agent
         )
 
-        # 1. 获取项目补充人设信息（如果提供了project_id）
+        # 1. 获取项目补充人设信息（IP人设）
+        # 优先使用 request.project_id；若未提供且为续聊（有 conversation_id），则从会话记录中取 project_id
         ip_persona_prompt = ""
-        if request.project_id:
+        effective_project_id = request.project_id
+        if effective_project_id is None and conversation_id:
+            try:
+                conv = await conversation_service.get_conversation(
+                    conversation_id=conversation_id,
+                    user_id=current_user.id
+                )
+                effective_project_id = conv.project_id
+                if effective_project_id and settings.DEBUG:
+                    logger.debug(f"续聊时从会话恢复 project_id: {effective_project_id}")
+            except Exception:
+                pass  # 会话不存在或无权访问时，effective_project_id 保持 None
+        if effective_project_id:
             project_service = ProjectService(db)
-            project = await project_service.get_project_by_id(request.project_id, user_id=current_user.id)
+            project = await project_service.get_project_by_id(effective_project_id, user_id=current_user.id)
             if project and project.persona_settings:
                 # 始终提取补充人设配置（语气、禁忌、关键词等），排除 master_prompt 仅保留补充信息
                 ip_persona_prompt = PromptBuilder.extract_persona_prompt(
