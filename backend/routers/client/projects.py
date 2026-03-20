@@ -651,8 +651,9 @@ IP信息：
         except BadRequestException:
             raise
         except Exception as e:
-            logger.error(f"调用AgentExecutor失败: {e}", exc_info=True)
-            raise BadRequestException(f"调用AI服务失败: {str(e)}。请重试。")
+            err_msg = str(e).strip() if str(e) else f"{type(e).__name__}"
+            logger.error(f"调用AgentExecutor失败: {type(e).__name__}: {e}", exc_info=True)
+            raise BadRequestException(f"调用AI服务失败: {err_msg}。请重试。")
 
         # 增加智能体使用次数
         try:

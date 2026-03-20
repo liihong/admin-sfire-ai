@@ -15,6 +15,25 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from core.config import settings
 
 
+def _extract_content_from_openai_response(data: dict) -> str:
+    """
+    从 OpenAI 兼容格式的 API 响应中安全提取 content。
+    当 API 返回错误结构（如 rate limit、content filter）时，抛出带明确信息的异常。
+    """
+    if "error" in data:
+        err = data["error"]
+        msg = err.get("message", err.get("type", str(err)))
+        raise ValueError(f"AI服务返回错误: {msg}")
+    choices = data.get("choices")
+    if not choices:
+        raise ValueError("AI服务返回空结果（choices 为空），可能是限流或内容过滤，请稍后重试")
+    msg = choices[0].get("message", {})
+    content = msg.get("content")
+    if content is None:
+        raise ValueError("AI服务返回的 message 中无 content 字段，请检查模型配置")
+    return content or ""
+
+
 class BaseLLM(ABC):
     """Abstract base class for LLM implementations."""
     
@@ -105,7 +124,7 @@ class DeepSeekLLM(BaseLLM):
             )
             response.raise_for_status()
             data = response.json()
-            return data["choices"][0]["message"]["content"]
+            return _extract_content_from_openai_response(data)
     
     async def generate_stream(self, prompt: str, **kwargs) -> AsyncGenerator[str, None]:
         """Generate text in streaming mode using DeepSeek API."""
@@ -272,8 +291,11 @@ class ClaudeLLM(BaseLLM):
             data = response.json()
 
             if use_openai_format:
-                return data["choices"][0]["message"]["content"]
+                return _extract_content_from_openai_response(data)
             else:
+                if "error" in data:
+                    err = data["error"]
+                    raise ValueError(f"AI服务返回错误: {err.get('message', err.get('type', str(err)))}")
                 content_blocks = data.get("content", [])
                 return "".join(block.get("text", "") for block in content_blocks if block.get("type") == "text")
     
@@ -469,7 +491,7 @@ class DoubaoLLM(BaseLLM):
             )
             response.raise_for_status()
             data = response.json()
-            return data["choices"][0]["message"]["content"]
+            return _extract_content_from_openai_response(data)
     
     async def generate_stream(self, prompt: str, **kwargs) -> AsyncGenerator[str, None]:
         """Generate text in streaming mode using Volcengine Doubao API."""
@@ -607,7 +629,7 @@ class GoogleLLM(BaseLLM):
                 )
                 raise
             data = response.json()
-            return data["choices"][0]["message"]["content"] or ""
+            return _extract_content_from_openai_response(data)
 
     async def generate_stream(self, prompt: str, **kwargs) -> AsyncGenerator[str, None]:
         """Generate text in streaming mode using Google Gemini API."""
