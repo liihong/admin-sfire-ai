@@ -100,6 +100,16 @@ class ServerErrorException(APIException):
         )
 
 
+class RoutingMatchFailedException(BadRequestException):
+    """路由匹配失败异常：向量检索和 LLM 路由均无法筛选出合适技能"""
+    def __init__(
+        self,
+        msg: str = "无法根据当前输入匹配合适的能力，请描述更具体的问题或需求",
+        data: Any = None
+    ):
+        super().__init__(msg=msg, data=data)
+
+
 def _create_error_response(
     code: int,
     msg: str,

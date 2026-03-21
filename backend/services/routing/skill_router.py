@@ -15,6 +15,7 @@ from models.llm_model import LLMModel
 from services.shared.prompt_builder import PromptBuilder
 from services.shared.llm_service import LLMFactory
 from services.resource import LLMModelService
+from utils.exceptions import RoutingMatchFailedException
 from sqlalchemy import select
 from .types import RoutingResult
 
@@ -91,7 +92,8 @@ class SkillRouter:
         use_vector: bool = True,
         top_k: int = 3,
         threshold: float = 0.7,
-        router_agent_id: Optional[int] = None
+        router_agent_id: Optional[int] = None,
+        strict_routing: bool = False
     ) -> RoutingResult:
         """
         路由技能：根据用户输入选择最合适的技能
@@ -186,12 +188,28 @@ class SkillRouter:
                             )
                         except Exception as llm_error:
                             logger.warning(f"LLM路由失败: {llm_error}，使用全部规则")
-                            # LLM路由失败，直接使用全部规则
+                            # strict_routing 模式下不降级，直接抛出引导用户补充信息
+                            if strict_routing:
+                                msg = await SkillRouter._get_routing_failed_message(
+                                    db=db,
+                                    router_agent_id=router_agent_id,
+                                    user_input=user_input,
+                                    routing_description=routing_description
+                                )
+                                raise RoutingMatchFailedException(msg=msg)
                             selected_dynamic_skills = dynamic_rule_skill_ids
                             routing_method = "fallback"
                     else:
                         # LLM路由不可用，直接使用全部规则
                         logger.warning("未配置ROUTER_AGENT_ID，跳过LLM路由，使用全部规则")
+                        if strict_routing:
+                            msg = await SkillRouter._get_routing_failed_message(
+                                db=db,
+                                router_agent_id=router_agent_id,
+                                user_input=user_input,
+                                routing_description=routing_description
+                            )
+                            raise RoutingMatchFailedException(msg=msg)
                         selected_dynamic_skills = dynamic_rule_skill_ids
                         routing_method = "fallback"
             else:
@@ -210,6 +228,40 @@ class SkillRouter:
             dynamic_skill_ids=dynamic_rule_skill_ids,
             routing_method=routing_method
         )
+    
+    @staticmethod
+    async def _get_routing_failed_message(
+        db: AsyncSession,
+        router_agent_id: Optional[int],
+        user_input: str,
+        routing_description: str
+    ) -> str:
+        """
+        根据 Router Agent 配置生成路由失败时的提示文案（支持 Jinja2 模板）
+        配置项：config.routing_failed_prompt_template，支持 {{user_input}}、{{routing_description}}
+        """
+        template = None
+        if router_agent_id:
+            result = await db.execute(select(Agent).filter(Agent.id == router_agent_id))
+            agent = result.scalar_one_or_none()
+            if agent and agent.config and isinstance(agent.config, dict):
+                template = agent.config.get("routing_failed_prompt_template")
+        if not template or not isinstance(template, str):
+            template = (
+                "您输入了「{{user_input}}」，但信息较为模糊，无法匹配合适的回复能力。"
+                "请尝试描述更具体的问题或需求，以便更好地为您服务。"
+            )
+        try:
+            return PromptBuilder._safe_render_template(
+                template,
+                {"user_input": user_input or "", "routing_description": routing_description or ""}
+            )
+        except Exception as e:
+            logger.warning(f"渲染路由失败提示模板异常: {e}，使用默认文案")
+            return (
+                f"您输入了「{user_input or ''}」，但信息较为模糊，无法匹配合适的回复能力。"
+                "请尝试描述更具体的问题或需求，以便更好地为您服务。"
+            )
     
     @staticmethod
     async def _route_with_llm(

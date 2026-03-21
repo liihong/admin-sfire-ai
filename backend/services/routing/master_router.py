@@ -19,7 +19,8 @@ class MasterRouter:
     async def route(
         db: AsyncSession,
         agent: Agent,
-        user_input: str
+        user_input: str,
+        strict_routing: bool = False
     ) -> RoutingResult:
         """
         路由决策：根据Agent配置决定路由策略
@@ -28,6 +29,7 @@ class MasterRouter:
             db: 异步数据库会话
             agent: Agent对象
             user_input: 用户输入
+            strict_routing: 严格模式，路由失败时抛出异常而非全量回退
         
         Returns:
             RoutingResult: 路由结果
@@ -74,9 +76,10 @@ class MasterRouter:
             user_input=user_input,
             routing_description=routing_description,
             use_vector=True,  # 默认使用向量检索
-            top_k=3,
-            threshold=0.7,
-            router_agent_id=router_agent_id
+            top_k=1,  # 只保留最相关的一个技能，减少多技能导致的"先确认"类回复
+            threshold=0.8,  # 提高阈值，向量检索更严格，减少误选
+            router_agent_id=router_agent_id,
+            strict_routing=strict_routing
         )
         
         logger.info(

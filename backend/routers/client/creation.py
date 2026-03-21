@@ -27,7 +27,7 @@ from middleware.balance_checker import BalanceCheckerMiddleware
 from services.shared.prompt_builder import PromptBuilder
 from constants.agent import get_agent_config, get_all_agents, AgentType, AGENT_CONFIGS
 from utils.response import success
-from utils.exceptions import BadRequestException, ServerErrorException, NotFoundException
+from utils.exceptions import BadRequestException, ServerErrorException, NotFoundException, RoutingMatchFailedException
 from loguru import logger
 from core.config import settings
 
@@ -769,6 +769,52 @@ async def generate_chat(
         if not user_prompt:
             raise BadRequestException("消息列表不能为空")
         
+        # 3. 技能组装模式：路由 + Prompt 组装（agent_mode=1）
+        if db_agent and getattr(db_agent, "agent_mode", 0) == 1:
+            from services.routing import MasterRouter, PromptEngine
+            master_router = MasterRouter()
+            prompt_engine = PromptEngine()
+            strict_routing = bool(getattr(db_agent, "is_routing_enabled", 0) == 1)
+            try:
+                routing_result = await master_router.route(
+                    db=db,
+                    agent=db_agent,
+                    user_input=user_prompt,
+                    strict_routing=strict_routing
+                )
+            except RoutingMatchFailedException as e:
+                # 路由失败，返回引导信息，不调用 LLM、不扣费
+                routing_failed_msg = e.msg
+                if request.stream:
+                    async def _stream_routing_failed():
+                        yield f"data: {json.dumps({'conversation_id': conversation_id}, ensure_ascii=False)}\n\n"
+                        yield f"data: {json.dumps({'content': routing_failed_msg}, ensure_ascii=False)}\n\n"
+                        yield f"data: {json.dumps({'done': True}, ensure_ascii=False)}\n\n"
+                    return StreamingResponse(
+                        _stream_routing_failed(),
+                        media_type="text/event-stream",
+                        headers={"Cache-Control": "no-cache", "Connection": "keep-alive", "X-Accel-Buffering": "no"},
+                    )
+                return ChatResponse(
+                    success=True,
+                    content=routing_failed_msg,
+                    agent_type=request.agent_type,
+                    model_type=agent_model_type,
+                )
+            prompt_result = await prompt_engine.assemble_prompt(
+                db=db,
+                agent=db_agent,
+                selected_skill_ids=routing_result.selected_skill_ids,
+                skill_variables=(db_agent.skill_variables or {}),
+                persona_prompt=ip_persona_prompt or None,
+                user_input=user_prompt,
+            )
+            base_system_prompt = prompt_result.system_prompt
+            if settings.DEBUG:
+                logger.debug(f"技能路由完成: 选中{len(routing_result.selected_skill_ids)}个技能, {prompt_result.token_count} tokens")
+        else:
+            base_system_prompt = agent_config["system_prompt"]
+        
         # 5. 向量检索：搜索相关历史片段
         # ⚠️ 临时禁用向量检索以提升性能（待后端向量化功能修复后重新启用）
         # TODO: 修复向量化后台任务后重新启用此功能
@@ -799,13 +845,16 @@ async def generate_chat(
         #     logger.warning(f"向量检索失败，使用原始消息: {e}")
         
         # 6. 构建最终System Prompt（system 只放“规则/人设/能力”，对话历史放到 messages，避免重复和额外 token）
-        base_system_prompt = agent_config["system_prompt"]
         conversation_context = ""
-        
-        final_system_prompt = build_final_system_prompt(
-            agent_system_prompt=base_system_prompt,
-            ip_persona_prompt=ip_persona_prompt,
-        )
+        if db_agent and getattr(db_agent, "agent_mode", 0) == 1:
+            # 技能模式：prompt_result 已包含 persona，直接使用
+            final_system_prompt = base_system_prompt
+        else:
+            # 普通模式：需融合 ip_persona_prompt
+            final_system_prompt = build_final_system_prompt(
+                agent_system_prompt=base_system_prompt,
+                ip_persona_prompt=ip_persona_prompt,
+            )
 
         # 🔍 检查并限制 system prompt 长度
         MAX_SYSTEM_PROMPT_LENGTH = 8000  # 根据模型限制调整
@@ -817,22 +866,23 @@ async def generate_chat(
             logger.warning(f"  - IP persona prompt length: {len(ip_persona_prompt)} chars")
 
             # 智能截断策略: 保留智能体核心prompt,精简历史和IP信息
-            # 1. 先保留完整的智能体prompt
             truncated_prompt = base_system_prompt
+            # 2. 普通模式才追加IP人设（技能模式 base_system_prompt 已含 persona）
+            is_skill_mode = db_agent and getattr(db_agent, "agent_mode", 0) == 1
+            if not is_skill_mode:
+                remaining_space = MAX_SYSTEM_PROMPT_LENGTH - len(truncated_prompt) - 100
+                if remaining_space > 0 and ip_persona_prompt:
+                    ip_persona_truncated = ip_persona_prompt[:remaining_space]
+                    truncated_prompt = build_final_system_prompt(
+                        agent_system_prompt=truncated_prompt,
+                        ip_persona_prompt=ip_persona_truncated
+                    )
 
-            # 2. 如果还有空间,添加IP人设的关键部分
-            remaining_space = MAX_SYSTEM_PROMPT_LENGTH - len(truncated_prompt) - 100  # 留100字符buffer
-            if remaining_space > 0 and ip_persona_prompt:
-                # 只保留IP人设的前N个字符
-                ip_persona_truncated = ip_persona_prompt[:remaining_space]
-                truncated_prompt = build_final_system_prompt(
-                    agent_system_prompt=truncated_prompt,
-                    ip_persona_prompt=ip_persona_truncated
-                )
-
-            # 3. 如果还没到限制,添加对话历史(最多2轮)
+            # 3. 若仍超长则强制截断
+            if len(truncated_prompt) > MAX_SYSTEM_PROMPT_LENGTH:
+                truncated_prompt = truncated_prompt[:MAX_SYSTEM_PROMPT_LENGTH - 100]
+            # 4. 如果还有空间,添加对话历史(最多2轮)
             if len(truncated_prompt) < MAX_SYSTEM_PROMPT_LENGTH * 0.8 and conversation_context:
-                # 简化对话历史:只保留最近2轮
                 simplified_context = "\n【最近对话】" + "\n".join(conversation_context.split("\n")[-6:])
                 final_system_prompt = truncated_prompt + "\n\n" + simplified_context
             else:
