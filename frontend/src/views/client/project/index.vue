@@ -478,15 +478,17 @@ const handleAIComplete = async (collectedInfo: any) => {
         return;
       }
 
-      // 构建创建项目的请求数据
+      // 构建创建项目的请求数据（确保 target_audience 为字符串，AI 可能返回数组）
+      const toStr = (v: unknown): string =>
+        v == null ? "" : Array.isArray(v) ? v.filter(Boolean).join(", ") : String(v);
       const projectData: CreateMPProjectRequest = {
         name: compressed.name,
         industry: compressed.industry,
         introduction: compressed.introduction || "",
         tone: compressed.tone || "",
-        target_audience: compressed.target_audience || "",
+        target_audience: toStr(compressed.target_audience),
         catchphrase: compressed.catchphrase || "",
-        keywords: compressed.keywords || []
+        keywords: Array.isArray(compressed.keywords) ? compressed.keywords : []
       };
 
       // 直接创建项目

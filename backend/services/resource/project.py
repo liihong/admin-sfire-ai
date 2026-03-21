@@ -575,13 +575,26 @@ IP简介：{raw_info.get('introduction', '')}
     
     def _validate_and_limit(self, compressed_info: dict, raw_info: dict) -> dict:
         """验证和限制字数"""
+        # 确保 target_audience 为字符串（AI 可能返回数组）
+        def _ensure_str(val, default: str = "") -> str:
+            if val is None:
+                return default
+            if isinstance(val, str):
+                return val
+            if isinstance(val, (list, tuple)):
+                return ", ".join(str(v) for v in val if v)[:50] if val else default
+            return str(val) if val else default
+
+        raw_audience = compressed_info.get("target_audience", raw_info.get("target_audience", ""))
+        target_audience_str = _ensure_str(raw_audience, "")[:50]
+
         # 确保所有必需字段存在
         result = {
             "name": compressed_info.get("name", raw_info.get("name", "")),
             "industry": compressed_info.get("industry", raw_info.get("industry", "通用")),
             "introduction": compressed_info.get("introduction", raw_info.get("introduction", ""))[:200],
             "tone": compressed_info.get("tone", raw_info.get("tone", "专业亲和")),
-            "target_audience": compressed_info.get("target_audience", raw_info.get("target_audience", ""))[:50],
+            "target_audience": target_audience_str,
             "catchphrase": compressed_info.get("catchphrase", raw_info.get("catchphrase", "")),
             "keywords": compressed_info.get("keywords", raw_info.get("keywords", []))[:8]
         }

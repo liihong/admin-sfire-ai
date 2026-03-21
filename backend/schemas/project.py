@@ -6,9 +6,20 @@ Project Schema - 项目（IP）Pydantic 模型
 from datetime import datetime
 from typing import Optional, List
 from uuid import UUID
-from pydantic import BaseModel, Field, ConfigDict
+from pydantic import BaseModel, Field, ConfigDict, field_validator
 
 from models.project import Project
+
+
+def _coerce_to_str(value) -> Optional[str]:
+    """将数组或其他类型强制转换为字符串，用于 target_audience 等字段"""
+    if value is None:
+        return None
+    if isinstance(value, str):
+        return value
+    if isinstance(value, (list, tuple)):
+        return ", ".join(str(v) for v in value if v) if value else None
+    return str(value) if value else None
 
 
 # ============== PersonaSettings ==============
@@ -18,6 +29,13 @@ class PersonaSettings(BaseModel):
     tone: str = Field(default="专业亲和", description="语气风格：专业亲和/幽默风趣/严肃正式等")
     catchphrase: str = Field(default="", description="口头禅")
     target_audience: str = Field(default="", description="目标受众")
+
+    @field_validator("target_audience", mode="before")
+    @classmethod
+    def coerce_target_audience(cls, v):
+        """兼容 AI 可能返回的数组格式，强制转换为字符串"""
+        result = _coerce_to_str(v)
+        return result if result is not None else ""
     benchmark_accounts: List[str] = Field(default_factory=list, description="对标账号列表")
     content_style: str = Field(default="", description="内容风格描述")
     taboos: List[str] = Field(default_factory=list, description="内容禁忌")
@@ -54,6 +72,12 @@ class ProjectCreate(ProjectBase):
     introduction: Optional[str] = Field(None, description="IP简介")
     tone: Optional[str] = Field(None, description="语气风格")
     target_audience: Optional[str] = Field(None, description="目标受众")
+
+    @field_validator("target_audience", mode="before")
+    @classmethod
+    def coerce_target_audience(cls, v):
+        """兼容 AI 或前端可能返回的数组格式，强制转换为字符串"""
+        return _coerce_to_str(v)
     content_style: Optional[str] = Field(None, description="内容风格")
     catchphrase: Optional[str] = Field(None, description="常用口头禅")
     keywords: Optional[List[str]] = Field(None, description="常用关键词")
@@ -83,6 +107,13 @@ class ProjectUpdate(BaseModel):
     introduction: Optional[str] = Field(None, description="IP简介")
     tone: Optional[str] = Field(None, description="语气风格")
     target_audience: Optional[str] = Field(None, description="目标受众")
+
+    @field_validator("target_audience", mode="before")
+    @classmethod
+    def coerce_target_audience(cls, v):
+        """兼容 AI 或前端可能返回的数组格式，强制转换为字符串"""
+        return _coerce_to_str(v)
+
     content_style: Optional[str] = Field(None, description="内容风格")
     catchphrase: Optional[str] = Field(None, description="常用口头禅")
     keywords: Optional[List[str]] = Field(None, description="常用关键词")
