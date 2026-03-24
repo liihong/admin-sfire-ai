@@ -103,6 +103,10 @@ class Settings(BaseSettings):
     MASTER_PROMPT_AGENT_ID: int = 13  # Master Prompt生成Agent ID
     HOTSPOT_AGENT_ID: Optional[int] = None  # 蹭热点功能使用的智能体ID（从数据库读取配置，如果为None则通过名称查找）
     
+    # 提示词缓存配置（降低延迟和成本，缓存的 system prompt 按 90% 折扣计费）
+    ENABLE_PROMPT_CACHE: bool = True  # 是否启用提示词缓存
+    PROMPT_CACHE_FOR_ALL_MODELS: bool = False  # True=对所有模型启用，False=仅对 Claude 等支持缓存的模型启用
+    
     # Embedding 配置
     EMBEDDING_PROVIDER: str = "openai"  # Embedding服务提供商: openai, deepseek (注意：DeepSeek不提供embedding API)
     EMBEDDING_BASE_URL: str = ""  # Embedding API基础URL（可选，默认根据provider自动设置）

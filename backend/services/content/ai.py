@@ -66,10 +66,15 @@ class AIService:
         model_id: str,
     ) -> List[dict]:
         """
-        为 Claude 模型的 system 消息添加 cache_control，使系统提示词能命中缓存。
-        兼容 OpenRouter、Anthropic 原生 API 等。
+        为 system 消息添加 cache_control，使系统提示词能命中缓存。
+        兼容 OpenRouter、Anthropic 原生 API 等。ENABLE_PROMPT_CACHE 关闭时跳过。
         """
-        if not model_id or "claude" not in model_id.lower():
+        if not settings.ENABLE_PROMPT_CACHE:
+            return messages
+        if not model_id:
+            return messages
+        # PROMPT_CACHE_FOR_ALL_MODELS=True 时对所有模型启用；否则仅对 Claude 等支持缓存的模型启用
+        if not settings.PROMPT_CACHE_FOR_ALL_MODELS and "claude" not in model_id.lower():
             return messages
 
         result = []
