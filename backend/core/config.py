@@ -86,6 +86,11 @@ class Settings(BaseSettings):
     VOLCENGINE_ACCESS_TOKEN: str = ""  # 访问令牌
     VOLCENGINE_LICENSE: str = ""  # API Key / License（控制台-API Key 管理获取，声音复刻必填）
     VOLCENGINE_SPEAKER_IDS: str = ""  # 音色 ID 池，逗号分隔，用于分配给用户（如 "id1,id2"）
+    # 大模型录音文件识别标准版（工具包-抖音文案提取等），见文档 6561/1354868
+    VOLCENGINE_ASR_RESOURCE_ID: str = "volc.bigasr.auc"  # 豆包录音文件识别模型1.0；2.0 用 volc.seedasr.auc
+    VOLCENGINE_ASR_POLL_INTERVAL_SEC: float = 1.5  # query 轮询间隔（秒）
+    VOLCENGINE_ASR_POLL_TIMEOUT_SEC: float = 180.0  # 最长等待识别完成（秒）
+    VOLCENGINE_ASR_AUDIO_FORMAT: str = ""  # 可选；非空则固定 format。大模型 ASR 仅支持 raw/wav/mp3/ogg，勿填 mp4
 
     # LLM 配置
     DEEPSEEK_API_KEY: str = ""  # DeepSeek API Key

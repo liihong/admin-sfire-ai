@@ -1,6 +1,8 @@
 /**
- * 工具包常量
- * 新增工具只需在此扩展，并添加对应路由与页面
+ * 工具包说明（展示用）
+ * 实际列表数据来自后端 tool_packages + 前端 toolRegistry 注册页面组件
+ * @see src/config/toolRegistry.ts
+ * @see src/api/modules/toolPackage.ts
  */
 export interface ToolItem {
   id: string;
@@ -10,6 +12,7 @@ export interface ToolItem {
   path: string;
 }
 
+/** 仅作类型/文档参考；运行时请以接口与 registry 为准 */
 export const TOOLS_LIST: ToolItem[] = [
   {
     id: "voice-clone",

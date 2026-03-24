@@ -70,11 +70,11 @@ export const miniprogramRouter: RouteRecordRaw[] = [
         }
       },
       {
-        path: "tools/voice-clone",
-        name: "mpToolsVoiceClone",
-        component: () => import("@/views/client/tools/voice-clone/index.vue"),
+        path: "tools/:code",
+        name: "mpToolsRun",
+        component: () => import("@/views/tool-kit/run/index.vue"),
         meta: {
-          title: "声音复刻",
+          title: "工具",
           isHide: true
         }
       }

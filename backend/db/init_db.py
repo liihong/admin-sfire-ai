@@ -17,6 +17,7 @@ from db.session import init_db, async_session_maker, close_db
 from models.menu import Menu
 from models.admin_user import AdminUser
 from models.role import Role
+from models.tool_package import ToolPackage
 from core.security import hash_password
 
 
@@ -162,6 +163,47 @@ async def init_menus(session: AsyncSession) -> None:
                 },
             ],
         },
+        # 便捷工具包 (父级)
+        {
+            "name": "toolKit",
+            "path": "/tool-kit",
+            "redirect": "/tool-kit/list",
+            "title": "便捷工具包",
+            "icon": "Box",
+            "sort_order": 6,
+            "is_keep_alive": True,
+            "children": [
+                {
+                    "name": "toolKitList",
+                    "path": "/tool-kit/list",
+                    "component": "/tool-kit/list/index",
+                    "title": "工具包列表",
+                    "icon": "Grid",
+                    "sort_order": 1,
+                    "is_keep_alive": True,
+                },
+                {
+                    "name": "toolKitManage",
+                    "path": "/tool-kit/manage",
+                    "component": "/tool-kit/manage/index",
+                    "title": "工具包管理",
+                    "icon": "Setting",
+                    "sort_order": 2,
+                    "is_keep_alive": True,
+                },
+                {
+                    "name": "toolKitRun",
+                    "path": "/tool-kit/tool/:code",
+                    "component": "/tool-kit/run/index",
+                    "title": "使用工具",
+                    "icon": "Menu",
+                    "sort_order": 99,
+                    "is_hide": True,
+                    "is_keep_alive": True,
+                    "active_menu": "/tool-kit/list",
+                },
+            ],
+        },
         # 系统管理 (父级)
         {
             "name": "system",
@@ -169,7 +211,7 @@ async def init_menus(session: AsyncSession) -> None:
             "redirect": "/system/dictManage",
             "title": "系统管理",
             "icon": "Tools",
-            "sort_order": 6,
+            "sort_order": 7,
             "is_keep_alive": True,
             "children": [
                 # 字典管理 (子级)
@@ -219,6 +261,7 @@ async def init_menus(session: AsyncSession) -> None:
             menu.is_keep_alive = menu_data.get("is_keep_alive", True)
             menu.is_enabled = True  # 确保启用
             menu.parent_id = parent_id
+            menu.active_menu = menu_data.get("active_menu")
             await session.flush()
             return menu
         
@@ -241,6 +284,7 @@ async def init_menus(session: AsyncSession) -> None:
             db_menu.is_keep_alive = menu_data.get("is_keep_alive", True)
             db_menu.is_enabled = True  # 确保启用
             db_menu.parent_id = parent_id
+            db_menu.active_menu = menu_data.get("active_menu")
             await session.flush()
             created_menus[name] = db_menu
             return db_menu
@@ -264,6 +308,7 @@ async def init_menus(session: AsyncSession) -> None:
             is_affix=menu_data.get("is_affix", False),
             is_keep_alive=menu_data.get("is_keep_alive", True),
             is_enabled=True,
+            active_menu=menu_data.get("active_menu"),
         )
         
         session.add(menu)
@@ -433,6 +478,26 @@ async def init_user_levels(session: AsyncSession) -> None:
     logger.info(f"用户等级数据初始化完成，共创建 {len(levels_data)} 个等级")
 
 
+async def init_tool_packages(session: AsyncSession) -> None:
+    """初始化工具包表基础数据（声音复刻）"""
+    result = await session.execute(select(ToolPackage).where(ToolPackage.code == "voice-clone").limit(1))
+    if result.scalar_one_or_none():
+        logger.info("工具包 voice-clone 已存在，跳过")
+        return
+    session.add(
+        ToolPackage(
+            code="voice-clone",
+            name="声音复刻",
+            description="上传音频训练专属音色，支持文本转语音",
+            icon="Microphone",
+            sort_order=0,
+            status=1,
+        )
+    )
+    await session.flush()
+    logger.info("已初始化工具包: voice-clone")
+
+
 async def main():
     """
     主函数：执行数据库初始化
@@ -463,6 +528,9 @@ async def main():
                 
                 # 初始化用户等级数据
                 await init_user_levels(session)
+                
+                # 工具包配置
+                await init_tool_packages(session)
                 
                 logger.info("=" * 60)
                 logger.info("数据库初始化完成！")

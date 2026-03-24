@@ -69,29 +69,30 @@
       >
         合成试听
       </el-button>
-      <audio
-        v-if="audioUrl"
-        :src="audioUrl"
-        controls
-        class="audio-player"
-      />
+      <audio v-if="audioUrl" :src="audioUrl" controls class="audio-player" />
     </el-card>
   </div>
 </template>
 
 <script setup lang="ts" name="VoiceClone">
 import { ref, reactive, onMounted, computed } from "vue";
-import { useRouter } from "vue-router";
+import { useRoute, useRouter } from "vue-router";
 import { ElMessage } from "element-plus";
 import { UploadFilled } from "@element-plus/icons-vue";
 import {
   uploadVoiceAudioApi,
   getVoiceTrainStatusApi,
-  synthesizeVoiceApi
+  synthesizeVoiceApi,
+  adminUploadVoiceAudioApi,
+  adminGetVoiceTrainStatusApi,
+  adminSynthesizeVoiceApi
 } from "@/api/modules/tools";
 import type { VoiceTrainStatus } from "@/api/modules/tools";
 
+const route = useRoute();
 const router = useRouter();
+
+const isAdminTool = computed(() => route.path.startsWith("/tool-kit"));
 
 const uploadFile = ref<File | null>(null);
 const uploading = ref(false);
@@ -124,7 +125,9 @@ const doUpload = async () => {
   if (!uploadFile.value) return;
   uploading.value = true;
   try {
-    const res = await uploadVoiceAudioApi(uploadFile.value);
+    const res = isAdminTool.value
+      ? await adminUploadVoiceAudioApi(uploadFile.value)
+      : await uploadVoiceAudioApi(uploadFile.value);
     const data = res?.data;
     if (data) {
       status.has_speaker = true;
@@ -144,7 +147,9 @@ const doUpload = async () => {
 const fetchStatus = async () => {
   statusLoading.value = true;
   try {
-    const res = await getVoiceTrainStatusApi();
+    const res = isAdminTool.value
+      ? await adminGetVoiceTrainStatusApi()
+      : await getVoiceTrainStatusApi();
     const data = res?.data;
     if (data) {
       status.has_speaker = data.has_speaker;
@@ -168,9 +173,9 @@ const doSynthesize = async () => {
   synthesizing.value = true;
   audioUrl.value = "";
   try {
-    const res = await synthesizeVoiceApi({
-      text: synthesizeText.value.trim()
-    });
+    const res = isAdminTool.value
+      ? await adminSynthesizeVoiceApi({ text: synthesizeText.value.trim() })
+      : await synthesizeVoiceApi({ text: synthesizeText.value.trim() });
     const data = res?.data;
     if (data?.audio_base64) {
       audioUrl.value = `data:audio/mpeg;base64,${data.audio_base64}`;
@@ -184,7 +189,9 @@ const doSynthesize = async () => {
   }
 };
 
-const goBack = () => router.push("/mp/tools");
+const goBack = () => {
+  router.push(isAdminTool.value ? "/tool-kit/list" : "/mp/tools");
+};
 
 onMounted(() => {
   fetchStatus();

@@ -30,6 +30,7 @@ from .inspiration import Inspiration, InspirationStatus
 from .recharge_package import RechargePackage
 from .user_voice_speaker import UserVoiceSpeaker
 from .ticket import Ticket, TicketType, TicketStatus
+from .tool_package import ToolPackage
 
 __all__ = [
     "BaseModel",
@@ -72,4 +73,5 @@ __all__ = [
     "Ticket",
     "TicketType",
     "TicketStatus",
+    "ToolPackage",
 ]

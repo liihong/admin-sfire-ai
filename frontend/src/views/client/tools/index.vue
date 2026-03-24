@@ -4,39 +4,67 @@
       <h2 class="tools-title">便捷工具包</h2>
       <p class="tools-desc">选择您需要的工具开始使用</p>
     </div>
-    <el-row :gutter="20" class="tools-grid">
+    <el-row v-loading="loading" :gutter="20" class="tools-grid">
       <el-col
-        v-for="tool in TOOLS_LIST"
+        v-for="tool in list"
         :key="tool.id"
         :xs="24"
         :sm="12"
         :md="8"
       >
-        <el-card class="tool-card" shadow="hover" @click="goToTool(tool.path)">
+        <el-card class="tool-card" shadow="hover" @click="goToTool(tool.code)">
           <div class="tool-content">
             <div class="tool-icon">
-              <el-icon :size="40"><Microphone /></el-icon>
+              <el-icon :size="40">
+                <component :is="iconCmp(tool.icon)" />
+              </el-icon>
             </div>
             <h3 class="tool-name">{{ tool.name }}</h3>
-            <p class="tool-desc">{{ tool.description }}</p>
+            <p class="tool-desc">{{ tool.description || "—" }}</p>
             <el-button type="primary" link>去使用</el-button>
           </div>
         </el-card>
       </el-col>
     </el-row>
+    <el-empty v-if="!loading && !list.length" description="暂无工具" />
   </div>
 </template>
 
 <script setup lang="ts" name="MPTools">
+import { ref, onMounted } from "vue";
 import { useRouter } from "vue-router";
-import { Microphone } from "@element-plus/icons-vue";
-import { TOOLS_LIST } from "@/constants/tools";
+import * as Icons from "@element-plus/icons-vue";
+import { getClientToolPackageList } from "@/api/modules/toolPackage";
+import type { ToolPackageItem } from "@/api/modules/toolPackage";
+import { ElMessage } from "element-plus";
 
 const router = useRouter();
+const loading = ref(false);
+const list = ref<ToolPackageItem[]>([]);
 
-const goToTool = (path: string) => {
-  router.push(path);
+const iconCmp = (name: string) => {
+  const ic = (Icons as Record<string, unknown>)[name];
+  return ic || Icons.Box;
 };
+
+const load = async () => {
+  loading.value = true;
+  try {
+    const res = await getClientToolPackageList();
+    list.value = Array.isArray(res.data) ? res.data : [];
+  } catch (e: unknown) {
+    const err = e as { msg?: string };
+    ElMessage.error(err?.msg || "加载失败");
+  } finally {
+    loading.value = false;
+  }
+};
+
+const goToTool = (code: string) => {
+  router.push({ name: "mpToolsRun", params: { code } });
+};
+
+onMounted(load);
 </script>
 
 <style scoped lang="scss">
