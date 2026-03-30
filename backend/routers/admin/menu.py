@@ -6,7 +6,11 @@ from fastapi import APIRouter, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from db import get_db
+from core.deps import get_current_user
+from core.constants import is_full_menu_role
+from models.admin_user import AdminUser
 from services.system import MenuService
+from services.system.role import RoleService
 from schemas.menu import MenuCreate, MenuUpdate
 from utils.response import success, ResponseMsg
 
@@ -16,16 +20,26 @@ router = APIRouter()
 @router.get("/list", summary="获取菜单列表")
 async def get_menu_list(
     db: AsyncSession = Depends(get_db),
+    current_user: AdminUser = Depends(get_current_user),
 ):
     """
     获取菜单列表（树形结构）
     
     返回格式匹配 Geeker Admin 前端 Menu.MenuOptions 接口
     
-    用于动态路由和菜单渲染
+    用于动态路由和菜单渲染。
+    未绑定角色、或 role_id 为系统管理员（默认 1）时返回全部菜单；其余角色按 roles.menu_ids 过滤。
     """
     menu_service = MenuService(db)
-    menus = await menu_service.get_menu_tree(include_hidden=True)
+    allowed_ids = None
+    if not is_full_menu_role(current_user.role_id):
+        role_service = RoleService(db)
+        ids = await role_service.get_role_permissions(current_user.role_id)
+        allowed_ids = set(ids)
+    menus = await menu_service.get_menu_tree(
+        include_hidden=True,
+        allowed_menu_ids=allowed_ids,
+    )
     
     return success(data=menus)
 

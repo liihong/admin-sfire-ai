@@ -8,9 +8,13 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from pydantic import BaseModel, Field
 
 from db import get_db
+from core.deps import get_current_user
+from core.constants import is_full_menu_role
+from models.admin_user import AdminUser
 from schemas import LoginRequest, LoginResponse
 from services.system import AuthService
 from services.system import MenuService
+from services.system.role import RoleService
 from utils.response import success, ResponseMsg
 from core.security import decode_token, create_access_token, create_refresh_token
 from core.config import settings
@@ -74,6 +78,7 @@ async def get_auth_buttons(
 @router.get("/menus", summary="获取菜单权限")
 async def get_auth_menus(
     db: AsyncSession = Depends(get_db),
+    current_user: AdminUser = Depends(get_current_user),
 ):
     """
     获取菜单权限列表
@@ -81,7 +86,15 @@ async def get_auth_menus(
     返回用户可访问的菜单（树形结构）
     """
     menu_service = MenuService(db)
-    menus = await menu_service.get_menu_tree(include_hidden=True)
+    allowed_ids = None
+    if not is_full_menu_role(current_user.role_id):
+        role_service = RoleService(db)
+        ids = await role_service.get_role_permissions(current_user.role_id)
+        allowed_ids = set(ids)
+    menus = await menu_service.get_menu_tree(
+        include_hidden=True,
+        allowed_menu_ids=allowed_ids,
+    )
     return success(data=menus)
 
 

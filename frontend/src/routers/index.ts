@@ -2,7 +2,8 @@ import { createRouter, createWebHashHistory, createWebHistory } from "vue-router
 import { useUserStore } from "@/stores/modules/user";
 import { useAuthStore } from "@/stores/modules/auth";
 import { useMPUserStore } from "@/stores/modules/miniprogramUser";
-import { LOGIN_URL, MP_LOGIN_URL, ROUTER_WHITE_LIST } from "@/config";
+import { LOGIN_URL, MP_LOGIN_URL, ROUTER_WHITE_LIST, HOME_URL } from "@/config";
+import { getFlatMenuList, getFirstAccessibleMenuPath } from "@/utils";
 import { initDynamicRouter } from "@/routers/modules/dynamicRouter";
 import { staticRouter, errorRouter } from "@/routers/modules/staticRouter";
 import NProgress from "@/config/nprogress";
@@ -120,6 +121,18 @@ router.beforeEach(async (to, from, next) => {
   if (!authStore.authMenuListGet.length) {
     await initDynamicRouter();
     return next({ ...to, replace: true });
+  }
+
+  // 4.4.1 无「首页」权限时访问 / 或 /home/index 会无匹配动态路由导致 404，改跳到首个有权限页面
+  const flat = getFlatMenuList(authStore.authMenuListGet);
+  const canAccessHome = flat.some(
+    m => m.path === HOME_URL && m.component && typeof m.component === "string"
+  );
+  if (!canAccessHome && (to.path === HOME_URL || to.path === "/")) {
+    const firstPath = getFirstAccessibleMenuPath(authStore.authMenuListGet);
+    if (firstPath) {
+      return next({ path: firstPath, replace: true });
+    }
   }
 
   // 4.5 存储 routerName 做按钮权限筛选

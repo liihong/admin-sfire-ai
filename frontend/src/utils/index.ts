@@ -157,6 +157,20 @@ export function getFlatMenuList(menuList: Menu.MenuOptions[]): Menu.MenuOptions[
 }
 
 /**
+ * 首个可访问页面路径（与动态路由注册规则一致：有 component 字符串的菜单项）
+ * 用于无「首页」权限时替代默认的 /home/index，避免 404
+ */
+export function getFirstAccessibleMenuPath(menuList: Menu.MenuOptions[]): string {
+  const flat = getFlatMenuList(menuList);
+  for (const item of flat) {
+    if (item.path && item.component && typeof item.component === "string") {
+      return item.path;
+    }
+  }
+  return "";
+}
+
+/**
  * @description 使用递归过滤出需要渲染在左侧菜单的列表 (需剔除 isHide == true 的菜单)
  * @param {Array} menuList 菜单列表
  * @returns {Array}

@@ -31,11 +31,13 @@
 import { ref, reactive, onMounted, onBeforeUnmount } from "vue";
 import { useRouter } from "vue-router";
 import { HOME_URL } from "@/config";
+import { getFirstAccessibleMenuPath } from "@/utils";
 // import { getTimeState } from "@/utils";
 import { Login } from "@/api/interface";
 import { ElNotification } from "element-plus";
 import { loginApi } from "@/api/modules/login";
 import { useUserStore } from "@/stores/modules/user";
+import { useAuthStore } from "@/stores/modules/auth";
 import { useTabsStore } from "@/stores/modules/tabs";
 import { useKeepAliveStore } from "@/stores/modules/keepAlive";
 import { initDynamicRouter } from "@/routers/modules/dynamicRouter";
@@ -45,6 +47,7 @@ import type { ElForm } from "element-plus";
 
 const router = useRouter();
 const userStore = useUserStore();
+const authStore = useAuthStore();
 const tabsStore = useTabsStore();
 const keepAliveStore = useKeepAliveStore();
 
@@ -82,8 +85,9 @@ const login = (formEl: FormInstance | undefined) => {
       tabsStore.setTabs([]);
       keepAliveStore.setKeepAliveName([]);
 
-      // 5.跳转到首页
-      router.push(HOME_URL);
+      // 5.跳转到首个有权限的页面（无首页权限时勿固定去 /home/index，否则会 404）
+      const firstPath = getFirstAccessibleMenuPath(authStore.authMenuListGet);
+      router.push(firstPath || HOME_URL);
       // ElNotification({
       //   title: getTimeState(),
       //   message: "欢迎登录 SFire-Admin",

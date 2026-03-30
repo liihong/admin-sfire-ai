@@ -2,12 +2,13 @@
 Role Service
 角色管理服务（基于roles表和admin_users表的role_id字段）
 """
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
 from sqlalchemy import select, func, and_
 from sqlalchemy.ext.asyncio import AsyncSession
 from loguru import logger
 
 from models.admin_user import AdminUser
+from models.menu import Menu
 from models.role import Role
 from schemas.role import RoleCreate, RoleUpdate, RoleResponse
 from utils.exceptions import NotFoundException, BadRequestException
@@ -213,42 +214,47 @@ class RoleService(BaseService):
         
         await super().delete(role_id, hard_delete=True, before_delete=check_users_before_delete)
         await self.db.flush()
+
+    async def _expand_menu_ids_with_ancestors(self, menu_ids: List[int]) -> List[int]:
+        """
+        将前端勾选的菜单 ID 扩展为「选中项 + 全部祖先」，再写入 roles.menu_ids。
+        避免只存子级 ID 时与权限数据含义不一致。
+        """
+        raw = {int(mid) for mid in menu_ids if mid is not None}
+        if not raw:
+            return []
+
+        result = await self.db.execute(select(Menu.id, Menu.parent_id))
+        parent_by_id: Dict[int, Optional[int]] = {}
+        for mid, pid in result.all():
+            parent_by_id[int(mid)] = int(pid) if pid is not None else None
+
+        expanded: set[int] = set()
+        for mid in raw:
+            if mid not in parent_by_id:
+                logger.warning(f"菜单 id={mid} 不存在，已忽略")
+                continue
+            cur: Optional[int] = mid
+            depth = 0
+            while cur is not None and depth < 64:
+                expanded.add(cur)
+                cur = parent_by_id.get(cur)
+                depth += 1
+
+        return sorted(expanded)
     
     async def get_role_permissions(self, role_id: int) -> List[int]:
-        """
-        获取角色的菜单权限ID列表
-        
-        注意：此方法目前返回空列表，因为角色权限关联表尚未实现
-        实际项目中需要创建 role_menu 关联表来存储角色和菜单的多对多关系
-        
-        Args:
-            role_id: 角色ID
-            
-        Returns:
-            菜单ID列表
-        """
-        # TODO: 实现角色权限关联表的查询逻辑
-        # 这里暂时返回空列表，需要根据实际的关联表实现
-        logger.warning(f"get_role_permissions 方法尚未完全实现，返回空列表 (role_id={role_id})")
-        return []
+        """获取角色的菜单权限 ID 列表（roles.menu_ids JSON 字段）"""
+        role = await super().get_by_id(role_id, error_msg="角色不存在")
+        raw = role.menu_ids
+        if not raw:
+            return []
+        return [int(x) for x in raw]
     
     async def set_role_permissions(self, role_id: int, menu_ids: List[int]) -> None:
-        """
-        设置角色的菜单权限
-        
-        注意：此方法目前仅做参数验证，实际的权限关联逻辑需要实现 role_menu 关联表
-        
-        Args:
-            role_id: 角色ID
-            menu_ids: 菜单ID列表
-        """
-        # 验证角色是否存在
+        """设置角色的菜单权限（写入 roles.menu_ids，并自动并入所选菜单的全部父级 ID）"""
         role = await super().get_by_id(role_id, error_msg="角色不存在")
-        
-        # TODO: 实现角色权限关联表的更新逻辑
-        # 1. 删除该角色的所有现有权限关联
-        # 2. 批量插入新的权限关联
-        # 需要根据实际的关联表实现
-        
-        logger.warning(f"set_role_permissions 方法尚未完全实现 (role_id={role_id}, menu_ids={menu_ids})")
-        logger.info(f"角色 {role.name} (id={role_id}) 的权限设置为: {menu_ids}")
+        unique_ids = await self._expand_menu_ids_with_ancestors(menu_ids)
+        role.menu_ids = unique_ids
+        await self.db.flush()
+        logger.info(f"角色 {role.name} (id={role_id}) 的菜单权限已更新，共 {len(unique_ids)} 项（含父级）")

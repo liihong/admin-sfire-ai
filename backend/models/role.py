@@ -3,7 +3,7 @@
 后台管理员角色，关联admin_users表的role_id字段
 """
 from typing import Optional, List, TYPE_CHECKING
-from sqlalchemy import String, Integer, Index
+from sqlalchemy import String, Integer, Index, JSON
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from models.base import BaseModel
@@ -49,6 +49,13 @@ class Role(BaseModel):
         server_default="0",
         nullable=False,
         comment="排序顺序",
+    )
+
+    # 后台菜单权限：菜单表 menus.id 列表，JSON 数组；NULL 或 [] 表示未配置/无菜单
+    menu_ids: Mapped[Optional[List[int]]] = mapped_column(
+        JSON,
+        nullable=True,
+        comment="可访问的菜单ID列表（JSON数组）",
     )
     
     # === 关系定义 ===
