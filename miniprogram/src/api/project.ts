@@ -7,51 +7,25 @@
 import { request } from '@/utils/request'
 import type { Project, PersonaSettings } from '@/types/project'
 
+export type { Project, PersonaSettings }
+
 // ============== API 请求/响应类型 ==============
 
-/**
- * 创建项目请求（扁平格式，后端会自动合并到 persona_settings）
- */
-export interface ProjectCreateRequest {
+/** 与 PersonaSettings 一致的扁平字段，可与 persona_settings 同时提交 */
+type PersonaFlat = Partial<PersonaSettings>
+
+export interface ProjectCreateRequest extends PersonaFlat {
   name: string
   industry?: string
-  // 人设字段（扁平格式，后端会自动合并到 persona_settings）
-  tone?: string
-  catchphrase?: string
-  target_audience?: string
-  introduction?: string
-  keywords?: string[]
-  industry_understanding?: string
-  unique_views?: string
-  target_pains?: string
-  benchmark_accounts?: string[]
-  content_style?: string
-  taboos?: string[]
+  persona_settings?: PersonaSettings
 }
 
-/**
- * 更新项目请求（支持嵌套和扁平两种格式）
- * 后端会优先使用嵌套的 persona_settings，同时也会处理扁平字段
- */
-export interface ProjectUpdateRequest {
+export interface ProjectUpdateRequest extends PersonaFlat {
   name?: string
   industry?: string
   avatar_letter?: string
   avatar_color?: string
-  // 嵌套格式：完整的人设配置对象
   persona_settings?: PersonaSettings
-  // 扁平格式：人设字段（后端会自动合并到 persona_settings）
-  tone?: string
-  catchphrase?: string
-  target_audience?: string
-  introduction?: string
-  keywords?: string[]
-  industry_understanding?: string
-  unique_views?: string
-  target_pains?: string
-  benchmark_accounts?: string[]
-  content_style?: string
-  taboos?: string[]
 }
 
 /**
@@ -81,45 +55,33 @@ export interface IPCollectResponse {
   is_complete: boolean
 }
 
-// IP信息压缩请求
 export interface IPCompressRequest {
-  raw_info: {
-    name?: string
-    industry?: string
-    introduction?: string
-    tone?: string
-    target_audience?: string
-    catchphrase?: string
-    keywords?: string[]
-    [key: string]: unknown
-  }
+  raw_info: Record<string, unknown>
 }
 
-// IP信息压缩响应
 export interface IPCompressResponse {
   compressed_info: {
     name: string
     industry: string
-    introduction: string
-    tone: string
-    target_audience: string
-    catchphrase: string
+    ip_experience: string
+    style_tones: string
+    cl_targetPopulation: string
+    style_mantra: string
     keywords: string[]
   }
 }
 
-// IP定位报告生成请求
 export interface IPReportRequest {
   name: string
   industry: string
-  introduction?: string
-  tone?: string
-  target_audience?: string
-  target_pains?: string
+  ip_experience?: string
+  style_tones?: string
+  cl_targetPopulation?: string
+  cl_painPoints?: string
   keywords?: string[]
-  industry_understanding?: string
-  unique_views?: string
-  catchphrase?: string
+  cl_advantages?: string
+  cl_feedback?: string
+  style_mantra?: string
 }
 
 // IP定位报告内容

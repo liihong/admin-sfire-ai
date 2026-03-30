@@ -97,9 +97,7 @@ class ProjectService:
         """
         创建新项目
         
-        支持两种传参方式：
-        1. 嵌套方式: persona_settings: { tone: "xxx", introduction: "xxx" }
-        2. 扁平方式: 直接传递人设字段（与 persona_settings 字段一一对应）
+        支持嵌套 persona_settings 或与 PersonaSettings 同名的扁平字段。
         
         Args:
             user_id: 用户ID
@@ -115,16 +113,13 @@ class ProjectService:
         colors = ['#3B82F6', '#6366F1', '#8B5CF6', '#0EA5E9', '#14B8A6', '#F97316']
         avatar_color = data.avatar_color or random.choice(colors)
         
-        # 处理人设配置（支持嵌套和扁平两种方式）
-        persona_settings = {}
-        
-        # 方式1: 如果传入了嵌套的 persona_settings，直接使用
+        persona_settings: dict = {}
         if data.persona_settings:
             persona_settings = data.persona_settings.model_dump()
-        
-        # 方式2: 处理扁平化字段（与 persona_settings 字段一一对应）
         persona_settings, _ = self._merge_persona_fields(persona_settings, data)
-        
+        persona_settings["ip_name"] = data.name.strip() if data.name else ""
+        persona_settings["ip_industry"] = data.industry or "通用"
+
         project = Project(
             user_id=user_id,
             name=data.name,
@@ -155,19 +150,7 @@ class ProjectService:
         """
         persona_updated = False
         
-        # 定义扁平化字段到 persona_settings 的映射
-        persona_fields = [
-            "introduction",      # IP简介
-            "tone",              # 语气风格
-            "target_audience",   # 目标受众
-            "content_style",     # 内容风格
-            "catchphrase",       # 常用口头禅
-            "keywords",          # 常用关键词
-            "taboos",            # 内容禁忌
-            "benchmark_accounts" # 对标账号
-        ]
-        
-        for field in persona_fields:
+        for field in PersonaSettings.model_fields.keys():
             value = getattr(data, field, None)
             if value is not None:
                 current_persona[field] = value
@@ -186,9 +169,7 @@ class ProjectService:
         """
         更新项目
         
-        支持两种传参方式：
-        1. 嵌套方式: persona_settings: { tone: "xxx", introduction: "xxx" }
-        2. 扁平方式: 直接传递人设字段（与 persona_settings 字段一一对应）
+        支持嵌套 persona_settings 或与 PersonaSettings 同名的扁平字段。
         
         Args:
             project_id: 项目ID
@@ -209,7 +190,7 @@ class ProjectService:
         if data.name is not None:
             project.name = data.name
             project.avatar_letter = data.name[0].upper() if data.name else 'P'
-        
+
         if data.industry is not None:
             project.industry = data.industry
         
@@ -217,15 +198,20 @@ class ProjectService:
         current_persona = project.get_persona_settings_dict()
         persona_updated = False
         
-        # 方式1: 如果传入了嵌套的 persona_settings，直接使用
         if data.persona_settings is not None:
             current_persona = data.persona_settings.model_dump()
             persona_updated = True
-        
-        # 方式2: 处理扁平化字段（与 persona_settings 字段一一对应）
+
         current_persona, flat_updated = self._merge_persona_fields(current_persona, data)
         persona_updated = persona_updated or flat_updated
-        
+
+        if data.name is not None:
+            current_persona["ip_name"] = data.name
+            persona_updated = True
+        if data.industry is not None:
+            current_persona["ip_industry"] = data.industry
+            persona_updated = True
+
         # 如果有任何人设配置更新，保存到数据库
         if persona_updated:
             project.persona_settings = current_persona
@@ -354,189 +340,8 @@ class ProjectService:
         return user
     
     async def compress_ip_info(self, raw_info: dict) -> dict:
-        """
-        压缩IP信息到极限字数
-        
-        使用AI将收集到的IP信息压缩到以下限制：
-        - IP简介：200字以内
-        - 目标受众：50字以内
-        - 关键词：最多8个
-        - 口头禅：保持简短
-        
-        Args:
-            raw_info: 原始IP信息字典，包含：
-                - name: 项目名称
-                - industry: 赛道
-                - introduction: IP简介（可能很长）
-                - tone: 语气风格
-                - target_audience: 目标受众（可能很长）
-                - catchphrase: 口头禅
-                - keywords: 关键词列表（可能很多）
-                - 其他字段
-        
-        Returns:
-            压缩后的IP信息字典
-        """
-        from services.content import AIService
-        import json
-        
-        # 构建压缩提示词
-        compress_prompt = """你是一个IP信息压缩专家。请将用户提供的IP信息压缩到以下限制：
-- IP简介：200字以内（保留核心定位和特色）
-- 目标受众：50字以内（保留关键特征）
-- 关键词：最多8个（选择最核心的）
-- 口头禅：保持简短（如有）
+        """委托 resource 层实现（与 C 端项目服务一致）。"""
+        from services.resource.project import ProjectService as ResourceProjectService
 
-要求：
-1. 保留所有核心信息，不能丢失关键内容
-2. 语言精炼，去除冗余描述
-3. 保持原意不变
-4. 输出JSON格式，包含以下字段：name, industry, introduction, tone, target_audience, catchphrase, keywords
-
-原始信息：
-"""
-        
-        # 构建原始信息文本
-        raw_text = f"""项目名称：{raw_info.get('name', '')}
-所属赛道：{raw_info.get('industry', '')}
-IP简介：{raw_info.get('introduction', '')}
-语气风格：{raw_info.get('tone', '')}
-目标受众：{raw_info.get('target_audience', '')}
-口头禅：{raw_info.get('catchphrase', '')}
-关键词：{', '.join(raw_info.get('keywords', []))}
-"""
-        
-        # 调用AI服务进行压缩
-        ai_service = AIService(self.db)
-        messages = [
-            {"role": "system", "content": compress_prompt},
-            {"role": "user", "content": raw_text + "\n请压缩上述IP信息，输出JSON格式。"}
-        ]
-        
-        # 从环境变量读取模型配置，使用预定义的默认值
-        from core.config import settings
-        from constants.agent import DEFAULT_MODEL_ID
-        model_id = settings.AI_COLLECT_MODEL_ID or DEFAULT_MODEL_ID
-        
-        try:
-            response = await ai_service.chat(
-                messages=messages,
-                model=model_id,
-                temperature=0.3,  # 较低温度，确保输出稳定
-                max_tokens=1000
-            )
-            
-            # 提取AI回复
-            ai_reply = ""
-            if response.get("message"):
-                ai_reply = response["message"].get("content", "")
-            elif response.get("choices") and len(response["choices"]) > 0:
-                ai_reply = response["choices"][0].get("message", {}).get("content", "")
-            
-            # 尝试从回复中提取JSON
-            compressed_info = {}
-            
-            # 尝试直接解析JSON
-            try:
-                # 查找JSON代码块
-                if "```json" in ai_reply:
-                    json_start = ai_reply.find("```json") + 7
-                    json_end = ai_reply.find("```", json_start)
-                    json_str = ai_reply[json_start:json_end].strip()
-                elif "```" in ai_reply:
-                    json_start = ai_reply.find("```") + 3
-                    json_end = ai_reply.find("```", json_start)
-                    json_str = ai_reply[json_start:json_end].strip()
-                else:
-                    # 尝试直接解析整个回复
-                    json_str = ai_reply.strip()
-                
-                compressed_info = json.loads(json_str)
-            except (json.JSONDecodeError, ValueError):
-                # 如果JSON解析失败，尝试手动提取字段
-                logger.warning("AI返回的JSON解析失败，尝试手动提取")
-                compressed_info = self._extract_info_from_text(ai_reply, raw_info)
-            
-            # 验证和限制字数
-            compressed_info = self._validate_and_limit(compressed_info, raw_info)
-            
-            logger.info(f"IP信息压缩完成: {compressed_info}")
-            return compressed_info
-            
-        except Exception as e:
-            logger.error(f"AI压缩失败: {e}")
-            # 如果AI压缩失败，使用简单的截断策略
-            return self._simple_compress(raw_info)
-    
-    def _extract_info_from_text(self, text: str, raw_info: dict) -> dict:
-        """从文本中提取信息（备用方案）"""
-        import re
-        
-        result = {
-            "name": raw_info.get("name", ""),
-            "industry": raw_info.get("industry", "通用"),
-            "introduction": raw_info.get("introduction", "")[:200],
-            "tone": raw_info.get("tone", "专业亲和"),
-            "target_audience": raw_info.get("target_audience", "")[:50],
-            "catchphrase": raw_info.get("catchphrase", ""),
-            "keywords": raw_info.get("keywords", [])[:8]
-        }
-        
-        # 尝试从文本中提取字段
-        intro_match = re.search(r'IP简介[：:]\s*(.+?)(?:\n|$)', text)
-        if intro_match:
-            result["introduction"] = intro_match.group(1).strip()[:200]
-        
-        audience_match = re.search(r'目标受众[：:]\s*(.+?)(?:\n|$)', text)
-        if audience_match:
-            result["target_audience"] = audience_match.group(1).strip()[:50]
-        
-        return result
-    
-    def _validate_and_limit(self, compressed_info: dict, raw_info: dict) -> dict:
-        """验证和限制字数"""
-        # 确保 target_audience 为字符串（AI 可能返回数组）
-        def _ensure_str(val, default: str = "") -> str:
-            if val is None:
-                return default
-            if isinstance(val, str):
-                return val
-            if isinstance(val, (list, tuple)):
-                return ", ".join(str(v) for v in val if v)[:50] if val else default
-            return str(val) if val else default
-
-        raw_audience = compressed_info.get("target_audience", raw_info.get("target_audience", ""))
-        target_audience_str = _ensure_str(raw_audience, "")[:50]
-
-        # 确保所有必需字段存在
-        result = {
-            "name": compressed_info.get("name", raw_info.get("name", "")),
-            "industry": compressed_info.get("industry", raw_info.get("industry", "通用")),
-            "introduction": compressed_info.get("introduction", raw_info.get("introduction", ""))[:200],
-            "tone": compressed_info.get("tone", raw_info.get("tone", "专业亲和")),
-            "target_audience": target_audience_str,
-            "catchphrase": compressed_info.get("catchphrase", raw_info.get("catchphrase", "")),
-            "keywords": compressed_info.get("keywords", raw_info.get("keywords", []))[:8]
-        }
-        
-        # 确保keywords是列表
-        if not isinstance(result["keywords"], list):
-            if isinstance(result["keywords"], str):
-                result["keywords"] = [k.strip() for k in result["keywords"].split(",") if k.strip()][:8]
-            else:
-                result["keywords"] = []
-        
-        return result
-    
-    def _simple_compress(self, raw_info: dict) -> dict:
-        """简单的截断压缩（备用方案）"""
-        return {
-            "name": raw_info.get("name", ""),
-            "industry": raw_info.get("industry", "通用"),
-            "introduction": raw_info.get("introduction", "")[:200],
-            "tone": raw_info.get("tone", "专业亲和"),
-            "target_audience": raw_info.get("target_audience", "")[:50],
-            "catchphrase": raw_info.get("catchphrase", ""),
-            "keywords": raw_info.get("keywords", [])[:8] if isinstance(raw_info.get("keywords"), list) else []
-        }
+        return await ResourceProjectService(self.db).compress_ip_info(raw_info)
 

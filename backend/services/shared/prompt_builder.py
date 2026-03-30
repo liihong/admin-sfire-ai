@@ -243,75 +243,60 @@ class PromptBuilder:
         return max(1, tokens)  # 至少1个token
 
     @staticmethod
-    def extract_persona_prompt(persona_settings: Dict, master_prompt: Optional[str] = None) -> str:
+    def extract_persona_prompt(
+        persona_settings: Dict,
+        master_prompt: Optional[str] = None,
+        *,
+        project_name: str = "",
+        project_industry: str = "通用",
+    ) -> str:
         """
-        从 persona_settings 提取IP人设Prompt
-        
-        如果提供了 master_prompt，则优先使用 master_prompt（作为核心描述），
-        然后补充其他详细配置信息。
-
-        Args:
-            persona_settings: IP人设配置
-            master_prompt: Master Prompt（IP核心特征描述，可选）
-
-        Returns:
-            格式化的IP人设Prompt
+        从 persona_settings 提取 IP 人设 Prompt（新结构 13 键 + keywords）。
         """
-        parts = []
+        from schemas.project import normalize_persona_settings_dict
 
-        # 优先使用 Master Prompt（如果存在）
-        # 兼容历史数据：如果 master_prompt 参数为 None，则尝试从 persona_settings["master_prompt"] 取值
+        raw = persona_settings if isinstance(persona_settings, dict) else {}
+        ps = normalize_persona_settings_dict(
+            raw,
+            project_name=project_name,
+            project_industry=project_industry,
+        )
+
+        parts: List[str] = []
+
         resolved_master_prompt = ""
         if master_prompt is None:
-            legacy_master_prompt = persona_settings.get("master_prompt")
+            legacy_master_prompt = raw.get("master_prompt")
             if isinstance(legacy_master_prompt, str) and legacy_master_prompt.strip():
                 resolved_master_prompt = legacy_master_prompt.strip()
-        else:
-            if master_prompt and master_prompt.strip():
-                resolved_master_prompt = master_prompt.strip()
+        elif master_prompt and str(master_prompt).strip():
+            resolved_master_prompt = str(master_prompt).strip()
 
         if resolved_master_prompt:
             parts.append(f"## IP核心特征\n{resolved_master_prompt}")
 
-        # 基本信息
-        introduction = persona_settings.get("introduction", "")
-        if introduction:
-            parts.append(f"## 自我介绍\n{introduction}")
+        def add(title: str, val: str) -> None:
+            v = (val or "").strip()
+            if v:
+                parts.append(f"## {title}\n{v}")
 
-        # 语气风格
-        tone = persona_settings.get("tone", "")
-        if tone:
-            parts.append(f"## 语气风格\n{tone}")
+        add("名称", ps.get("ip_name", ""))
+        add("年龄", ps.get("ip_age", ""))
+        add("城市", ps.get("ip_city", ""))
+        add("行业", ps.get("ip_industry", ""))
+        add("身份标签", ps.get("ip_identityTag", ""))
+        add("经历介绍", ps.get("ip_experience", ""))
+        add("主要产品", ps.get("cl_mainProducts", ""))
+        add("目标人群", ps.get("cl_targetPopulation", ""))
+        add("人群痛点", ps.get("cl_painPoints", ""))
+        add("产品优势", ps.get("cl_advantages", ""))
+        add("客户反馈", ps.get("cl_feedback", ""))
+        add("语气风格", ps.get("style_tones", ""))
+        add("个人口头禅", ps.get("style_mantra", ""))
 
-        # 内容风格
-        content_style = persona_settings.get("content_style", "")
-        if content_style:
-            parts.append(f"## 内容风格\n{content_style}")
-
-        # 目标受众
-        target_audience = persona_settings.get("target_audience", "")
-        if target_audience:
-            parts.append(f"## 目标受众\n{target_audience}")
-
-        # 口头禅
-        catchphrase = persona_settings.get("catchphrase", "")
-        if catchphrase:
-            parts.append(f"## 口头禅\n{catchphrase}")
-
-        # 禁忌
-        taboos = persona_settings.get("taboos", [])
-        if taboos:
-            parts.append(f"## 禁忌\n{', '.join(taboos)}")
-
-        # 关键词
-        keywords = persona_settings.get("keywords", [])
-        if keywords:
-            parts.append(f"## 关键词\n{', '.join(keywords)}")
-
-        # 参考账号
-        benchmark_accounts = persona_settings.get("benchmark_accounts", [])
-        if benchmark_accounts:
-            parts.append(f"## 参考账号\n{', '.join(benchmark_accounts)}")
+        kws = ps.get("keywords") or []
+        if isinstance(kws, list) and kws:
+            parts.append(f"## 关键词\n{', '.join(str(x) for x in kws if x)}")
 
         if not parts:
             return ""

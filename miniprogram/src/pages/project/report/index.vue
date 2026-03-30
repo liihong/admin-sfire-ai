@@ -155,9 +155,14 @@
 import { ref, onMounted } from 'vue'
 import { useProjectStore } from '@/stores/project'
 import BaseHeader from '@/components/base/BaseHeader.vue'
-import ReportLoading from './components/ReportLoading.vue'
+import ReportLoading from '../components/ReportLoading.vue'
 import { createProject, generateIPReport } from '@/api/project'
-import { formDataToCreateRequest, ipCollectFormDataToProjectFormData } from '@/utils/project'
+import {
+  formDataToCreateRequest,
+  ipCollectFormDataToProjectFormData,
+  buildIPReportRequestFromCollectForm,
+  personaTagsToCreativeKeywords
+} from '@/utils/project'
 import type { IPReportResponse } from '@/api/project'
 import type { IPCollectFormData } from '@/api/project'
 
@@ -232,19 +237,7 @@ async function generateReport() {
   reportLoadingRef.value?.startStepProgress()
 
   try {
-    // 构建报告生成请求数据（必填字段使用 ?? 确保始终发送，避免 undefined 被 JSON 序列化时省略）
-    const reportRequest = {
-      name,
-      industry,
-      introduction: formData.value.introduction || '',
-      tone: formData.value.tone || '',
-      target_audience: formData.value.target_audience || '',
-      target_pains: formData.value.target_pains || '',
-      keywords: formData.value.keywords || [],
-      industry_understanding: formData.value.industry_understanding || '',
-      unique_views: formData.value.unique_views || '',
-      catchphrase: formData.value.catchphrase || ''
-    }
+    const reportRequest = buildIPReportRequestFromCollectForm(formData.value)
 
     // 调用报告生成接口
     const response = await generateIPReport(reportRequest)
@@ -258,9 +251,10 @@ async function generateReport() {
     // 报告生成成功
     reportData.value = response
 
-    // 仅用报告的人格标签更新关键词，保留用户输入的 tone/introduction/target_pains/target_audience 等
-    if (formData.value && response?.report?.persona_tags?.length) {
-      formData.value = { ...formData.value, keywords: [...response.report.persona_tags] }
+    // 用报告里的人格标签（通常 3 条）写入创作关键词 keywords
+    const creativeKws = personaTagsToCreativeKeywords(response?.report?.persona_tags)
+    if (formData.value && creativeKws.length) {
+      formData.value = { ...formData.value, keywords: creativeKws }
     }
 
   } catch (error: unknown) {

@@ -1,24 +1,27 @@
 <template>
   <view class="create-project-page">
     <!-- 顶部导航栏 -->
-    <BaseHeader title="IP信息定位调研" @back="handleClose" />
+    <BaseHeader :title="pageTitle" @back="handleClose" />
     <!-- AI智能填写对话框（全屏显示） -->
     <IPCollectDialog
-:visible="true" @close="handleClose"
-      @complete="handleAIComplete"
+      :visible="true"
+      :edit-mode="isEditMode"
+      :edit-project-id="editProjectId"
+      @close="handleClose"
+      @complete="handleEditComplete"
     />
   </view>
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import { useProjectStore } from '@/stores/project'
 import { useAuthStore } from '@/stores/auth'
-import IPCollectDialog from './components/IPCollectDialog.vue'
+import IPCollectDialog from '../components/IPCollectDialog.vue'
 import BaseHeader from '@/components/base/BaseHeader.vue'
-import { createProject } from '@/api/project'
-import { formDataToCreateRequest, ipCollectFormDataToProjectFormData } from '@/utils/project'
+import { updateProject } from '@/api/project'
+import { formDataToUpdateRequest, ipCollectFormDataToProjectFormData } from '@/utils/project'
 import type { IPCollectFormData } from '@/api/project'
 
 // Store
@@ -27,12 +30,23 @@ const authStore = useAuthStore()
 
 // 提交状态
 const isSubmitting = ref(false)
+const isEditMode = ref(false)
+const editProjectId = ref<string | null>(null)
+
+const pageTitle = computed(() =>
+  isEditMode.value ? '微调人设' : 'IP信息定位调研'
+)
 
 /**
  * 页面加载时检查登录状态
  * 如果是游客模式，友好提醒用户登录（不阻断页面）
  */
-onLoad(() => {
+onLoad((options) => {
+  if (options?.mode === 'edit' && options?.id) {
+    isEditMode.value = true
+    editProjectId.value = String(options.id)
+  }
+
   // 检查用户是否已登录
   if (!authStore.isLoggedIn) {
     uni.showModal({
@@ -64,54 +78,39 @@ function handleClose() {
 }
 
 /**
- * 处理AI采集完成，创建项目
- * 
- * 数据流转：
- * IPCollectDialog 返回 IPCollectFormData → 
- * 转换为 ProjectFormData → 
- * formDataToCreateRequest() → 
- * createProject() → 
- * ProjectModel → 
- * store
+ * 微调人设：最后一步保存，更新当前项目（不再走独立人设配置页）
  */
-async function handleAIComplete(collectedInfo: IPCollectFormData) {
-  if (isSubmitting.value) return
-  
+async function handleEditComplete(collectedInfo: IPCollectFormData) {
+  if (isSubmitting.value || !editProjectId.value) return
+
   isSubmitting.value = true
-  
+
   try {
-    // 使用工具函数将 IPCollectFormData 转换为 ProjectFormData（补充默认值）
     const formData = ipCollectFormDataToProjectFormData(collectedInfo)
-    
-    // 使用数据转换工具函数，将表单数据转换为创建请求
-    const requestData = formDataToCreateRequest(formData)
+    const requestData = formDataToUpdateRequest(formData)
+    const project = await updateProject(editProjectId.value, requestData)
 
-    // 创建项目
-    const project = await createProject(requestData)
-
-    // 更新 store 状态
     projectStore.upsertProject(project)
-
-    // 设置刷新标记，跳转后会自动刷新列表
+    if (project.id === projectStore.activeProject?.id) {
+      projectStore.setActiveProjectLocal(project)
+    }
     projectStore.setNeedRefresh(true)
-
-    // 清理store中的IP收集表单缓存（创建成功后清空）
     projectStore.clearIPCollectFormData()
 
     uni.showToast({
-      title: '创建成功',
+      title: '已更新人设',
       icon: 'success'
     })
 
-    // 跳转到项目列表页（project/index 会根据是否有激活项目显示列表或操作台）
-    // 创建完成后不自动激活，让用户在列表中选择要激活的项目
     setTimeout(() => {
-      uni.switchTab({
-        url: '/pages/project/index'
+      uni.navigateBack({
+        fail: () => {
+          uni.switchTab({ url: '/pages/project/index' })
+        }
       })
-    }, 500)
+    }, 400)
   } catch (error: unknown) {
-    const errorMessage = error instanceof Error ? error.message : '创建失败，请重试'
+    const errorMessage = error instanceof Error ? error.message : '保存失败，请重试'
     uni.showToast({
       title: errorMessage,
       icon: 'none'

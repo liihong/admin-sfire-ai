@@ -66,7 +66,7 @@
           :class="{ disabled: !canNext }"
           @tap="handleNext"
         >
-          <text class="btn-text">下一步 ❯</text>
+          <text class="btn-text">{{ nextButtonText }}</text>
         </view>
         <view 
           v-if="currentStep === 3"
@@ -74,7 +74,7 @@
           :class="{ disabled: !canComplete }"
           @tap="handleComplete"
         >
-         <text class="btn-text">生成IP定位报告 </text>
+         <text class="btn-text">{{ editMode ? '保存人设更新' : '生成IP定位报告' }}</text>
         </view>
       </view>
     </view>
@@ -114,7 +114,15 @@ import { type IPCollectFormData } from '@/api/project'
 import type { ProjectFormData } from '@/types/project'
 import { usePersonaForm } from '@/composables/usePersonaForm'
 import { useProjectStore } from '@/stores/project'
-import { formDataToIPCollectFormData, ipCollectFormDataToProjectFormData } from '@/utils/project'
+import {
+  formDataToIPCollectFormData,
+  ipCollectFormDataToProjectFormData,
+  modelToFormData,
+  buildIPReportRequestFromCollectForm,
+  personaTagsToCreativeKeywords
+} from '@/utils/project'
+import { fetchProjects, generateIPReport } from '@/api/project'
+import type { Project } from '@/types/project'
 import StepIndicator from './collect/StepIndicator.vue'
 import StepIdentity from './collect/StepIdentity.vue'
 import StepSoul from './collect/StepSoul.vue'
@@ -123,6 +131,9 @@ import StepBrain from './collect/StepBrain.vue'
 
 interface Props {
   visible: boolean
+  /** 为 true 时从项目回填表单，最后一步保存更新并 emit complete，不跳转报告页 */
+  editMode?: boolean
+  editProjectId?: string | null
 }
 
 interface Emits {
@@ -130,7 +141,11 @@ interface Emits {
   (e: 'complete', data: IPCollectFormData): void
 }
 
-const props = defineProps<Props>()
+const props = withDefaults(defineProps<Props>(), {
+  editMode: false,
+  editProjectId: null
+})
+
 const emit = defineEmits<Emits>()
 
 // Store
@@ -139,18 +154,26 @@ const projectStore = useProjectStore()
 // 步骤定义
 const steps = [
   { label: '人设定位', icon: 'account', iconType: 'u-icon' as const, key: 'identity' },
-  { label: '受众定位', icon: 'star', iconType: 'u-icon' as const, key: 'soul' },
+  { label: '商业定位', icon: 'star', iconType: 'u-icon' as const, key: 'soul' },
   { label: '风格定位', icon: 'fingerprint', iconType: 'u-icon' as const, key: 'fingerprint' },
   { label: '激活大脑', icon: 'grid', iconType: 'u-icon' as const, key: 'grid' }
 ]
+
+/** 经历介绍最少字数（第一步） */
+const MIN_IP_EXPERIENCE_LEN = 20
+
+const nextButtonText = computed(() => {
+  if (currentStep.value === 0) return '确认并进行下一步 >'
+  if (currentStep.value === 2) return '激活 AI 数字分身'
+  return '下一步 ❯'
+})
 
 // 使用 usePersonaForm 管理表单数据（创建模式）
 const {
   formData,
   industryOptions,
   toneOptions,
-  resetForm,
-  initFormData
+  resetForm
 } = usePersonaForm({
   mode: 'create',
   autoSync: false
@@ -164,8 +187,8 @@ const previewData = computed(() => {
   return {
     name: formData.name || '未命名',
     industry: formData.industry || '未选择',
-    tone: formData.tone || '未选择',
-    target_audience: formData.target_audience || '未填写',
+    style_tones: formData.style_tones || '未选择',
+    cl_targetPopulation: formData.cl_targetPopulation || '未填写',
     keywords: formData.keywords.length > 0 ? formData.keywords : []
   }
 })
@@ -174,21 +197,34 @@ const previewData = computed(() => {
 const canNext = computed(() => {
   switch (currentStep.value) {
     case 0:
-      return formData.name.trim() && formData.industry
+      return (
+        !!formData.name.trim() &&
+        !!formData.industry &&
+        formData.ip_experience.trim().length >= MIN_IP_EXPERIENCE_LEN
+      )
     case 1:
-      return formData.target_audience.trim().length > 0 &&
-        formData.target_pains.trim().length > 0
+      return (
+        !!formData.cl_mainProducts.trim() &&
+        !!formData.cl_targetPopulation.trim() &&
+        !!formData.cl_painPoints.trim()
+      )
     case 2:
-      return formData.tone &&
-        formData.introduction.trim().length >= 50
+      return !!formData.style_tones
     default:
       return false
   }
 })
 
 const canComplete = computed(() => {
-  // 最后一步只需要基本信息完整即可，关键词可选
-  return formData.name.trim() && formData.industry && formData.target_audience.trim() && formData.tone && formData.introduction.trim().length >= 50
+  return (
+    !!formData.name.trim() &&
+    !!formData.industry &&
+    formData.ip_experience.trim().length >= MIN_IP_EXPERIENCE_LEN &&
+    !!formData.cl_mainProducts.trim() &&
+    !!formData.cl_targetPopulation.trim() &&
+    !!formData.cl_painPoints.trim() &&
+    !!formData.style_tones
+  )
 })
 
 // 初始化：当对话框显示时检查缓存并初始化表单
@@ -232,26 +268,51 @@ onUnmounted(() => {
 })
 
 /**
+ * 加载待编辑的项目（列表或接口）
+ */
+async function loadEditProject(id: string): Promise<Project | null> {
+  let p = projectStore.projectList.find((item) => String(item.id) === id)
+  if (!p) {
+    try {
+      const res = await fetchProjects()
+      projectStore.setProjectList(res.projects, res.active_project_id)
+    } catch {
+      return null
+    }
+    p = projectStore.projectList.find((item) => String(item.id) === id)
+  }
+  return p || null
+}
+
+/**
  * 初始化对话框
- * 检查是否有缓存的表单数据，如果有则提示用户是否继续使用
+ * 微调模式：回填项目数据，不读写本地「未完成草稿」缓存
+ * 新建模式：检查是否有缓存的表单数据，如果有则提示用户是否继续使用
  */
 async function initDialog() {
-  // 防止重复初始化
   if (isInitialized) {
     return
   }
 
-  // 立即标记为已初始化，防止重复调用
-  isInitialized = true
-
-  // 使用 nextTick 确保在下一个事件循环中执行，避免响应式循环
   await nextTick()
 
   currentStep.value = 0
-  // 重要：先禁用自动保存，避免 resetForm() 触发自动保存覆盖缓存
   enableAutoSave.value = false
-  
-  // 检查是否有缓存的表单数据（在重置表单之前检查，避免被覆盖）
+
+  if (props.editMode && props.editProjectId) {
+    isInitialized = true
+    const project = await loadEditProject(String(props.editProjectId))
+    if (!project) {
+      uni.showToast({ title: '项目不存在', icon: 'none' })
+      emit('close')
+      return
+    }
+    Object.assign(formData, modelToFormData(project))
+    return
+  }
+
+  isInitialized = true
+
   const cachedData = projectStore.loadIPCollectFormData()
 
   if (cachedData) {
@@ -342,19 +403,21 @@ function handleNext() {
   if (!canNext.value) {
     let tipText = '请完成必填项'
     if (currentStep.value === 0 && !formData.name.trim()) {
-      tipText = '请输入项目名称'
+      tipText = '请输入名称'
     } else if (currentStep.value === 0 && !formData.industry) {
-      tipText = '请选择行业赛道'
-    } else if (currentStep.value === 1 && !formData.target_audience.trim()) {
-      tipText = '请输入目标受众'
-    } else if (currentStep.value === 1 && !formData.target_pains.trim()) {
-      tipText = '请输入目标人群痛点'
-    } else if (currentStep.value === 2 && !formData.tone) {
+      tipText = '请选择所属行业'
+    } else if (currentStep.value === 0 && formData.ip_experience.trim().length < MIN_IP_EXPERIENCE_LEN) {
+      tipText = `经历介绍至少填写 ${MIN_IP_EXPERIENCE_LEN} 字`
+    } else if (currentStep.value === 1 && !formData.cl_mainProducts.trim()) {
+      tipText = '请填写主要产品/服务'
+    } else if (currentStep.value === 1 && !formData.cl_targetPopulation.trim()) {
+      tipText = '请填写目标人群'
+    } else if (currentStep.value === 1 && !formData.cl_painPoints.trim()) {
+      tipText = '请填写目标人群痛点'
+    } else if (currentStep.value === 2 && !formData.style_tones) {
       tipText = '请选择语气风格'
-    } else if (currentStep.value === 2 && formData.introduction.trim().length < 50) {
-      tipText = 'IP概况描述至少需要50字'
     }
-    
+
     uni.showToast({
       title: tipText,
       icon: 'none'
@@ -367,25 +430,33 @@ function handleNext() {
   }
 }
 
-function handleComplete() {
+async function handleComplete() {
   if (!canComplete.value) {
+    let tip = '请完成必填项'
+    if (formData.ip_experience.trim().length < MIN_IP_EXPERIENCE_LEN) {
+      tip = `经历介绍至少填写 ${MIN_IP_EXPERIENCE_LEN} 字`
+    }
     uni.showToast({
-      title: '请完成必填项',
+      title: tip,
       icon: 'none'
     })
     return
   }
-  
-  // 使用工具函数将 formData 转换为 IPCollectFormData
+
+  if (props.editMode && props.editProjectId) {
+    // 微调不走报告页，与创建流程对齐：在保存前调用同一套 IP 报告接口，把 persona_tags 写入 keywords
+    if (formData.keywords.length === 0) {
+      await tryFillCreativeKeywordsFromReport()
+    }
+    emit('complete', formDataToIPCollectFormData(formData))
+    return
+  }
+
   const collectedData = formDataToIPCollectFormData(formData)
-  
-  // 保存表单数据到store（持久化）
-  // 注意：这里不立即清空缓存，等用户点击"注入基因库"后再清空
   projectStore.saveIPCollectFormData(collectedData)
 
-  // 跳转到报告展示页面（报告页面会调用接口生成报告）
   uni.navigateTo({
-    url: '/pages/project/report',
+    url: '/pages/project/report/index',
     success: () => {
       // 跳转成功
     },
@@ -396,6 +467,28 @@ function handleComplete() {
       })
     }
   })
+}
+
+/** 与 pages/project/report 一致：生成报告并将人格标签写入创作关键词（通常 3 条） */
+async function tryFillCreativeKeywordsFromReport() {
+  const name = formData.name.trim()
+  const industry = formData.industry.trim()
+  if (!name || !industry) return
+  uni.showLoading({ title: '生成创作关键词...', mask: true })
+  try {
+    const response = await generateIPReport(buildIPReportRequestFromCollectForm(formData))
+    const kws = personaTagsToCreativeKeywords(response?.report?.persona_tags)
+    if (kws.length) {
+      formData.keywords = kws
+    }
+  } catch {
+    uni.showToast({
+      title: '创作关键词生成失败，可稍后补充',
+      icon: 'none'
+    })
+  } finally {
+    uni.hideLoading()
+  }
 }
 
 
@@ -431,17 +524,22 @@ function isIntroductionTemplate(text: string): boolean {
  * 如果表单为空，不应该保存到缓存
  */
 function isFormEmpty(): boolean {
-  const isIntroTemplate = isIntroductionTemplate(formData.introduction)
-  // 检查关键字段是否为空，如果都是空说明用户还没有开始填写
-  // introduction 如果是模板文本，也应该视为空
-  return !formData.name.trim() &&
-    !formData.target_audience.trim() &&
-    !formData.target_pains.trim() &&
-    (isIntroTemplate || !formData.introduction.trim()) &&
+  const introEmpty =
+    !formData.ip_experience.trim() || isIntroductionTemplate(formData.ip_experience)
+  return (
+    !formData.name.trim() &&
+    !formData.cl_mainProducts.trim() &&
+    !formData.cl_targetPopulation.trim() &&
+    !formData.cl_painPoints.trim() &&
+    introEmpty &&
     formData.keywords.length === 0 &&
-    !formData.industry_understanding.trim() &&
-    !formData.unique_views.trim() &&
-    !formData.catchphrase.trim()
+    !formData.cl_advantages.trim() &&
+    !formData.cl_feedback.trim() &&
+    !formData.style_mantra.trim() &&
+    !formData.ip_age.trim() &&
+    !formData.ip_city.trim() &&
+    !formData.ip_identityTag.trim()
+  )
 }
 
 /**

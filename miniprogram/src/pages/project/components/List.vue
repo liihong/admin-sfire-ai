@@ -32,9 +32,9 @@
                 </view>
               </view>
             </view>
-            <view class="persona-preview" v-if="project.persona_settings?.tone">
+            <view class="persona-preview" v-if="project.persona_settings?.style_tones">
               <text class="preview-label">语气：</text>
-              <text class="preview-value">{{ project.persona_settings.tone }}</text>
+              <text class="preview-value">{{ project.persona_settings.style_tones }}</text>
             </view>
           </view>
 
@@ -162,17 +162,17 @@ async function handleSelectProject(project: Project) {
   }
 }
 
-// 编辑项目
+// 编辑项目：进入调研流程页回填并更新人设
 function handleEditProject(project: Project) {
   uni.navigateTo({
-    url: `/pages/project/index?id=${project.id}&edit=true`
+    url: `/pages/project/create/index?mode=edit&id=${project.id}`
   })
 }
 
 // 跳转到创建项目页面
 function navigateToCreate() {
   uni.navigateTo({
-    url: '/pages/project/create'
+    url: '/pages/project/create/index'
   })
 }
 

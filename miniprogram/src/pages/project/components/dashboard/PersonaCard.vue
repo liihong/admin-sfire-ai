@@ -46,7 +46,7 @@ interface Props {
 const props = withDefaults(defineProps<Props>(), {
   project: null,
   projectName: '',
-  tone: DEFAULT_PERSONA_SETTINGS.tone
+  tone: DEFAULT_PERSONA_SETTINGS.style_tones
 })
 
 // 从 project 对象中读取 industry，如果没有则使用默认值
@@ -61,7 +61,7 @@ const displayProjectName = computed(() => {
 
 // 从 project 对象中读取 tone，如果没有则使用传入的 tone prop
 const displayTone = computed(() => {
-  return props.project?.persona_settings?.tone || props.tone || DEFAULT_PERSONA_SETTINGS.tone
+  return props.project?.persona_settings?.style_tones || props.tone || DEFAULT_PERSONA_SETTINGS.style_tones
 })
 
 // 从 project 对象中读取 avatar_letter，如果没有则使用项目名称首字母

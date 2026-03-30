@@ -26,8 +26,10 @@
       <!-- 项目信息 -->
       <div class="info-text">
         <p><strong>行业赛道</strong> {{ project.industry }}</p>
-        <p><strong>语气风格</strong> {{ project.tone }}</p>
-        <p v-if="project.ipPersona" class="persona-text"><strong>IP人设</strong> {{ project.ipPersona }}</p>
+        <p><strong>语气风格</strong> {{ project.persona_settings?.style_tones || "—" }}</p>
+        <p v-if="project.persona_settings?.ip_experience" class="persona-text">
+          <strong>经历介绍</strong> {{ project.persona_settings.ip_experience }}
+        </p>
       </div>
 
       <!-- 底部操作区 -->

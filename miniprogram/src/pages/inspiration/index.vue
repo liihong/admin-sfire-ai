@@ -141,7 +141,7 @@ import {
 import { getBalance } from '@/api/coin'
 import { useProjectStore } from '@/stores/project'
 import InspirationItem from './components/InspirationItem.vue'
-import InspirationCard from './components/InspirationCard.vue'
+import InspirationCard from '@/components/inspiration/InspirationCard.vue'
 import BaseHeader from '@/components/base/BaseHeader.vue'
 import SvgIcon from '@/components/base/SvgIcon.vue'
 

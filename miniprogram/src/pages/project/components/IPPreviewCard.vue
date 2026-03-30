@@ -18,15 +18,15 @@
       </view>
       
       <!-- 风格标签 -->
-      <view class="info-row" v-if="data.tone && data.tone !== '未选择'">
+      <view class="info-row" v-if="data.style_tones && data.style_tones !== '未选择'">
         <text class="info-label">风格：</text>
-        <BaseTag variant="primary" size="small">{{ data.tone }}</BaseTag>
+        <BaseTag variant="primary" size="small">{{ data.style_tones }}</BaseTag>
       </view>
       
       <!-- 目标受众 -->
-      <view class="info-row" v-if="data.target_audience && data.target_audience !== '未填写'">
+      <view class="info-row" v-if="data.cl_targetPopulation && data.cl_targetPopulation !== '未填写'">
         <text class="info-label">受众：</text>
-        <text class="info-value">{{ data.target_audience }}</text>
+        <text class="info-value">{{ data.cl_targetPopulation }}</text>
       </view>
       
       <!-- 关键词 -->
@@ -56,8 +56,8 @@ import SvgIcon from '@/components/base/SvgIcon.vue'
 interface PreviewData {
   name: string
   industry: string
-  tone: string
-  target_audience: string
+  style_tones: string
+  cl_targetPopulation: string
   keywords: string[]
 }
 

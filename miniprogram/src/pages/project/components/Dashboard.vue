@@ -53,7 +53,7 @@ import PersonaCard from './dashboard/PersonaCard.vue'
 import CategoryGrid from './dashboard/CategoryGrid.vue'
 import QuickCommandGrid from './dashboard/QuickCommandGrid.vue'
 import FloatingActionButton from './FloatingActionButton.vue'
-import InspirationCard from '@/pages/inspiration/components/InspirationCard.vue'
+import InspirationCard from '@/components/inspiration/InspirationCard.vue'
 import ConversationHistory from './dashboard/ConversationHistory.vue'
 import BaseSection from '@/components/base/BaseSection.vue'
 import type { Conversation } from '@/api/conversation'
@@ -98,10 +98,10 @@ onMounted(async () => {
     console.error('[Dashboard] initProject failed:', err)
   })
 
-  // 如果是编辑模式，跳转到人设配置页面
+  // 编辑模式：进入创建/调研页回填数据，用于微调人设
   if (editMode && projectId) {
     uni.navigateTo({
-      url: `/pages/project/persona/index?id=${projectId}`
+      url: `/pages/project/create/index?mode=edit&id=${projectId}`
     })
   }
 })
@@ -136,7 +136,7 @@ function handleMicClick() {
 }
 
 /**
- * 跳转到人设配置页面
+ * 微调人设：进入 IP 调研流程页并回填当前项目数据
  */
 function navigateToPersona() {
   const id = activeProject.value?.id
@@ -145,7 +145,7 @@ function navigateToPersona() {
     return
   }
   uni.navigateTo({
-    url: `/pages/project/persona/index?id=${String(id)}`
+    url: `/pages/project/create/index?mode=edit&id=${String(id)}`
   })
 }
 

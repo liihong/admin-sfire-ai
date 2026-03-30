@@ -159,8 +159,8 @@ const currentPersonaSettings = computed(() => {
   if (!settings) return {}
   // 确保设置对象安全
   return {
-    tone: settings.tone && typeof settings.tone === 'string' ? settings.tone : undefined,
-    target_audience: settings.target_audience && typeof settings.target_audience === 'string' ? settings.target_audience : undefined
+    style_tones: settings.style_tones && typeof settings.style_tones === 'string' ? settings.style_tones : undefined,
+    cl_targetPopulation: settings.cl_targetPopulation && typeof settings.cl_targetPopulation === 'string' ? settings.cl_targetPopulation : undefined
   }
 })
 
@@ -245,7 +245,7 @@ function handleTextareaConfirm() {
 
 function goToMembership() {
   uni.navigateTo({
-    url: '/pages/mine/membership'
+    url: '/pages/mine/membership/index'
   })
 }
 

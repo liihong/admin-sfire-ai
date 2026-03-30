@@ -70,9 +70,9 @@
             <!-- 项目详情 -->
             <div class="info-text">
               <p><strong>行业赛道</strong> {{ project.industry }}</p>
-              <p v-if="project.tone"><strong>语气风格</strong> {{ project.tone }}</p>
-              <p v-if="project.introduction" class="persona-text"><strong>IP简介</strong> {{ project.introduction }}</p>
-              <p v-if="project.target_audience"><strong>目标受众</strong> {{ project.target_audience }}</p>
+              <p v-if="project.persona_settings?.style_tones"><strong>语气风格</strong> {{ project.persona_settings.style_tones }}</p>
+              <p v-if="project.persona_settings?.ip_experience" class="persona-text"><strong>经历介绍</strong> {{ project.persona_settings.ip_experience }}</p>
+              <p v-if="project.persona_settings?.cl_targetPopulation"><strong>目标人群</strong> {{ project.persona_settings.cl_targetPopulation }}</p>
             </div>
 
             <!-- 主操作按钮 -->
@@ -130,18 +130,49 @@
           </el-select>
         </el-form-item>
 
-        <!-- 人设配置 -->
-        <el-divider content-position="left">人设配置</el-divider>
-        <el-form-item label="IP简介" prop="introduction">
+        <!-- 人设配置（与小程序 persona_settings 字段一致） -->
+        <el-divider content-position="left">身份与经历</el-divider>
+        <el-form-item label="IP展示名" prop="ip_name">
+          <el-input v-model="formData.ip_name" placeholder="留空则使用项目名称" />
+        </el-form-item>
+        <el-form-item label="年龄" prop="ip_age">
+          <el-input v-model="formData.ip_age" placeholder="选填" />
+        </el-form-item>
+        <el-form-item label="城市" prop="ip_city">
+          <el-input v-model="formData.ip_city" placeholder="选填" />
+        </el-form-item>
+        <el-form-item label="身份标签" prop="ip_identityTag">
+          <el-input v-model="formData.ip_identityTag" placeholder="选填" />
+        </el-form-item>
+        <el-form-item label="经历介绍" prop="ip_experience">
           <el-input
-            v-model="formData.introduction"
+            v-model="formData.ip_experience"
             type="textarea"
             :rows="4"
-            placeholder="请输入IP简介，详细描述您的人设背景、经历、理念等"
+            placeholder="人设背景、经历、理念等"
           />
         </el-form-item>
-        <el-form-item label="语气风格" prop="tone">
-          <el-select v-model="formData.tone" placeholder="请选择语气风格" style="width: 100%">
+
+        <el-divider content-position="left">内容与人群</el-divider>
+        <el-form-item label="主要产品" prop="cl_mainProducts">
+          <el-input v-model="formData.cl_mainProducts" type="textarea" :rows="2" placeholder="选填" />
+        </el-form-item>
+        <el-form-item label="目标人群" prop="cl_targetPopulation">
+          <el-input v-model="formData.cl_targetPopulation" type="textarea" :rows="2" placeholder="选填" />
+        </el-form-item>
+        <el-form-item label="人群痛点" prop="cl_painPoints">
+          <el-input v-model="formData.cl_painPoints" type="textarea" :rows="2" placeholder="选填" />
+        </el-form-item>
+        <el-form-item label="产品优势" prop="cl_advantages">
+          <el-input v-model="formData.cl_advantages" type="textarea" :rows="2" placeholder="选填" />
+        </el-form-item>
+        <el-form-item label="客户反馈" prop="cl_feedback">
+          <el-input v-model="formData.cl_feedback" type="textarea" :rows="2" placeholder="选填" />
+        </el-form-item>
+
+        <el-divider content-position="left">风格</el-divider>
+        <el-form-item label="语气风格" prop="style_tones">
+          <el-select v-model="formData.style_tones" placeholder="请选择语气风格" style="width: 100%">
             <el-option
               v-for="item in toneOptions"
               :key="item.value"
@@ -150,65 +181,20 @@
             />
           </el-select>
         </el-form-item>
-        <el-form-item label="目标受众" prop="target_audience">
-          <el-input
-            v-model="formData.target_audience"
-            type="textarea"
-            :rows="2"
-            placeholder="请描述您的目标受众群体"
-          />
+        <el-form-item label="个人口头禅" prop="style_mantra">
+          <el-input v-model="formData.style_mantra" placeholder="如：说实话、我跟你讲" />
         </el-form-item>
-        <el-form-item label="内容风格" prop="content_style">
-          <el-input
-            v-model="formData.content_style"
-            type="textarea"
-            :rows="2"
-            placeholder="请描述您期望的内容风格"
-          />
-        </el-form-item>
-        <el-form-item label="常用口头禅" prop="catchphrase">
-          <el-input
-            v-model="formData.catchphrase"
-            placeholder="如：说实话、我跟你讲、真的等"
-          />
-        </el-form-item>
-        <el-form-item label="常用关键词" prop="keywords">
+        <el-form-item label="关键词" prop="keywords">
           <el-select
             v-model="formData.keywords"
             multiple
             filterable
             allow-create
             default-first-option
-            placeholder="输入关键词后按回车添加"
+            placeholder="输入后按回车添加"
             style="width: 100%"
           >
             <el-option v-for="kw in formData.keywords" :key="kw" :label="kw" :value="kw" />
-          </el-select>
-        </el-form-item>
-        <el-form-item label="内容禁忌" prop="taboos">
-          <el-select
-            v-model="formData.taboos"
-            multiple
-            filterable
-            allow-create
-            default-first-option
-            placeholder="输入禁忌内容后按回车添加"
-            style="width: 100%"
-          >
-            <el-option v-for="t in formData.taboos" :key="t" :label="t" :value="t" />
-          </el-select>
-        </el-form-item>
-        <el-form-item label="对标账号" prop="benchmark_accounts">
-          <el-select
-            v-model="formData.benchmark_accounts"
-            multiple
-            filterable
-            allow-create
-            default-first-option
-            placeholder="输入对标账号后按回车添加"
-            style="width: 100%"
-          >
-            <el-option v-for="acc in formData.benchmark_accounts" :key="acc" :label="acc" :value="acc" />
           </el-select>
         </el-form-item>
       </el-form>
@@ -256,8 +242,59 @@ import {
   switchMPProjectApi,
   getMPProjectOptionsApi
 } from "@/api/modules/miniprogram";
-import type { MPProject, CreateMPProjectRequest, UpdateMPProjectRequest } from "@/api/modules/miniprogram";
+import type {
+  MPProject,
+  CreateMPProjectRequest,
+  UpdateMPProjectRequest,
+  PersonaSettings
+} from "@/api/modules/miniprogram";
+import { DEFAULT_PERSONA_SETTINGS } from "@/api/modules/miniprogram";
 import dayjs from "dayjs";
+
+/** 表单 = 项目名/赛道 + 人设扁平字段 */
+type ProjectFormData = PersonaSettings & { name: string; industry: string };
+
+function emptyForm(): ProjectFormData {
+  return {
+    name: "",
+    industry: "",
+    ...DEFAULT_PERSONA_SETTINGS,
+    ip_industry: "通用"
+  };
+}
+
+function mergePersonaFromProject(project: MPProject): ProjectFormData {
+  const ps = project.persona_settings || DEFAULT_PERSONA_SETTINGS;
+  return {
+    name: project.name,
+    industry: project.industry,
+    ...DEFAULT_PERSONA_SETTINGS,
+    ...ps,
+    ip_name: ps.ip_name || project.name,
+    ip_industry: ps.ip_industry || project.industry || "通用",
+    keywords: Array.isArray(ps.keywords) ? [...ps.keywords] : []
+  };
+}
+
+function buildPersonaPayload(fd: ProjectFormData): PersonaSettings {
+  const name = fd.name.trim();
+  return {
+    ip_name: fd.ip_name?.trim() ? fd.ip_name.trim() : name,
+    ip_age: fd.ip_age?.trim() || "",
+    ip_city: fd.ip_city?.trim() || "",
+    ip_industry: fd.industry || "通用",
+    ip_identityTag: fd.ip_identityTag?.trim() || "",
+    ip_experience: fd.ip_experience?.trim() || "",
+    cl_mainProducts: fd.cl_mainProducts?.trim() || "",
+    cl_targetPopulation: fd.cl_targetPopulation?.trim() || "",
+    cl_painPoints: fd.cl_painPoints?.trim() || "",
+    cl_advantages: fd.cl_advantages?.trim() || "",
+    cl_feedback: fd.cl_feedback?.trim() || "",
+    style_tones: fd.style_tones?.trim() || "专业亲和",
+    style_mantra: fd.style_mantra?.trim() || "",
+    keywords: (fd.keywords || []).filter(k => k && String(k).trim())
+  };
+}
 
 // 头像渐变色配置
 const avatarGradients = [
@@ -287,19 +324,7 @@ const submitLoading = ref(false);
 const formRef = ref<InstanceType<typeof ElForm>>();
 const currentProject = ref<MPProject | null>(null);
 
-const formData = reactive<CreateMPProjectRequest>({
-  name: "",
-  industry: "",
-  // 人设字段
-  introduction: "",
-  tone: "",
-  target_audience: "",
-  content_style: "",
-  catchphrase: "",
-  keywords: [],
-  taboos: [],
-  benchmark_accounts: []
-});
+const formData = reactive<ProjectFormData>(emptyForm());
 
 const formRules = {
   name: [{ required: true, message: "请输入项目名称", trigger: "blur" }],
@@ -345,18 +370,7 @@ const fetchProjectOptions = async () => {
 const handleCreate = () => {
   dialogTitle.value = "创建项目";
   currentProject.value = null;
-  Object.assign(formData, {
-    name: "",
-    industry: "",
-    introduction: "",
-    tone: "",
-    target_audience: "",
-    content_style: "",
-    catchphrase: "",
-    keywords: [],
-    taboos: [],
-    benchmark_accounts: []
-  });
+  Object.assign(formData, emptyForm());
   dialogVisible.value = true;
 };
 
@@ -364,18 +378,7 @@ const handleCreate = () => {
 const handleEdit = (project: MPProject) => {
   dialogTitle.value = "编辑项目";
   currentProject.value = project;
-  Object.assign(formData, {
-    name: project.name,
-    industry: project.industry,
-    introduction: project.introduction || "",
-    tone: project.tone || "",
-    target_audience: project.target_audience || "",
-    content_style: project.content_style || "",
-    catchphrase: project.catchphrase || "",
-    keywords: project.keywords || [],
-    taboos: project.taboos || [],
-    benchmark_accounts: project.benchmark_accounts || []
-  });
+  Object.assign(formData, mergePersonaFromProject(project));
   dialogVisible.value = true;
 };
 
@@ -428,13 +431,22 @@ const handleSubmit = async () => {
 
     submitLoading.value = true;
     try {
+      const persona = buildPersonaPayload(formData);
       if (currentProject.value) {
-        // 更新项目
-        await updateMPProjectApi(Number(currentProject.value.id), formData as UpdateMPProjectRequest);
+        const payload: UpdateMPProjectRequest = {
+          name: formData.name.trim(),
+          industry: formData.industry,
+          persona_settings: persona
+        };
+        await updateMPProjectApi(Number(currentProject.value.id), payload);
         ElMessage.success("更新成功");
       } else {
-        // 创建项目
-        await createMPProjectApi(formData);
+        const payload: CreateMPProjectRequest = {
+          name: formData.name.trim(),
+          industry: formData.industry,
+          persona_settings: persona
+        };
+        await createMPProjectApi(payload);
         ElMessage.success("创建成功");
       }
       dialogVisible.value = false;
@@ -478,20 +490,20 @@ const handleAIComplete = async (collectedInfo: any) => {
         return;
       }
 
-      // 构建创建项目的请求数据（确保 target_audience 为字符串，AI 可能返回数组）
-      const toStr = (v: unknown): string =>
-        v == null ? "" : Array.isArray(v) ? v.filter(Boolean).join(", ") : String(v);
       const projectData: CreateMPProjectRequest = {
         name: compressed.name,
         industry: compressed.industry,
-        introduction: compressed.introduction || "",
-        tone: compressed.tone || "",
-        target_audience: toStr(compressed.target_audience),
-        catchphrase: compressed.catchphrase || "",
-        keywords: Array.isArray(compressed.keywords) ? compressed.keywords : []
+        persona_settings: {
+          ...DEFAULT_PERSONA_SETTINGS,
+          ip_industry: compressed.industry || "通用",
+          ip_experience: compressed.ip_experience || "",
+          style_tones: compressed.style_tones || "专业亲和",
+          cl_targetPopulation: compressed.cl_targetPopulation || "",
+          style_mantra: compressed.style_mantra || "",
+          keywords: Array.isArray(compressed.keywords) ? compressed.keywords : []
+        }
       };
 
-      // 直接创建项目
       await createMPProjectApi(projectData);
       ElMessage.success("项目创建成功");
       

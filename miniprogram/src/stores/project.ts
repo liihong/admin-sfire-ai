@@ -1,190 +1,133 @@
 /**
- * Project Store - 项目（IP）状态管理
- * 
- * 使用 Pinia 管理多项目切换和当前激活项目
- * 激活的项目ID会持久化到本地存储
+ * Project Store - 多项目与激活项目
  */
-
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import type { Project, PersonaSettings } from '@/types/project'
 import type { ProjectCreateRequest, ProjectUpdateRequest, IPCollectFormData } from '@/api/project'
 import { storage } from '@/utils/storage'
 
-// ============== 类型导出（向后兼容） ==============
-export type { Project, PersonaSettings, ProjectCreateRequest, ProjectUpdateRequest, IPCollectFormData }
+export type { Project, PersonaSettings } from '@/types/project'
+export type { ProjectCreateRequest, ProjectUpdateRequest, IPCollectFormData } from '@/api/project'
 
-// localStorage key
 const ACTIVE_PROJECT_ID_KEY = 'active_project_id'
 const IP_COLLECT_FORM_DATA_KEY = 'ip_collect_form_data'
 
-// 默认人设配置（包含所有字段，包括扩展字段）
 export const DEFAULT_PERSONA_SETTINGS: PersonaSettings = {
-  tone: '专业亲和',
-  catchphrase: '',
-  target_audience: '',
-  introduction: '',
-  keywords: [],
-  industry_understanding: '',
-  unique_views: '',
-  target_pains: '',
-  benchmark_accounts: [],
-  content_style: '',
-  taboos: []
+  ip_name: '',
+  ip_age: '',
+  ip_city: '',
+  ip_industry: '',
+  ip_identityTag: '',
+  ip_experience: '',
+  cl_mainProducts: '',
+  cl_targetPopulation: '',
+  cl_painPoints: '',
+  cl_advantages: '',
+  cl_feedback: '',
+  style_tones: '专业亲和',
+  style_mantra: '',
+  keywords: []
 }
 
-// 默认行业
 export const DEFAULT_INDUSTRY = '通用'
 
-/**
- * Project Store
- */
-export const useProjectStore = defineStore('project', () => {
-  // ============== State ==============
-  
-  // 项目列表
-  const projectList = ref<Project[]>([])
-  
-  // 当前激活的项目
-  const activeProject = ref<Project | null>(null)
-  
-  // 加载状态
-  const isLoading = ref(false)
-  
-  // 是否需要刷新列表（用于页面跳转后刷新）
-  const needRefresh = ref(false)
+export const INDUSTRY_OPTIONS = [
+  '通用', '医疗健康', '教育培训', '金融理财', '科技互联网', '电商零售', '餐饮美食',
+  '旅游出行', '房产家居', '美妆护肤', '母婴育儿', '体育健身', '娱乐影视', '游戏动漫',
+  '法律咨询', '职场成长', '情感心理', '三农乡村', '其他'
+]
 
-  // 是否需要刷新历史对话（从 AI 对话页返回工作台时刷新）
-  const needRefreshConversation = ref(false)
+export const TONE_OPTIONS = [
+  '专业亲和', '幽默风趣', '严肃正式', '温暖治愈', '犀利直接', '娓娓道来', '激情澎湃', '冷静理性'
+]
 
-  // 用户是否主动清除了激活项目（用于防止自动激活）
-  const isManuallyCleared = ref(false)
-
-  // IP收集表单数据（临时保存，用于持久化）
-  const ipCollectFormData = ref<IPCollectFormData | null>(null)
-
-  // ============== Helpers ==============
-
-  /**
-   * 兼容后端返回的扁平人设字段，确保每个项目都有 persona_settings
-   */
-  function normalizeProject(project: Project): Project {
-    // 已经有 persona_settings 的直接返回
-    if (project.persona_settings) return project
-
-    // 定义扁平项目类型（包含可能的人设字段）
-    type FlatProject = Project & Partial<PersonaSettings>
-
-    const flatProject = project as FlatProject
-
+function normalizeProject(project: Project): Project {
+  const ps = project.persona_settings
+  if (!ps) {
     project.persona_settings = {
-      tone: flatProject.tone || DEFAULT_PERSONA_SETTINGS.tone,
-      catchphrase: flatProject.catchphrase || DEFAULT_PERSONA_SETTINGS.catchphrase,
-      target_audience: flatProject.target_audience || DEFAULT_PERSONA_SETTINGS.target_audience,
-      introduction: flatProject.introduction || DEFAULT_PERSONA_SETTINGS.introduction,
-      keywords: flatProject.keywords || [...DEFAULT_PERSONA_SETTINGS.keywords],
-      industry_understanding: flatProject.industry_understanding || DEFAULT_PERSONA_SETTINGS.industry_understanding,
-      unique_views: flatProject.unique_views || DEFAULT_PERSONA_SETTINGS.unique_views,
-      target_pains: flatProject.target_pains || DEFAULT_PERSONA_SETTINGS.target_pains,
-      benchmark_accounts: flatProject.benchmark_accounts || [...DEFAULT_PERSONA_SETTINGS.benchmark_accounts],
-      content_style: flatProject.content_style || DEFAULT_PERSONA_SETTINGS.content_style,
-      taboos: flatProject.taboos || [...DEFAULT_PERSONA_SETTINGS.taboos]
+      ...DEFAULT_PERSONA_SETTINGS,
+      ip_name: project.name || '',
+      ip_industry: project.industry || DEFAULT_INDUSTRY
     }
-
     return project
   }
+  project.persona_settings = {
+    ...DEFAULT_PERSONA_SETTINGS,
+    ...ps,
+    ip_name: ps.ip_name || project.name || '',
+    ip_industry: ps.ip_industry || project.industry || DEFAULT_INDUSTRY,
+    keywords: Array.isArray(ps.keywords) ? [...ps.keywords] : []
+  }
+  return project
+}
 
-  // ============== Getters ==============
-  
-  // 是否有激活的项目
+export const useProjectStore = defineStore('project', () => {
+  const projectList = ref<Project[]>([])
+  const activeProject = ref<Project | null>(null)
+  const isLoading = ref(false)
+  const needRefresh = ref(false)
+  const needRefreshConversation = ref(false)
+  const isManuallyCleared = ref(false)
+  const ipCollectFormData = ref<IPCollectFormData | null>(null)
+
   const hasActiveProject = computed(() => !!activeProject.value)
-  
-  // 项目数量
   const projectCount = computed(() => projectList.value.length)
-  
-  // 是否有多个项目
   const hasMultipleProjects = computed(() => projectList.value.length > 1)
-  
-  // 获取当前项目的人设配置
-  const currentPersonaSettings = computed(() => {
-    return activeProject.value?.persona_settings || DEFAULT_PERSONA_SETTINGS
-  })
-  
-  // ============== Actions ==============
+  const currentPersonaSettings = computed(
+    () => activeProject.value?.persona_settings || DEFAULT_PERSONA_SETTINGS
+  )
 
-  /**
-   * 从 localStorage 读取激活的项目ID
-   */
   function getActiveProjectIdFromStorage(): string | null {
     return storage.get<string>(ACTIVE_PROJECT_ID_KEY) || null
   }
 
-  /**
-   * 保存激活的项目ID到 localStorage
-   */
   function saveActiveProjectIdToStorage(projectId: string) {
     storage.set(ACTIVE_PROJECT_ID_KEY, projectId)
   }
 
-  /**
-   * 清除 localStorage 中的激活项目ID
-   */
   function clearActiveProjectIdFromStorage() {
     storage.remove(ACTIVE_PROJECT_ID_KEY)
   }
 
-  /**
-   * 设置项目列表（由 API 调用后更新）
-   */
   function setProjectList(projects: Project[], activeProjectId?: string | number) {
-    // 统一归一化项目结构
     projectList.value = projects.map(p => normalizeProject(p))
 
-    // 如果用户主动清除了激活项目，不自动激活（即使后端返回了 activeProjectId）
     if (isManuallyCleared.value) {
-      isManuallyCleared.value = false // 重置标记
-      // 只更新列表，不设置激活项目
+      isManuallyCleared.value = false
       return
     }
 
-  // 如果有激活项目 ID，找到并设置
-    if (activeProjectId) {
-      const active = projectList.value.find(
-        p => p.id === String(activeProjectId)
-      )
+    if (activeProjectId !== undefined && activeProjectId !== null && activeProjectId !== '') {
+      const aid = String(activeProjectId)
+      const active = projectList.value.find(p => String(p.id) === aid)
       if (active) {
         activeProject.value = active
-        saveActiveProjectIdToStorage(active.id)
+        saveActiveProjectIdToStorage(String(active.id))
       }
-    } else {
-      // 如果没有传入 activeProjectId，尝试从 localStorage 读取
-      const storedProjectId = getActiveProjectIdFromStorage()
-      if (storedProjectId) {
-        const active = projectList.value.find(
-          p => p.id === storedProjectId
-        )
-        if (active) {
-          activeProject.value = active
-        } else {
-          // 如果存储的项目ID不存在于列表中，清除存储
-          clearActiveProjectIdFromStorage()
-        }
+      return
+    }
+
+    const storedId = getActiveProjectIdFromStorage()
+    if (storedId) {
+      const active = projectList.value.find(p => String(p.id) === storedId)
+      if (active) {
+        activeProject.value = active
+      } else {
+        clearActiveProjectIdFromStorage()
       }
-      
-      // 如果还是没有激活项目，且只有一个项目，自动激活
-      if (!activeProject.value && projectList.value.length === 1) {
-        activeProject.value = projectList.value[0]
-        saveActiveProjectIdToStorage(projectList.value[0].id)
-      }
+    }
+
+    if (!activeProject.value && projectList.value.length === 1) {
+      const only = projectList.value[0]
+      activeProject.value = only
+      saveActiveProjectIdToStorage(String(only.id))
     }
   }
 
-  /**
-   * 添加或更新项目到列表
-   */
   function upsertProject(project: Project) {
     const normalized = normalizeProject(project)
-    const index = projectList.value.findIndex(p => p.id === normalized.id)
+    const index = projectList.value.findIndex(p => String(p.id) === String(normalized.id))
     if (index >= 0) {
       projectList.value[index] = normalized
     } else {
@@ -192,66 +135,43 @@ export const useProjectStore = defineStore('project', () => {
     }
   }
 
-  /**
-   * 从列表中移除项目
-   */
   function removeProject(projectId: string) {
-    const index = projectList.value.findIndex(p => p.id === projectId)
+    const index = projectList.value.findIndex(p => String(p.id) === projectId)
     if (index >= 0) {
       projectList.value.splice(index, 1)
-      // 如果删除的是当前激活的项目，清空激活状态
-      if (activeProject.value?.id === projectId) {
+      if (activeProject.value && String(activeProject.value.id) === projectId) {
         activeProject.value = null
         clearActiveProjectIdFromStorage()
       }
     }
   }
 
-  /**
-   * 设置激活项目（更新本地状态并保存到 localStorage）
-   */
   function setActiveProjectLocal(project: Project) {
     const normalized = normalizeProject(project)
     activeProject.value = normalized
-    saveActiveProjectIdToStorage(normalized.id)
+    saveActiveProjectIdToStorage(String(normalized.id))
   }
 
-  /**
-   * 清除激活项目（清空激活状态和本地存储）
-   */
   function clearActiveProject() {
     activeProject.value = null
     clearActiveProjectIdFromStorage()
-    // 标记为用户主动清除，防止自动激活
     isManuallyCleared.value = true
   }
 
-  /**
-   * 清除所有项目数据（清空内存状态和本地存储）
-   */
   function clearProjects() {
     projectList.value = []
     activeProject.value = null
     clearActiveProjectIdFromStorage()
   }
 
-  /**
-   * 设置加载状态
-   */
   function setLoading(loading: boolean) {
     isLoading.value = loading
   }
-  
-  /**
-   * 设置需要刷新标记
-   */
+
   function setNeedRefresh(need: boolean) {
     needRefresh.value = need
   }
-  
-  /**
-   * 检查并清除刷新标记（返回是否需要刷新）
-   */
+
   function checkAndClearRefresh(): boolean {
     if (needRefresh.value) {
       needRefresh.value = false
@@ -260,16 +180,10 @@ export const useProjectStore = defineStore('project', () => {
     return false
   }
 
-  /**
-   * 设置需要刷新历史对话标记（从 AI 对话页返回工作台时调用）
-   */
   function setNeedRefreshConversation(need: boolean) {
     needRefreshConversation.value = need
   }
 
-  /**
-   * 检查并清除历史对话刷新标记（返回是否需要刷新）
-   */
   function checkAndClearConversationRefresh(): boolean {
     if (needRefreshConversation.value) {
       needRefreshConversation.value = false
@@ -277,64 +191,25 @@ export const useProjectStore = defineStore('project', () => {
     }
     return false
   }
-  
-  /**
-   * 生成带有人设上下文的系统提示词
-   */
+
   function getPersonaSystemPrompt(): string {
     if (!activeProject.value) return ''
-    
     const persona = activeProject.value.persona_settings
     const parts: string[] = []
-    
-    parts.push(`你现在扮演的是"${activeProject.value.name}"这个IP形象。`)
-    
-    if (persona.introduction) {
-      parts.push(`IP简介：${persona.introduction}`)
-    }
-    
-    if (persona.tone) {
-      parts.push(`语气风格：${persona.tone}`)
-    }
-    
-    if (persona.catchphrase) {
-      parts.push(`口头禅：${persona.catchphrase}`)
-    }
-    
-    if (persona.target_audience) {
-      parts.push(`目标受众：${persona.target_audience}`)
-    }
-    
-    if (persona.content_style) {
-      parts.push(`内容风格：${persona.content_style}`)
-    }
-    
-    if (persona.keywords && persona.keywords.length > 0) {
-      parts.push(`常用关键词：${persona.keywords.join('、')}`)
-    }
-    
-    if (persona.taboos && persona.taboos.length > 0) {
-      parts.push(`内容禁忌（请避免提及）：${persona.taboos.join('、')}`)
-    }
-    
+    parts.push(`你现在扮演的是「${activeProject.value.name}」这个IP形象。`)
+    if (persona.ip_experience) parts.push(`经历介绍：${persona.ip_experience}`)
+    if (persona.style_tones) parts.push(`语气风格：${persona.style_tones}`)
+    if (persona.style_mantra) parts.push(`个人口头禅：${persona.style_mantra}`)
+    if (persona.cl_targetPopulation) parts.push(`目标人群：${persona.cl_targetPopulation}`)
+    if (persona.keywords?.length) parts.push(`关键词：${persona.keywords.join('、')}`)
     return parts.join('\n')
   }
 
-  // ============== IP收集表单持久化管理 ==============
-
-  /**
-   * 保存IP收集表单数据到本地存储
-   * @param data 表单数据
-   */
   function saveIPCollectFormData(data: IPCollectFormData) {
     ipCollectFormData.value = data
     storage.set(IP_COLLECT_FORM_DATA_KEY, data)
   }
 
-  /**
-   * 从本地存储加载IP收集表单数据
-   * @returns 表单数据，如果不存在则返回null
-   */
   function loadIPCollectFormData(): IPCollectFormData | null {
     const stored = storage.get<IPCollectFormData>(IP_COLLECT_FORM_DATA_KEY)
     if (stored) {
@@ -345,37 +220,30 @@ export const useProjectStore = defineStore('project', () => {
     return null
   }
 
-  /**
-   * 检查是否有缓存的IP收集表单数据
-   * @returns 是否存在缓存数据
-   */
   function hasIPCollectFormData(): boolean {
     return storage.has(IP_COLLECT_FORM_DATA_KEY)
   }
 
-  /**
-   * 清空IP收集表单数据（包括内存和本地存储）
-   */
   function clearIPCollectFormData() {
     ipCollectFormData.value = null
     storage.remove(IP_COLLECT_FORM_DATA_KEY)
   }
 
   return {
-    // State
     projectList,
     activeProject,
     isLoading,
     needRefresh,
+    needRefreshConversation,
+    isManuallyCleared,
     ipCollectFormData,
-    
-    // Getters
     hasActiveProject,
     projectCount,
     hasMultipleProjects,
     currentPersonaSettings,
-    
-    // Actions
+    getActiveProjectIdFromStorage,
+    saveActiveProjectIdToStorage,
+    clearActiveProjectIdFromStorage,
     setProjectList,
     upsertProject,
     removeProject,
@@ -388,48 +256,9 @@ export const useProjectStore = defineStore('project', () => {
     setNeedRefreshConversation,
     checkAndClearConversationRefresh,
     getPersonaSystemPrompt,
-    
-    // IP收集表单持久化
     saveIPCollectFormData,
     loadIPCollectFormData,
     hasIPCollectFormData,
     clearIPCollectFormData
   }
 })
-
-// ============== 行业和语气选项 ==============
-
-export const INDUSTRY_OPTIONS = [
-  '通用',
-  '医疗健康',
-  '教育培训',
-  '金融理财',
-  '科技互联网',
-  '电商零售',
-  '餐饮美食',
-  '旅游出行',
-  '房产家居',
-  '美妆护肤',
-  '母婴育儿',
-  '体育健身',
-  '娱乐影视',
-  '游戏动漫',
-  '法律咨询',
-  '职场成长',
-  '情感心理',
-  '三农乡村',
-  '其他'
-]
-
-export const TONE_OPTIONS = [
-  '专业亲和',
-  '幽默风趣',
-  '严肃正式',
-  '温暖治愈',
-  '犀利直接',
-  '娓娓道来',
-  '激情澎湃',
-  '冷静理性'
-]
-
-

@@ -160,7 +160,7 @@ function goBack() {
 
 function goToMembership() {
   uni.navigateTo({
-    url: '/pages/mine/membership'
+    url: '/pages/mine/membership/index'
   })
 }
 

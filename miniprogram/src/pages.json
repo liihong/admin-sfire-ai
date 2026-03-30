@@ -14,48 +14,10 @@
       }
     },
     {
-      "path": "pages/login/index",
+      "path": "pages/project/index",
       "style": {
-        "navigationBarTitleText": "登录",
+        "navigationBarTitleText": "IP操作台",
         "navigationStyle": "custom",
-        "disableScroll": true
-      }
-    },
-    {
-      "path": "pages/login/profile",
-      "style": {
-        "navigationBarTitleText": "完善资料",
-        "disableScroll": true
-      }
-    },
-    {
-      "path": "pages/qrcode-login/index",
-      "style": {
-        "navigationBarTitleText": "扫码登录",
-        "navigationStyle": "custom",
-        "disableScroll": true
-      }
-    },
-    {
-      "path": "pages/agreement/user",
-      "style": {
-        "navigationBarTitleText": "用户协议",
-        "navigationStyle": "custom",
-        "disableScroll": false
-      }
-    },
-    {
-      "path": "pages/agreement/privacy",
-      "style": {
-        "navigationBarTitleText": "隐私政策",
-        "navigationStyle": "custom",
-        "disableScroll": false
-      }
-    },
-    {
-      "path": "pages/agent/index",
-      "style": {
-        "navigationBarTitleText": "火源文案智能体",
         "disableScroll": true
       }
     },
@@ -66,143 +28,296 @@
         "enablePullDownRefresh": true,
         "backgroundTextStyle": "dark"
       }
-    },
-    {
-      "path": "pages/mine/power/index",
-      "style": {
-        "navigationBarTitleText": "我的算力",
-        "navigationStyle": "custom",
-        "disableScroll": true
-      }
-    },
-    {
-      "path": "pages/mine/power/detail",
-      "style": {
-        "navigationBarTitleText": "算力明细",
-        "navigationStyle": "custom",
-        "disableScroll": true
-      }
-    },
-    {
-      "path": "pages/mine/power/recharge",
-      "style": {
-        "navigationBarTitleText": "充值算力",
-        "navigationStyle": "custom",
-        "disableScroll": true
-      }
-    },
-    {
-      "path": "pages/mine/membership",
-      "style": {
-        "navigationBarTitleText": "开通会员",
-        "navigationStyle": "custom",
-        "disableScroll": false
-      }
-    },
-    {
-      "path": "pages/mine/referral/index",
-      "style": {
-        "navigationBarTitleText": "我要推荐",
-        "navigationStyle": "custom",
-        "disableScroll": false
-      }
-    },
-    {
-      "path": "pages/copywriting/index",
-      "style": {
-        "navigationBarTitleText": "AI 文案生成",
-        "navigationStyle": "custom",
-        "disableScroll": true
-      }
-    },
-    {
-      "path": "pages/aichat/index",
-      "style": {
-        "navigationBarTitleText": "AI 对话",
-        "navigationStyle": "custom",
-        "disableScroll": true
-      }
-    },
-    {
-      "path": "pages/project/index",
-      "style": {
-        "navigationBarTitleText": "IP操作台",
-        "navigationStyle": "custom",
-        "disableScroll": true
-      }
-    },
-    {
-      "path": "pages/project/create",
-      "style": {
-        "navigationBarTitleText": "创建项目",
-        "navigationStyle": "custom",
-        "disableScroll": true
-      }
-    },
-    {
-      "path": "pages/project/persona/index",
-      "style": {
-        "navigationBarTitleText": "IP 人设配置",
-        "navigationStyle": "custom",
-        "disableScroll": true
-      }
-    },
-    {
-      "path": "pages/project/report",
-      "style": {
-        "navigationBarTitleText": "IP定位报告",
-        "navigationStyle": "custom",
-        "disableScroll": false
-      }
-    },
-    {
-      "path": "pages/mine/contact/index",
-      "style": {
-        "navigationBarTitleText": "联系客服",
-        "disableScroll": true
-      }
-    },
-    {
-      "path": "pages/inspiration/index",
-      "style": {
-        "navigationBarTitleText": "我的灵感",
-        "navigationStyle": "custom",
-        "disableScroll": true
-      }
-    },
-    {
-      "path": "pages/article/detail",
-      "style": {
-        "navigationBarTitleText": "文章详情",
-        "navigationStyle": "custom",
-        "disableScroll": false
-      }
-    },
-    {
-      "path": "pages/article/list",
-      "style": {
-        "navigationBarTitleText": "文章列表",
-        "navigationStyle": "custom",
-        "disableScroll": false
-      }
-    },
-    {
-      "path": "pages/hotspot/index",
-      "style": {
-        "navigationBarTitleText": "抖音热点榜单",
-        "navigationStyle": "custom",
-        "disableScroll": true
-      }
-    },
-    {
-      "path": "pages/conversation/list",
-      "style": {
-        "navigationBarTitleText": "历史对话",
-        "navigationStyle": "custom",
-        "disableScroll": true
-      }
     }
   ],
+  "subPackages": [
+    {
+      "root": "pages/login",
+      "name": "auth-login",
+      "pages": [
+        {
+          "path": "index",
+          "style": {
+            "navigationBarTitleText": "登录",
+            "navigationStyle": "custom",
+            "disableScroll": true
+          }
+        },
+        {
+          "path": "profile",
+          "style": {
+            "navigationBarTitleText": "完善资料",
+            "disableScroll": true
+          }
+        }
+      ]
+    },
+    {
+      "root": "pages/qrcode-login",
+      "name": "auth-qrcode",
+      "pages": [
+        {
+          "path": "index",
+          "style": {
+            "navigationBarTitleText": "扫码登录",
+            "navigationStyle": "custom",
+            "disableScroll": true
+          }
+        }
+      ]
+    },
+    {
+      "root": "pages/agreement",
+      "name": "agreement",
+      "pages": [
+        {
+          "path": "user",
+          "style": {
+            "navigationBarTitleText": "用户协议",
+            "navigationStyle": "custom",
+            "disableScroll": false
+          }
+        },
+        {
+          "path": "privacy",
+          "style": {
+            "navigationBarTitleText": "隐私政策",
+            "navigationStyle": "custom",
+            "disableScroll": false
+          }
+        }
+      ]
+    },
+    {
+      "root": "pages/agent",
+      "name": "agent",
+      "pages": [
+        {
+          "path": "index",
+          "style": {
+            "navigationBarTitleText": "火源文案智能体",
+            "disableScroll": true
+          }
+        }
+      ]
+    },
+    {
+      "root": "pages/mine/power",
+      "name": "mine-power",
+      "pages": [
+        {
+          "path": "index",
+          "style": {
+            "navigationBarTitleText": "我的算力",
+            "navigationStyle": "custom",
+            "disableScroll": true
+          }
+        },
+        {
+          "path": "detail",
+          "style": {
+            "navigationBarTitleText": "算力明细",
+            "navigationStyle": "custom",
+            "disableScroll": true
+          }
+        },
+        {
+          "path": "recharge",
+          "style": {
+            "navigationBarTitleText": "充值算力",
+            "navigationStyle": "custom",
+            "disableScroll": true
+          }
+        }
+      ]
+    },
+    {
+      "root": "pages/mine/referral",
+      "name": "mine-referral",
+      "pages": [
+        {
+          "path": "index",
+          "style": {
+            "navigationBarTitleText": "我要推荐",
+            "navigationStyle": "custom",
+            "disableScroll": false
+          }
+        }
+      ]
+    },
+    {
+      "root": "pages/mine/contact",
+      "name": "mine-contact",
+      "pages": [
+        {
+          "path": "index",
+          "style": {
+            "navigationBarTitleText": "联系客服",
+            "disableScroll": true
+          }
+        }
+      ]
+    },
+    {
+      "root": "pages/mine/membership",
+      "name": "mine-membership",
+      "pages": [
+        {
+          "path": "index",
+          "style": {
+            "navigationBarTitleText": "开通会员",
+            "navigationStyle": "custom",
+            "disableScroll": false
+          }
+        }
+      ]
+    },
+    {
+      "root": "pages/project/create",
+      "name": "project-create",
+      "pages": [
+        {
+          "path": "index",
+          "style": {
+            "navigationBarTitleText": "创建项目",
+            "navigationStyle": "custom",
+            "disableScroll": true
+          }
+        }
+      ]
+    },
+    {
+      "root": "pages/project/report",
+      "name": "project-report",
+      "pages": [
+        {
+          "path": "index",
+          "style": {
+            "navigationBarTitleText": "IP定位报告",
+            "navigationStyle": "custom",
+            "disableScroll": false
+          }
+        }
+      ]
+    },
+    {
+      "root": "pages/copywriting",
+      "name": "copywriting",
+      "pages": [
+        {
+          "path": "index",
+          "style": {
+            "navigationBarTitleText": "AI 文案生成",
+            "navigationStyle": "custom",
+            "disableScroll": true
+          }
+        }
+      ]
+    },
+    {
+      "root": "pages/aichat",
+      "name": "aichat",
+      "pages": [
+        {
+          "path": "index",
+          "style": {
+            "navigationBarTitleText": "AI 对话",
+            "navigationStyle": "custom",
+            "disableScroll": true
+          }
+        }
+      ]
+    },
+    {
+      "root": "pages/inspiration",
+      "name": "inspiration",
+      "pages": [
+        {
+          "path": "index",
+          "style": {
+            "navigationBarTitleText": "我的灵感",
+            "navigationStyle": "custom",
+            "disableScroll": true
+          }
+        }
+      ]
+    },
+    {
+      "root": "pages/article",
+      "name": "article",
+      "pages": [
+        {
+          "path": "detail",
+          "style": {
+            "navigationBarTitleText": "文章详情",
+            "navigationStyle": "custom",
+            "disableScroll": false
+          }
+        },
+        {
+          "path": "list",
+          "style": {
+            "navigationBarTitleText": "文章列表",
+            "navigationStyle": "custom",
+            "disableScroll": false
+          }
+        }
+      ]
+    },
+    {
+      "root": "pages/hotspot",
+      "name": "hotspot",
+      "pages": [
+        {
+          "path": "index",
+          "style": {
+            "navigationBarTitleText": "抖音热点榜单",
+            "navigationStyle": "custom",
+            "disableScroll": true
+          }
+        }
+      ]
+    },
+    {
+      "root": "pages/conversation",
+      "name": "conversation",
+      "pages": [
+        {
+          "path": "list",
+          "style": {
+            "navigationBarTitleText": "历史对话",
+            "navigationStyle": "custom",
+            "disableScroll": true
+          }
+        }
+      ]
+    }
+  ],
+  "preloadRule": {
+    "pages/index/index": {
+      "network": "all",
+      "packages": ["article", "agent", "copywriting"]
+    },
+    "pages/project/index": {
+      "network": "all",
+      "packages": [
+        "project-create",
+        "project-report",
+        "conversation",
+        "aichat"
+      ]
+    },
+    "pages/mine/index": {
+      "network": "all",
+      "packages": [
+        "mine-power",
+        "mine-referral",
+        "mine-contact",
+        "mine-membership",
+        "auth-login"
+      ]
+    }
+  },
   "globalStyle": {
     "navigationBarTextStyle": "black",
     "navigationBarTitleText": "火源文案",

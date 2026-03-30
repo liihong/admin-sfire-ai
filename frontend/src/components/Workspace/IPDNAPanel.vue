@@ -34,9 +34,10 @@ const projectAvatar = computed(() => {
 
 const projectPosition = computed(() => {
   if (!project.value) return "请选择 IP";
-  const parts = [];
+  const parts: string[] = [];
   if (project.value.industry) parts.push(project.value.industry);
-  if (project.value.tone) parts.push(project.value.tone);
+  const tone = project.value.persona_settings?.style_tones;
+  if (tone) parts.push(tone);
   return parts.join(" · ") || "IP 定位";
 });
 </script>

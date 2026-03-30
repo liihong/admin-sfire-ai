@@ -142,35 +142,54 @@ export const changePasswordApi = (params: ChangePasswordRequest) => {
 // ============== 项目管理相关 ==============
 
 /**
- * 人设配置（对应后端 persona_settings JSON 字段）
+ * 人设配置（与后端 PersonaSettings / 小程序 persona_settings 一致）
  */
 export interface PersonaSettings {
-  introduction: string; // IP简介
-  tone: string; // 语气风格
-  target_audience: string; // 目标受众
-  content_style: string; // 内容风格
-  catchphrase: string; // 常用口头禅
-  keywords: string[]; // 常用关键词
-  taboos: string[]; // 内容禁忌
-  benchmark_accounts: string[]; // 对标账号
+  ip_name: string;
+  ip_age: string;
+  ip_city: string;
+  ip_industry: string;
+  ip_identityTag: string;
+  ip_experience: string;
+  cl_mainProducts: string;
+  cl_targetPopulation: string;
+  cl_painPoints: string;
+  cl_advantages: string;
+  cl_feedback: string;
+  style_tones: string;
+  style_mantra: string;
+  keywords: string[];
 }
 
+/** 新人设表单默认值（与小程序一致） */
+export const DEFAULT_PERSONA_SETTINGS: PersonaSettings = {
+  ip_name: "",
+  ip_age: "",
+  ip_city: "",
+  ip_industry: "",
+  ip_identityTag: "",
+  ip_experience: "",
+  cl_mainProducts: "",
+  cl_targetPopulation: "",
+  cl_painPoints: "",
+  cl_advantages: "",
+  cl_feedback: "",
+  style_tones: "专业亲和",
+  style_mantra: "",
+  keywords: []
+};
+
 /**
- * 项目信息
+ * 项目信息（人设仅在 persona_settings 中）
  */
 export interface MPProject {
-  id: number; // 统一为 number 类型
+  id: number;
   name: string;
   industry: string;
-  // 人设字段（扁平化，与 persona_settings 对应）
-  introduction: string; // IP简介
-  tone: string; // 语气风格
-  target_audience: string; // 目标受众
-  content_style: string; // 内容风格
-  catchphrase: string; // 常用口头禅
-  keywords: string[]; // 常用关键词
-  taboos: string[]; // 内容禁忌
-  benchmark_accounts: string[]; // 对标账号
+  avatar_letter?: string;
+  avatar_color?: string;
+  /** 列表/详情接口应始终返回；兼容旧数据时可缺省 */
+  persona_settings?: PersonaSettings;
   isActive: boolean;
   createdAt: string;
   updatedAt: string;
@@ -194,37 +213,21 @@ export interface MPProjectSingleResponse {
 }
 
 /**
- * 创建项目请求（包含完整人设字段）
+ * 创建项目请求
  */
 export interface CreateMPProjectRequest {
   name: string;
   industry: string;
-  // 人设字段（与 persona_settings 对应）
-  introduction?: string; // IP简介
-  tone?: string; // 语气风格
-  target_audience?: string; // 目标受众
-  content_style?: string; // 内容风格
-  catchphrase?: string; // 常用口头禅
-  keywords?: string[]; // 常用关键词
-  taboos?: string[]; // 内容禁忌
-  benchmark_accounts?: string[]; // 对标账号
+  persona_settings: PersonaSettings;
 }
 
 /**
- * 更新项目请求（包含完整人设字段）
+ * 更新项目请求
  */
 export interface UpdateMPProjectRequest {
   name?: string;
   industry?: string;
-  // 人设字段（与 persona_settings 对应）
-  introduction?: string; // IP简介
-  tone?: string; // 语气风格
-  target_audience?: string; // 目标受众
-  content_style?: string; // 内容风格
-  catchphrase?: string; // 常用口头禅
-  keywords?: string[]; // 常用关键词
-  taboos?: string[]; // 内容禁忌
-  benchmark_accounts?: string[]; // 对标账号
+  persona_settings: PersonaSettings;
 }
 
 /**
@@ -789,10 +792,10 @@ export interface IPCompressRequest {
   raw_info: {
     name?: string;
     industry?: string;
-    introduction?: string;
-    tone?: string;
-    target_audience?: string;
-    catchphrase?: string;
+    ip_experience?: string;
+    style_tones?: string;
+    cl_targetPopulation?: string;
+    style_mantra?: string;
     keywords?: string[];
     [key: string]: any;
   };
@@ -805,10 +808,10 @@ export interface IPCompressResponse {
   compressed_info: {
     name: string;
     industry: string;
-    introduction: string;
-    tone: string;
-    target_audience: string;
-    catchphrase: string;
+    ip_experience: string;
+    style_tones: string;
+    cl_targetPopulation: string;
+    style_mantra: string;
     keywords: string[];
   };
 }

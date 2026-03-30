@@ -36,17 +36,17 @@
         </text>
         <text class="info-value">{{ project.industry }}</text>
       </view>
-      <view class="info-row" v-if="personaSettings.tone">
+      <view class="info-row" v-if="personaSettings.style_tones">
         <text class="info-label">
           <SvgIcon name="tone" size="20" color="#666" /> 风格标签
         </text>
-        <text class="info-value">{{ formatStyleTags(personaSettings.tone) }}</text>
+        <text class="info-value">{{ formatStyleTags(personaSettings.style_tones) }}</text>
       </view>
-      <view class="info-row" v-if="personaSettings.target_audience">
+      <view class="info-row" v-if="personaSettings.cl_targetPopulation">
         <text class="info-label">
           <SvgIcon name="target_audience" size="20" color="#666" /> 目标受众
         </text>
-        <text class="info-value">{{ personaSettings.target_audience }}</text>
+        <text class="info-value">{{ personaSettings.cl_targetPopulation }}</text>
       </view> 
      </view>-->
 
@@ -87,8 +87,8 @@ interface Project {
 }
 
 interface PersonaSettings {
-  tone?: string
-  target_audience?: string
+  style_tones?: string
+  cl_targetPopulation?: string
 }
 
 interface Props {

@@ -107,10 +107,10 @@ interface Emits {
 interface CollectedIPInfo {
   name?: string;
   industry?: string;
-  introduction?: string;
-  tone?: string;
-  target_audience?: string;
-  catchphrase?: string;
+  ip_experience?: string;
+  style_tones?: string;
+  cl_targetPopulation?: string;
+  style_mantra?: string;
   keywords?: string[];
   [key: string]: any;
 }

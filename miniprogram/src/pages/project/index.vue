@@ -131,7 +131,7 @@ function handleProjectSelected() {
  */
 function navigateToCreate() {
   uni.navigateTo({
-    url: '/pages/project/create'
+    url: '/pages/project/create/index'
   })
 }
 

@@ -291,7 +291,7 @@ const goToRecharge = () => {
 // 跳转到开通会员页面
 const goToMembership = () => {
   uni.navigateTo({
-    url: '/pages/mine/membership'
+    url: '/pages/mine/membership/index'
   })
 }
 

@@ -383,7 +383,9 @@ class AgentBusinessService:
             # 仅使用 persona_settings 构建人设提示，不使用 master_prompt
             persona_prompt = PromptBuilder.extract_persona_prompt(
                 project.persona_settings or {},
-                master_prompt=""
+                master_prompt="",
+                project_name=project.name or "",
+                project_industry=project.industry or "通用",
             )
             logger.debug(f"已注入IP基因: 项目={project.name}")
             return persona_prompt

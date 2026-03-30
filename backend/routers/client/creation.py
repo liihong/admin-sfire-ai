@@ -760,7 +760,9 @@ async def generate_chat(
                 # 始终提取补充人设配置（语气、禁忌、关键词等），排除 master_prompt 仅保留补充信息
                 ip_persona_prompt = PromptBuilder.extract_persona_prompt(
                     project.persona_settings or {},
-                    master_prompt="",  # 显式排除核心人设，只保留补充人设
+                    master_prompt="",
+                    project_name=project.name or "",
+                    project_industry=project.industry or "通用",
                 )
 
         # 2. 获取用户最新消息作为prompt

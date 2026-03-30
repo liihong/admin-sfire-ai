@@ -119,9 +119,7 @@ class ProjectService:
         """
         创建新项目（带权限检查和并发控制）
         
-        支持两种传参方式：
-        1. 嵌套方式: persona_settings: { tone: "xxx", introduction: "xxx" }
-        2. 扁平方式: 直接传递人设字段（与 persona_settings 字段一一对应）
+        支持嵌套 persona_settings 或与 PersonaSettings 同名的扁平字段。
         
         并发安全：
         - 使用数据库事务+SELECT FOR UPDATE锁定用户记录
@@ -170,16 +168,13 @@ class ProjectService:
         colors = ['#3B82F6', '#6366F1', '#8B5CF6', '#0EA5E9', '#14B8A6', '#F97316']
         avatar_color = data.avatar_color or random.choice(colors)
         
-        # 处理人设配置（支持嵌套和扁平两种方式）
-        persona_settings = {}
-        
-        # 方式1: 如果传入了嵌套的 persona_settings，直接使用
+        persona_settings: dict = {}
         if data.persona_settings:
             persona_settings = data.persona_settings.model_dump()
-        
-        # 方式2: 处理扁平化字段（与 persona_settings 字段一一对应）
         persona_settings, _ = self._merge_persona_fields(persona_settings, data)
-        
+        persona_settings["ip_name"] = data.name.strip() if data.name else ""
+        persona_settings["ip_industry"] = data.industry or "通用"
+
         project = Project(
             user_id=user_id,
             name=data.name,
@@ -214,22 +209,7 @@ class ProjectService:
         """
         persona_updated = False
         
-        # 定义扁平化字段到 persona_settings 的映射
-        persona_fields = [
-            "introduction",           # IP简介
-            "tone",                   # 语气风格
-            "target_audience",        # 目标受众
-            "content_style",          # 内容风格
-            "catchphrase",            # 常用口头禅
-            "keywords",               # 常用关键词
-            "taboos",                 # 内容禁忌
-            "benchmark_accounts",     # 对标账号
-            "industry_understanding", # 行业理解（扩展字段）
-            "unique_views",           # 独特观点（扩展字段）
-            "target_pains",           # 目标人群痛点（扩展字段）
-        ]
-        
-        for field in persona_fields:
+        for field in PersonaSettings.model_fields.keys():
             value = getattr(data, field, None)
             if value is not None:
                 current_persona[field] = value
@@ -248,9 +228,7 @@ class ProjectService:
         """
         更新项目
         
-        支持两种传参方式：
-        1. 嵌套方式: persona_settings: { tone: "xxx", introduction: "xxx" }
-        2. 扁平方式: 直接传递人设字段（与 persona_settings 字段一一对应）
+        支持嵌套 persona_settings 或与 PersonaSettings 同名的扁平字段。
         
         Args:
             project_id: 项目ID
@@ -297,15 +275,20 @@ class ProjectService:
                 del current_persona["master_prompt"]
             persona_updated = True
         
-        # 方式2: 处理扁平化字段（与 persona_settings 字段一一对应）
         current_persona, flat_updated = self._merge_persona_fields(current_persona, data)
         persona_updated = persona_updated or flat_updated
-        
-        # 确保从 persona_settings 中移除 master_prompt（如果存在），因为它是独立字段
+
+        if data.name is not None:
+            current_persona["ip_name"] = data.name
+            persona_updated = True
+        if data.industry is not None:
+            current_persona["ip_industry"] = data.industry
+            persona_updated = True
+
         if "master_prompt" in current_persona:
             del current_persona["master_prompt"]
             persona_updated = True
-        
+
         # 如果有任何人设配置更新，保存到数据库
         if persona_updated:
             project.persona_settings = current_persona
@@ -434,56 +417,48 @@ class ProjectService:
         return user
     
     async def compress_ip_info(self, raw_info: dict) -> dict:
-        """
-        压缩IP信息到极限字数
-        
-        使用AI将收集到的IP信息压缩到以下限制：
-        - IP简介：200字以内
-        - 目标受众：50字以内
-        - 关键词：最多8个
-        - 口头禅：保持简短
-        
-        Args:
-            raw_info: 原始IP信息字典，包含：
-                - name: 项目名称
-                - industry: 赛道
-                - introduction: IP简介（可能很长）
-                - tone: 语气风格
-                - target_audience: 目标受众（可能很长）
-                - catchphrase: 口头禅
-                - keywords: 关键词列表（可能很多）
-                - 其他字段
-        
-        Returns:
-            压缩后的IP信息字典
-        """
+        """压缩 IP 信息；输出字段与 persona 新结构一致（含 ip_experience 等）。"""
         from services.content import AIService
         import json
-        
-        # 构建压缩提示词
-        compress_prompt = """你是一个IP信息压缩专家。请将用户提供的IP信息压缩到以下限制：
-- IP简介：200字以内（保留核心定位和特色）
-- 目标受众：50字以内（保留关键特征）
-- 关键词：最多8个（选择最核心的）
-- 口头禅：保持简短（如有）
 
-要求：
-1. 保留所有核心信息，不能丢失关键内容
-2. 语言精炼，去除冗余描述
-3. 保持原意不变
-4. 输出JSON格式，包含以下字段：name, industry, introduction, tone, target_audience, catchphrase, keywords
+        def _txt(d: dict, *keys: str) -> str:
+            for k in keys:
+                v = d.get(k)
+                if v is None:
+                    continue
+                if isinstance(v, str) and v.strip():
+                    return v
+                if not isinstance(v, str) and v:
+                    return str(v)
+            return ""
+
+        ip_exp = _txt(raw_info, "ip_experience")
+        style_tones = _txt(raw_info, "style_tones") or "专业亲和"
+        cl_tgt = _txt(raw_info, "cl_targetPopulation")
+        mantra = _txt(raw_info, "style_mantra")
+        kws = raw_info.get("keywords") or []
+        if not isinstance(kws, list):
+            kws = []
+
+        compress_prompt = """你是一个IP信息压缩专家。请将用户提供的IP信息压缩到以下限制：
+- 经历介绍 ip_experience：200字以内
+- 目标人群 cl_targetPopulation：50字以内
+- 关键词 keywords：最多8个
+- 语气风格 style_tones、个人口头禅 style_mantra：保持简短
+
+要求：保留核心信息；输出严格 JSON，字段为：
+name, industry, ip_experience, style_tones, cl_targetPopulation, style_mantra, keywords
 
 原始信息：
 """
-        
-        # 构建原始信息文本
+
         raw_text = f"""项目名称：{raw_info.get('name', '')}
 所属赛道：{raw_info.get('industry', '')}
-IP简介：{raw_info.get('introduction', '')}
-语气风格：{raw_info.get('tone', '')}
-目标受众：{raw_info.get('target_audience', '')}
-口头禅：{raw_info.get('catchphrase', '')}
-关键词：{', '.join(raw_info.get('keywords', []))}
+经历介绍：{ip_exp}
+语气风格：{style_tones}
+目标人群：{cl_tgt}
+个人口头禅：{mantra}
+关键词：{', '.join(str(x) for x in kws if x)}
 """
         
         # 调用AI服务进行压缩
@@ -551,72 +526,96 @@ IP简介：{raw_info.get('introduction', '')}
     def _extract_info_from_text(self, text: str, raw_info: dict) -> dict:
         """从文本中提取信息（备用方案）"""
         import re
-        
+
+        ip_exp = (raw_info.get("ip_experience") or "")[:200]
+        cl_tgt = (raw_info.get("cl_targetPopulation") or "")[:50]
+
         result = {
             "name": raw_info.get("name", ""),
             "industry": raw_info.get("industry", "通用"),
-            "introduction": raw_info.get("introduction", "")[:200],
-            "tone": raw_info.get("tone", "专业亲和"),
-            "target_audience": raw_info.get("target_audience", "")[:50],
-            "catchphrase": raw_info.get("catchphrase", ""),
-            "keywords": raw_info.get("keywords", [])[:8]
+            "ip_experience": ip_exp,
+            "style_tones": (raw_info.get("style_tones") or "专业亲和")[:50],
+            "cl_targetPopulation": cl_tgt,
+            "style_mantra": raw_info.get("style_mantra") or "",
+            "keywords": (raw_info.get("keywords") or [])[:8],
         }
-        
-        # 尝试从文本中提取字段
-        intro_match = re.search(r'IP简介[：:]\s*(.+?)(?:\n|$)', text)
+
+        intro_match = re.search(r'经历介绍[：:]\s*(.+?)(?:\n|$)', text)
         if intro_match:
-            result["introduction"] = intro_match.group(1).strip()[:200]
-        
-        audience_match = re.search(r'目标受众[：:]\s*(.+?)(?:\n|$)', text)
+            result["ip_experience"] = intro_match.group(1).strip()[:200]
+        intro_match2 = re.search(r'IP简介[：:]\s*(.+?)(?:\n|$)', text)
+        if intro_match2 and not result["ip_experience"]:
+            result["ip_experience"] = intro_match2.group(1).strip()[:200]
+
+        audience_match = re.search(r'目标人群[：:]\s*(.+?)(?:\n|$)', text)
         if audience_match:
-            result["target_audience"] = audience_match.group(1).strip()[:50]
-        
+            result["cl_targetPopulation"] = audience_match.group(1).strip()[:50]
+        audience_match2 = re.search(r'目标受众[：:]\s*(.+?)(?:\n|$)', text)
+        if audience_match2 and not result["cl_targetPopulation"]:
+            result["cl_targetPopulation"] = audience_match2.group(1).strip()[:50]
+
         return result
-    
+
     def _validate_and_limit(self, compressed_info: dict, raw_info: dict) -> dict:
         """验证和限制字数"""
-        # 确保 target_audience 为字符串（AI 可能返回数组）
-        def _ensure_str(val, default: str = "") -> str:
+
+        def _ensure_str(val, default: str = "", max_len: int = 500) -> str:
             if val is None:
                 return default
             if isinstance(val, str):
-                return val
-            if isinstance(val, (list, tuple)):
-                return ", ".join(str(v) for v in val if v)[:50] if val else default
-            return str(val) if val else default
+                s = val
+            elif isinstance(val, (list, tuple)):
+                s = ", ".join(str(v) for v in val if v) if val else default
+            else:
+                s = str(val) if val else default
+            return s[:max_len] if len(s) > max_len else s
 
-        raw_audience = compressed_info.get("target_audience", raw_info.get("target_audience", ""))
-        target_audience_str = _ensure_str(raw_audience, "")[:50]
+        def _pick(ci: dict, ri: dict, *keys: str) -> str:
+            for d in (ci, ri):
+                for k in keys:
+                    if k in d and d[k] is not None and str(d[k]).strip():
+                        return _ensure_str(d[k], "", 500)
+            return ""
 
-        # 确保所有必需字段存在
-        result = {
+        ip_exp = _pick(compressed_info, raw_info, "ip_experience")[:200]
+        cl_pop = _pick(compressed_info, raw_info, "cl_targetPopulation")[:50]
+        tones = _pick(compressed_info, raw_info, "style_tones") or "专业亲和"
+        mantra = _pick(compressed_info, raw_info, "style_mantra")[:100]
+
+        kws = compressed_info.get("keywords", raw_info.get("keywords", []))[:8]
+        if not isinstance(kws, list):
+            if isinstance(kws, str):
+                kws = [x.strip() for x in kws.split(",") if x.strip()][:8]
+            else:
+                kws = []
+
+        return {
             "name": compressed_info.get("name", raw_info.get("name", "")),
             "industry": compressed_info.get("industry", raw_info.get("industry", "通用")),
-            "introduction": compressed_info.get("introduction", raw_info.get("introduction", ""))[:200],
-            "tone": compressed_info.get("tone", raw_info.get("tone", "专业亲和")),
-            "target_audience": target_audience_str,
-            "catchphrase": compressed_info.get("catchphrase", raw_info.get("catchphrase", "")),
-            "keywords": compressed_info.get("keywords", raw_info.get("keywords", []))[:8]
+            "ip_experience": ip_exp,
+            "style_tones": tones[:50],
+            "cl_targetPopulation": cl_pop,
+            "style_mantra": mantra,
+            "keywords": kws,
         }
-        
-        # 确保keywords是列表
-        if not isinstance(result["keywords"], list):
-            if isinstance(result["keywords"], str):
-                result["keywords"] = [k.strip() for k in result["keywords"].split(",") if k.strip()][:8]
-            else:
-                result["keywords"] = []
-        
-        return result
-    
+
     def _simple_compress(self, raw_info: dict) -> dict:
         """简单的截断压缩（备用方案）"""
+        def g(key: str) -> str:
+            v = raw_info.get(key)
+            return str(v).strip() if v is not None and str(v).strip() else ""
+
+        kws = raw_info.get("keywords") or []
+        if not isinstance(kws, list):
+            kws = []
+        st = g("style_tones") or "专业亲和"
         return {
             "name": raw_info.get("name", ""),
             "industry": raw_info.get("industry", "通用"),
-            "introduction": raw_info.get("introduction", "")[:200],
-            "tone": raw_info.get("tone", "专业亲和"),
-            "target_audience": raw_info.get("target_audience", "")[:50],
-            "catchphrase": raw_info.get("catchphrase", ""),
-            "keywords": raw_info.get("keywords", [])[:8] if isinstance(raw_info.get("keywords"), list) else []
+            "ip_experience": g("ip_experience")[:200],
+            "style_tones": st[:50],
+            "cl_targetPopulation": g("cl_targetPopulation")[:50],
+            "style_mantra": g("style_mantra")[:100],
+            "keywords": kws[:8],
         }
 

@@ -149,7 +149,9 @@ async def build_execution_prompt(
             # 仅使用 persona_settings 构建人设提示，不使用 master_prompt
             persona_prompt = PromptBuilder.extract_persona_prompt(
                 project.persona_settings or {},
-                master_prompt=""
+                master_prompt="",
+                project_name=project.name or "",
+                project_industry=project.industry or "通用",
             )
     
     # 调用路由模块

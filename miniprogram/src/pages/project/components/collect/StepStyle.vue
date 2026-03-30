@@ -1,69 +1,41 @@
 <template>
- <scroll-view class="step-content" scroll-y :enhanced="true" :enable-passive="true">
+  <scroll-view class="step-content" scroll-y :enhanced="true" :enable-passive="true">
     <view class="step-wrapper">
-     <TipCard title="定义风格" desc="设定IP的语气风格，帮助AI更好地理解您的IP特色" />
-      
-      <!-- 语气风格选择 -->
-      <view class="form-section">
-        <text class="form-label">语气风格</text>
-        <view class="option-buttons">
-          <view
-            v-for="item in toneOptions"
-            :key="item.value"
-            class="option-btn"
-            :class="{ selected: formData.tone === item.value }"
-            @tap="handleSelect('tone', item.value)"
-          >
-            <text class="option-text">{{ item.label }}</text>
-          </view>
-        </view>
-      </view>
-      
-      <!-- IP概况描述 -->
-      <view class="form-section">
-        <text class="form-label">IP概况描述 <text class="required-mark">*</text></text>
-        <textarea 
-          class="form-textarea"
-          :value="formData.introduction"
-          @input="handleInput('introduction', $event)"
-          placeholder="请详细描述您的IP定位、特色、核心价值等（至少50字）"
-          maxlength="500"
-          :auto-height="true"
-          :adjust-position="true"
-          :cursor-spacing="20"
-          :hold-keyboard="false"
-          :show-confirm-bar="false"
-        />
-        <view class="char-count">{{ formData.introduction.length }}/500</view>
-      </view>
-      
-      <!-- 口头禅输入 -->
-      <view class="form-section">
-        <text class="form-label">口头禅（可选）</text>
-        <input 
-          class="form-input"
-          :value="formData.catchphrase"
-          @input="handleInput('catchphrase', $event)"
-          placeholder="例如：今天也要加油呀"
-          maxlength="20"
-        />
+      <view class="step-header">
       </view>
 
+      <view class="form-card">
+        <view class="form-section">
+          <text class="form-label">语气风格（单选） <text class="required-mark">*</text></text>
+          <text class="form-sub">设定IP的语气风格，帮助AI更好地理解您的IP特色</text>
+          <view class="tone-grid">
+            <view v-for="item in toneOptions" :key="item.value" class="tone-chip"
+              :class="{ selected: formData.style_tones === item.value }" @tap="handleSelect('style_tones', item.value)">
+              <text v-if="formData.style_tones === item.value" class="tone-check">✓</text>
+              <text class="tone-text">{{ item.label }}</text>
+            </view>
+          </view>
+        </view>
+
+        <view class="form-section">
+          <text class="form-label">个人口头禅（可选）</text>
+          <input class="form-input" :value="formData.style_mantra" placeholder="例如：加油呀，姐妹们" maxlength="40"
+            @input="handleInput('style_mantra', $event)" />
+        </view>
+      </view>
     </view>
   </scroll-view>
 </template>
 
 <script setup lang="ts">
-import { watch, onMounted } from 'vue'
-import TipCard from './TipCard.vue'
 import type { DictOption } from '@/api/project'
 import type { ProjectFormData } from '@/types/project'
 
 interface PreviewData {
   name: string
   industry: string
-  tone: string
-  target_audience: string
+  style_tones: string
+  cl_targetPopulation: string
   keywords: string[]
 }
 
@@ -73,44 +45,11 @@ interface Props {
   previewData: PreviewData
 }
 
-const props = defineProps<Props>()
+defineProps<Props>()
 
 const emit = defineEmits<{
   'update:formData': [data: Partial<Props['formData']>]
 }>()
-
-// IP概况描述模板
-function getIntroductionTemplate(name?: string): string {
-  const nameLine = name ? `名字：${name}\n` : ''
-  return `${nameLine}个人经历：
-为什么做这个项目：
-产品或服务特色：
-东西咋来的：
-你的想法和信念：
-真实小故事或别人咋说：
-现在咋样，以后咋打算：`
-}
-
-// 初始化：如果 introduction 为空，则设置模板
-onMounted(() => {
-  if (!props.formData.introduction || props.formData.introduction.trim() === '') {
-    const template = getIntroductionTemplate(props.formData.name)
-    emit('update:formData', { introduction: template })
-  }
-})
-
-// 监听名字变化，如果 introduction 是模板且名字变化了，更新模板中的名字
-watch(() => props.previewData.name, (newName) => {
-  if (newName && props.formData.introduction) {
-    // 检查是否是模板格式（包含"名字："）
-    if (props.formData.introduction.includes('名字：') && 
-        props.formData.introduction.includes('个人经历：')) {
-      // 更新模板中的名字
-      const template = getIntroductionTemplate(newName)
-      emit('update:formData', { introduction: template })
-    }
-  }
-})
 
 function handleInput(field: string, e: any) {
   emit('update:formData', { [field]: e.detail.value })
@@ -123,6 +62,7 @@ function handleSelect(field: string, value: string) {
 
 <style lang="scss" scoped>
 @import '@/styles/_variables.scss';
+@import '@/styles/_mixins.scss';
 
 .step-content {
   height: 100%;
@@ -130,101 +70,111 @@ function handleSelect(field: string, value: string) {
 
 .step-wrapper {
   padding: $spacing-lg;
-  padding-bottom: $spacing-xl;
+  padding-bottom: 150rpx;
+  }
+  
+  .step-header {
+    margin-bottom: $spacing-lg;
+  
+    .step-title {
+      display: block;
+      font-size: $font-size-xxl;
+      font-weight: 600;
+      color: $text-main;
+    }
+  }
+  
+  .form-card {
+    background: $white;
+    border-radius: $radius-lg;
+    padding: $spacing-lg;
+    box-shadow: 0 8rpx 32rpx rgba(0, 0, 0, 0.06);
 }
 
 .form-section {
   margin-bottom: $spacing-lg;
-  
-  .form-label {
-    display: block;
-    font-size: $font-size-md;
-    color: $text-main;
-    font-weight: 500;
-    margin-bottom: $spacing-sm;
-    
+
+  &:last-child {
+      margin-bottom: 0;
+    }
+  }
+.form-label {
+  display: block;
+  font-size: $font-size-md;
+  color: $text-main;
+  font-weight: 500;
+  margin-bottom: $spacing-xs;
     .required-mark {
       color: $color-error;
     }
   }
-  
-  .form-input {
-    width: 100%;
-    height: 88rpx;
-    background: $bg-light;
-    border-radius: $radius-md;
-    padding: 0 $spacing-md;
-    font-size: $font-size-md;
-    color: $text-main;
-    border: 2rpx solid transparent;
-    box-sizing: border-box;
-    
-    &:focus {
-      border-color: $primary-orange;
-      background: $white;
-    }
-    
-    &::placeholder {
-      color: $text-placeholder;
-    }
-  }
-  
-  .form-textarea {
-    width: 100%;
-    min-height: 200rpx;
-    background: $bg-light;
-    border-radius: $radius-md;
-    padding: $spacing-md;
-    font-size: $font-size-md;
-    color: $text-main;
-    border: 2rpx solid transparent;
-    box-sizing: border-box;
-    line-height: 1.6;
-    
-    &:focus {
-      border-color: $primary-orange;
-      background: $white;
-    }
-    
-    &::placeholder {
-      color: $text-placeholder;
-    }
-  }
-  
-  .char-count {
-    text-align: right;
-    font-size: $font-size-xs;
-    color: $text-second;
-    margin-top: $spacing-xs;
-  }
+.form-sub {
+  display: block;
+  font-size: $font-size-xs;
+  color: $text-second;
+  margin-bottom: $spacing-md;
+  line-height: 1.5;
 }
 
-.option-buttons {
+.form-input {
+  width: 100%;
+  height: 88rpx;
+  background: $bg-light;
+  border-radius: $radius-md;
+  padding: 0 $spacing-md;
+  font-size: $font-size-md;
+  color: $text-main;
+  border: 2rpx solid transparent;
+  box-sizing: border-box;
+
+  &:focus {
+    border-color: $primary-orange;
+    background: $white;
+  }
+
+  &::placeholder {
+    color: $text-placeholder;
+  }
+}
+.tone-grid {
   display: flex;
   flex-wrap: wrap;
   gap: $spacing-sm;
-  
-  .option-btn {
-    padding: 10rpx 20rpx;
-    background: $bg-light;
-    border-radius: 32rpx;
+}
+
+.tone-chip {
+  position: relative;
+  width: calc(50% - 8rpx);
+  box-sizing: border-box;
+  min-height: 80rpx;
+  padding: 16rpx 20rpx;
+  background: $bg-light;
+  border-radius: $radius-md;
     border: 2rpx solid transparent;
-    transition: all $transition-base;
-    
+  @include flex-center;
+  transition: all $transition-base;
     &.selected {
-      background: linear-gradient(135deg, rgba($primary-orange, 0.1) 0%, rgba($primary-orange, 0.15) 100%);
+    background: rgba($primary-orange, 0.08);
       border-color: $primary-orange;
-      
-      .option-text {
+    .tone-text {
         color: $primary-orange;
         font-weight: 600;
       }
     }
-    
-    .option-text {
+        .tone-check {
+          position: absolute;
+          top: 8rpx;
+          right: 12rpx;
+          font-size: $font-size-xs;
+          color: $primary-orange;
+          font-weight: 700;
+        }
+  
+        .tone-text {
       font-size: $font-size-md;
       color: $text-second;
-    }
+    text-align: center;
+      line-height: 1.35;
   }
 }
 </style>

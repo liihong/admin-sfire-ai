@@ -1,116 +1,102 @@
 <template>
   <scroll-view class="step-content" scroll-y>
     <view class="step-wrapper">
-      <!-- 标题 -->
       <view class="step-header">
-       <text class="step-title">确认信息</text>
-       <text class="step-subtitle">请确认以下信息，AI将根据以下内容进行定位分析</text>
+        <text class="step-title">确认信息</text>
+        <text class="step-subtitle">请确认以下信息，AI将根据以下内容进行定位分析</text>
       </view>
 
-    <!-- 信息展示区域 -->
       <view class="info-display-section">
-        <!-- 基本信息 -->
+        <!-- IP 个人定位 -->
         <view class="info-group">
-          <text class="group-title">基本信息</text>
-
-        <!-- 横向布局：IP名称和行业赛道 -->
+          <text class="group-title">IP 个人定位</text>
           <view class="info-row">
             <view class="info-item info-item-horizontal">
-              <text class="info-label">IP名称</text>
-             <text class="info-value info-value-plain">{{
-                formData.name || "未填写"
-              }}</text>
+              <text class="info-label">名称</text>
+              <text class="info-value info-value-plain">{{ formData.name || '未填写' }}</text>
             </view>
-           <view class="info-item info-item-horizontal">
-              <text class="info-label">行业赛道</text>
-             <text class="info-value info-value-plain">{{
-                industryLabel || formData.industry || "未选择"
-              }}</text>
+            <view class="info-item info-item-horizontal">
+              <text class="info-label">所属行业</text>
+              <text class="info-value info-value-plain">{{ industryLabel || formData.industry || '未选择' }}</text>
             </view>
           </view>
-        </view>
-
-      <!-- 行业理解 -->
-        <view class="info-group">
-          <text class="group-title">行业理解</text>
-
-        <view class="info-item">
-            <text class="info-label">对行业的理解</text>
-           <view class="info-value">{{
-              formData.industry_understanding || "未填写"
-            }}</view>
+          <view class="info-row">
+            <view class="info-item info-item-horizontal">
+              <text class="info-label">年龄</text>
+              <text class="info-value info-value-plain">{{ formData.ip_age || '未填写' }}</text>
+            </view>
+            <view class="info-item info-item-horizontal">
+              <text class="info-label">城市</text>
+              <text class="info-value info-value-plain">{{ formData.ip_city || '未填写' }}</text>
+            </view>
           </view>
-
           <view class="info-item">
-            <text class="info-label">对行业不同的看法</text>
-           <view class="info-value">{{
-              formData.unique_views || "未填写"
-            }}</view>
+            <text class="info-label">身份标签</text>
+            <view class="info-value">{{ formData.ip_identityTag || '未填写' }}</view>
+          </view>
+          <view class="info-item">
+            <text class="info-label">经历介绍</text>
+            <view class="info-value info-text">{{ formData.ip_experience || '未填写' }}</view>
           </view>
         </view>
 
-        <!-- 受众定位 -->
+        <!-- 商业定位 -->
         <view class="info-group">
-          <text class="group-title">受众定位</text>
-
+          <text class="group-title">商业定位</text>
+          <view class="info-item">
+            <text class="info-label">主要产品/服务</text>
+            <view class="info-value">{{ formData.cl_mainProducts || '未填写' }}</view>
+          </view>
           <view class="info-item">
             <text class="info-label">目标人群</text>
-           <view class="info-value">{{
-              formData.target_audience || "未填写"
-            }}</view>
+            <view class="info-value">{{ formData.cl_targetPopulation || '未填写' }}</view>
           </view>
-
           <view class="info-item">
             <text class="info-label">目标人群痛点</text>
-           <view class="info-value">{{
-              formData.target_pains || "未填写"
-            }}</view>
+            <view class="info-value">{{ formData.cl_painPoints || '未填写' }}</view>
+          </view>
+          <view class="info-item">
+            <text class="info-label">产品优势</text>
+            <view class="info-value">{{ formData.cl_advantages || '未填写' }}</view>
+          </view>
+          <view class="info-item">
+            <text class="info-label">客户反馈</text>
+            <view class="info-value">{{ formData.cl_feedback || '未填写' }}</view>
           </view>
         </view>
 
         <!-- 风格定位 -->
         <view class="info-group">
           <text class="group-title">风格定位</text>
-
           <view class="info-item">
             <text class="info-label">语气风格</text>
-           <view class="info-value">{{
-              toneLabel || formData.tone || "未选择"
-            }}</view>
+            <view class="info-value">{{ toneLabel || formData.style_tones || '未选择' }}</view>
           </view>
           <view class="info-item">
-            <text class="info-label">口头禅</text>
-           <view class="info-value">{{
-              formData.catchphrase || "未填写"
-            }}</view>
-          </view>
-          <view class="info-item">
-            <text class="info-label">IP概况描述</text>
-           <view class="info-value info-text">{{
-              formData.introduction || "未填写"
-            }}</view>
+            <text class="info-label">个人口头禅</text>
+            <view class="info-value">{{ formData.style_mantra || '未填写' }}</view>
           </view>
         </view>
-        <!-- 关键词 -->
+
+        <!-- 创作关键词 -->
         <view class="info-group">
           <text class="group-title">创作关键词</text>
-         <view class="keywords-display" v-if="formData.keywords && formData.keywords.length > 0">
+          <view v-if="formData.keywords && formData.keywords.length > 0" class="keywords-display">
             <view v-for="(keyword, index) in formData.keywords" :key="index" class="keyword-tag">
               <text class="keyword-text">{{ keyword }}</text>
             </view>
           </view>
-          <view class="keywords-empty" v-else>
+          <view v-else class="keywords-empty">
             <text class="empty-text">暂无关键词</text>
           </view>
         </view>
       </view>
 
-      <!-- 说明信息框 -->
       <view class="info-box">
         <u-icon name="info-circle" color="#F37021" size="20"></u-icon>
         <view class="info-content">
           <text class="info-title">下一步说明</text>
-         <text class="info-text">确认无误后，点击下方"生成IP定位报告"按钮，你的IP信息将同步至创作台。AI将严格遵守上述人设参数，为你提供符合IP风格的文案和选题建议。</text>
+          <text class="info-text">确认无误后，点击下方「生成IP定位报告」按钮，你的IP信息将同步至创作台。AI将严格遵守上述人设参数，为你提供符合IP风格的文案和选题建议。</text>
         </view>
       </view>
     </view>
@@ -118,35 +104,29 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from "vue";
-import type { ProjectFormData } from "@/types/project";
-import type { DictOption } from "@/api/project";
+import { computed } from 'vue'
+import type { ProjectFormData } from '@/types/project'
+import type { DictOption } from '@/api/project'
 
 interface Props {
-  formData: ProjectFormData;
-  industryOptions?: DictOption[];
-  toneOptions?: DictOption[];
+  formData: ProjectFormData
+  industryOptions?: DictOption[]
+  toneOptions?: DictOption[]
 }
 
-const props = defineProps<Props>();
+const props = defineProps<Props>()
 
-// 获取行业标签
 const industryLabel = computed(() => {
-  if (!props.industryOptions || !props.formData.industry) return "";
-  const option = props.industryOptions.find(
-    (opt) => opt.value === props.formData.industry,
-  );
-  return option?.label || props.formData.industry;
-});
+  if (!props.industryOptions || !props.formData.industry) return ''
+  const option = props.industryOptions.find((opt) => opt.value === props.formData.industry)
+  return option?.label || props.formData.industry
+})
 
-// 获取语气风格标签
 const toneLabel = computed(() => {
-  if (!props.toneOptions || !props.formData.tone) return "";
-  const option = props.toneOptions.find(
-    (opt) => opt.value === props.formData.tone,
-  );
-  return option?.label || props.formData.tone;
-});
+  if (!props.toneOptions || !props.formData.style_tones) return ''
+  const option = props.toneOptions.find((opt) => opt.value === props.formData.style_tones)
+  return option?.label || props.formData.style_tones
+})
 </script>
 
 <style lang="scss" scoped>
@@ -162,10 +142,9 @@ const toneLabel = computed(() => {
   padding-bottom: $spacing-xl;
 }
 
-// 标题区域
 .step-header {
   text-align: center;
-  margin-bottom: $spacing-sm;
+  margin-bottom: $spacing-md;
 
   .step-title {
     display: block;
@@ -183,12 +162,10 @@ const toneLabel = computed(() => {
   }
 }
 
-// 信息展示区域
 .info-display-section {
   margin-bottom: 100rpx;
 }
 
-// 信息分组
 .info-group {
   background: $bg-light;
   border-radius: $radius-md;
@@ -205,13 +182,12 @@ const toneLabel = computed(() => {
     border-bottom: 2rpx solid rgba($text-main, 0.1);
   }
 
-  // 横向布局容器
   .info-row {
+    display: flex;
     gap: $spacing-md;
-    margin-bottom: 0;
+    margin-bottom: $spacing-md;
   }
 
-  // info-item 项
   .info-item {
     margin-bottom: $spacing-md;
 
@@ -219,13 +195,11 @@ const toneLabel = computed(() => {
       margin-bottom: 0;
     }
 
-    // 横向布局的 info-item
     &.info-item-horizontal {
       flex: 1;
       margin-bottom: 0;
       display: flex;
-      justify-content: space-between;
-      align-items: center;
+      flex-direction: column;
     }
 
     .info-label {
@@ -252,7 +226,6 @@ const toneLabel = computed(() => {
         white-space: pre-wrap;
       }
 
-      // 横向布局字段：移除白色背景块
       &.info-value-plain {
         background: transparent;
         padding: 0;
@@ -263,7 +236,6 @@ const toneLabel = computed(() => {
   }
 }
 
-// 关键词展示
 .keywords-display {
   display: flex;
   flex-wrap: wrap;
@@ -283,7 +255,6 @@ const toneLabel = computed(() => {
   }
 }
 
-// 关键词为空
 .keywords-empty {
   padding: $spacing-md;
   text-align: center;
@@ -294,7 +265,6 @@ const toneLabel = computed(() => {
   }
 }
 
-// 说明信息框
 .info-box {
   background: rgba($primary-orange, 0.05);
   border-radius: $radius-md;
@@ -322,4 +292,3 @@ const toneLabel = computed(() => {
   }
 }
 </style>
-

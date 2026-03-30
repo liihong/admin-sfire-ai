@@ -70,10 +70,10 @@ class TestAICollect:
                 "raw_info": {
                     "name": "健身教练IP",
                     "industry": "体育健身",
-                    "introduction": "这是一个非常长的简介内容，" * 20,  # 长文本测试压缩
-                    "tone": "专业亲和",
-                    "target_audience": "想要健身的人群，" * 10,
-                    "catchphrase": "一起健身吧",
+                    "ip_experience": "这是一个非常长的简介内容，" * 20,  # 长文本测试压缩
+                    "style_tones": "专业亲和",
+                    "cl_targetPopulation": "想要健身的人群，" * 10,
+                    "style_mantra": "一起健身吧",
                     "keywords": ["健身", "减肥", "增肌", "瑜伽", "普拉提", "有氧", "无氧", "饮食", "营养", "健康"]
                 }
             },
@@ -86,9 +86,8 @@ class TestAICollect:
         assert "compressed_info" in data["data"]
 
         compressed = data["data"]["compressed_info"]
-        # 验证字数限制
-        assert len(compressed["introduction"]) <= 200
-        assert len(compressed["target_audience"]) <= 50
+        assert len(compressed["ip_experience"]) <= 200
+        assert len(compressed["cl_targetPopulation"]) <= 50
         assert len(compressed["keywords"]) <= 8
 
     async def test_ai_collect_unauthorized(

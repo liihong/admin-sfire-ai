@@ -42,48 +42,27 @@ router = APIRouter()
 
 
 def _build_frontend_project(project_dict: dict) -> dict:
-    """
-    将项目数据转换为前端期望的格式
-    
-    同时保留嵌套的 persona_settings 对象和扁平化字段，确保前端可以正确加载数据
-    """
+    """将项目数据转为小程序端结构（人设仅在 persona_settings 中）。"""
     persona_settings = project_dict.get("persona_settings", {})
     if not isinstance(persona_settings, dict):
         persona_settings = {}
-    
-    # 处理 ID：如果是 UUID，保持字符串；如果是数字，转换为数字
+
     project_id = project_dict.get("id", "")
     try:
         project_id_num = int(project_id) if str(project_id).isdigit() else project_id
     except (ValueError, TypeError):
         project_id_num = project_id
-    
+
     return {
         "id": project_id_num,
         "name": project_dict.get("name", ""),
         "industry": project_dict.get("industry", ""),
-        # 头像相关字段
         "avatar_letter": project_dict.get("avatar_letter", ""),
         "avatar_color": project_dict.get("avatar_color", "#3B82F6"),
-        # 嵌套格式：完整的人设配置对象（前端需要此字段来加载表单数据）
         "persona_settings": persona_settings,
-        # 扁平化字段（向后兼容，与 persona_settings 一一对应）
-        "introduction": persona_settings.get("introduction", ""),
-        "tone": persona_settings.get("tone", ""),
-        "target_audience": persona_settings.get("target_audience", ""),
-        "content_style": persona_settings.get("content_style", ""),
-        "catchphrase": persona_settings.get("catchphrase", ""),
-        "keywords": persona_settings.get("keywords", []),
-        "taboos": persona_settings.get("taboos", []),
-        "benchmark_accounts": persona_settings.get("benchmark_accounts", []),
-        # 扩展字段
-        "industry_understanding": persona_settings.get("industry_understanding", ""),
-        "unique_views": persona_settings.get("unique_views", ""),
-        "target_pains": persona_settings.get("target_pains", ""),
-        # 其他字段
         "isActive": project_dict.get("is_active", False),
         "createdAt": project_dict.get("created_at", "").isoformat() if project_dict.get("created_at") else "",
-        "updatedAt": project_dict.get("updated_at", "").isoformat() if project_dict.get("updated_at") else ""
+        "updatedAt": project_dict.get("updated_at", "").isoformat() if project_dict.get("updated_at") else "",
     }
 
 
@@ -559,14 +538,14 @@ async def generate_ip_report(
         ip_variables = {
             "ip_name": sanitize_prompt_input(request.name, 100),
             "ip_industry": sanitize_prompt_input(request.industry, 50),
-            "ip_introduction": sanitize_prompt_input(request.introduction, 1000),
-            "ip_tone": sanitize_prompt_input(request.tone, 50),
-            "ip_target_audience": sanitize_prompt_input(request.target_audience, 500),
-            "ip_target_pains": sanitize_prompt_input(request.target_pains, 500),
+            "ip_introduction": sanitize_prompt_input(request.ip_experience, 1000),
+            "ip_tone": sanitize_prompt_input(request.style_tones, 50),
+            "ip_target_audience": sanitize_prompt_input(request.cl_targetPopulation, 500),
+            "ip_target_pains": sanitize_prompt_input(request.cl_painPoints, 500),
             "ip_keywords": keywords_str,
-            "ip_industry_understanding": sanitize_prompt_input(request.industry_understanding, 500),
-            "ip_unique_views": sanitize_prompt_input(request.unique_views, 500),
-            "ip_catchphrase": sanitize_prompt_input(request.catchphrase, 100),
+            "ip_industry_understanding": sanitize_prompt_input(request.cl_advantages, 500),
+            "ip_unique_views": sanitize_prompt_input(request.cl_feedback, 500),
+            "ip_catchphrase": sanitize_prompt_input(request.style_mantra, 100),
         }
         
         # 4. 使用数据库中的提示词模板（agent.system_prompt）
