@@ -1,0 +1,28 @@
+[Unit]
+Description=SFire Admin API (development, reload)
+After=network.target mysql.service redis.service
+
+[Service]
+Type=simple
+User=www-data
+Group=www-data
+WorkingDirectory=/var/www/sfire-admin-dev/backend
+Environment="PATH=/var/www/sfire-admin-dev/backend/venv/bin"
+EnvironmentFile=/var/www/sfire-admin-dev/backend/.env
+# 开发：单进程 + 代码变更自动重载（勿在生产使用 --reload）
+ExecStart=/var/www/sfire-admin-dev/backend/venv/bin/uvicorn main:app --host 127.0.0.1 --port 8001 --reload
+Restart=on-failure
+RestartSec=5
+
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=sfire-admin-api-dev
+
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/www/sfire-admin-dev/backend
+
+[Install]
+WantedBy=multi-user.target

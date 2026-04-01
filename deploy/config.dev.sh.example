@@ -1,0 +1,24 @@
+#!/bin/bash
+# 开发环境部署配置 — 复制为 config.dev.sh 后按服务器实际情况修改
+#   cp deploy/config.dev.sh.example deploy/config.dev.sh && vim deploy/config.dev.sh
+#
+# 建议：在服务器上单独 clone 一份仓库到 PROJECT_DIR_DEV，与生产 PROJECT_DIR 隔离。
+
+# ==================== Git ====================
+# 开发跟踪分支（如 develop、feature/xxx）
+GIT_BRANCH_DEV="${GIT_BRANCH_DEV:-develop}"
+
+# ==================== 路径（与 systemd 模板、Nginx 一致）====================
+PROJECT_DIR_DEV="${PROJECT_DIR_DEV:-/var/www/sfire-admin-dev}"
+BACKEND_DIR_DEV="${BACKEND_DIR_DEV:-${PROJECT_DIR_DEV}/backend}"
+FRONTEND_DIR_DEV="${FRONTEND_DIR_DEV:-${PROJECT_DIR_DEV}/frontend}"
+
+# 若使用 frontend-static：构建产物拷贝目录（需配合 Nginx root）
+FRONTEND_DIST_DIR_DEV="${FRONTEND_DIST_DIR_DEV:-/var/www/html/sfire-admin-dev}"
+
+# ==================== 端口与服务名 ====================
+BACKEND_PORT_DEV="${BACKEND_PORT_DEV:-8001}"
+VITE_DEV_PORT="${VITE_DEV_PORT:-5174}"
+
+SERVICE_NAME_BACKEND_DEV="${SERVICE_NAME_BACKEND_DEV:-sfire-admin-api-dev}"
+SERVICE_NAME_FRONTEND_DEV="${SERVICE_NAME_FRONTEND_DEV:-sfire-admin-frontend-dev}"

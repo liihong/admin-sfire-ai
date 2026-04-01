@@ -1,0 +1,26 @@
+[Unit]
+Description=SFire Admin Vite dev server (development)
+After=network.target
+
+[Service]
+Type=simple
+User=www-data
+Group=www-data
+WorkingDirectory=/var/www/sfire-admin-dev/frontend
+Environment="NODE_ENV=development"
+Environment="PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+# 需系统已安装 Node/pnpm，且 www-data 有权限执行（或改为专用用户）
+# 端口由 frontend/.env.development 中 VITE_PORT 决定（未设置时 Vite 默认 5173）
+ExecStart=/usr/bin/env bash -lc 'cd /var/www/sfire-admin-dev/frontend && exec pnpm dev'
+Restart=on-failure
+RestartSec=5
+
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=sfire-admin-frontend-dev
+
+NoNewPrivileges=true
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,22 @@
+{
+  "slots": [
+    {
+      "id": "discover",
+      "title": "界面示意 · 发现",
+      "filename": "discover.png",
+      "hint": "将「发现」Tab 页面截图保存为此文件名，重新生成长图即可自动嵌入（支持 .png / .jpg）。"
+    },
+    {
+      "id": "project",
+      "title": "界面示意 · IP 操作台",
+      "filename": "project.png",
+      "hint": "将「IP 操作台」页面截图保存为此文件名。"
+    },
+    {
+      "id": "mine",
+      "title": "界面示意 · 我的",
+      "filename": "mine.png",
+      "hint": "将「我的」页面截图保存为此文件名。"
+    }
+  ]
+}
