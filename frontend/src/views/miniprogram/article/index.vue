@@ -75,10 +75,16 @@
       <el-form ref="formRef" :model="formData" :rules="formRules" label-width="100px">
         <el-form-item label="文章类型" prop="category">
           <el-select v-model="formData.category" placeholder="请选择文章类型" style="width: 100%">
-            <el-option label="创始人故事" value="founder_story" />
-            <el-option label="运营干货" value="operation_article" />
-            <el-option label="客户案例" value="customer_case" />
+            <el-option
+              v-for="opt in categoryOptions"
+              :key="opt.value"
+              :label="opt.label"
+              :value="opt.value"
+            />
           </el-select>
+        </el-form-item>
+        <el-form-item label="作者" prop="author">
+          <el-input v-model="formData.author" placeholder="请输入作者" maxlength="128" show-word-limit />
         </el-form-item>
         <el-form-item label="文章标题" prop="title">
           <el-input v-model="formData.title" placeholder="请输入文章标题" maxlength="256" show-word-limit />
@@ -161,7 +167,7 @@
 </template>
 
 <script setup lang="tsx" name="articleManage">
-import { ref, reactive, nextTick } from "vue";
+import { ref, reactive, nextTick, onMounted } from "vue";
 import { ElMessage, FormInstance, FormRules } from "element-plus";
 import { CirclePlus, Delete, EditPen, Plus } from "@element-plus/icons-vue";
 import type { ArticleItem, ArticleParams } from "@/api/modules/article";
@@ -177,6 +183,42 @@ import {
   updateArticleStatus
 } from "@/api/modules/article";
 import { getToken } from "@/utils/auth";
+import { getDictItemsByCode } from "@/api/modules/dictionary";
+
+/** sys_dict.dict_code，与后端 migrations 一致 */
+const ARTICLE_CATEGORY_DICT_CODE = "article_category";
+
+const categoryOptions = ref<Array<{ label: string; value: string }>>([]);
+
+const categoryLabelFallback: Record<string, string> = {
+  "01": "商业底牌",
+  "02": "流量心法",
+  "03": "实操手册",
+  "04": "创始人说"
+};
+
+const categorySearchOptions = Object.entries(categoryLabelFallback).map(([value, label]) => ({ label, value }));
+
+const loadCategoryOptions = async () => {
+  if (categoryOptions.value.length > 0) return;
+  try {
+    const res = await getDictItemsByCode(ARTICLE_CATEGORY_DICT_CODE, true);
+    if (res.code === 200 && Array.isArray(res.data) && res.data.length > 0) {
+      categoryOptions.value = (res.data as Array<{ label: string; value: string }>).map((d) => ({
+        label: d.label,
+        value: d.value
+      }));
+    } else {
+      categoryOptions.value = Object.entries(categoryLabelFallback).map(([value, label]) => ({ label, value }));
+    }
+  } catch {
+    categoryOptions.value = Object.entries(categoryLabelFallback).map(([value, label]) => ({ label, value }));
+  }
+};
+
+onMounted(() => {
+  loadCategoryOptions();
+});
 
 // ProTable 实例
 const proTable = ref<ProTableInstance>();
@@ -191,7 +233,8 @@ const statusLoading = ref<number | null>(null);
 // 表单数据
 const formData = reactive({
   id: 0,
-  category: "founder_story" as "founder_story" | "operation_article" | "customer_case",
+  category: "04" as string,
+  author: "Source Fire",
   title: "",
   content: "",
   summary: "",
@@ -218,6 +261,7 @@ const commonTags = [
 // 表单验证规则
 const formRules: FormRules = {
   category: [{ required: true, message: "请选择文章类型", trigger: "change" }],
+  author: [{ required: true, message: "请输入作者", trigger: "blur" }],
   title: [{ required: true, message: "请输入文章标题", trigger: "blur" }],
   content: [{ required: true, message: "请输入文章内容", trigger: "blur" }]
 };
@@ -255,27 +299,25 @@ const getTableList = (params: any) => {
 // 文章类型标签
 const getCategoryTagType = (category: string): "success" | "warning" | "info" | "primary" | "danger" => {
   const typeMap: Record<string, "success" | "warning" | "info" | "primary" | "danger"> = {
-    founder_story: "danger",
-    operation_article: "success",
-    customer_case: "warning"
+    "01": "primary",
+    "02": "success",
+    "03": "warning",
+    "04": "danger"
   };
   return typeMap[category] || "info";
 };
 
 const getCategoryLabel = (category: string) => {
-  const labelMap: Record<string, string> = {
-    founder_story: "创始人故事",
-    operation_article: "运营干货",
-    customer_case: "客户案例"
-  };
-  return labelMap[category] || category;
+  const fromDict = categoryOptions.value.find((o) => o.value === category);
+  return fromDict?.label ?? categoryLabelFallback[category] ?? category;
 };
 
 // 打开抽屉
 const openDrawer = async (title: string, row?: ArticleItem) => {
   drawerTitle.value = title;
   isEdit.value = !!row;
-  
+  await loadCategoryOptions();
+
   // 先关闭抽屉（如果已打开），确保组件完全销毁
   if (drawerVisible.value) {
     drawerVisible.value = false;
@@ -287,6 +329,7 @@ const openDrawer = async (title: string, row?: ArticleItem) => {
     Object.assign(formData, {
       id: row.id,
       category: row.category,
+      author: row.author ?? "Source Fire",
       title: row.title,
       content: row.content || "",
       summary: row.summary || "",
@@ -300,7 +343,8 @@ const openDrawer = async (title: string, row?: ArticleItem) => {
   } else {
     Object.assign(formData, {
       id: 0,
-      category: "founder_story",
+      category: "04",
+      author: "Source Fire",
       title: "",
       content: "",
       summary: "",
@@ -354,6 +398,7 @@ const handleSubmit = async () => {
       try {
         const params: any = {
           category: formData.category,
+          author: formData.author || "Source Fire",
           title: formData.title,
           content: formData.content,
           summary: formData.summary || undefined,
@@ -414,6 +459,18 @@ const columns = reactive<ColumnProps<ArticleItem>[]>([
   {
     prop: "category",
     label: "文章类型",
+    width: 120,
+    search: {
+      el: "select",
+      props: {
+        filterable: true,
+        options: categorySearchOptions
+      }
+    }
+  },
+  {
+    prop: "author",
+    label: "作者",
     width: 120
   },
   {

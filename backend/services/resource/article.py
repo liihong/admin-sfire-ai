@@ -8,15 +8,16 @@ from sqlalchemy import select, func, and_, desc, asc
 from sqlalchemy.ext.asyncio import AsyncSession
 from loguru import logger
 
-from models.article import Article, ArticleCategory
+from models.article import Article
 from schemas.article import (
     ArticleCreate,
     ArticleUpdate,
     ArticleQueryParams,
-    ArticleResponse,
 )
-from utils.exceptions import NotFoundException, BadRequestException
+from utils.exceptions import BadRequestException
 from services.base import BaseService
+
+VALID_CATEGORY_CODES = frozenset({"01", "02", "03", "04"})
 
 
 class ArticleService(BaseService):
@@ -33,14 +34,15 @@ class ArticleService(BaseService):
             import json
             try:
                 tags = json.loads(tags)
-            except:
+            except Exception:
                 tags = []
         elif tags is None:
             tags = []
         
         return {
             "id": article.id,
-            "category": article.category.value,
+            "category": article.category,
+            "author": article.author,
             "title": article.title,
             "content": article.content,
             "summary": article.summary,
@@ -74,13 +76,10 @@ class ArticleService(BaseService):
         conditions = []
         
         if params.category:
-            try:
-                category_enum = ArticleCategory(params.category)
-                conditions.append(Article.category == category_enum)
-            except ValueError:
-                # 无效的文章类型，记录日志但不抛出异常，返回空列表
+            if params.category not in VALID_CATEGORY_CODES:
                 logger.warning(f"Invalid article category: {params.category}")
                 return [], 0
+            conditions.append(Article.category == params.category)
         
         if params.title:
             conditions.append(Article.title.like(f"%{params.title}%"))
@@ -169,16 +168,9 @@ class ArticleService(BaseService):
         """
         def before_create(article: Article, data: ArticleCreate):
             """创建前的钩子函数"""
-            # 转换枚举类型
-            if hasattr(data, "category") and data.category:
-                article.category = ArticleCategory(data.category)
-            
             # 处理标签：确保是列表格式
-            if hasattr(data, "tags") and data.tags:
-                if isinstance(data.tags, list):
-                    article.tags = data.tags
-                else:
-                    article.tags = []
+            if data.tags:
+                article.tags = data.tags if isinstance(data.tags, list) else []
             else:
                 article.tags = []
         
@@ -205,10 +197,11 @@ class ArticleService(BaseService):
         """
         def before_update(article: Article, data: ArticleUpdate):
             """更新前的钩子函数"""
-            # 处理枚举类型转换
             update_data = data.model_dump(exclude_unset=True)
             if "category" in update_data and update_data["category"] is not None:
-                article.category = ArticleCategory(update_data["category"])
+                if update_data["category"] not in VALID_CATEGORY_CODES:
+                    raise BadRequestException(msg="无效的文章类型")
+                article.category = update_data["category"]
             
             # 处理标签
             if "tags" in update_data:
@@ -267,4 +260,3 @@ class ArticleService(BaseService):
         await self.db.refresh(article)
         
         return self._format_response(article)
-

@@ -8,14 +8,14 @@ from pydantic import BaseModel, Field
 
 from .common import PageParams
 
-
-# 文章类型
-ArticleCategory = Literal["founder_story", "operation_article", "customer_case", "announcement"]
+# 与 sys_dict article_category 字典项 item_value 一致
+ArticleCategoryCode = Literal["01", "02", "03", "04"]
 
 
 class ArticleBase(BaseModel):
     """文章基础信息"""
-    category: ArticleCategory = Field(..., description="文章类型")
+    category: ArticleCategoryCode = Field(..., description="文章类型（字典 article_category：01-04）")
+    author: str = Field(default="Source Fire", max_length=128, description="作者")
     title: str = Field(..., min_length=1, max_length=256, description="文章标题")
     content: str = Field(..., min_length=1, description="文章内容（富文本）")
     summary: Optional[str] = Field(None, max_length=500, description="文章摘要/简介")
@@ -34,7 +34,8 @@ class ArticleCreate(ArticleBase):
 
 class ArticleUpdate(BaseModel):
     """更新文章请求"""
-    category: Optional[ArticleCategory] = Field(None, description="文章类型：founder_story/operation_article/customer_case/announcement")
+    category: Optional[ArticleCategoryCode] = Field(None, description="文章类型（01-04）")
+    author: Optional[str] = Field(None, max_length=128, description="作者")
     title: Optional[str] = Field(None, min_length=1, max_length=256, description="文章标题")
     content: Optional[str] = Field(None, min_length=1, description="文章内容（富文本）")
     summary: Optional[str] = Field(None, max_length=500, description="文章摘要/简介")
@@ -49,7 +50,8 @@ class ArticleUpdate(BaseModel):
 class ArticleResponse(BaseModel):
     """文章响应数据"""
     id: int = Field(..., description="文章ID")
-    category: str = Field(..., description="文章类型")
+    category: str = Field(..., description="文章类型（字典值 01-04）")
+    author: str = Field(..., description="作者")
     title: str = Field(..., description="文章标题")
     content: str = Field(..., description="文章内容")
     summary: Optional[str] = Field(None, description="文章摘要")
@@ -69,7 +71,7 @@ class ArticleResponse(BaseModel):
 
 class ArticleQueryParams(PageParams):
     """文章查询参数"""
-    category: Optional[ArticleCategory] = Field(None, description="文章类型筛选")
+    category: Optional[str] = Field(None, description="文章类型筛选（01-04）")
     title: Optional[str] = Field(None, description="标题（模糊搜索）")
     tag: Optional[str] = Field(None, description="标签筛选")
     is_published: Optional[bool] = Field(None, description="是否已发布")
@@ -80,4 +82,3 @@ class ArticleStatusRequest(BaseModel):
     """文章状态更新请求"""
     is_published: Optional[bool] = Field(None, description="是否已发布")
     is_enabled: Optional[bool] = Field(None, description="是否启用")
-

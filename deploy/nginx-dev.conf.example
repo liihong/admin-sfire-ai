@@ -1,0 +1,49 @@
+# 开发环境 Nginx 示例（与 systemd + Vite 联调）
+#
+# 用法（按需改 server_name、端口）:
+#   sudo cp deploy/nginx-dev.conf.example /etc/nginx/sites-available/sfire-admin-dev
+#   sudo ln -sf /etc/nginx/sites-available/sfire-admin-dev /etc/nginx/sites-enabled/
+#   sudo nginx -t && sudo systemctl reload nginx
+#
+# 说明：
+# - 下面把 HTTP 反代到本机 Vite（默认 5173，若 .env.development 里改了 VITE_PORT 请同步改 proxy_pass）
+# - 浏览器只访问 80；/api 由 Vite 开发服务器按 .env.development 里 VITE_PROXY 转到 127.0.0.1:8001
+# - 若希望由 Nginx 直接转发 /api 到后端，见文件末尾「可选」配置（需与前端 axios 的 baseURL 一致）
+
+server {
+    listen 80;
+    # 可改为 dev.xxx.com，或本机 IP 时用 default_server
+    server_name dev.sourcefire.cn;
+
+    location / {
+        proxy_pass http://127.0.0.1:5173;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        # Vite HMR / 大资源
+        proxy_read_timeout 600s;
+    }
+}
+
+# --- 可选：不用 Vite 代理 /api，由 Nginx 直连后端（此时前端 VITE_API_URL 一般为 /api）---
+# 在 server { } 内增加：
+#
+# location /api/ {
+#     proxy_pass http://127.0.0.1:8001;
+#     proxy_http_version 1.1;
+#     proxy_set_header Upgrade $http_upgrade;
+#     proxy_set_header Connection "upgrade";
+#     proxy_buffering off;
+#     proxy_cache off;
+#     proxy_set_header Host $host;
+#     proxy_set_header X-Real-IP $remote_addr;
+#     proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+#     proxy_set_header X-Forwarded-Proto $scheme;
+#     proxy_read_timeout 600s;
+# }
+#
+# 若采用此方式，可把 frontend/.env.development 里 VITE_PROXY 改为空或注释，避免双重转发。

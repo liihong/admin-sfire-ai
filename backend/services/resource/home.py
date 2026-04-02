@@ -11,7 +11,13 @@ from sqlalchemy import select, and_, desc, asc
 from sqlalchemy.ext.asyncio import AsyncSession
 from loguru import logger
 
-from models.article import Article, ArticleCategory
+from models.article import (
+    Article,
+    ARTICLE_CATEGORY_FOUNDER,
+    ARTICLE_CATEGORY_TRAFFIC,
+    ARTICLE_CATEGORY_BUSINESS,
+    ARTICLE_CATEGORY_MANUAL,
+)
 from models.banner import Banner, BannerPosition
 from models.home_config import HomeConfig
 from services.resource import BannerService, ArticleService
@@ -45,10 +51,10 @@ class HomeService:
         """
         # 并行获取所有数据
         banners_task = self._get_enabled_banners(position=position)
-        founder_stories_task = self._get_articles_by_category(ArticleCategory.FOUNDER_STORY, limit=5)
-        operation_articles_task = self._get_articles_by_category(ArticleCategory.OPERATION_ARTICLE, limit=10)
-        announcements_task = self._get_articles_by_category(ArticleCategory.ANNOUNCEMENT, limit=3)
-        customer_cases_task = self._get_articles_by_category(ArticleCategory.CUSTOMER_CASE, limit=5)
+        founder_stories_task = self._get_articles_by_category(ARTICLE_CATEGORY_FOUNDER, limit=5)
+        operation_articles_task = self._get_articles_by_category(ARTICLE_CATEGORY_TRAFFIC, limit=10)
+        announcements_task = self._get_articles_by_category(ARTICLE_CATEGORY_BUSINESS, limit=3)
+        customer_cases_task = self._get_articles_by_category(ARTICLE_CATEGORY_MANUAL, limit=5)
         featured_modules_task = self._get_featured_modules()
         
         # 等待所有任务完成
@@ -129,14 +135,14 @@ class HomeService:
     
     async def _get_articles_by_category(
         self,
-        category: ArticleCategory,
+        category: str,
         limit: int = 10
     ) -> List[Dict]:
         """
-        获取指定类型的已发布文章
+        获取指定类型的已发布文章（category 为 sys_dict article_category 的 item_value）
         
         Args:
-            category: 文章类型
+            category: 文章类型 01-04
             limit: 限制数量
         
         Returns:
@@ -173,7 +179,8 @@ class HomeService:
             
             article_list.append({
                 "id": article.id,
-                "category": article.category.value,
+                "category": article.category,
+                "author": article.author,
                 "title": article.title,
                 "content": article.content,
                 "summary": article.summary,

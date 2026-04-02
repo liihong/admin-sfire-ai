@@ -1,9 +1,8 @@
 """
 文章模型
-用于管理小程序首页的文章内容（创始人故事、运营干货、客户案例）
+文章类型存 sys_dict.dict_code=article_category 的字典项 item_value（01-04）
 """
-import enum
-from typing import Optional, List
+from typing import Optional
 from datetime import datetime
 from sqlalchemy import (
     String,
@@ -14,27 +13,23 @@ from sqlalchemy import (
     Integer,
     JSON,
     Index,
-    Enum as SQLEnum,
 )
 from sqlalchemy.orm import Mapped, mapped_column
 
 from models.base import BaseModel
 
-
-class ArticleCategory(enum.Enum):
-    """文章类型枚举"""
-    FOUNDER_STORY = "founder_story"      # 创始人故事
-    OPERATION_ARTICLE = "operation_article"  # 运营干货
-    CUSTOMER_CASE = "customer_case"      # 客户案例
-    ANNOUNCEMENT = "announcement"        # 公告
+# 与 sys_dict article_category 的 item_value 一致（首页各区块按此取值筛选）
+ARTICLE_CATEGORY_BUSINESS = "01"   # 商业底牌
+ARTICLE_CATEGORY_TRAFFIC = "02"   # 流量心法
+ARTICLE_CATEGORY_MANUAL = "03"    # 实操手册
+ARTICLE_CATEGORY_FOUNDER = "04"  # 创始人说
 
 
 class Article(BaseModel):
     """
     文章模型
     
-    用于存储小程序首页的文章内容
-    支持三种类型：创始人故事、运营干货、客户案例
+    用于存储小程序首页的文章内容；类型由字典 article_category 维护
     """
     __tablename__ = "articles"
     __table_args__ = (
@@ -47,12 +42,20 @@ class Article(BaseModel):
     )
     
     # === 基础字段 ===
-    category: Mapped[ArticleCategory] = mapped_column(
-        SQLEnum(ArticleCategory, values_callable=lambda x: [e.value for e in x]),
+    category: Mapped[str] = mapped_column(
+        String(8),
         nullable=False,
-        comment="文章类型: founder_story-创始人故事, operation_article-运营干货, customer_case-客户案例, announcement-公告",
+        comment="文章类型（sys_dict article_category 的 item_value：01-04）",
     )
-    
+
+    author: Mapped[str] = mapped_column(
+        String(128),
+        nullable=False,
+        default="Source Fire",
+        server_default="Source Fire",
+        comment="作者",
+    )
+
     title: Mapped[str] = mapped_column(
         String(256),
         nullable=False,
@@ -123,5 +126,5 @@ class Article(BaseModel):
     )
     
     def __repr__(self) -> str:
-        return f"<Article(id={self.id}, title='{self.title}', category='{self.category.value}')>"
+        return f"<Article(id={self.id}, title='{self.title}', category='{self.category}')>"
 

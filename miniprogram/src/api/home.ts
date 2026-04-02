@@ -7,7 +7,8 @@ import { request } from '@/utils/request'
 
 export interface ArticleItem {
   id: number
-  category: 'founder_story' | 'operation_article' | 'customer_case' | 'announcement'
+  category: string
+  author?: string
   title: string
   content: string
   summary?: string
@@ -60,10 +61,10 @@ export interface HomeContentApiResponse {
  * 获取首页内容（聚合接口）
  * 返回首页所需的所有数据：
  * - banners: Banner列表（按位置分组）
- * - founder_stories: 创始人故事列表
- * - operation_articles: 运营干货列表
- * - announcements: 公告列表
- * - customer_cases: 客户案例列表
+ * - founder_stories: 创始人说（category 04）
+ * - operation_articles: 流量心法（category 02）
+ * - announcements: 商业底牌（category 01）
+ * - customer_cases: 实操手册（category 03）
  * - featured_modules: 推荐模块列表（功能入口）
  * @param position 可选，Banner位置筛选：home_top/home_middle/home_bottom/web，Web端可传 'web'
  */
@@ -75,4 +76,3 @@ export function getHomeContent(params?: { position?: string }) {
     showLoading: false
   })
 }
-

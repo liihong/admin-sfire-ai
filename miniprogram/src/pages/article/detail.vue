@@ -58,6 +58,9 @@
         <!-- 标题 -->
         <text class="article-title">{{ article.title }}</text>
 
+        <!-- 作者 -->
+        <text v-if="article.author" class="article-author">{{ article.author }}</text>
+
         <!-- 摘要 -->
         <text v-if="article.summary" class="article-summary">{{ article.summary }}</text>
 
@@ -428,6 +431,13 @@ function formatTime(timeStr?: string): string {
   color: $text-main;
   line-height: 1.5;
   margin-bottom: $spacing-md;
+}
+
+.article-author {
+  display: block;
+  font-size: $font-size-sm;
+  color: $text-placeholder;
+  margin-bottom: $spacing-sm;
 }
 
 .article-summary {

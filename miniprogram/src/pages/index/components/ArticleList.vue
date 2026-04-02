@@ -60,7 +60,7 @@ const handleArticleClick = (article: ArticleItem) => {
 
 const handleViewAll = () => {
   emit('viewAll')
-  uni.navigateTo({ url: '/pages/article/list?category=operation_article' })
+  uni.navigateTo({ url: '/pages/article/list?category=02' })
 }
 </script>
 

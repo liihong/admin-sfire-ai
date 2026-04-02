@@ -5,11 +5,15 @@ import http from "@/api";
 /**
  * @name 文章管理模块
  * 对接 /api/v1/admin/articles 接口
+ * 文章类型为 sys_dict dict_code=article_category 的 item_value（01-04）
  */
+
+export type ArticleCategoryCode = "01" | "02" | "03" | "04";
 
 export interface ArticleItem {
   id: number;
-  category: "founder_story" | "operation_article" | "customer_case" | "announcement";
+  category: ArticleCategoryCode | string;
+  author: string;
   title: string;
   content: string;
   summary?: string;
@@ -27,7 +31,7 @@ export interface ArticleItem {
 export interface ArticleParams {
   pageNum: number;
   pageSize: number;
-  category?: "founder_story" | "operation_article" | "customer_case";
+  category?: string;
   title?: string;
   tag?: string;
   is_published?: boolean;
@@ -46,7 +50,8 @@ export const getArticleDetail = (id: number) => {
 
 // 新增文章
 export const addArticle = (params: {
-  category: "founder_story" | "operation_article" | "customer_case";
+  category: ArticleCategoryCode;
+  author?: string;
   title: string;
   content: string;
   summary?: string;
@@ -63,7 +68,8 @@ export const addArticle = (params: {
 // 编辑文章
 export const editArticle = (params: {
   id: number;
-  category?: "founder_story" | "operation_article" | "customer_case";
+  category?: ArticleCategoryCode;
+  author?: string;
   title?: string;
   content?: string;
   summary?: string;
@@ -92,4 +98,3 @@ export const updateArticleStatus = (params: {
   const { id, ...data } = params;
   return http.put(PORT1 + `/articles/${id}/status`, data);
 };
-

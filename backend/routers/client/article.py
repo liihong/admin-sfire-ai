@@ -19,7 +19,7 @@ router = APIRouter()
 async def get_articles(
     pageNum: int = Query(1, ge=1, description="页码"),
     pageSize: int = Query(10, ge=1, le=100, description="每页数量"),
-    category: Optional[str] = Query(None, description="文章类型筛选: founder_story, operation_article, customer_case"),
+    category: Optional[str] = Query(None, description="文章类型筛选（字典 article_category 的 item_value：01-04）"),
     db: AsyncSession = Depends(get_db),
 ):
     """
