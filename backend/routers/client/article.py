@@ -8,7 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from loguru import logger
 
 from db import get_db
-from schemas.article import ArticleQueryParams
+from schemas.article import ArticleCategoryCode, ArticleQueryParams
 from services.resource import ArticleService
 from utils.response import success, page_response, fail
 
@@ -19,14 +19,22 @@ router = APIRouter()
 async def get_articles(
     pageNum: int = Query(1, ge=1, description="页码"),
     pageSize: int = Query(10, ge=1, le=100, description="每页数量"),
-    category: Optional[str] = Query(None, description="文章类型筛选（字典 article_category 的 item_value：01-04）"),
+    category: Optional[ArticleCategoryCode] = Query(
+        None,
+        description=(
+            "按文章类型筛选（sys_dict article_category 的 item_value）。"
+            "示例：GET /api/v1/client/articles?category=01&pageNum=1"
+        ),
+    ),
     db: AsyncSession = Depends(get_db),
 ):
     """
     获取文章列表（小程序端）
-    
-    只返回已发布且启用的文章
-    支持按类型筛选
+
+    只返回已发布且启用的文章；传 `category` 时只返回该类型。
+
+    说明：`GET /api/v1/client/articles/{id}` 为单篇详情，不支持 category 筛选；
+    列表筛选请使用本接口查询参数 `category`（01-商业底牌 02-流量心法 03-实操手册 04-创始人说）。
     """
     try:
         article_service = ArticleService(db)

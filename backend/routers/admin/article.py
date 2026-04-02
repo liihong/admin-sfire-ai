@@ -8,6 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from db import get_db
 from schemas.article import (
+    ArticleCategoryCode,
     ArticleCreate,
     ArticleUpdate,
     ArticleQueryParams,
@@ -23,7 +24,10 @@ router = APIRouter()
 async def get_articles(
     pageNum: int = Query(1, ge=1, description="页码"),
     pageSize: int = Query(10, ge=1, le=1000, description="每页数量"),
-    category: Optional[str] = Query(None, description="文章类型筛选"),
+    category: Optional[ArticleCategoryCode] = Query(
+        None,
+        description="文章类型筛选（sys_dict article_category 的 item_value：01-04）",
+    ),
     title: Optional[str] = Query(None, description="标题（模糊搜索）"),
     tag: Optional[str] = Query(None, description="标签筛选"),
     is_published: Optional[bool] = Query(None, description="是否已发布"),

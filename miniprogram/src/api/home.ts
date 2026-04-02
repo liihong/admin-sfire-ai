@@ -8,6 +8,7 @@ import { request } from '@/utils/request'
 export interface ArticleItem {
   id: number
   category: string
+  category_name: string
   author?: string
   title: string
   content: string

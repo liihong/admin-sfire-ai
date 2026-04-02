@@ -17,6 +17,7 @@ from models.article import (
     ARTICLE_CATEGORY_TRAFFIC,
     ARTICLE_CATEGORY_BUSINESS,
     ARTICLE_CATEGORY_MANUAL,
+    ARTICLE_CATEGORY_LABELS,
 )
 from models.banner import Banner, BannerPosition
 from models.home_config import HomeConfig
@@ -49,12 +50,21 @@ class HomeService:
         Returns:
             首页内容字典
         """
+        category_labels = await self.article_service.get_article_category_label_map()
         # 并行获取所有数据
         banners_task = self._get_enabled_banners(position=position)
-        founder_stories_task = self._get_articles_by_category(ARTICLE_CATEGORY_FOUNDER, limit=5)
-        operation_articles_task = self._get_articles_by_category(ARTICLE_CATEGORY_TRAFFIC, limit=10)
-        announcements_task = self._get_articles_by_category(ARTICLE_CATEGORY_BUSINESS, limit=3)
-        customer_cases_task = self._get_articles_by_category(ARTICLE_CATEGORY_MANUAL, limit=5)
+        founder_stories_task = self._get_articles_by_category(
+            ARTICLE_CATEGORY_FOUNDER, limit=5, category_labels=category_labels
+        )
+        operation_articles_task = self._get_articles_by_category(
+            ARTICLE_CATEGORY_TRAFFIC, limit=10, category_labels=category_labels
+        )
+        announcements_task = self._get_articles_by_category(
+            ARTICLE_CATEGORY_BUSINESS, limit=3, category_labels=category_labels
+        )
+        customer_cases_task = self._get_articles_by_category(
+            ARTICLE_CATEGORY_MANUAL, limit=5, category_labels=category_labels
+        )
         featured_modules_task = self._get_featured_modules()
         
         # 等待所有任务完成
@@ -136,7 +146,8 @@ class HomeService:
     async def _get_articles_by_category(
         self,
         category: str,
-        limit: int = 10
+        limit: int = 10,
+        category_labels: Optional[Dict[str, str]] = None,
     ) -> List[Dict]:
         """
         获取指定类型的已发布文章（category 为 sys_dict article_category 的 item_value）
@@ -144,6 +155,7 @@ class HomeService:
         Args:
             category: 文章类型 01-04
             limit: 限制数量
+            category_labels: item_value -> item_label，与文章列表接口 category_name 一致
         
         Returns:
             文章列表
@@ -162,7 +174,9 @@ class HomeService:
         
         result = await self.db.execute(query)
         articles = result.scalars().all()
-        
+
+        labels = category_labels if category_labels is not None else ARTICLE_CATEGORY_LABELS
+
         # 格式化响应
         article_list = []
         for article in articles:
@@ -176,10 +190,15 @@ class HomeService:
                     tags = []
             elif tags is None:
                 tags = []
-            
+
+            category_name = labels.get(article.category) or ARTICLE_CATEGORY_LABELS.get(
+                article.category, article.category
+            )
+
             article_list.append({
                 "id": article.id,
                 "category": article.category,
+                "category_name": category_name,
                 "author": article.author,
                 "title": article.title,
                 "content": article.content,

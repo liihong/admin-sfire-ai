@@ -51,6 +51,7 @@ class ArticleResponse(BaseModel):
     """文章响应数据"""
     id: int = Field(..., description="文章ID")
     category: str = Field(..., description="文章类型（字典值 01-04）")
+    category_name: str = Field(..., description="文章类型名称（sys_dict article_category 的 item_label）")
     author: str = Field(..., description="作者")
     title: str = Field(..., description="文章标题")
     content: str = Field(..., description="文章内容")

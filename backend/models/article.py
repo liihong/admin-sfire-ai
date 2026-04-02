@@ -24,6 +24,14 @@ ARTICLE_CATEGORY_TRAFFIC = "02"   # 流量心法
 ARTICLE_CATEGORY_MANUAL = "03"    # 实操手册
 ARTICLE_CATEGORY_FOUNDER = "04"  # 创始人说
 
+# 与迁移脚本默认字典项一致；接口返回 category_name 时以 sys_dict 为准，缺失时回退此表
+ARTICLE_CATEGORY_LABELS: dict[str, str] = {
+    ARTICLE_CATEGORY_BUSINESS: "商业底牌",
+    ARTICLE_CATEGORY_TRAFFIC: "流量心法",
+    ARTICLE_CATEGORY_MANUAL: "实操手册",
+    ARTICLE_CATEGORY_FOUNDER: "创始人说",
+}
+
 
 class Article(BaseModel):
     """

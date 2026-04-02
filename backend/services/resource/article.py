@@ -2,13 +2,13 @@
 文章 Service
 文章管理服务层
 """
-from typing import List, Tuple, Optional
+from typing import List, Tuple, Optional, Dict
 from datetime import datetime
 from sqlalchemy import select, func, and_, desc, asc
 from sqlalchemy.ext.asyncio import AsyncSession
 from loguru import logger
 
-from models.article import Article
+from models.article import Article, ARTICLE_CATEGORY_LABELS
 from schemas.article import (
     ArticleCreate,
     ArticleUpdate,
@@ -25,8 +25,27 @@ class ArticleService(BaseService):
     
     def __init__(self, db: AsyncSession):
         super().__init__(db, Article, "文章", check_soft_delete=False)
-    
-    def _format_response(self, article: Article) -> dict:
+
+    async def get_article_category_label_map(self) -> Dict[str, str]:
+        """article_category 的 item_value -> item_label；与字典同步，缺项时用 ARTICLE_CATEGORY_LABELS 兜底"""
+        from services.system.dictionary import DictionaryService
+
+        out = dict(ARTICLE_CATEGORY_LABELS)
+        try:
+            ds = DictionaryService(self.db)
+            items = await ds.get_items_by_code("article_category", enabled_only=True)
+            for it in items:
+                out[it.value] = it.label
+        except Exception as e:
+            logger.warning(f"加载 article_category 字典失败，使用本地兜底: {e}")
+        return out
+
+    def _format_response(
+        self,
+        article: Article,
+        *,
+        category_labels: Optional[Dict[str, str]] = None,
+    ) -> dict:
         """格式化文章响应"""
         # 处理标签：如果是字符串则解析为列表，如果是列表则直接使用
         tags = article.tags
@@ -38,10 +57,16 @@ class ArticleService(BaseService):
                 tags = []
         elif tags is None:
             tags = []
-        
+
+        labels = category_labels if category_labels is not None else ARTICLE_CATEGORY_LABELS
+        category_name = labels.get(article.category) or ARTICLE_CATEGORY_LABELS.get(
+            article.category, article.category
+        )
+
         return {
             "id": article.id,
             "category": article.category,
+            "category_name": category_name,
             "author": article.author,
             "title": article.title,
             "content": article.content,
@@ -77,8 +102,9 @@ class ArticleService(BaseService):
         
         if params.category:
             if params.category not in VALID_CATEGORY_CODES:
-                logger.warning(f"Invalid article category: {params.category}")
-                return [], 0
+                raise BadRequestException(
+                    msg="无效的文章类型，请使用字典 article_category 的 item_value：01、02、03、04",
+                )
             conditions.append(Article.category == params.category)
         
         if params.title:
@@ -125,10 +151,13 @@ class ArticleService(BaseService):
         
         result = await self.db.execute(query)
         articles = result.scalars().all()
-        
-        # 格式化响应
-        article_list = [self._format_response(article) for article in articles]
-        
+
+        category_labels = await self.get_article_category_label_map()
+        article_list = [
+            self._format_response(article, category_labels=category_labels)
+            for article in articles
+        ]
+
         return article_list, total
     
     async def get_article_by_id(
@@ -153,8 +182,9 @@ class ArticleService(BaseService):
             article.view_count += 1
             await self.db.flush()
             await self.db.refresh(article)
-        
-        return self._format_response(article)
+
+        category_labels = await self.get_article_category_label_map()
+        return self._format_response(article, category_labels=category_labels)
     
     async def create_article(self, article_data: ArticleCreate) -> dict:
         """
@@ -181,9 +211,10 @@ class ArticleService(BaseService):
         
         await self.db.flush()
         await self.db.refresh(article)
-        
-        return self._format_response(article)
-    
+
+        category_labels = await self.get_article_category_label_map()
+        return self._format_response(article, category_labels=category_labels)
+
     async def update_article(self, article_id: int, article_data: ArticleUpdate) -> dict:
         """
         更新文章
@@ -219,9 +250,10 @@ class ArticleService(BaseService):
         
         await self.db.flush()
         await self.db.refresh(article)
-        
-        return self._format_response(article)
-    
+
+        category_labels = await self.get_article_category_label_map()
+        return self._format_response(article, category_labels=category_labels)
+
     async def delete_article(self, article_id: int) -> None:
         """
         删除文章
@@ -258,5 +290,6 @@ class ArticleService(BaseService):
         
         await self.db.flush()
         await self.db.refresh(article)
-        
-        return self._format_response(article)
+
+        category_labels = await self.get_article_category_label_map()
+        return self._format_response(article, category_labels=category_labels)

@@ -13,6 +13,8 @@ export type ArticleCategoryCode = "01" | "02" | "03" | "04";
 export interface ArticleItem {
   id: number;
   category: ArticleCategoryCode | string;
+  /** sys_dict article_category 的 item_label */
+  category_name: string;
   author: string;
   title: string;
   content: string;
