@@ -63,7 +63,7 @@ load_config_dev() {
     BACKEND_DIR_DEV="${BACKEND_DIR_DEV:-${PROJECT_DIR_DEV}/backend}"
     FRONTEND_DIR_DEV="${FRONTEND_DIR_DEV:-${PROJECT_DIR_DEV}/frontend}"
     FRONTEND_DIST_DIR_DEV="${FRONTEND_DIST_DIR_DEV:-/var/www/html/sfire-admin-dev}"
-    GIT_BRANCH_DEV="${GIT_BRANCH_DEV:-develop}"
+    GIT_BRANCH_DEV="${GIT_BRANCH_DEV:-dev}"
     SERVICE_NAME_BACKEND_DEV="${SERVICE_NAME_BACKEND_DEV:-sfire-admin-api-dev}"
     SERVICE_NAME_FRONTEND_DEV="${SERVICE_NAME_FRONTEND_DEV:-sfire-admin-frontend-dev}"
     BACKEND_PORT_DEV="${BACKEND_PORT_DEV:-8001}"

@@ -5,8 +5,8 @@
 # 建议：在服务器上单独 clone 一份仓库到 PROJECT_DIR_DEV，与生产 PROJECT_DIR 隔离。
 
 # ==================== Git ====================
-# 开发跟踪分支（如 develop、feature/xxx）
-GIT_BRANCH_DEV="${GIT_BRANCH_DEV:-develop}"
+# 开发跟踪分支（默认 dev）
+GIT_BRANCH_DEV="${GIT_BRANCH_DEV:-dev}"
 
 # ==================== 路径（与 systemd 模板、Nginx 一致）====================
 PROJECT_DIR_DEV="${PROJECT_DIR_DEV:-/var/www/sfire-admin-dev}"

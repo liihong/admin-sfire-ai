@@ -1,6 +1,7 @@
 [Unit]
 Description=SFire Admin API (development, reload)
-After=network.target mysql.service redis.service
+After=network.target
+# 若本机 MySQL/Redis 的 unit 名不同，可改为 mysqld.service / redis-server.service 等；仅影响启动顺序
 
 [Service]
 Type=simple
@@ -8,7 +9,7 @@ User=www-data
 Group=www-data
 WorkingDirectory=/var/www/sfire-admin-dev/backend
 Environment="PATH=/var/www/sfire-admin-dev/backend/venv/bin"
-EnvironmentFile=/var/www/sfire-admin-dev/backend/.env
+# 不设置 EnvironmentFile：由应用加载 backend/.env，避免 systemd 与 Pydantic 对同一文件的解析规则不一致导致启动失败
 # 开发：单进程 + 代码变更自动重载（勿在生产使用 --reload）
 ExecStart=/var/www/sfire-admin-dev/backend/venv/bin/uvicorn main:app --host 127.0.0.1 --port 8001 --reload
 Restart=on-failure
@@ -18,11 +19,7 @@ StandardOutput=journal
 StandardError=journal
 SyslogIdentifier=sfire-admin-api-dev
 
-NoNewPrivileges=true
-PrivateTmp=true
-ProtectSystem=strict
-ProtectHome=true
-ReadWritePaths=/var/www/sfire-admin-dev/backend
+# 开发环境不启用 ProtectSystem=strict，避免与 venv/系统 Python 路径冲突导致启动失败
 
 [Install]
 WantedBy=multi-user.target
