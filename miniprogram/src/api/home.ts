@@ -47,6 +47,8 @@ export interface HomeContentResponse {
   }
   founder_stories: ArticleItem[]
   operation_articles: ArticleItem[]
+  /** 最近落地（category 05） */
+  recent_landing_articles: ArticleItem[]
   announcements: ArticleItem[]
   customer_cases: ArticleItem[]
   featured_modules: FeaturedModuleItem[]
@@ -63,7 +65,8 @@ export interface HomeContentApiResponse {
  * 返回首页所需的所有数据：
  * - banners: Banner列表（按位置分组）
  * - founder_stories: 创始人说（category 04）
- * - operation_articles: 流量心法（category 02）
+ * - operation_articles: 运营干货（category 02）
+ * - recent_landing_articles: 最近落地（category 05）
  * - announcements: 商业底牌（category 01）
  * - customer_cases: 实操手册（category 03）
  * - featured_modules: 推荐模块列表（功能入口）

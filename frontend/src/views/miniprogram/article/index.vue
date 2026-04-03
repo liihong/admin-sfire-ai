@@ -194,7 +194,8 @@ const categoryLabelFallback: Record<string, string> = {
   "01": "商业底牌",
   "02": "流量心法",
   "03": "实操手册",
-  "04": "创始人说"
+  "04": "创始人说",
+  "05": "最近落地"
 };
 
 const categorySearchOptions = Object.entries(categoryLabelFallback).map(([value, label]) => ({ label, value }));
@@ -302,7 +303,8 @@ const getCategoryTagType = (category: string): "success" | "warning" | "info" | 
     "01": "primary",
     "02": "success",
     "03": "warning",
-    "04": "danger"
+    "04": "danger",
+    "05": "info"
   };
   return typeMap[category] || "info";
 };

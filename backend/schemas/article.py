@@ -9,12 +9,12 @@ from pydantic import BaseModel, Field
 from .common import PageParams
 
 # 与 sys_dict article_category 字典项 item_value 一致
-ArticleCategoryCode = Literal["01", "02", "03", "04"]
+ArticleCategoryCode = Literal["01", "02", "03", "04", "05"]
 
 
 class ArticleBase(BaseModel):
     """文章基础信息"""
-    category: ArticleCategoryCode = Field(..., description="文章类型（字典 article_category：01-04）")
+    category: ArticleCategoryCode = Field(..., description="文章类型（字典 article_category：01-05）")
     author: str = Field(default="Source Fire", max_length=128, description="作者")
     title: str = Field(..., min_length=1, max_length=256, description="文章标题")
     content: str = Field(..., min_length=1, description="文章内容（富文本）")
@@ -34,7 +34,7 @@ class ArticleCreate(ArticleBase):
 
 class ArticleUpdate(BaseModel):
     """更新文章请求"""
-    category: Optional[ArticleCategoryCode] = Field(None, description="文章类型（01-04）")
+    category: Optional[ArticleCategoryCode] = Field(None, description="文章类型（01-05）")
     author: Optional[str] = Field(None, max_length=128, description="作者")
     title: Optional[str] = Field(None, min_length=1, max_length=256, description="文章标题")
     content: Optional[str] = Field(None, min_length=1, description="文章内容（富文本）")
@@ -50,7 +50,7 @@ class ArticleUpdate(BaseModel):
 class ArticleResponse(BaseModel):
     """文章响应数据"""
     id: int = Field(..., description="文章ID")
-    category: str = Field(..., description="文章类型（字典值 01-04）")
+    category: str = Field(..., description="文章类型（字典值 01-05）")
     category_name: str = Field(..., description="文章类型名称（sys_dict article_category 的 item_label）")
     author: str = Field(..., description="作者")
     title: str = Field(..., description="文章标题")
@@ -72,7 +72,7 @@ class ArticleResponse(BaseModel):
 
 class ArticleQueryParams(PageParams):
     """文章查询参数"""
-    category: Optional[str] = Field(None, description="文章类型筛选（01-04）")
+    category: Optional[str] = Field(None, description="文章类型筛选（01-05）")
     title: Optional[str] = Field(None, description="标题（模糊搜索）")
     tag: Optional[str] = Field(None, description="标签筛选")
     is_published: Optional[bool] = Field(None, description="是否已发布")

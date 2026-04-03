@@ -10,20 +10,24 @@
     </BaseSection>
     <scroll-view class="article-scroll" scroll-x>
       <view class="article-container">
-        <view
-          class="article-card"
+        <navigator
           v-for="(article, index) in articleList"
           :key="article.id"
+          class="article-card"
           :class="{ 'card-orange': index === 0, 'card-white': index === 1 }"
-          @tap="handleArticleClick(article)"
+          :url="`/pages/article/detail?id=${article.id}`"
+          open-type="navigate"
+          hover-class="article-card--hover"
+          hover-stay-time="70"
+          @tap="onCardTap(article)"
         >
-         <view class="article-tag">{{ article.tags && article.tags.length > 0 ? article.tags[0] : '' }}</view>
+          <view class="article-tag">{{ article.tags && article.tags.length > 0 ? article.tags[0] : '' }}</view>
           <view class="article-title">{{ article.title }}</view>
           <view class="article-action">
             <text class="action-text">{{ index === 0 ? '立即研读' : '去看看' }}</text>
-           <text class="action-arrow"> ›</text>
+            <text class="action-arrow"> ›</text>
           </view>
-        </view>
+        </navigator>
       </view>
     </scroll-view>
   </view>
@@ -52,10 +56,9 @@ const articleList = computed(() => {
   return []
 })
 
-const handleArticleClick = (article: ArticleItem) => {
+/** 跳转由 navigator 完成；此处仅向父组件透传（如统计） */
+const onCardTap = (article: ArticleItem) => {
   emit('articleClick', article)
-  // 跳转到文章详情页
-  uni.navigateTo({ url: `/pages/article/detail?id=${article.id}` })
 }
 
 const handleViewAll = () => {
@@ -92,6 +95,11 @@ const handleViewAll = () => {
       justify-content: space-between;
       min-height: 200rpx;
       box-sizing: border-box;
+      overflow: hidden;
+
+      &--hover {
+        opacity: 0.92;
+      }
 
       &.card-orange {
         background: $brand-orange;

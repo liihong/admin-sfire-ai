@@ -279,6 +279,20 @@
       ]
     },
     {
+      "root": "pages/tools",
+      "name": "tools",
+      "pages": [
+        {
+          "path": "text-extract/index",
+          "style": {
+            "navigationBarTitleText": "文案提取",
+            "navigationStyle": "custom",
+            "disableScroll": false
+          }
+        }
+      ]
+    },
+    {
       "root": "pages/conversation",
       "name": "conversation",
       "pages": [
@@ -296,7 +310,7 @@
   "preloadRule": {
     "pages/index/index": {
       "network": "all",
-      "packages": ["article", "agent", "copywriting"]
+      "packages": ["article", "agent", "copywriting", "tools"]
     },
     "pages/project/index": {
       "network": "all",

@@ -28,7 +28,8 @@ async def get_home_content(
     返回首页所需的所有数据：
     - banners: Banner列表（按位置分组：home_top, home_middle, home_bottom, web）
     - founder_stories: 创始人故事列表（用于轮播）
-    - operation_articles: 运营干货列表（用于横向滚动）
+    - operation_articles: 运营干货列表（category 02，横向滚动）
+    - recent_landing_articles: 最近落地列表（category 05）
     - announcements: 公告列表（最新公告）
     - customer_cases: 客户案例列表（可选）
     

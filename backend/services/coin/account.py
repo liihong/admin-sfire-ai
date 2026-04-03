@@ -17,6 +17,24 @@ from utils.exceptions import BadRequestException, NotFoundException
 from db.session import async_session_maker
 
 
+def _strip_supplementary_unicode(obj: Any) -> Any:
+    """
+    Remove non-BMP characters (e.g. emoji) from nested dict/list/str.
+
+    MySQL utf8 / utf8mb3 (3-byte) cannot store their UTF-8 encoding. JSON columns may
+    also normalize \\u escapes to real characters on insert, which re-breaks utf8.
+    """
+    if isinstance(obj, str):
+        return "".join(c for c in obj if ord(c) < 0x10000)
+    if isinstance(obj, dict):
+        return {k: _strip_supplementary_unicode(v) for k, v in obj.items()}
+    if isinstance(obj, list):
+        return [_strip_supplementary_unicode(v) for v in obj]
+    if isinstance(obj, tuple):
+        return tuple(_strip_supplementary_unicode(v) for v in obj)
+    return obj
+
+
 class CoinAccountService:
     """
     火源币账户管理服务类
@@ -742,9 +760,12 @@ class CoinAccountService:
                         extra_data_dict.update(extra_data)
                     except Exception as e:
                         logger.warning(f"extra_data合并失败，将忽略传入extra_data: {e}")
-                
+
+                if extra_data_dict:
+                    extra_data_dict = _strip_supplementary_unicode(extra_data_dict)
+
                 extra_data_json = (
-                    json.dumps(extra_data_dict, ensure_ascii=False, default=str)
+                    json.dumps(extra_data_dict, ensure_ascii=True, default=str)
                     if extra_data_dict
                     else None
                 )

@@ -34,7 +34,7 @@ async def get_articles(
     只返回已发布且启用的文章；传 `category` 时只返回该类型。
 
     说明：`GET /api/v1/client/articles/{id}` 为单篇详情，不支持 category 筛选；
-    列表筛选请使用本接口查询参数 `category`（01-商业底牌 02-流量心法 03-实操手册 04-创始人说）。
+    列表筛选请使用本接口查询参数 `category`（01-商业底牌 02-流量心法 03-实操手册 04-创始人说 05-最近落地）。
     """
     try:
         article_service = ArticleService(db)

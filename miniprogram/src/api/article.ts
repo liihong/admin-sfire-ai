@@ -1,11 +1,11 @@
 /**
  * 文章API
  * 用于获取小程序首页的文章内容
- * 文章类型 category 为 sys_dict article_category 的 item_value：01-04
+ * 文章类型 category 为 sys_dict article_category 的 item_value：01-05
  */
 import { request } from '@/utils/request'
 
-export type ArticleCategoryCode = '01' | '02' | '03' | '04'
+export type ArticleCategoryCode = '01' | '02' | '03' | '04' | '05'
 
 export interface ArticleItem {
   id: number
@@ -42,7 +42,7 @@ export interface ArticleListApiResponse {
 
 /**
  * 获取文章列表
- * @param category 文章类型：01-商业底牌 02-流量心法 03-实操手册 04-创始人说
+ * @param category 文章类型：01-商业底牌 02-流量心法 03-实操手册 04-创始人说 05-最近落地
  */
 export function getArticleList(
   category?: string,

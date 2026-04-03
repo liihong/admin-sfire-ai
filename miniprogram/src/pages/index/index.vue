@@ -13,8 +13,8 @@
   <!-- 运营干货区域 -->
     <ArticleList :operation-articles="homeData.operation_articles" />
 
-    <!-- 最近落地区域 -->
-    <RecentLanding />
+    <!-- 最近落地区域（category 05） -->
+    <RecentLanding :articles="homeData.recent_landing_articles" />
 
     <view class="bottom-gap" />
   </scroll-view>
@@ -39,6 +39,7 @@ const homeData = ref<HomeContentResponse>({
   },
   founder_stories: [],
   operation_articles: [],
+  recent_landing_articles: [],
   announcements: [],
   customer_cases: [],
   featured_modules: []
@@ -61,6 +62,7 @@ const fetchHomeContent = async () => {
         },
         founder_stories: res.data.founder_stories || [],
         operation_articles: res.data.operation_articles || [],
+        recent_landing_articles: res.data.recent_landing_articles || [],
         announcements: res.data.announcements || [],
         customer_cases: res.data.customer_cases || [],
         featured_modules: res.data.featured_modules || []

@@ -78,7 +78,7 @@ import { onLoad } from '@dcloudio/uni-app'
 import { getArticleList, type ArticleItem, type ArticleListResponse } from '@/api/article'
 import BaseHeader from '@/components/base/BaseHeader.vue'
 
-// 文章类型（sys_dict article_category：01-04）
+// 文章类型（sys_dict article_category：01-05）
 const category = ref<string | undefined>(undefined)
 
 // 分类标签
@@ -87,7 +87,8 @@ const categoryLabel = computed(() => {
     '01': '商业底牌',
     '02': '流量心法',
     '03': '实操手册',
-    '04': '创始人说'
+    '04': '创始人说',
+    '05': '最近落地'
   }
   return labelMap[category.value || ''] || '全部文章'
 })

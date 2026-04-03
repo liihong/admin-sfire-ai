@@ -5,10 +5,10 @@ import http from "@/api";
 /**
  * @name 文章管理模块
  * 对接 /api/v1/admin/articles 接口
- * 文章类型为 sys_dict dict_code=article_category 的 item_value（01-04）
+ * 文章类型为 sys_dict dict_code=article_category 的 item_value（01-05）
  */
 
-export type ArticleCategoryCode = "01" | "02" | "03" | "04";
+export type ArticleCategoryCode = "01" | "02" | "03" | "04" | "05";
 
 export interface ArticleItem {
   id: number;

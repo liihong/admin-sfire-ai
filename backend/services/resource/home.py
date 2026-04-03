@@ -17,6 +17,7 @@ from models.article import (
     ARTICLE_CATEGORY_TRAFFIC,
     ARTICLE_CATEGORY_BUSINESS,
     ARTICLE_CATEGORY_MANUAL,
+    ARTICLE_CATEGORY_RECENT_LANDING,
     ARTICLE_CATEGORY_LABELS,
 )
 from models.banner import Banner, BannerPosition
@@ -42,7 +43,8 @@ class HomeService:
         返回：
             - banners: Banner列表（按位置分组）
             - founder_stories: 创始人故事列表（用于轮播）
-            - operation_articles: 运营干货列表（用于横向滚动）
+            - operation_articles: 运营干货列表（category 02，横向滚动）
+            - recent_landing_articles: 最近落地列表（category 05）
             - announcements: 公告列表（最新公告）
             - customer_cases: 客户案例列表（可选）
             - featured_modules: 推荐模块列表（功能入口）
@@ -59,6 +61,9 @@ class HomeService:
         operation_articles_task = self._get_articles_by_category(
             ARTICLE_CATEGORY_TRAFFIC, limit=10, category_labels=category_labels
         )
+        recent_landing_articles_task = self._get_articles_by_category(
+            ARTICLE_CATEGORY_RECENT_LANDING, limit=8, category_labels=category_labels
+        )
         announcements_task = self._get_articles_by_category(
             ARTICLE_CATEGORY_BUSINESS, limit=3, category_labels=category_labels
         )
@@ -71,6 +76,7 @@ class HomeService:
         banners = await banners_task
         founder_stories = await founder_stories_task
         operation_articles = await operation_articles_task
+        recent_landing_articles = await recent_landing_articles_task
         announcements = await announcements_task
         customer_cases = await customer_cases_task
         featured_modules = await featured_modules_task
@@ -79,6 +85,7 @@ class HomeService:
             "banners": banners,
             "founder_stories": founder_stories,
             "operation_articles": operation_articles,
+            "recent_landing_articles": recent_landing_articles,
             "announcements": announcements,
             "customer_cases": customer_cases,
             "featured_modules": featured_modules,
@@ -153,7 +160,7 @@ class HomeService:
         获取指定类型的已发布文章（category 为 sys_dict article_category 的 item_value）
         
         Args:
-            category: 文章类型 01-04
+            category: 文章类型（字典 article_category 的 item_value）
             limit: 限制数量
             category_labels: item_value -> item_label，与文章列表接口 category_name 一致
         

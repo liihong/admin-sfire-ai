@@ -20,9 +20,10 @@ from models.base import BaseModel
 
 # 与 sys_dict article_category 的 item_value 一致（首页各区块按此取值筛选）
 ARTICLE_CATEGORY_BUSINESS = "01"   # 商业底牌
-ARTICLE_CATEGORY_TRAFFIC = "02"   # 流量心法
+ARTICLE_CATEGORY_TRAFFIC = "02"   # 流量心法 / 运营干货
 ARTICLE_CATEGORY_MANUAL = "03"    # 实操手册
 ARTICLE_CATEGORY_FOUNDER = "04"  # 创始人说
+ARTICLE_CATEGORY_RECENT_LANDING = "05"  # 最近落地
 
 # 与迁移脚本默认字典项一致；接口返回 category_name 时以 sys_dict 为准，缺失时回退此表
 ARTICLE_CATEGORY_LABELS: dict[str, str] = {
@@ -30,6 +31,7 @@ ARTICLE_CATEGORY_LABELS: dict[str, str] = {
     ARTICLE_CATEGORY_TRAFFIC: "流量心法",
     ARTICLE_CATEGORY_MANUAL: "实操手册",
     ARTICLE_CATEGORY_FOUNDER: "创始人说",
+    ARTICLE_CATEGORY_RECENT_LANDING: "最近落地",
 }
 
 
@@ -53,7 +55,7 @@ class Article(BaseModel):
     category: Mapped[str] = mapped_column(
         String(8),
         nullable=False,
-        comment="文章类型（sys_dict article_category 的 item_value：01-04）",
+        comment="文章类型（sys_dict article_category 的 item_value：01-05）",
     )
 
     author: Mapped[str] = mapped_column(

@@ -17,7 +17,7 @@ from schemas.article import (
 from utils.exceptions import BadRequestException
 from services.base import BaseService
 
-VALID_CATEGORY_CODES = frozenset({"01", "02", "03", "04"})
+VALID_CATEGORY_CODES = frozenset({"01", "02", "03", "04", "05"})
 
 
 class ArticleService(BaseService):
@@ -103,7 +103,7 @@ class ArticleService(BaseService):
         if params.category:
             if params.category not in VALID_CATEGORY_CODES:
                 raise BadRequestException(
-                    msg="无效的文章类型，请使用字典 article_category 的 item_value：01、02、03、04",
+                    msg="无效的文章类型，请使用字典 article_category 的 item_value：01、02、03、04、05",
                 )
             conditions.append(Article.category == params.category)
         
