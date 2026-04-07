@@ -2,12 +2,14 @@
 首页内容 Service
 首页内容聚合服务层（独立于文章管理，专门为小程序首页提供数据）
 """
+import asyncio
 import json
 import ast
 import re
 from typing import List, Dict, Optional
 from datetime import datetime
 from sqlalchemy import select, and_, desc, asc
+from sqlalchemy.orm import load_only
 from sqlalchemy.ext.asyncio import AsyncSession
 from loguru import logger
 
@@ -52,35 +54,52 @@ class HomeService:
         Returns:
             首页内容字典
         """
-        category_labels = await self.article_service.get_article_category_label_map()
-        # 并行获取所有数据
-        banners_task = self._get_enabled_banners(position=position)
-        founder_stories_task = self._get_articles_by_category(
-            ARTICLE_CATEGORY_FOUNDER, limit=5, category_labels=category_labels
+        # 与文章列表并行：字典、Banner、推荐模块互不依赖，可同批并发
+        category_labels, banners, featured_modules = await asyncio.gather(
+            self.article_service.get_article_category_label_map(),
+            self._get_enabled_banners(position=position),
+            self._get_featured_modules(),
         )
-        operation_articles_task = self._get_articles_by_category(
-            ARTICLE_CATEGORY_TRAFFIC, limit=10, category_labels=category_labels
+        # 各分类文章查询彼此独立，并发执行（原先顺序 await 会放大延迟）
+        (
+            founder_stories,
+            operation_articles,
+            recent_landing_articles,
+            announcements,
+            customer_cases,
+        ) = await asyncio.gather(
+            self._get_articles_by_category(
+                ARTICLE_CATEGORY_FOUNDER,
+                limit=5,
+                category_labels=category_labels,
+                include_content=False,
+            ),
+            self._get_articles_by_category(
+                ARTICLE_CATEGORY_TRAFFIC,
+                limit=10,
+                category_labels=category_labels,
+                include_content=False,
+            ),
+            self._get_articles_by_category(
+                ARTICLE_CATEGORY_RECENT_LANDING,
+                limit=8,
+                category_labels=category_labels,
+                include_content=False,
+            ),
+            self._get_articles_by_category(
+                ARTICLE_CATEGORY_BUSINESS,
+                limit=3,
+                category_labels=category_labels,
+                include_content=False,
+            ),
+            self._get_articles_by_category(
+                ARTICLE_CATEGORY_MANUAL,
+                limit=5,
+                category_labels=category_labels,
+                include_content=False,
+            ),
         )
-        recent_landing_articles_task = self._get_articles_by_category(
-            ARTICLE_CATEGORY_RECENT_LANDING, limit=8, category_labels=category_labels
-        )
-        announcements_task = self._get_articles_by_category(
-            ARTICLE_CATEGORY_BUSINESS, limit=3, category_labels=category_labels
-        )
-        customer_cases_task = self._get_articles_by_category(
-            ARTICLE_CATEGORY_MANUAL, limit=5, category_labels=category_labels
-        )
-        featured_modules_task = self._get_featured_modules()
-        
-        # 等待所有任务完成
-        banners = await banners_task
-        founder_stories = await founder_stories_task
-        operation_articles = await operation_articles_task
-        recent_landing_articles = await recent_landing_articles_task
-        announcements = await announcements_task
-        customer_cases = await customer_cases_task
-        featured_modules = await featured_modules_task
-        
+
         return {
             "banners": banners,
             "founder_stories": founder_stories,
@@ -155,6 +174,7 @@ class HomeService:
         category: str,
         limit: int = 10,
         category_labels: Optional[Dict[str, str]] = None,
+        include_content: bool = True,
     ) -> List[Dict]:
         """
         获取指定类型的已发布文章（category 为 sys_dict article_category 的 item_value）
@@ -163,6 +183,7 @@ class HomeService:
             category: 文章类型（字典 article_category 的 item_value）
             limit: 限制数量
             category_labels: item_value -> item_label，与文章列表接口 category_name 一致
+            include_content: 是否查询正文。首页列表仅需卡片字段，排除 content 可显著减少 DB/网络开销
         
         Returns:
             文章列表
@@ -178,7 +199,26 @@ class HomeService:
             desc(Article.created_at),
             asc(Article.sort_order)
         ).limit(limit)
-        
+        if not include_content:
+            # 不 SELECT 富文本正文列，避免大字段 IO（首页仅展示标题/摘要/封面等）
+            query = query.options(
+                load_only(
+                    Article.id,
+                    Article.category,
+                    Article.author,
+                    Article.title,
+                    Article.summary,
+                    Article.cover_image,
+                    Article.tags,
+                    Article.sort_order,
+                    Article.publish_time,
+                    Article.view_count,
+                    Article.is_published,
+                    Article.is_enabled,
+                    Article.created_at,
+                )
+            )
+
         result = await self.db.execute(query)
         articles = result.scalars().all()
 
@@ -208,7 +248,7 @@ class HomeService:
                 "category_name": category_name,
                 "author": article.author,
                 "title": article.title,
-                "content": article.content,
+                "content": article.content if include_content else "",
                 "summary": article.summary,
                 "cover_image": article.cover_image,
                 "tags": tags if isinstance(tags, list) else [],

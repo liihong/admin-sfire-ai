@@ -194,7 +194,7 @@ export function chatStream(
       header,
       responseType: 'text',
       enableChunked: true,
-      timeout: 100000,
+      timeout: 300000,
       success: (response) => {
         if (hasRealStreaming) {
           // 检查响应体中的 code 字段（即使 HTTP 状态码是 200）
