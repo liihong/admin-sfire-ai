@@ -40,6 +40,12 @@ def _extract_hotspot_list_from_coze_response(coze_data: Any) -> List[dict]:
     从 Coze 工作流返回中提取热点列表
     支持多种嵌套结构：直接数组、output[0].data、data、original_result 等
     """
+    if isinstance(coze_data, str):
+        try:
+            coze_data = json.loads(coze_data)
+        except json.JSONDecodeError:
+            return []
+
     if isinstance(coze_data, list):
         return coze_data
 
@@ -103,6 +109,7 @@ async def get_hotspot_list(
     路径：GET /api/v1/client/coze/hotspot-list
     """
     from cozepy import Coze, TokenAuth, COZE_CN_BASE_URL, WorkflowEventType
+    from cozepy.exception import CozeAPIError
 
     pat_token = settings.COZE_PAT_TOKEN
     workflow_id = settings.COZE_HOTSPOT_WORKFLOW_ID
@@ -114,7 +121,7 @@ async def get_hotspot_list(
     # 尝试从缓存获取
     try:
         cached = await RedisCache.get_json(HOTSPOT_CACHE_KEY)
-        if cached is not None:
+        if isinstance(cached, list):
             return success(data=cached, msg="获取成功")
     except Exception:
         pass  # 缓存不可用时继续请求 Coze
@@ -161,8 +168,18 @@ async def get_hotspot_list(
                     p = json.loads(val)
                 except json.JSONDecodeError:
                     continue
-            else:  # ext 已是 dict
+                if isinstance(p, str):
+                    try:
+                        p = json.loads(p)
+                    except json.JSONDecodeError:
+                        pass
+            else:
                 p = val
+                if isinstance(p, str):
+                    try:
+                        p = json.loads(p)
+                    except json.JSONDecodeError:
+                        continue
             raw = _extract_hotspot_list_from_coze_response(p)
             if raw:
                 raw_list = raw
@@ -191,6 +208,23 @@ async def get_hotspot_list(
     except asyncio.TimeoutError:
         logger.error("Coze 热点工作流请求超时")
         raise ServerErrorException("获取热点榜单超时，请稍后重试")
+    except CozeAPIError as e:
+        logger.warning(
+            "Coze API 热点榜单失败: code={} msg={} logid={}",
+            e.code,
+            e.msg,
+            e.logid,
+        )
+        # 4100：实测为 PAT 无效 / 鉴权失败（见 cozepy stream_run 返回）
+        if e.code == 4100 or (
+            e.msg and "authentication" in e.msg.lower()
+        ):
+            raise ServerErrorException(
+                "热点榜单服务鉴权失败，请检查服务端 COZE_PAT_TOKEN 是否在 Coze 开放平台有效"
+            )
+        raise ServerErrorException(
+            f"热点榜单服务暂时不可用（Coze 错误码 {e.code}），请稍后重试"
+        )
     except RuntimeError as e:
         raise ServerErrorException(str(e))
     except Exception as e:

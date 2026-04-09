@@ -98,6 +98,8 @@ export interface DouyinCaptionExtractData {
   text: string;
   aweme_id: string;
   title?: string | null;
+  /** C 端成功时返回；管理端自测不扣费，通常无此字段 */
+  coin_cost?: number;
 }
 
 /** C 端：从抖音链接提取口播文案 */

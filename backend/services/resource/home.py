@@ -2,7 +2,6 @@
 首页内容 Service
 首页内容聚合服务层（独立于文章管理，专门为小程序首页提供数据）
 """
-import asyncio
 import json
 import ast
 import re
@@ -54,50 +53,41 @@ class HomeService:
         Returns:
             首页内容字典
         """
-        # 与文章列表并行：字典、Banner、推荐模块互不依赖，可同批并发
-        category_labels, banners, featured_modules = await asyncio.gather(
-            self.article_service.get_article_category_label_map(),
-            self._get_enabled_banners(position=position),
-            self._get_featured_modules(),
+        # 同一 AsyncSession 上不可并发 execute（asyncio.gather 会触发 isce）；
+        # 字典、Banner、推荐模块与各类文章均顺序执行。
+        category_labels = await self.article_service.get_article_category_label_map()
+        banners = await self._get_enabled_banners(position=position)
+        featured_modules = await self._get_featured_modules()
+
+        founder_stories = await self._get_articles_by_category(
+            ARTICLE_CATEGORY_FOUNDER,
+            limit=5,
+            category_labels=category_labels,
+            include_content=False,
         )
-        # 各分类文章查询彼此独立，并发执行（原先顺序 await 会放大延迟）
-        (
-            founder_stories,
-            operation_articles,
-            recent_landing_articles,
-            announcements,
-            customer_cases,
-        ) = await asyncio.gather(
-            self._get_articles_by_category(
-                ARTICLE_CATEGORY_FOUNDER,
-                limit=5,
-                category_labels=category_labels,
-                include_content=False,
-            ),
-            self._get_articles_by_category(
-                ARTICLE_CATEGORY_TRAFFIC,
-                limit=10,
-                category_labels=category_labels,
-                include_content=False,
-            ),
-            self._get_articles_by_category(
-                ARTICLE_CATEGORY_RECENT_LANDING,
-                limit=8,
-                category_labels=category_labels,
-                include_content=False,
-            ),
-            self._get_articles_by_category(
-                ARTICLE_CATEGORY_BUSINESS,
-                limit=3,
-                category_labels=category_labels,
-                include_content=False,
-            ),
-            self._get_articles_by_category(
-                ARTICLE_CATEGORY_MANUAL,
-                limit=5,
-                category_labels=category_labels,
-                include_content=False,
-            ),
+        operation_articles = await self._get_articles_by_category(
+            ARTICLE_CATEGORY_TRAFFIC,
+            limit=10,
+            category_labels=category_labels,
+            include_content=False,
+        )
+        recent_landing_articles = await self._get_articles_by_category(
+            ARTICLE_CATEGORY_RECENT_LANDING,
+            limit=8,
+            category_labels=category_labels,
+            include_content=False,
+        )
+        announcements = await self._get_articles_by_category(
+            ARTICLE_CATEGORY_BUSINESS,
+            limit=3,
+            category_labels=category_labels,
+            include_content=False,
+        )
+        customer_cases = await self._get_articles_by_category(
+            ARTICLE_CATEGORY_MANUAL,
+            limit=5,
+            category_labels=category_labels,
+            include_content=False,
         )
 
         return {

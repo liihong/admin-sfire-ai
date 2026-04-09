@@ -7,6 +7,8 @@ export interface DouyinCaptionExtractData {
   text: string
   aweme_id: string
   title?: string | null
+  /** C 端成功提取时扣除的火源币（管理端自测接口无此字段） */
+  coin_cost?: number
 }
 
 /** 抖音链接提取口播文案（需登录） */

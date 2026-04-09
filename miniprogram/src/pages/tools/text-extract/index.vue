@@ -17,7 +17,7 @@
       <view class="card">
         <text class="card-title">粘贴抖音视频链接</text>
         <text class="tip">
-          支持分享短链或浏览器打开的视频页链接。解析与语音识别在云端完成，不保存视频或音频文件。
+          支持分享短链或浏览器打开的视频页链接。解析与语音识别在云端完成，不保存视频或音频文件。每次成功提取会消耗火源币（解析或识别失败不扣费）。
         </text>
         <textarea
           v-model="shareUrl"

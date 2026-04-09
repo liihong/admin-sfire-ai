@@ -27,6 +27,9 @@ class CoinConfig:
     # 内容违规处罚费用 (基础调度费的倍数)
     VIOLATION_PENALTY_MULTIPLIER = Decimal("0.1")
 
+    # 工具类：抖音链接提取口播文案（固定扣费，与 Token 模型无关）
+    DOUYIN_CAPTION_EXTRACT_COST = Decimal("5")
+
     # 预冻结估算系数 (按最大输出Token数的倍数预冻结)
     FREEZE_ESTIMATE_MULTIPLIER = Decimal("1.2")
 

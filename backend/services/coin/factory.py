@@ -129,7 +129,43 @@ class CoinServiceFactory:
             remark=remark,
             operator_id=operator_id
         )
-    
+
+    async def consume_fixed_tool_fee(
+        self,
+        user_id: int,
+        amount: Decimal,
+        remark: str,
+        task_id: str,
+        source: str = "miniapp",
+    ) -> None:
+        if user_id <= 0:
+            raise BadRequestException("无效的用户ID")
+        await self.account_service.consume_fixed_tool_fee(
+            user_id=user_id,
+            amount=amount,
+            remark=remark,
+            task_id=task_id,
+            source=source,
+        )
+
+    async def refund_fixed_tool_fee(
+        self,
+        user_id: int,
+        amount: Decimal,
+        remark: str,
+        task_id: str,
+        source: str = "miniapp",
+    ) -> None:
+        if user_id <= 0:
+            raise BadRequestException("无效的用户ID")
+        await self.account_service.refund_fixed_tool_fee(
+            user_id=user_id,
+            amount=amount,
+            remark=remark,
+            task_id=task_id,
+            source=source,
+        )
+
     # ============== 计算操作（直接委托） ==============
     
     async def calculate_cost(

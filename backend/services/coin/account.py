@@ -334,6 +334,86 @@ class CoinAccountService:
             f"调整前: {before_balance}, 调整后: {user.balance}, 原因: {remark}"
         )
 
+    async def consume_fixed_tool_fee(
+        self,
+        user_id: int,
+        amount: Decimal,
+        remark: str,
+        task_id: str,
+        source: str = "miniapp",
+    ) -> None:
+        """
+        固定额度工具扣费（无预冻结）：加锁扣减余额并记 CONSUME 流水。
+
+        用于文案提取等按次计费能力；失败场景由业务方调用 refund_fixed_tool_fee 退还。
+        """
+        amount = Decimal(int(round(amount)))
+        if amount <= 0:
+            raise BadRequestException(msg="扣费金额无效")
+
+        user = await self.get_user_with_lock(user_id)
+        available = user.balance - user.frozen_balance
+        if available < amount:
+            raise BadRequestException(
+                msg=f"火源币不足，本操作需消耗 {amount} 火源币，请充值后再试。"
+            )
+
+        before_balance = user.balance
+        user.balance -= amount
+        after_balance = user.balance
+
+        consume_log = ComputeLog(
+            user_id=user_id,
+            type=ComputeType.CONSUME,
+            amount=-amount,
+            before_balance=before_balance,
+            after_balance=after_balance,
+            remark=remark,
+            task_id=task_id,
+            source=source,
+        )
+        self.db.add(consume_log)
+        await self.db.commit()
+
+        logger.info(
+            f"工具扣费: user={user_id}, amount={amount}, task_id={task_id}, remark={remark}"
+        )
+
+    async def refund_fixed_tool_fee(
+        self,
+        user_id: int,
+        amount: Decimal,
+        remark: str,
+        task_id: str,
+        source: str = "miniapp",
+    ) -> None:
+        """固定额度工具退费：记 REFUND 流水并增加余额。"""
+        amount = Decimal(int(round(amount)))
+        if amount <= 0:
+            raise BadRequestException(msg="退费金额无效")
+
+        user = await self.get_user_with_lock(user_id)
+        before_balance = user.balance
+        user.balance += amount
+        after_balance = user.balance
+
+        refund_log = ComputeLog(
+            user_id=user_id,
+            type=ComputeType.REFUND,
+            amount=amount,
+            before_balance=before_balance,
+            after_balance=after_balance,
+            remark=remark,
+            task_id=task_id,
+            source=source,
+        )
+        self.db.add(refund_log)
+        await self.db.commit()
+
+        logger.info(
+            f"工具退费: user={user_id}, amount={amount}, task_id={task_id}, remark={remark}"
+        )
+
     async def get_user_balance(self, user_id: int) -> dict:
         """
         获取用户余额信息
