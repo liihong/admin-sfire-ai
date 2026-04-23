@@ -789,9 +789,11 @@ async def generate_chat(
                 routing_failed_msg = e.msg
                 if request.stream:
                     async def _stream_routing_failed():
-                        yield f"data: {json.dumps({'conversation_id': conversation_id}, ensure_ascii=False)}\n\n"
-                        yield f"data: {json.dumps({'content': routing_failed_msg}, ensure_ascii=False)}\n\n"
-                        yield f"data: {json.dumps({'done': True}, ensure_ascii=False)}\n\n"
+                        import json as _json
+
+                        yield f"data: {_json.dumps({'conversation_id': conversation_id}, ensure_ascii=False)}\n\n"
+                        yield f"data: {_json.dumps({'content': routing_failed_msg}, ensure_ascii=False)}\n\n"
+                        yield f"data: {_json.dumps({'done': True}, ensure_ascii=False)}\n\n"
                     return StreamingResponse(
                         _stream_routing_failed(),
                         media_type="text/event-stream",
