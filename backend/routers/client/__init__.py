@@ -5,7 +5,7 @@ C端路由聚合（小程序 & PC官网）
 """
 from fastapi import APIRouter
 
-from . import auth, creation, projects, tikhub, coze, web_auth, conversations, coin, security, permission, quick_entries, inspirations, home, article, upload, dictionary
+from . import auth, creation, projects, project_benchmark, tikhub, coze, web_auth, conversations, coin, security, permission, quick_entries, inspirations, home, article, upload, dictionary, copywriting_library
 from . import tools as client_tools
 
 # 创建C端路由聚合器
@@ -19,6 +19,8 @@ client_router.include_router(web_auth.router, prefix="/auth", tags=["C端-认证
 
 # 项目管理模块：小程序和PC官网共用
 client_router.include_router(projects.router, prefix="/projects", tags=["C端-项目管理"])
+# 项目对标抖音账号（作品列表等）
+client_router.include_router(project_benchmark.router, prefix="/projects", tags=["C端-对标账号"])
 
 # 内容生成模块：智能体列表、对话生成等
 # 注意：creation.router 中的路由（/agents, /chat, /chat/quick）直接暴露在根路径下
@@ -47,6 +49,9 @@ client_router.include_router(quick_entries.router, prefix="/quick-entries", tags
 
 # 灵感管理模块：灵感捕获、列表、生成等
 client_router.include_router(inspirations.router, prefix="/inspirations", tags=["C端-灵感管理"])
+
+# 文案库模块：独立业务线（按用户+项目隔离）
+client_router.include_router(copywriting_library.router, prefix="/copywriting-library", tags=["C端-文案库"])
 
 # 文章模块：小程序首页文章内容
 client_router.include_router(article.router, prefix="/articles", tags=["C端-文章"])

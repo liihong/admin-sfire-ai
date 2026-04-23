@@ -1147,7 +1147,6 @@ async def generate_chat(
 
         # 🔍 调试日志: 打印关键信息
         # 计算请求体大小(估算)
-        import json
         request_body_size = len(json.dumps({"model": model_id_for_ai, "messages": messages_for_ai}).encode('utf-8'))
 
         if settings.DEBUG:

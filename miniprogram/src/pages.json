@@ -211,6 +211,14 @@
             "navigationStyle": "custom",
             "disableScroll": true
           }
+        },
+        {
+          "path": "library/index",
+          "style": {
+            "navigationBarTitleText": "文案库",
+            "navigationStyle": "custom",
+            "disableScroll": true
+          }
         }
       ]
     },

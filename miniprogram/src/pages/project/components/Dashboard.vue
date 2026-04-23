@@ -25,6 +25,10 @@
      <BaseSection>快捷指令库</BaseSection>
      <QuickCommandGrid :entries="commandList" @click="handleNavigate" />
 
+     <!-- 工具箱 -->
+     <BaseSection>工具箱</BaseSection>
+     <ToolLibrary :tools="toolList" />
+
     <!-- 历史对话 -->
       <ConversationHistory ref="conversationHistoryRef" @click="handleConversationClick" />
       <!-- 底部安全区 -->
@@ -56,6 +60,7 @@ import FloatingActionButton from './FloatingActionButton.vue'
 import InspirationCard from '@/components/inspiration/InspirationCard.vue'
 import ConversationHistory from './dashboard/ConversationHistory.vue'
 import BaseSection from '@/components/base/BaseSection.vue'
+import ToolLibrary from './dashboard/ToolLibrary.vue'
 import type { Conversation } from '@/api/conversation'
 
 // Emits
@@ -84,6 +89,26 @@ const userPoints = ref(1280)
 // 快捷入口数据由 project index 的 watch 触发 loadQuickEntryList，从 store 读取
 const categoryList = computed(() => quickEntryStore.categoryList)
 const commandList = computed(() => quickEntryStore.commandList)
+
+// 工具箱：只放已存在的页面，避免跳转到未实现页面
+const toolList = computed(() => [
+  {
+    key: 'copywriting-library',
+    label: '文案库',
+    icon: 'edit',
+    color: '#FF6B35',
+    type: 'page',
+    target: '/pages/copywriting/library/index',
+  },
+  {
+    key: 'text-extract',
+    label: '文案提取',
+    icon: 'edit',
+    color: '#3B82F6',
+    type: 'page',
+    target: '/pages/tools/text-extract/index',
+  },
+])
 
 // 初始化
 onMounted(async () => {

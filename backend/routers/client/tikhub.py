@@ -19,6 +19,7 @@ from core.config import settings
 from utils.response import success
 from utils.exceptions import BadRequestException, ServerErrorException
 from loguru import logger
+from services.tools.tikhub_douyin import resolve_sec_uid_from_profile_url
 
 router = APIRouter()
 
@@ -51,18 +52,6 @@ class AnalyzeDouyinResponse(BaseModel):
 
 
 # ============== Helper Functions ==============
-
-def extract_sec_uid_from_url(url: str) -> Optional[str]:
-    """从抖音链接中提取 sec_uid"""
-    match = re.search(r'douyin\.com/user/([A-Za-z0-9_-]+)', url)
-    if match:
-        return match.group(1)
-    
-    if 'v.douyin.com' in url:
-        return None
-    
-    return None
-
 
 def guess_industry_from_content(nickname: str, signature: str, keywords: List[str]) -> str:
     """根据内容推测行业赛道"""
@@ -213,17 +202,8 @@ async def analyze_douyin_profile(
         return await mock_analyze_douyin(url)
     
     try:
-        sec_uid = extract_sec_uid_from_url(url)
-        
-        if not sec_uid:
-            async with httpx.AsyncClient(follow_redirects=True, timeout=10) as client:
-                response = await client.head(url)
-                final_url = str(response.url)
-                sec_uid = extract_sec_uid_from_url(final_url)
-        
-        if not sec_uid:
-            raise BadRequestException("无法解析抖音链接，请检查链接格式")
-        
+        sec_uid = await resolve_sec_uid_from_profile_url(url)
+
         async with httpx.AsyncClient(timeout=30) as client:
             headers = {
                 "Authorization": f"Bearer {tikhub_api_key}",

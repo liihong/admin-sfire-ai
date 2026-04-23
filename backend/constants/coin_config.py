@@ -30,6 +30,11 @@ class CoinConfig:
     # 工具类：抖音链接提取口播文案（固定扣费，与 Token 模型无关）
     DOUYIN_CAPTION_EXTRACT_COST = Decimal("5")
 
+    # 工具类：对标账号「手动刷新」（TikHub：用户资料 + 作品列表拉取并落库，无 ASR）
+    # 核算：单次刷新约 2～3 次 TikHub HTTP（user/info、必要时小列表兜底、作品列表一次），
+    # 成本低于口播提取（5），故略低一档；可按运营策略在后台改常量。
+    BENCHMARK_MONITOR_REFRESH_COST = Decimal("4")
+
     # 预冻结估算系数 (按最大输出Token数的倍数预冻结)
     FREEZE_ESTIMATE_MULTIPLIER = Decimal("1.2")
 

@@ -31,6 +31,9 @@ from .recharge_package import RechargePackage
 from .user_voice_speaker import UserVoiceSpeaker
 from .ticket import Ticket, TicketType, TicketStatus
 from .tool_package import ToolPackage
+from .project_benchmark import ProjectBenchmarkAccount
+from .project_benchmark_video import ProjectBenchmarkVideo
+from .copywriting_library import CopywritingLibraryEntry, CopywritingEntryStatus
 
 __all__ = [
     "BaseModel",
@@ -74,4 +77,8 @@ __all__ = [
     "TicketType",
     "TicketStatus",
     "ToolPackage",
+    "ProjectBenchmarkAccount",
+    "ProjectBenchmarkVideo",
+    "CopywritingLibraryEntry",
+    "CopywritingEntryStatus",
 ]
