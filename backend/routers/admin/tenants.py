@@ -5,6 +5,7 @@ from fastapi import APIRouter, Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from db import get_db
+from core.constants import admin_has_platform_privilege
 from core.deps import get_current_admin_user, require_platform_admin
 from models.admin_user import AdminUser
 from schemas.tenant import TenantCreate, TenantUpdate, TenantQueryParams
@@ -22,9 +23,18 @@ async def tenant_options(
     """
     用于新建用户等场景选择租户。
     平台管理员可选全部租户；租户管理员仅返回当前租户。
+    注意：与「平台管理员」判定一致（见 admin_has_platform_privilege），
+    勿仅用 tenant_id IS NULL，否则主租户 id 回填后会只看到一条。
     """
     svc = TenantService(db)
-    opts = await svc.list_options_for_admin(scoped_tenant_id=current_admin.tenant_id)
+    if admin_has_platform_privilege(
+        tenant_id=current_admin.tenant_id,
+        role_id=current_admin.role_id,
+    ):
+        scoped: Optional[int] = None
+    else:
+        scoped = current_admin.tenant_id
+    opts = await svc.list_options_for_admin(scoped_tenant_id=scoped)
     return success(data=opts)
 
 

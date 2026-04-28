@@ -8,8 +8,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from pydantic import BaseModel, Field
 
 from db import get_db
+from core.constants import admin_has_platform_privilege, is_full_menu_role
 from core.deps import get_current_user
-from core.constants import is_full_menu_role
 from models.admin_user import AdminUser
 from schemas import LoginRequest, LoginResponse
 from services.system import AuthService
@@ -95,7 +95,10 @@ async def admin_profile(
             "role_id": u.role_id,
             "role_name": u.role.name if u.role else None,
             "role_code": u.role.code if u.role else None,
-            "is_platform_admin": u.tenant_id is None,
+            "is_platform_admin": admin_has_platform_privilege(
+                tenant_id=u.tenant_id,
+                role_id=u.role_id,
+            ),
         }
     )
 

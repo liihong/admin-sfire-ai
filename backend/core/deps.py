@@ -11,6 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 # db 模块在初始化时会导入 core.config，而 core/__init__.py 会导入 core.deps
 # 如果在模块级别导入 get_db，会形成循环依赖
 from core.security import decode_token
+from core.constants import admin_has_platform_privilege
 from utils.exceptions import UnauthorizedException, ForbiddenException
 from models.admin_user import AdminUser
 from models.role import Role
@@ -113,10 +114,14 @@ async def require_platform_admin(
     current_user: AdminUser = Depends(get_current_admin),
 ) -> AdminUser:
     """
-    仅平台超级管理员（tenant_id 为空）可访问。
-    租户管理员调用将返回 403。
+    仅平台超级管理员可访问：tenant_id 为空，或为系统管理员角色（见 core.constants）。
+
+    租户数据迁移后存量 admin 常被回填 tenant_id=主租户，仅靠 tenant_id 会误判，故同时信任角色 id。
     """
-    if current_user.tenant_id is not None:
+    if not admin_has_platform_privilege(
+        tenant_id=current_user.tenant_id,
+        role_id=current_user.role_id,
+    ):
         raise ForbiddenException(msg="仅平台管理员可操作")
     return current_user
 
