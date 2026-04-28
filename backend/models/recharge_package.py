@@ -7,11 +7,13 @@ from typing import Optional, TYPE_CHECKING
 from sqlalchemy import (
     String,
     DECIMAL,
+    BigInteger,
     Integer,
     Boolean,
     JSON,
     Text,
     Index,
+    ForeignKey,
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -29,10 +31,19 @@ class RechargePackage(BaseModel):
     """
     __tablename__ = "recharge_packages"
     __table_args__ = (
+        Index("ix_recharge_packages_tenant_id", "tenant_id"),
         Index("ix_recharge_packages_status", "status"),
         Index("ix_recharge_packages_sort_order", "sort_order"),
         Index("ix_recharge_packages_is_popular", "is_popular"),
         {"comment": "充值套餐表"},
+    )
+
+    tenant_id: Mapped[int] = mapped_column(
+        BigInteger,
+        ForeignKey("tenants.id", ondelete="RESTRICT"),
+        nullable=False,
+        default=1,
+        comment="租户ID",
     )
     
     # === 基础信息 ===

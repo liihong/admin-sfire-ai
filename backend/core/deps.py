@@ -4,7 +4,7 @@ API 依赖项
 """
 from typing import Optional
 from fastapi import Depends, Header
-from sqlalchemy import select
+from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 # 延迟导入 get_db 以避免循环导入
@@ -107,6 +107,18 @@ async def get_current_admin(
 
 # 别名：保持向后兼容
 get_current_admin_user = get_current_admin
+
+
+async def require_platform_admin(
+    current_user: AdminUser = Depends(get_current_admin),
+) -> AdminUser:
+    """
+    仅平台超级管理员（tenant_id 为空）可访问。
+    租户管理员调用将返回 403。
+    """
+    if current_user.tenant_id is not None:
+        raise ForbiddenException(msg="仅平台管理员可操作")
+    return current_user
 
 
 async def get_current_miniprogram_user(

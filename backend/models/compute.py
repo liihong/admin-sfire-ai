@@ -70,6 +70,7 @@ class ComputeLog(BaseModel):
     """
     __tablename__ = "compute_logs"
     __table_args__ = (
+        Index("ix_compute_logs_tenant_id", "tenant_id"),
         Index("ix_compute_logs_user_id", "user_id"),           # user_id 索引
         Index("ix_compute_logs_type", "type"),                 # type 索引
         Index("ix_compute_logs_order_id", "order_id"),         # order_id 索引
@@ -80,7 +81,15 @@ class ComputeLog(BaseModel):
         # 注意：需要在数据库迁移脚本中添加唯一约束：UNIQUE KEY `uk_compute_logs_order_id` (`order_id`) WHERE `type` = 'recharge' AND `order_id` IS NOT NULL
         {"comment": "算力变动记录表"},
     )
-    
+
+    tenant_id: Mapped[int] = mapped_column(
+        BigInteger,
+        ForeignKey("tenants.id", ondelete="RESTRICT"),
+        nullable=False,
+        default=1,
+        comment="租户ID",
+    )
+
     # === 核心字段 ===
     user_id: Mapped[int] = mapped_column(
         BigInteger,  # 改为 BigInteger 以匹配 users.id 的类型

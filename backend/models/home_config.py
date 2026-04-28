@@ -9,6 +9,7 @@ from sqlalchemy import (
     Boolean,
     Text,
     Index,
+    ForeignKey,
 )
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -23,17 +24,24 @@ class HomeConfig(BaseModel):
     """
     __tablename__ = "home_configs"
     __table_args__ = (
-        Index("ix_home_configs_config_key", "config_key", unique=True),
+        Index("ix_home_configs_tenant_config", "tenant_id", "config_key", unique=True),
         Index("ix_home_configs_is_enabled", "is_enabled"),
         {"comment": "首页配置表"},
+    )
+
+    tenant_id: Mapped[int] = mapped_column(
+        BigInteger,
+        ForeignKey("tenants.id", ondelete="RESTRICT"),
+        nullable=False,
+        default=1,
+        comment="租户ID",
     )
     
     # === 基础字段 ===
     config_key: Mapped[str] = mapped_column(
         String(64),
-        unique=True,
         nullable=False,
-        comment="配置键（唯一标识）",
+        comment="配置键（同一租户内需唯一）",
     )
     
     config_value: Mapped[Optional[str]] = mapped_column(

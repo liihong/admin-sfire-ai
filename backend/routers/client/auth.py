@@ -24,6 +24,7 @@ from core.security import create_access_token, create_refresh_token, decode_toke
 from core.config import settings
 from core.deps import get_current_miniprogram_user
 from services.user import UserService
+from services.tenant_resolver import resolve_tenant_id_by_wechat_app_id
 from utils.response import success
 from utils.exceptions import BadRequestException, ServerErrorException
 
@@ -37,6 +38,7 @@ class LoginRequest(BaseModel):
     code: str = Field(..., description="微信登录 code，从 uni.login() 获取")
     phone_code: Optional[str] = Field(default=None, description="手机号授权 code，从 getPhoneNumber 获取")
     scene: Optional[str] = Field(default=None, description="扫码场景值，提供时表示PC扫码登录，需同时提供phone_code，登录结果存入Redis供PC轮询")
+    wechat_app_id: Optional[str] = Field(default=None, description="小程序 AppID；不传则使用服务端 WECHAT_APP_ID 并归入主租户映射")
 
 
 class UserLevelInfo(BaseModel):
@@ -475,6 +477,8 @@ async def miniprogram_login(
         # 1. 调用微信 API 获取 openid
         openid, unionid = await get_wechat_openid(request.code)
         logger.info(f"Login attempt: openid={openid}, unionid={unionid if unionid else 'None'}")
+
+        login_tenant_id = await resolve_tenant_id_by_wechat_app_id(db, request.wechat_app_id)
         
         # 2. 如果提供了 phone_code，获取手机号
         phone_number = None
@@ -565,6 +569,7 @@ async def miniprogram_login(
                     "nickname": "微信用户",
                     "phone": phone_number,  # 保存手机号
                     "is_active": True,
+                    "tenant_id": login_tenant_id,
                 }
                 logger.info(f"Creating new user: phone={phone_number}, openid={openid}, unionid={unionid if unionid else 'None'}")
                 
@@ -642,7 +647,10 @@ async def miniprogram_login(
             return success(data={"success": True}, msg="登录成功")
 
         # 8. 小程序登录：生成 token 并返回
-        access_token = create_access_token(data={"sub": str(user_with_level.id)})
+        token_payload = {"sub": str(user_with_level.id)}
+        if getattr(user_with_level, "tenant_id", None) is not None:
+            token_payload["tid"] = user_with_level.tenant_id
+        access_token = create_access_token(data=token_payload)
         refresh_token = create_refresh_token(data={"sub": str(user_with_level.id)}, long_lived=True)
         return success(
             data={

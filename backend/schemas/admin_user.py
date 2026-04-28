@@ -20,6 +20,10 @@ class AdminUserBase(BaseModel):
 class AdminUserCreate(AdminUserBase):
     """创建管理员用户请求"""
     password: str = Field(..., min_length=6, max_length=50, description="密码")
+    tenant_id: Optional[int] = Field(
+        None,
+        description="租户ID；平台管理员必选或默认主租户；租户管理员忽略并由服务端写入当前租户",
+    )
 
 
 class AdminUserUpdate(BaseModel):
@@ -30,6 +34,7 @@ class AdminUserUpdate(BaseModel):
     role_id: Optional[int] = Field(None, description="角色ID")
     is_active: Optional[bool] = Field(None, description="是否激活")
     remark: Optional[str] = Field(None, description="备注")
+    tenant_id: Optional[int] = Field(None, description="租户ID；仅平台管理员可修改")
 
 
 class AdminUserResponse(BaseModel):
@@ -40,6 +45,8 @@ class AdminUserResponse(BaseModel):
     role_id: Optional[int] = Field(None, description="角色ID")
     role_name: Optional[str] = Field(None, description="角色名称")
     role_code: Optional[str] = Field(None, description="角色代码")
+    tenant_id: Optional[int] = Field(None, description="租户ID；空为平台管理员")
+    tenant_name: Optional[str] = Field(None, description="租户名称")
     is_active: bool = Field(..., description="是否激活")
     remark: Optional[str] = Field(None, description="备注")
     created_at: Optional[str] = Field(None, description="创建时间")

@@ -30,18 +30,25 @@ class Dictionary(BaseModel):
     """
     __tablename__ = "sys_dict"
     __table_args__ = (
-        Index("ix_sys_dict_code", "dict_code", unique=True),
+        Index("ix_sys_dict_tenant_code", "tenant_id", "dict_code", unique=True),
         Index("ix_sys_dict_is_enabled", "is_enabled"),
         Index("ix_sys_dict_sort_order", "sort_order"),
         {"comment": "数据字典类型表"},
+    )
+
+    tenant_id: Mapped[int] = mapped_column(
+        BigInteger,
+        ForeignKey("tenants.id", ondelete="RESTRICT"),
+        nullable=False,
+        default=1,
+        comment="租户ID",
     )
     
     # === 基础字段 ===
     dict_code: Mapped[str] = mapped_column(
         String(64),
-        unique=True,
         nullable=False,
-        comment="字典编码（唯一标识）",
+        comment="字典编码（同一租户内需唯一）",
     )
     
     dict_name: Mapped[str] = mapped_column(

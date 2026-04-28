@@ -9,6 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from db import get_db
 from core.deps import get_current_admin_user
+from core.tenant_constants import effective_tenant_id
 from models.admin_user import AdminUser
 from schemas.user import (
     UserCreate,
@@ -35,6 +36,7 @@ async def get_users(
     minBalance: Optional[Decimal] = Query(None, description="最小算力余额"),
     maxBalance: Optional[Decimal] = Query(None, description="最大算力余额"),
     db: AsyncSession = Depends(get_db),
+    current_admin: AdminUser = Depends(get_current_admin_user),
 ):
     """
     获取用户列表（分页）
@@ -54,7 +56,7 @@ async def get_users(
         maxBalance=maxBalance,
     )
     
-    users, total = await user_service.get_users(params)
+    users, total = await user_service.get_users(params, scoped_tenant_id=current_admin.tenant_id)
     
     return page_response(
         items=users,
@@ -65,13 +67,18 @@ async def get_users(
 
 
 @router.get("/options", summary="获取用户选项（状态和等级）")
-async def get_user_options(db: AsyncSession = Depends(get_db)):
+async def get_user_options(
+    db: AsyncSession = Depends(get_db),
+    current_admin: AdminUser = Depends(get_current_admin_user),
+):
     """获取用户相关的所有选项（状态和等级）"""
     from services.system.user_level import UserLevelService
     
     # 获取用户等级选项（从数据库查询）
     user_level_service = UserLevelService(db)
-    levels = await user_level_service.get_all_enabled_levels()
+    levels = await user_level_service.get_all_enabled_levels(
+        tenant_id=effective_tenant_id(current_admin.tenant_id)
+    )
     
     # 转换为前端需要的格式
     level_options = [
@@ -96,14 +103,66 @@ async def get_user_options(db: AsyncSession = Depends(get_db)):
     })
 
 
+@router.get("/statistics/unionid", summary="获取用户 unionid 统计信息")
+async def get_unionid_statistics(
+    db: AsyncSession = Depends(get_db),
+    current_admin: AdminUser = Depends(get_current_admin_user),
+):
+    """获取用户 unionid 统计（租户管理员仅限本租户）。"""
+    from sqlalchemy import select, func, and_
+    from models.user import User
+
+    base_conditions = [User.is_deleted == False]
+    if current_admin.tenant_id is not None:
+        base_conditions.append(User.tenant_id == current_admin.tenant_id)
+    base_where = and_(*base_conditions)
+
+    total_query = select(func.count(User.id)).where(base_where)
+    total_result = await db.execute(total_query)
+    total_users = total_result.scalar() or 0
+
+    with_unionid_query = select(func.count(User.id)).where(
+        User.unionid.isnot(None),
+        base_where,
+    )
+    with_unionid_count = (await db.execute(with_unionid_query)).scalar() or 0
+
+    openid_no_unionid_query = select(func.count(User.id)).where(
+        User.openid.isnot(None),
+        User.unionid.is_(None),
+        base_where,
+    )
+    openid_no_unionid_count = (await db.execute(openid_no_unionid_query)).scalar() or 0
+
+    phone_no_unionid_query = select(func.count(User.id)).where(
+        User.phone.isnot(None),
+        User.unionid.is_(None),
+        base_where,
+    )
+    phone_no_unionid_count = (await db.execute(phone_no_unionid_query)).scalar() or 0
+
+    return success(data={
+        "total_users": total_users,
+        "with_unionid": with_unionid_count,
+        "without_unionid": total_users - with_unionid_count,
+        "openid_no_unionid": openid_no_unionid_count,
+        "phone_no_unionid": phone_no_unionid_count,
+        "note": "unionid 会在用户重新登录小程序时自动更新",
+    })
+
+
 @router.get("/{user_id}", summary="获取用户详情")
 async def get_user(
     user_id: str,
     db: AsyncSession = Depends(get_db),
+    current_admin: AdminUser = Depends(get_current_admin_user),
 ):
     """获取用户详情"""
     user_service = UserService(db)
-    user = await user_service.get_user_by_id(user_id)
+    user = await user_service.get_user_by_id(
+        int(user_id),
+        scoped_tenant_id=current_admin.tenant_id,
+    )
     return success(data=user)
 
 
@@ -111,10 +170,14 @@ async def get_user(
 async def create_user(
     user_data: UserCreate,
     db: AsyncSession = Depends(get_db),
+    current_admin: AdminUser = Depends(get_current_admin_user),
 ):
     """创建新用户"""
     user_service = UserService(db)
-    user = await user_service.create_user(user_data)
+    user = await user_service.create_user(
+        user_data,
+        scoped_tenant_id=current_admin.tenant_id,
+    )
     return success(data=user, msg=ResponseMsg.CREATED)
 
 
@@ -123,10 +186,15 @@ async def update_user(
     user_id: int,
     user_data: UserUpdate,
     db: AsyncSession = Depends(get_db),
+    current_admin: AdminUser = Depends(get_current_admin_user),
 ):
     """更新用户信息"""
     user_service = UserService(db)
-    user = await user_service.update_user(user_id, user_data)
+    user = await user_service.update_user(
+        user_id,
+        user_data,
+        scoped_tenant_id=current_admin.tenant_id,
+    )
     return success(data=user, msg=ResponseMsg.UPDATED)
 
 
@@ -134,10 +202,11 @@ async def update_user(
 async def delete_user(
     user_id: int,
     db: AsyncSession = Depends(get_db),
+    current_admin: AdminUser = Depends(get_current_admin_user),
 ):
     """删除用户（软删除）"""
     user_service = UserService(db)
-    await user_service.delete_user(user_id)
+    await user_service.delete_user(user_id, scoped_tenant_id=current_admin.tenant_id)
     return success(msg=ResponseMsg.DELETED)
 
 
@@ -146,10 +215,15 @@ async def change_user_status(
     user_id: int,
     status: int = Query(..., ge=0, le=1, description="状态: 0-封禁, 1-正常"),
     db: AsyncSession = Depends(get_db),
+    current_admin: AdminUser = Depends(get_current_admin_user),
 ):
     """修改用户状态"""
     user_service = UserService(db)
-    await user_service.change_status(user_id, status)
+    await user_service.change_status(
+        user_id,
+        status,
+        scoped_tenant_id=current_admin.tenant_id,
+    )
     return success(msg=ResponseMsg.UPDATED)
 
 
@@ -166,6 +240,7 @@ async def recharge_user(
         amount=request.amount,
         remark=request.remark,
         operator_id=current_admin.id,
+        scoped_tenant_id=current_admin.tenant_id,
     )
     return success(msg="充值成功")
 
@@ -173,6 +248,7 @@ async def recharge_user(
 @router.post("/deduct", summary="用户扣费")
 async def deduct_user(
     request: DeductRequest,
+    current_admin: AdminUser = Depends(get_current_admin_user),
     db: AsyncSession = Depends(get_db),
 ):
     """扣除用户算力"""
@@ -181,6 +257,7 @@ async def deduct_user(
         user_id=int(request.userId),
         amount=request.amount,
         reason=request.reason,
+        scoped_tenant_id=current_admin.tenant_id,
     )
     return success(msg="扣费成功")
 
@@ -217,6 +294,7 @@ async def change_user_level(
         vip_expire_date=vip_expire_date,
         remark=request.remark,
         operator_id=current_admin.id,
+        scoped_tenant_id=current_admin.tenant_id,
     )
     return success(msg="等级修改成功")
 
@@ -225,6 +303,7 @@ async def change_user_level(
 async def reset_user_password(
     user_id: int,
     db: AsyncSession = Depends(get_db),
+    current_admin: AdminUser = Depends(get_current_admin_user),
 ):
     """
     重置用户密码为默认密码 123456
@@ -236,60 +315,6 @@ async def reset_user_password(
     用户可以使用新密码 123456 登录
     """
     user_service = UserService(db)
-    await user_service.reset_password(user_id)
+    await user_service.reset_password(user_id, scoped_tenant_id=current_admin.tenant_id)
     return success(msg="密码重置成功，新密码为：123456")
-
-
-@router.get("/statistics/unionid", summary="获取用户 unionid 统计信息")
-async def get_unionid_statistics(
-    db: AsyncSession = Depends(get_db),
-):
-    """
-    获取用户 unionid 统计信息
-    
-    用于查看有多少用户的 unionid 为空，需要同步更新
-    unionid 会在用户重新登录小程序时自动更新
-    """
-    from sqlalchemy import select, func
-    from models.user import User
-    
-    # 总用户数
-    total_query = select(func.count(User.id)).where(User.is_deleted == False)
-    total_result = await db.execute(total_query)
-    total_users = total_result.scalar() or 0
-    
-    # 有 unionid 的用户数
-    with_unionid_query = select(func.count(User.id)).where(
-        User.unionid.isnot(None),
-        User.is_deleted == False
-    )
-    with_unionid_result = await db.execute(with_unionid_query)
-    with_unionid_count = with_unionid_result.scalar() or 0
-    
-    # 有 openid 但没有 unionid 的用户数
-    openid_no_unionid_query = select(func.count(User.id)).where(
-        User.openid.isnot(None),
-        User.unionid.is_(None),
-        User.is_deleted == False
-    )
-    openid_no_unionid_result = await db.execute(openid_no_unionid_query)
-    openid_no_unionid_count = openid_no_unionid_result.scalar() or 0
-    
-    # 有手机号但没有 unionid 的用户数
-    phone_no_unionid_query = select(func.count(User.id)).where(
-        User.phone.isnot(None),
-        User.unionid.is_(None),
-        User.is_deleted == False
-    )
-    phone_no_unionid_result = await db.execute(phone_no_unionid_query)
-    phone_no_unionid_count = phone_no_unionid_result.scalar() or 0
-    
-    return success(data={
-        "total_users": total_users,
-        "with_unionid": with_unionid_count,
-        "without_unionid": total_users - with_unionid_count,
-        "openid_no_unionid": openid_no_unionid_count,
-        "phone_no_unionid": phone_no_unionid_count,
-        "note": "unionid 会在用户重新登录小程序时自动更新"
-    })
 

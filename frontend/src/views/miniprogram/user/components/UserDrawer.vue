@@ -26,6 +26,22 @@
       <el-form-item label="昵称" prop="nickname">
         <el-input v-model="drawerProps.row!.nickname" placeholder="请输入昵称" clearable />
       </el-form-item>
+      <el-form-item v-if="showTenantPicker" label="所属租户" prop="tenantId">
+        <el-select
+          v-model="drawerProps.row!.tenantId"
+          placeholder="不选则默认为主租户"
+          clearable
+          filterable
+          style="width: 100%"
+        >
+          <el-option
+            v-for="t in tenantOptions"
+            :key="t.id"
+            :label="`${t.name} (${t.code})`"
+            :value="t.id"
+          />
+        </el-select>
+      </el-form-item>
       <el-form-item label="用户等级" prop="levelCode">
         <el-select v-model="drawerProps.row!.levelCode" placeholder="请选择用户等级" style="width: 100%">
           <el-option
@@ -97,8 +113,10 @@
 <script setup lang="ts" name="UserDrawer">
 import { ref, reactive, onMounted, computed, watch } from "vue";
 import { ElMessage, FormInstance, FormRules } from "element-plus";
-import type { User } from "@/api/interface";
+import type { User, Tenant } from "@/api/interface";
 import { addUser, editUser, getUserLevelOptions } from "@/api/modules/user";
+import { getTenantOptionsApi } from "@/api/modules/tenant";
+import { useUserStore } from "@/stores/modules/user";
 import dayjs from "dayjs";
 
 // 等级选项（从API获取）
@@ -129,6 +147,21 @@ interface DrawerProps {
 const drawerVisible = ref(false);
 const loading = ref(false);
 const formRef = ref<FormInstance>();
+
+const userStore = useUserStore();
+const tenantOptions = ref<Tenant.ResTenantOption[]>([]);
+
+const loadTenantOptions = async () => {
+  if (!userStore.isPlatformAdmin) return;
+  try {
+    const { data } = await getTenantOptionsApi();
+    tenantOptions.value = Array.isArray(data) ? data : [];
+  } catch {
+    tenantOptions.value = [];
+  }
+};
+
+const showTenantPicker = computed(() => userStore.isPlatformAdmin);
 
 const drawerProps = ref<DrawerProps>({
   title: "",
@@ -212,9 +245,10 @@ const rules = reactive<FormRules>({
 const acceptParams = async (params: DrawerProps) => {
   // 每次打开抽屉时重新加载等级选项，确保数据最新
   await initLevelOptions();
-  
+  await loadTenantOptions();
+
   // 初始化表单数据
-  const rowData: any = {
+  const rowData: Record<string, unknown> = {
     username: params.row?.username || "",
     phone: params.row?.phone || "",
     nickname: params.row?.nickname || "",
@@ -222,6 +256,10 @@ const acceptParams = async (params: DrawerProps) => {
     levelCode: params.row?.levelCode || "normal", // 使用levelCode，默认为normal
     vipExpireDate: params.row?.vipExpireDate || "", // VIP到期时间
     status: params.row?.status !== undefined ? params.row.status : 1,
+    tenantId:
+      params.row?.tenantId !== undefined && params.row?.tenantId !== null
+        ? Number(params.row.tenantId)
+        : undefined
   };
   
   // 保留 id 字段（编辑时需要）
@@ -297,6 +335,11 @@ const handleSubmit = async () => {
       }
     }
     
+    const tid = drawerProps.value.row!.tenantId;
+    if (userStore.isPlatformAdmin && tid !== undefined && tid !== null) {
+      submitData.tenant_id = tid;
+    }
+
     const finalData = isNew ? submitData : { ...submitData, id: drawerProps.value.row!.id };
     await api(finalData);
     ElMessage.success(`${drawerProps.value.title}成功`);

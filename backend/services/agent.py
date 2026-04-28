@@ -2,7 +2,7 @@
 Agent Service
 智能体管理服务
 """
-from typing import List
+from typing import List, Optional
 from sqlalchemy import select, func, and_, desc, asc
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -29,6 +29,8 @@ class AgentService(BaseService):
     async def get_agent_list(
         self,
         params: AgentQueryParams,
+        *,
+        scoped_tenant_id: Optional[int] = None,
     ) -> PageResult[Agent]:
         """
         获取智能体列表（分页）
@@ -42,6 +44,9 @@ class AgentService(BaseService):
         # 基础查询语句
         query = select(Agent)
         conditions = []
+
+        if scoped_tenant_id is not None:
+            conditions.append(Agent.tenant_id == scoped_tenant_id)
         
         # 按名称模糊查询
         if params.name:
@@ -75,12 +80,18 @@ class AgentService(BaseService):
             page_size=params.pageSize,
         )
     
-    async def get_agent_by_id(self, agent_id: int) -> Agent:
+    async def get_agent_by_id(self, agent_id: int, scoped_tenant_id: Optional[int] = None) -> Agent:
         """根据ID获取智能体"""
-        return await super().get_by_id(agent_id, error_msg=f"智能体 {agent_id} 不存在")
+        agent = await super().get_by_id(agent_id, error_msg=f"智能体 {agent_id} 不存在")
+        if scoped_tenant_id is not None and getattr(agent, "tenant_id", None) != scoped_tenant_id:
+            raise NotFoundException(msg=f"智能体 {agent_id} 不存在")
+        return agent
     
-    async def create_agent(self, agent_data: AgentCreate) -> Agent:
+    async def create_agent(self, agent_data: AgentCreate, *, scoped_tenant_id: Optional[int] = None) -> Agent:
         """创建智能体"""
+        from core.tenant_constants import DEFAULT_TENANT_ID
+
+        tid = scoped_tenant_id if scoped_tenant_id is not None else DEFAULT_TENANT_ID
         # 检查名称唯一性
         from utils.query import check_unique
         await check_unique(
@@ -95,6 +106,7 @@ class AgentService(BaseService):
         agent = Agent(
             name=agent_data.name,
             icon=agent_data.icon,
+            tenant_id=tid,
             description=agent_data.description,
             welcome_message=getattr(agent_data, "welcomeMessage", None) or None,
             system_prompt=agent_data.systemPrompt,  # 驼峰 -> 下划线
@@ -113,12 +125,12 @@ class AgentService(BaseService):
         await self.db.refresh(agent)
         return agent
     
-    async def update_agent(self, agent_id: int, agent_data: AgentUpdate) -> Agent:
+    async def update_agent(self, agent_id: int, agent_data: AgentUpdate, *, scoped_tenant_id: Optional[int] = None) -> Agent:
         """更新智能体"""
         from utils.query import check_unique
         
         # 获取现有智能体
-        agent = await self.get_agent_by_id(agent_id)
+        agent = await self.get_agent_by_id(agent_id, scoped_tenant_id=scoped_tenant_id)
         
         # 检查名称唯一性（如果名称有变化）
         if agent_data.name and agent_data.name != agent.name:
@@ -168,35 +180,36 @@ class AgentService(BaseService):
         await self.db.refresh(agent)
         return agent
     
-    async def delete_agent(self, agent_id: int) -> None:
+    async def delete_agent(self, agent_id: int, *, scoped_tenant_id: Optional[int] = None) -> None:
         """删除智能体"""
+        await self.get_agent_by_id(agent_id, scoped_tenant_id=scoped_tenant_id)
         await super().delete(agent_id, hard_delete=True)
         await self.db.flush()
     
-    async def update_status(self, agent_id: int, status: int) -> Agent:
+    async def update_status(self, agent_id: int, status: int, *, scoped_tenant_id: Optional[int] = None) -> Agent:
         """更新智能体状态（上架/下架）"""
-        agent = await super().get_by_id(agent_id)
+        agent = await self.get_agent_by_id(agent_id, scoped_tenant_id=scoped_tenant_id)
         agent.status = status
         await self.db.flush()
         await self.db.refresh(agent)
         return agent
     
-    async def update_sort_order(self, agent_id: int, sort_order: int) -> Agent:
+    async def update_sort_order(self, agent_id: int, sort_order: int, *, scoped_tenant_id: Optional[int] = None) -> Agent:
         """更新智能体排序"""
-        agent = await super().get_by_id(agent_id)
+        agent = await self.get_agent_by_id(agent_id, scoped_tenant_id=scoped_tenant_id)
         agent.sort_order = sort_order
         await self.db.flush()
         await self.db.refresh(agent)
         return agent
     
-    async def batch_update_sort(self, items: List[dict]) -> None:
+    async def batch_update_sort(self, items: List[dict], *, scoped_tenant_id: Optional[int] = None) -> None:
         """批量更新智能体排序"""
         for item in items:
             agent_id = item.get("id")
             sort_order = item.get("sortOrder")
             if agent_id and sort_order is not None:
                 try:
-                    agent = await super().get_by_id(agent_id)
+                    agent = await self.get_agent_by_id(agent_id, scoped_tenant_id=scoped_tenant_id)
                     agent.sort_order = sort_order
                 except NotFoundException:
                     continue

@@ -6,7 +6,8 @@ from fastapi import APIRouter
 
 from . import (
     auth, dashboard, agents, admin_users, banner,
-    home_config, llm_models, menu, users, dictionary, user_levels, quick_entries, article, upload, tickets, compute
+    home_config, llm_models, menu, users, dictionary, user_levels, quick_entries, article, upload, tickets, compute,
+    tenants,
 )
 from . import tools as admin_tools
 
@@ -37,6 +38,7 @@ admin_router.include_router(home_config.router, prefix="/home-configs", tags=["�
 admin_router.include_router(llm_models.router, prefix="/llm-models", tags=["LLM模型"])
 admin_router.include_router(menu.router, prefix="/menu", tags=["菜单"])
 admin_router.include_router(users.router, prefix="/users", tags=["用户"])
+admin_router.include_router(tenants.router, prefix="/tenants", tags=["租户管理"])
 admin_router.include_router(dictionary.router, prefix="/dictionary", tags=["数据字典"])
 admin_router.include_router(user_levels.router, prefix="/user-levels", tags=["用户等级"])
 admin_router.include_router(quick_entries.router, prefix="/quick-entries", tags=["快捷入口"])

@@ -16,6 +16,15 @@ export const initDynamicRouter = async () => {
   const authStore = useAuthStore();
 
   try {
+    // 已持久化 Token 时刷新管理员身份（租户 / 平台管理员标记）
+    if (userStore.token) {
+      try {
+        await userStore.fetchAdminProfile();
+      } catch {
+        /* 忽略：菜单仍可加载 */
+      }
+    }
+
     // 1.获取菜单列表 && 按钮权限列表
     await authStore.getAuthMenuList();
     await authStore.getAuthButtonList();

@@ -35,10 +35,19 @@ class AdminUser(BaseModel):
     """
     __tablename__ = "admin_users"
     __table_args__ = (
+        Index("ix_admin_users_tenant_id", "tenant_id"),
         Index("ix_admin_users_username", "username"),        # username 索引
         Index("ix_admin_users_email", "email"),               # email 索引
         Index("ix_admin_users_role_id", "role_id"),           # role_id 索引
         {"comment": "管理员用户表"},
+    )
+
+    # === 多租户：NULL = 平台超级管理员（可跨租户）；非空则仅能管理对应租户 ===
+    tenant_id: Mapped[Optional[int]] = mapped_column(
+        BigInteger,
+        ForeignKey("tenants.id", ondelete="RESTRICT"),
+        nullable=True,
+        comment="租户ID；NULL 表示平台超级管理员",
     )
     
     # === 核心字段 ===

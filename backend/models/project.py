@@ -72,11 +72,20 @@ class Project(BaseModel):
     """
     __tablename__ = "projects"
     __table_args__ = (
+        Index("ix_projects_tenant_id", "tenant_id"),
         Index("ix_projects_user_id", "user_id"),              # user_id 索引
         Index("ix_projects_updated_at", "updated_at"),        # updated_at 索引（排序优化）
         Index("ix_projects_is_deleted", "is_deleted"),        # is_deleted 索引（查询优化）
         Index("ix_projects_status", "status"),                # status 索引（状态筛选）
         {"comment": "项目/IP表"},
+    )
+
+    tenant_id: Mapped[int] = mapped_column(
+        BigInteger,
+        ForeignKey("tenants.id", ondelete="RESTRICT"),
+        nullable=False,
+        default=1,
+        comment="租户ID",
     )
     
     # === 关联字段 ===

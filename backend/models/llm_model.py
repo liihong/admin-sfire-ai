@@ -13,6 +13,7 @@ from sqlalchemy import (
     DECIMAL,
     DateTime,
     Index,
+    ForeignKey,
 )
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -38,10 +39,19 @@ class LLMModel(BaseModel):
     """
     __tablename__ = "llm_models"
     __table_args__ = (
+        Index("ix_llm_models_tenant_id", "tenant_id"),
         Index("ix_llm_models_provider", "provider"),
         Index("ix_llm_models_is_enabled", "is_enabled"),
         Index("ix_llm_models_sort_order", "sort_order"),
         {"comment": "大模型配置表"},
+    )
+
+    tenant_id: Mapped[int] = mapped_column(
+        BigInteger,
+        ForeignKey("tenants.id", ondelete="RESTRICT"),
+        nullable=False,
+        default=1,
+        comment="租户ID",
     )
     
     # === 基础字段 ===

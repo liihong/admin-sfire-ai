@@ -13,6 +13,7 @@ from sqlalchemy import (
     Integer,
     JSON,
     Index,
+    ForeignKey,
 )
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -43,6 +44,7 @@ class Article(BaseModel):
     """
     __tablename__ = "articles"
     __table_args__ = (
+        Index("ix_articles_tenant_id", "tenant_id"),
         Index("ix_articles_category", "category"),
         Index("ix_articles_is_published", "is_published"),
         Index("ix_articles_is_enabled", "is_enabled"),
@@ -50,7 +52,15 @@ class Article(BaseModel):
         Index("ix_articles_publish_time", "publish_time"),
         {"comment": "文章表"},
     )
-    
+
+    tenant_id: Mapped[int] = mapped_column(
+        BigInteger,
+        ForeignKey("tenants.id", ondelete="RESTRICT"),
+        nullable=False,
+        default=1,
+        comment="租户ID",
+    )
+
     # === 基础字段 ===
     category: Mapped[str] = mapped_column(
         String(8),

@@ -49,12 +49,21 @@ class CopywritingLibraryEntry(BaseModel):
 
     __tablename__ = "copywriting_library_entries"
     __table_args__ = (
+        Index("ix_cle_tenant_id", "tenant_id"),
         Index("ix_cle_user_id", "user_id"),
         Index("ix_cle_project_id", "project_id"),
         Index("ix_cle_user_project", "user_id", "project_id"),
         Index("ix_cle_status", "status"),
         Index("ix_cle_created_at", "created_at"),
         {"comment": "文案库条目表（按用户+项目隔离）"},
+    )
+
+    tenant_id: Mapped[int] = mapped_column(
+        BigInteger,
+        ForeignKey("tenants.id", ondelete="RESTRICT"),
+        nullable=False,
+        default=1,
+        comment="租户ID",
     )
 
     user_id: Mapped[int] = mapped_column(

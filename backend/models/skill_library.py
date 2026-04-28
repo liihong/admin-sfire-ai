@@ -3,7 +3,7 @@
 用于管理可复用的技能模板
 """
 from typing import Optional
-from sqlalchemy import String, Integer, Text, Index
+from sqlalchemy import String, Integer, Text, Index, BigInteger, ForeignKey
 from sqlalchemy.orm import Mapped, mapped_column
 
 from models.base import BaseModel
@@ -24,12 +24,21 @@ class SkillLibrary(BaseModel):
     """
     __tablename__ = "skill_library"
     __table_args__ = (
+        Index("ix_skill_library_tenant_id", "tenant_id"),
         Index("ix_skill_library_category", "category"),
         Index("ix_skill_library_status", "status"),
         # 复合索引：列表查询常用 status + order by id，或 status + category
         Index("ix_skill_library_status_id", "status", "id"),
         Index("ix_skill_library_status_category", "status", "category"),
         {"comment": "技能库表"},
+    )
+
+    tenant_id: Mapped[int] = mapped_column(
+        BigInteger,
+        ForeignKey("tenants.id", ondelete="RESTRICT"),
+        nullable=False,
+        default=1,
+        comment="租户ID",
     )
 
     name: Mapped[str] = mapped_column(

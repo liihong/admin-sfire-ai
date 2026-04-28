@@ -8,6 +8,8 @@ from sqlalchemy import (
     Integer,
     Boolean,
     Index,
+    BigInteger,
+    ForeignKey,
 )
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -26,18 +28,25 @@ class UserLevel(BaseModel):
     """
     __tablename__ = "user_levels"
     __table_args__ = (
-        Index("ix_user_levels_code", "code", unique=True),
+        Index("ix_user_levels_tenant_code", "tenant_id", "code", unique=True),
         Index("ix_user_levels_is_enabled", "is_enabled"),
         Index("ix_user_levels_sort_order", "sort_order"),
         {"comment": "用户等级配置表"},
     )
-    
+
+    tenant_id: Mapped[int] = mapped_column(
+        BigInteger,
+        ForeignKey("tenants.id", ondelete="RESTRICT"),
+        nullable=False,
+        default=1,
+        comment="租户ID",
+    )
+
     # === 基础字段 ===
     code: Mapped[str] = mapped_column(
         String(32),
-        unique=True,
         nullable=False,
-        comment="等级代码：normal-观望者, vip-个人创作者, svip-小工作室, max-矩阵大佬",
+        comment="等级代码（同租户内需唯一）：normal/vip/svip/max",
     )
     
     name: Mapped[str] = mapped_column(

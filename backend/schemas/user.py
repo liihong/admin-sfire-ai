@@ -42,6 +42,10 @@ class UserCreate(UserBase):
     password: str = Field(..., min_length=6, max_length=50, description="密码")
     parent_id: Optional[int] = Field(None, description="上级用户ID")
     vip_expire_date: Optional[str] = Field(None, description="VIP到期时间（YYYY-MM-DD格式，可选，仅VIP等级有效）")
+    tenant_id: Optional[int] = Field(
+        None,
+        description="租户ID；平台管理员可选；租户管理员忽略并由服务端写入当前租户",
+    )
 
 
 class UserUpdate(BaseModel):
@@ -55,6 +59,10 @@ class UserUpdate(BaseModel):
     vip_expire_date: Optional[str] = Field(None, description="VIP到期时间（YYYY-MM-DD格式，可选，仅VIP等级有效）")
     is_active: Optional[bool] = None
     remark: Optional[str] = None
+    tenant_id: Optional[int] = Field(
+        None,
+        description="租户ID；仅平台管理员可修改",
+    )
 
 
 class UserResponse(BaseModel):

@@ -77,9 +77,15 @@ class ConversationDAO:
             Conversation: 创建的会话对象
         """
         title = conversation_data.title or "新对话"
+
+        from models.user import User as UserModel
+
+        tres = await self.db.execute(select(UserModel.tenant_id).where(UserModel.id == user_id))
+        tenant_id = tres.scalar_one()
         
         conversation = Conversation(
             user_id=user_id,
+            tenant_id=tenant_id,
             agent_id=conversation_data.agent_id,
             project_id=conversation_data.project_id,
             title=title,

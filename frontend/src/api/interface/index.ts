@@ -36,6 +36,18 @@ export namespace Login {
     username: string;
     password: string;
   }
+  /** GET /auth/me */
+  export interface ResAdminMe {
+    id: number;
+    username: string;
+    email?: string;
+    tenant_id: number | null;
+    tenant_name?: string | null;
+    role_id?: number | null;
+    role_name?: string | null;
+    role_code?: string | null;
+    is_platform_admin: boolean;
+  }
   export interface ResLogin {
     access_token: string;
     refresh_token: string;
@@ -86,6 +98,9 @@ export namespace User {
     inviterId?: string; // 邀请人ID
     inviterName?: string; // 邀请人名称
     remark?: string;
+    /** C 端用户归属租户 */
+    tenantId?: number;
+    tenantName?: string;
     computePower?: {
       balance: number;
       frozen: number;
@@ -714,6 +729,43 @@ export namespace AgentV2 {
   }
 }
 
+// 租户管理（平台管理员）
+export namespace Tenant {
+  export interface ReqTenantParams extends ReqPage {
+    code?: string;
+    name?: string;
+  }
+  export interface ResTenantOption {
+    id: number;
+    code: string;
+    name: string;
+  }
+  export interface ResTenant {
+    id: number;
+    code: string;
+    name: string;
+    is_default: boolean;
+    remark?: string;
+    wechat_app_id?: string | null;
+    created_at?: string;
+    updated_at?: string;
+  }
+  export interface ReqTenantCreate {
+    code: string;
+    name: string;
+    is_default?: boolean;
+    remark?: string;
+    wechat_app_id?: string;
+  }
+  export interface ReqTenantUpdate {
+    code?: string;
+    name?: string;
+    is_default?: boolean;
+    remark?: string;
+    wechat_app_id?: string | null;
+  }
+}
+
 // 管理员用户模块
 export namespace AdminUser {
   // 管理员用户查询参数
@@ -734,6 +786,8 @@ export namespace AdminUser {
     role_code?: string;
     is_active: boolean;
     remark?: string;
+    tenant_id?: number | null;
+    tenant_name?: string | null;
     created_at?: string;
     updated_at?: string;
   }
@@ -748,6 +802,8 @@ export namespace AdminUser {
     role_code?: string;
     is_active: boolean;
     remark?: string;
+    tenant_id?: number | null;
+    tenant_name?: string | null;
     created_at?: string;
     updated_at?: string;
   }
@@ -759,6 +815,7 @@ export namespace AdminUser {
     email?: string;
     role_id?: number;
     remark?: string;
+    tenant_id?: number | null;
   }
 
   // 更新管理员用户请求
@@ -769,6 +826,7 @@ export namespace AdminUser {
     role_id?: number;
     is_active?: boolean;
     remark?: string;
+    tenant_id?: number | null;
   }
 }
 

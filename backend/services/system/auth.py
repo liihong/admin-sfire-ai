@@ -57,8 +57,13 @@ class AuthService:
             logger.warning(f"Login failed: admin user disabled - {username}")
             raise UnauthorizedException(msg="用户已被封禁")
 
+        token_data = {"sub": str(user.id)}
+        # tid 写入 JWT（平台管理员为空时可省略或由前端忽略；服务端以数据库 AdminUser.tenant_id 为准）
+        if user.tenant_id is not None:
+            token_data["tid"] = user.tenant_id
+
         # 创建访问令牌和刷新令牌（Admin 使用 8 小时有效期，可配合 refresh_token 续期）
-        access_token = create_access_token(data={"sub": str(user.id)}, admin_long_session=True)
+        access_token = create_access_token(data=token_data, admin_long_session=True)
         refresh_token = create_refresh_token(data={"sub": str(user.id)})
 
         logger.info(f"AdminUser logged in successfully: {username}")

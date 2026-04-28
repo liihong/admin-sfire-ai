@@ -43,11 +43,20 @@ class Inspiration(BaseModel):
     """
     __tablename__ = "inspirations"
     __table_args__ = (
+        Index("ix_inspirations_tenant_id", "tenant_id"),
         Index("ix_inspirations_user_status", "user_id", "status"),  # 用户ID和状态联合索引
         Index("ix_inspirations_project_id", "project_id"),          # 项目ID索引
         Index("ix_inspirations_created_at", "created_at"),         # 创建时间索引
         Index("ix_inspirations_pinned_created", "is_pinned", "created_at"),  # 置顶和时间联合索引
         {"comment": "灵感表"},
+    )
+
+    tenant_id: Mapped[int] = mapped_column(
+        BigInteger,
+        ForeignKey("tenants.id", ondelete="RESTRICT"),
+        nullable=False,
+        default=1,
+        comment="租户ID",
     )
     
     # === 关联字段 ===

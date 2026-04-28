@@ -16,9 +16,18 @@ class ProjectBenchmarkVideo(BaseModel):
     __tablename__ = "project_benchmark_videos"
     __table_args__ = (
         UniqueConstraint("account_id", "aweme_id", name="uq_pbv_account_aweme"),
+        Index("ix_pbv_tenant_id", "tenant_id"),
         Index("ix_pbv_project_account", "project_id", "account_id"),
         Index("ix_pbv_account_top_create", "account_id", "is_top", "create_time"),
         {"comment": "项目对标账号视频缓存"},
+    )
+
+    tenant_id: Mapped[int] = mapped_column(
+        BigInteger,
+        ForeignKey("tenants.id", ondelete="RESTRICT"),
+        nullable=False,
+        default=1,
+        comment="租户ID",
     )
 
     user_id: Mapped[int] = mapped_column(

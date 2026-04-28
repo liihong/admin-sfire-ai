@@ -2,7 +2,7 @@
 用户等级配置服务
 提供用户等级配置的CRUD操作
 """
-from typing import List, Optional
+from typing import List, Optional, Optional
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from loguru import logger
@@ -21,15 +21,16 @@ class UserLevelService(BaseService):
     def __init__(self, db: AsyncSession):
         super().__init__(db, UserLevelModel, "用户等级", check_soft_delete=False)
     
-    async def get_all_enabled_levels(self) -> List[UserLevelModel]:
+    async def get_all_enabled_levels(self, tenant_id: Optional[int] = None) -> List[UserLevelModel]:
         """
-        获取所有启用的等级配置
-        
-        Returns:
-            启用的等级列表，按sort_order排序
+        获取某租户下所有启用的等级配置（tenant_id 默认按主租户，与存量数据一致）
         """
+        from core.tenant_constants import effective_tenant_id
+
+        tid = effective_tenant_id(tenant_id)
         query = select(UserLevelModel).where(
-            UserLevelModel.is_enabled == True
+            UserLevelModel.is_enabled == True,
+            UserLevelModel.tenant_id == tid,
         ).order_by(UserLevelModel.sort_order)
         
         result = await self.db.execute(query)
@@ -37,17 +38,17 @@ class UserLevelService(BaseService):
         
         return list(levels)
     
-    async def get_level_by_code(self, code: str) -> Optional[UserLevelModel]:
+    async def get_level_by_code(self, code: str, tenant_id: Optional[int] = None) -> Optional[UserLevelModel]:
         """
-        根据等级代码获取等级配置
-        
-        Args:
-            code: 等级代码（normal/vip/svip/max）
-        
-        Returns:
-            等级配置对象，如果不存在则返回None
+        根据等级代码获取等级配置（同租户内需唯一）
         """
-        query = select(UserLevelModel).where(UserLevelModel.code == code)
+        from core.tenant_constants import effective_tenant_id
+
+        tid = effective_tenant_id(tenant_id)
+        query = select(UserLevelModel).where(
+            UserLevelModel.code == code,
+            UserLevelModel.tenant_id == tid,
+        )
         result = await self.db.execute(query)
         return result.scalar_one_or_none()
     

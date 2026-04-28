@@ -78,6 +78,13 @@ const login = (formEl: FormInstance | undefined) => {
       userStore.setToken(data.access_token, data.expires_in);
       userStore.setRefreshToken(data.refresh_token);
 
+      // 2.1 拉取管理员身份（租户 / 是否平台管理员），供菜单与表单使用
+      try {
+        await userStore.fetchAdminProfile();
+      } catch {
+        /* fetchAdminProfile 已在 login action 中尝试过；此处兜底 */
+      }
+
       // 3.添加动态路由
       await initDynamicRouter();
 

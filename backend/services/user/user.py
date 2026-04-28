@@ -28,8 +28,8 @@ from utils.exceptions import (
 )
 from utils.pagination import paginate, build_order_by, PageResult
 from services.base import BaseService
-
-
+from core.tenant_constants import DEFAULT_TENANT_ID
+from core.tenant_helpers import tenant_names_by_ids, ensure_tenant_id_exists
 
 
 class UserService(BaseService):
@@ -37,13 +37,31 @@ class UserService(BaseService):
     
     def __init__(self, db: AsyncSession):
         super().__init__(db, User, "用户", check_soft_delete=True)
+
+    async def require_user_accessible(
+        self,
+        user_id: int,
+        scoped_tenant_id: Optional[int],
+    ) -> User:
+        """若指定 scoped_tenant_id，仅允许操作该租户下的用户；平台超管（None）不限制租户。"""
+        from sqlalchemy import select
+
+        result = await self.db.execute(
+            select(User).where(User.id == user_id, User.is_deleted == False)
+        )
+        user = result.scalar_one_or_none()
+        if not user:
+            raise NotFoundException(msg="用户不存在")
+        if scoped_tenant_id is not None and user.tenant_id != scoped_tenant_id:
+            raise NotFoundException(msg="用户不存在")
+        return user
     
     
-    def _format_response(self, user: User) -> dict:
+    def _format_response(self, user: User, *, tenant_name: Optional[str] = None) -> dict:
         """格式化用户响应数据"""
         level_code = user.level_code or "normal"
         level_name = user.user_level.name if user.user_level else None
-        
+
         return {
             "id": str(user.id),
             "username": user.username,
@@ -52,6 +70,8 @@ class UserService(BaseService):
             "avatar": user.avatar,
             "levelCode": level_code,
             "levelName": level_name,
+            "tenantId": user.tenant_id,
+            "tenantName": tenant_name,
             "computePower": {
                 "balance": float(user.balance),
                 "frozen": float(user.frozen_balance),
@@ -70,19 +90,22 @@ class UserService(BaseService):
     
     async def get_users(
         self,
-        params: UserQueryParams
+        params: UserQueryParams,
+        *,
+        scoped_tenant_id: Optional[int] = None,
     ) -> Tuple[List[dict], int]:
         """
         获取用户列表
-        
-        Args:
-            params: 查询参数
-        
-        Returns:
-            (用户列表, 总数量)
+
+        scoped_tenant_id:
+          - None（平台超级管理员）不按租户过滤；
+          - 非空则仅返回该租户 C 端用户。
         """
         # 构建查询条件
         conditions = [User.is_deleted == False]
+
+        if scoped_tenant_id is not None:
+            conditions.append(User.tenant_id == scoped_tenant_id)
         
         if params.username:
             # 使用前缀匹配 LIKE 'xxx%' 以利用 username 索引，避免全表扫描
@@ -127,26 +150,32 @@ class UserService(BaseService):
         
         result = await self.db.execute(query)
         users = result.scalars().all()
-        
-        # 格式化响应
-        user_list = [self._format_response(user) for user in users]
-        
+
+        tid_set = {u.tenant_id for u in users if u.tenant_id is not None}
+        names_map = await tenant_names_by_ids(self.db, tid_set)
+
+        user_list = [
+            self._format_response(u, tenant_name=names_map.get(u.tenant_id)) for u in users
+        ]
+
         return user_list, total
     
-    async def get_user_by_id(self, user_id: int) -> dict:
+    async def get_user_by_id(self, user_id: int, scoped_tenant_id: Optional[int] = None) -> dict:
         """
         根据ID获取用户
-        
-        Args:
-            user_id: 用户ID
-        
-        Returns:
-            用户信息
+
+        scoped_tenant_id: 非空时若用户不属于该租户则抛 NotFound。
         """
         user = await super().get_by_id(user_id, include_relations=[User.parent])
-        return self._format_response(user)
+        if scoped_tenant_id is not None and user.tenant_id != scoped_tenant_id:
+            raise NotFoundException(msg="用户不存在")
+        tn = None
+        if user.tenant_id is not None:
+            nm = await tenant_names_by_ids(self.db, {user.tenant_id})
+            tn = nm.get(user.tenant_id)
+        return self._format_response(user, tenant_name=tn)
     
-    async def create_user(self, user_data: UserCreate) -> dict:
+    async def create_user(self, user_data: UserCreate, *, scoped_tenant_id: Optional[int] = None) -> dict:
         """
         创建用户
         
@@ -162,13 +191,24 @@ class UserService(BaseService):
         }
         if user_data.phone:
             unique_fields["phone"] = {"error_msg": "手机号已被注册"}
-        
+
+        if scoped_tenant_id is not None:
+            target_tid = scoped_tenant_id
+        else:
+            body_tid = getattr(user_data, "tenant_id", None)
+            if body_tid is not None:
+                await ensure_tenant_id_exists(self.db, body_tid)
+                target_tid = body_tid
+            else:
+                target_tid = DEFAULT_TENANT_ID
+
         def before_create(user: User, data: UserCreate):
             """创建前的钩子函数"""
             # 处理密码哈希
             user.password_hash = hash_password(data.password)
             # 设置level_code
             user.level_code = data.level_code or "normal"
+            user.tenant_id = target_tid
             # 处理VIP到期时间
             if data.vip_expire_date:
                 try:
@@ -181,33 +221,42 @@ class UserService(BaseService):
                 except ValueError:
                     logger.warning(f"VIP到期时间格式错误: {data.vip_expire_date}")
                     # 格式错误时不设置，保持为None
-        
+
         user = await super().create(
             data=user_data,
             unique_fields=unique_fields,
             before_create=before_create,
+            exclude_fields=["password", "tenant_id", "level", "vip_expire_date"],
         )
-        
+
         await self.db.flush()
         await self.db.refresh(user)
-        
-        return self._format_response(user)
+
+        tn = None
+        if user.tenant_id is not None:
+            nm = await tenant_names_by_ids(self.db, {user.tenant_id})
+            tn = nm.get(user.tenant_id)
+        return self._format_response(user, tenant_name=tn)
     
     async def update_user(
         self,
         user_id: int,
-        user_data: UserUpdate
+        user_data: UserUpdate,
+        *,
+        scoped_tenant_id: Optional[int] = None,
     ) -> dict:
         """
         更新用户信息
-        
-        Args:
-            user_id: 用户ID
-            user_data: 更新数据
-        
-        Returns:
-            更新后的用户信息
         """
+        await self.require_user_accessible(user_id, scoped_tenant_id)
+
+        update_dict = user_data.model_dump(exclude_unset=True)
+        exclude_extra: List[str] = []
+        if scoped_tenant_id is not None:
+            exclude_extra.append("tenant_id")
+        elif update_dict.get("tenant_id") is not None:
+            await ensure_tenant_id_exists(self.db, update_dict["tenant_id"])
+
         def before_update(user: User, data: UserUpdate):
             """更新前的钩子函数"""
             # 特殊处理等级字段 - 优先使用level_code（新系统）
@@ -237,31 +286,31 @@ class UserService(BaseService):
             obj_id=user_id,
             data=user_data,
             before_update=before_update,
+            exclude_fields=exclude_extra if exclude_extra else None,
         )
-        
+
         await self.db.flush()
         await self.db.refresh(user)
-        
-        return self._format_response(user)
+
+        tn = None
+        if user.tenant_id is not None:
+            nm = await tenant_names_by_ids(self.db, {user.tenant_id})
+            tn = nm.get(user.tenant_id)
+        return self._format_response(user, tenant_name=tn)
     
-    async def delete_user(self, user_id: int) -> None:
+    async def delete_user(self, user_id: int, *, scoped_tenant_id: Optional[int] = None) -> None:
         """
         删除用户（软删除）
-        
-        Args:
-            user_id: 用户ID
         """
+        await self.require_user_accessible(user_id, scoped_tenant_id)
         await super().delete(user_id, hard_delete=False)
         await self.db.flush()
     
-    async def change_status(self, user_id: int, status: int) -> None:
+    async def change_status(self, user_id: int, status: int, *, scoped_tenant_id: Optional[int] = None) -> None:
         """
         修改用户状态
-        
-        Args:
-            user_id: 用户ID
-            status: 状态 (0-封禁, 1-正常)
         """
+        await self.require_user_accessible(user_id, scoped_tenant_id)
         await super().change_status(user_id, status)
         await self.db.flush()
     
@@ -271,6 +320,7 @@ class UserService(BaseService):
         amount: Decimal,
         remark: Optional[str] = None,
         operator_id: Optional[int] = None,
+        scoped_tenant_id: Optional[int] = None,
     ) -> None:
         """
         用户充值
@@ -281,6 +331,8 @@ class UserService(BaseService):
             remark: 备注
             operator_id: 操作人ID（管理员操作时记录）
         """
+        await self.require_user_accessible(user_id, scoped_tenant_id)
+
         from services.coin.account import CoinAccountService
         from services.system.operation_log import OperationLogService, OperationType
         
@@ -316,16 +368,14 @@ class UserService(BaseService):
         self,
         user_id: int,
         amount: Decimal,
-        reason: str
+        reason: str,
+        scoped_tenant_id: Optional[int] = None,
     ) -> None:
         """
         用户扣费
-        
-        Args:
-            user_id: 用户ID
-            amount: 扣费金额
-            reason: 扣费原因
         """
+        await self.require_user_accessible(user_id, scoped_tenant_id)
+
         user = await super().get_by_id(user_id)
         
         if user.available_balance < amount:
@@ -349,17 +399,13 @@ class UserService(BaseService):
         vip_expire_date: Optional[datetime] = None,
         remark: Optional[str] = None,
         operator_id: Optional[int] = None,
+        scoped_tenant_id: Optional[int] = None,
     ) -> None:
         """
         修改用户等级（集成升级/降级处理）
-        
-        Args:
-            user_id: 用户ID
-            level: 等级代码 (normal/vip/svip/max)
-            vip_expire_date: VIP到期时间（可选）
-            remark: 备注
-            operator_id: 操作人ID（管理员操作时记录）
         """
+        await self.require_user_accessible(user_id, scoped_tenant_id)
+
         from services.system.membership import MembershipService
         from services.system.operation_log import OperationLogService, OperationType
         
@@ -548,9 +594,13 @@ class UserService(BaseService):
                 return existing
         
         # 创建用户
+        from core.tenant_constants import DEFAULT_TENANT_ID
+
+        tid = user_data.get("tenant_id") or DEFAULT_TENANT_ID
         user = User(
             username=user_data.get("username") or f"user_{secrets.token_hex(4)}",
             password_hash=user_data.get("password_hash"),
+            tenant_id=int(tid),
             openid=user_data.get("openid"),
             unionid=user_data.get("unionid"),
             phone=user_data.get("phone"),
@@ -569,7 +619,7 @@ class UserService(BaseService):
 
         return user
 
-    async def reset_password(self, user_id: int, new_password: str = "123456") -> None:
+    async def reset_password(self, user_id: int, new_password: str = "123456", *, scoped_tenant_id: Optional[int] = None) -> None:
         """
         重置用户密码
 
@@ -581,6 +631,8 @@ class UserService(BaseService):
             user_id: 用户ID
             new_password: 新密码（明文，默认为 "123456"）
         """
+        await self.require_user_accessible(user_id, scoped_tenant_id)
+
         user = await super().get_by_id(user_id)
 
         # 1. 先对明文密码进行 MD5 加密（模拟前端行为）

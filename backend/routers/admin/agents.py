@@ -8,6 +8,8 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from db import get_db
+from core.deps import get_current_admin_user
+from models.admin_user import AdminUser
 from models.llm_model import LLMModel
 from schemas.agent import (
     AgentCreate,
@@ -37,6 +39,7 @@ async def get_agents(
         description="智能体模式：0-普通模式, 1-Skill 组装模式",
     ),
     db: AsyncSession = Depends(get_db),
+    current_admin: AdminUser = Depends(get_current_admin_user),
 ):
     """
     获取智能体列表（分页）
@@ -54,7 +57,10 @@ async def get_agents(
         agentMode=agentMode,
     )
     
-    result = await agent_service.get_agent_list(params)
+    result = await agent_service.get_agent_list(
+        params,
+        scoped_tenant_id=current_admin.tenant_id,
+    )
     
     # 收集所有 agent 使用的 model ID，批量查询模型名称
     model_ids = [int(mid) for mid in {str(a.model) for a in result.list if a.model} if str(mid).isdigit()]
@@ -113,10 +119,11 @@ async def get_available_models(
 async def get_agent(
     agent_id: int,
     db: AsyncSession = Depends(get_db),
+    current_admin: AdminUser = Depends(get_current_admin_user),
 ):
     """获取智能体详情"""
     agent_service = AgentService(db)
-    agent = await agent_service.get_agent_by_id(agent_id)
+    agent = await agent_service.get_agent_by_id(agent_id, scoped_tenant_id=current_admin.tenant_id)
     return success(data=agent_to_response(agent))
 
 
@@ -124,10 +131,11 @@ async def get_agent(
 async def create_agent(
     agent_data: AgentCreate,
     db: AsyncSession = Depends(get_db),
+    current_admin: AdminUser = Depends(get_current_admin_user),
 ):
     """创建智能体"""
     agent_service = AgentService(db)
-    agent = await agent_service.create_agent(agent_data)
+    agent = await agent_service.create_agent(agent_data, scoped_tenant_id=current_admin.tenant_id)
     await db.commit()
     return success(data=agent_to_response(agent), msg="创建成功")
 
@@ -137,10 +145,11 @@ async def update_agent(
     agent_id: int,
     agent_data: AgentUpdate,
     db: AsyncSession = Depends(get_db),
+    current_admin: AdminUser = Depends(get_current_admin_user),
 ):
     """更新智能体"""
     agent_service = AgentService(db)
-    agent = await agent_service.update_agent(agent_id, agent_data)
+    agent = await agent_service.update_agent(agent_id, agent_data, scoped_tenant_id=current_admin.tenant_id)
     await db.commit()
     return success(data=agent_to_response(agent), msg="更新成功")
 
@@ -149,10 +158,11 @@ async def update_agent(
 async def delete_agent(
     agent_id: int,
     db: AsyncSession = Depends(get_db),
+    current_admin: AdminUser = Depends(get_current_admin_user),
 ):
     """删除智能体"""
     agent_service = AgentService(db)
-    await agent_service.delete_agent(agent_id)
+    await agent_service.delete_agent(agent_id, scoped_tenant_id=current_admin.tenant_id)
     await db.commit()
     return success(msg="删除成功")
 
@@ -162,10 +172,11 @@ async def change_agent_status(
     agent_id: int,
     status_data: AgentStatusUpdate,
     db: AsyncSession = Depends(get_db),
+    current_admin: AdminUser = Depends(get_current_admin_user),
 ):
     """修改智能体状态（上架/下架）"""
     agent_service = AgentService(db)
-    agent = await agent_service.update_status(agent_id, status_data.status)
+    agent = await agent_service.update_status(agent_id, status_data.status, scoped_tenant_id=current_admin.tenant_id)
     await db.commit()
     return success(data=agent_to_response(agent), msg="状态更新成功")
 
@@ -175,10 +186,11 @@ async def update_agent_sort(
     agent_id: int,
     sort_data: AgentSortUpdate,
     db: AsyncSession = Depends(get_db),
+    current_admin: AdminUser = Depends(get_current_admin_user),
 ):
     """修改智能体排序"""
     agent_service = AgentService(db)
-    agent = await agent_service.update_sort_order(agent_id, sort_data.sortOrder)
+    agent = await agent_service.update_sort_order(agent_id, sort_data.sortOrder, scoped_tenant_id=current_admin.tenant_id)
     await db.commit()
     return success(data=agent_to_response(agent), msg="排序更新成功")
 
@@ -187,11 +199,12 @@ async def update_agent_sort(
 async def batch_update_sort(
     batch_data: BatchSortRequest,
     db: AsyncSession = Depends(get_db),
+    current_admin: AdminUser = Depends(get_current_admin_user),
 ):
     """批量修改智能体排序"""
     agent_service = AgentService(db)
     items = [{"id": item.id, "sortOrder": item.sortOrder} for item in batch_data.items]
-    await agent_service.batch_update_sort(items)
+    await agent_service.batch_update_sort(items, scoped_tenant_id=current_admin.tenant_id)
     await db.commit()
     return success(msg="批量排序更新成功")
 

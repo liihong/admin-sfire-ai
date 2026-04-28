@@ -36,9 +36,18 @@ class Agent(BaseModel):
     """
     __tablename__ = "agents"
     __table_args__ = (
+        Index("ix_agents_tenant_id", "tenant_id"),
         Index("ix_agents_status", "status"),
         Index("ix_agents_sort_order", "sort_order"),
         {"comment": "智能体配置表"},
+    )
+
+    tenant_id: Mapped[int] = mapped_column(
+        BigInteger,
+        ForeignKey("tenants.id", ondelete="RESTRICT"),
+        nullable=False,
+        default=1,
+        comment="租户ID",
     )
     
     # === 基础字段 ===

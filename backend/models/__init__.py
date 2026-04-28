@@ -2,6 +2,7 @@
 Database Models module
 """
 from .base import BaseModel, TimestampMixin
+from .tenant import Tenant
 from .user import User
 from .compute import ComputeLog, ComputeType
 from .menu import Menu
@@ -38,6 +39,7 @@ from .copywriting_library import CopywritingLibraryEntry, CopywritingEntryStatus
 __all__ = [
     "BaseModel",
     "TimestampMixin",
+    "Tenant",
     "User",
     "ComputeLog",
     "ComputeType",

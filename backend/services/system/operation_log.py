@@ -38,8 +38,16 @@ class OperationLogService:
         Returns:
             创建的操作日志对象
         """
+        from sqlalchemy import select
+
+        from models.user import User
+
+        ut = (await self.db.execute(select(User.tenant_id).where(User.id == user_id))).scalar_one_or_none()
+        tenant_id = int(ut) if ut is not None else 1
+
         log = AdminOperationLog(
             admin_user_id=admin_user_id,
+            tenant_id=tenant_id,
             user_id=user_id,
             operation_type=operation_type,
             operation_detail=json.dumps(operation_detail, ensure_ascii=False) if operation_detail else None,

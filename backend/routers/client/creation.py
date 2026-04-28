@@ -13,7 +13,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from db import get_db
 from models.user import User
-from core.deps import get_current_miniprogram_user
+from core.deps import get_current_miniprogram_user, get_current_miniprogram_user_optional
+from core.tenant_constants import DEFAULT_TENANT_ID
 from services.resource import ProjectService
 from services.shared.llm_service import LLMFactory
 from services.resource import LLMModelService
@@ -578,9 +579,15 @@ async def refund_frozen_coin(
 
 @router.get("/agents")
 async def list_agents(
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    current_user: Optional[User] = Depends(get_current_miniprogram_user_optional),
 ):
     """获取所有可用的智能体列表（从数据库读取）"""
+    # 从未登录或未传 token：仅展示主租户（与线上主小程序行为一致）；已登录：展示该用户租户
+    tenant_pid = DEFAULT_TENANT_ID
+    if current_user is not None:
+        tenant_pid = current_user.tenant_id
+
     # 从数据库查询启用的智能体
     from sqlalchemy import select, and_
     from models.agent import Agent
@@ -589,7 +596,8 @@ async def list_agents(
         select(Agent).where(
             and_(
                 Agent.status == 1,  # 只返回上架的智能体
-                Agent.is_system == 0  # 过滤掉系统自用智能体
+                Agent.is_system == 0,  # 过滤掉系统自用智能体
+                Agent.tenant_id == tenant_pid,
             )
         ).order_by(Agent.sort_order, Agent.created_at)
     )
@@ -621,8 +629,13 @@ async def list_agents(
 async def get_agent_detail(
     agent_id: int,
     db: AsyncSession = Depends(get_db),
+    current_user: Optional[User] = Depends(get_current_miniprogram_user_optional),
 ):
     """获取单个智能体详情，仅返回上架且非系统自用的智能体，不返回提示词"""
+    tenant_pid = DEFAULT_TENANT_ID
+    if current_user is not None:
+        tenant_pid = current_user.tenant_id
+
     from sqlalchemy import select, and_
     from models.agent import Agent
     from utils.serializers import agent_to_client_detail_response
@@ -632,7 +645,8 @@ async def get_agent_detail(
             and_(
                 Agent.id == agent_id,
                 Agent.status == 1,  # 只返回上架的智能体
-                Agent.is_system == 0  # 过滤掉系统自用智能体
+                Agent.is_system == 0,  # 过滤掉系统自用智能体
+                Agent.tenant_id == tenant_pid,
             )
         )
     )
@@ -665,7 +679,7 @@ async def generate_chat(
         # 0.1. 解析 agent_id（agents 表主键，唯一标识）
         # agent_id 来源：request.agent_id（前端传入）或 request.agent_type（当为数字时）
         # db_agent：用 agent_id 查出的 Agent 对象，用于配置、会话标题、算力流水、usage_count
-        from sqlalchemy import select, or_
+        from sqlalchemy import select, or_, and_
         from models.agent import Agent
 
         agent_id = request.agent_id
@@ -682,8 +696,11 @@ async def generate_chat(
         if agent_id is not None:
             result = await db.execute(
                 select(Agent).where(
-                    Agent.id == agent_id,
-                    or_(Agent.is_system == 1, Agent.status == 1)
+                    and_(
+                        Agent.id == agent_id,
+                        Agent.tenant_id == current_user.tenant_id,
+                        or_(Agent.is_system == 1, Agent.status == 1),
+                    )
                 )
             )
             db_agent = result.scalar_one_or_none()
@@ -705,8 +722,11 @@ async def generate_chat(
                     agent_id = int(request.agent_type)
                     result = await db.execute(
                         select(Agent).where(
-                            Agent.id == agent_id,
-                            or_(Agent.is_system == 1, Agent.status == 1)
+                            and_(
+                                Agent.id == agent_id,
+                                Agent.tenant_id == current_user.tenant_id,
+                                or_(Agent.is_system == 1, Agent.status == 1),
+                            )
                         )
                     )
                     db_agent = result.scalar_one_or_none()

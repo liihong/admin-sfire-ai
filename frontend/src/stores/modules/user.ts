@@ -1,7 +1,7 @@
 import { defineStore } from "pinia";
 import { UserState, UserInfo, UserLevelConfig } from "@/stores/interface";
 import piniaPersistConfig from "@/stores/helper/persist";
-import { loginApi, refreshTokenApi } from "@/api/modules/login";
+import { loginApi, refreshTokenApi, getAdminMeApi } from "@/api/modules/login";
 import { Login } from "@/api/interface";
 import { ElMessage } from "element-plus";
 
@@ -50,7 +50,9 @@ export const useUserStore = defineStore({
     // 是否有足够算力
     hasComputePower: state => {
       return state.userInfo.computePower > 0;
-    }
+    },
+    /** 平台超级管理员（可跨租户、分配租户） */
+    isPlatformAdmin: state => state.userInfo.is_platform_admin === true
   },
   actions: {
     // 设置 Token（包含过期时间）
@@ -86,6 +88,21 @@ export const useUserStore = defineStore({
     setUserInfo(userInfo: Partial<UserInfo>) {
       this.userInfo = { ...this.userInfo, ...userInfo };
     },
+    /** 拉取当前管理员资料（登录后或刷新路由前调用） */
+    async fetchAdminProfile() {
+      const { data } = await getAdminMeApi();
+      if (!data) return;
+      this.setUserInfo({
+        id: String(data.id),
+        username: data.username,
+        email: data.email ?? "",
+        tenant_id: data.tenant_id,
+        tenant_name: data.tenant_name ?? undefined,
+        is_platform_admin: data.is_platform_admin,
+        role_id: data.role_id ?? undefined,
+        role_name: data.role_name ?? undefined
+      });
+    },
     // 设置用户角色
     setRoles(roles: string[]) {
       this.roles = roles;
@@ -112,8 +129,11 @@ export const useUserStore = defineStore({
         if (data?.access_token) {
           this.setToken(data.access_token, data.expires_in);
           this.setRefreshToken(data.refresh_token);
-          // TODO: 如果后端返回用户信息，可以在这里设置
-          // this.setUserInfo({ ... });
+          try {
+            await this.fetchAdminProfile();
+          } catch {
+            /* profile 失败仍允许后续流程由路由守卫处理 */
+          }
           return true;
         } else {
           ElMessage.error("登录失败：未获取到 Token");

@@ -15,8 +15,10 @@ from sqlalchemy import (
     Index,
     Text,
     DateTime,
+    ForeignKeyConstraint,
+    and_,
 )
-from sqlalchemy.orm import Mapped, mapped_column, relationship
+from sqlalchemy.orm import Mapped, mapped_column, relationship, declared_attr
 
 from models.base import BaseModel
 
@@ -24,7 +26,7 @@ if TYPE_CHECKING:
     from models.compute import ComputeLog
     from models.project import Project
     from models.conversation import Conversation
-    from models.user_level import UserLevel as UserLevelModel
+    from models.user_level import UserLevel
 
 
 class User(BaseModel):
@@ -49,6 +51,7 @@ class User(BaseModel):
     """
     __tablename__ = "users"
     __table_args__ = (
+        Index("ix_users_tenant_id", "tenant_id"),
         Index("ix_users_username", "username"),        # username 索引
         Index("ix_users_openid", "openid"),            # openid 索引（小程序查询优化）
         Index("ix_users_parent_id", "parent_id"),      # parent_id 索引（分销查询优化）
@@ -56,7 +59,21 @@ class User(BaseModel):
         Index("ix_users_is_deleted", "is_deleted"),   # is_deleted 索引（查询优化）
         Index("ix_users_created_at", "created_at"),    # created_at 索引（排序优化）
         Index("ix_users_is_active", "is_active"),      # is_active 索引（筛选优化）
+        ForeignKeyConstraint(
+            ["tenant_id", "level_code"],
+            ["user_levels.tenant_id", "user_levels.code"],
+            name="fk_users_tenant_level_code",
+        ),
         {"comment": "用户表"},
+    )
+    
+    # === 多租户 ===
+    tenant_id: Mapped[int] = mapped_column(
+        BigInteger,
+        ForeignKey("tenants.id", ondelete="RESTRICT"),
+        nullable=False,
+        default=1,
+        comment="租户ID（主小程序默认 1）",
     )
     
     # === 核心字段 ===
@@ -75,11 +92,10 @@ class User(BaseModel):
     
     level_code: Mapped[Optional[str]] = mapped_column(
         String(32),
-        ForeignKey("user_levels.code", ondelete="RESTRICT"),
         default="normal",
         server_default="normal",
         nullable=False,
-        comment="用户等级代码（外键关联user_levels表）：normal/vip/svip/max",
+        comment="用户等级代码（与 tenant_id 联合关联 user_levels）",
     )
     
     balance: Mapped[Decimal] = mapped_column(
@@ -222,12 +238,16 @@ class User(BaseModel):
         lazy="dynamic",
     )
     
-    # 用户等级关系
-    user_level: Mapped[Optional["UserLevelModel"]] = relationship(
-        "UserLevel",
-        primaryjoin="User.level_code == UserLevel.code",
-        lazy="selectin",
-    )
+    # 用户等级关系（与租户 + code 联合；用 declared_attr 避免类体内前向引用）
+    @declared_attr
+    def user_level(cls):
+        from models.user_level import UserLevel as UL
+
+        return relationship(
+            UL,
+            primaryjoin=and_(cls.level_code == UL.code, cls.tenant_id == UL.tenant_id),
+            lazy="selectin",
+        )
     
     def __repr__(self) -> str:
         return f"<User(id={self.id}, username='{self.username}', level_code={self.level_code})>"

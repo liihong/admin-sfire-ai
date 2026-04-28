@@ -59,6 +59,47 @@ async def logout():
     return success(msg=ResponseMsg.LOGOUT_SUCCESS)
 
 
+@router.get("/me", summary="当前管理员信息")
+async def admin_profile(
+    db: AsyncSession = Depends(get_db),
+    current_user: AdminUser = Depends(get_current_user),
+):
+    """返回租户归属与角色信息；tenant_id 为空表示平台超级管理员。"""
+    from sqlalchemy import select
+    from sqlalchemy.orm import selectinload
+    from models.tenant import Tenant
+
+    result = await db.execute(
+        select(AdminUser)
+        .options(selectinload(AdminUser.role))
+        .where(AdminUser.id == current_user.id, AdminUser.is_deleted == False)
+    )
+    u = result.scalar_one_or_none()
+    if not u:
+        from utils.exceptions import UnauthorizedException
+
+        raise UnauthorizedException(msg="用户不存在")
+
+    tenant_name = None
+    if u.tenant_id is not None:
+        tr = await db.execute(select(Tenant.name).where(Tenant.id == u.tenant_id))
+        tenant_name = tr.scalar_one_or_none()
+
+    return success(
+        data={
+            "id": u.id,
+            "username": u.username,
+            "email": u.email,
+            "tenant_id": u.tenant_id,
+            "tenant_name": tenant_name,
+            "role_id": u.role_id,
+            "role_name": u.role.name if u.role else None,
+            "role_code": u.role.code if u.role else None,
+            "is_platform_admin": u.tenant_id is None,
+        }
+    )
+
+
 @router.get("/buttons", summary="获取按钮权限")
 async def get_auth_buttons(
     db: AsyncSession = Depends(get_db),

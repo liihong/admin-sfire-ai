@@ -20,6 +20,11 @@
         <span v-else class="text-gray-400">未分配</span>
       </template>
 
+      <!-- 租户 -->
+      <template #tenant_name="scope">
+        <span>{{ scope.row.tenant_name || "—" }}</span>
+      </template>
+
       <!-- 状态 -->
       <template #is_active="scope">
         <el-tag :type="scope.row.is_active ? 'success' : 'danger'" effect="plain">
@@ -79,6 +84,26 @@
             />
           </el-select>
         </el-form-item>
+        <el-form-item
+          v-if="userStore.isPlatformAdmin"
+          label="所属租户"
+          prop="tenant_id"
+        >
+          <el-select
+            v-model="formData.tenant_id"
+            placeholder="不选则默认为主租户"
+            clearable
+            filterable
+            style="width: 100%"
+          >
+            <el-option
+              v-for="t in tenantOptions"
+              :key="t.id"
+              :label="`${t.name} (${t.code})`"
+              :value="t.id"
+            />
+          </el-select>
+        </el-form-item>
         <el-form-item label="备注" prop="remark">
           <el-input
             v-model="formData.remark"
@@ -102,8 +127,10 @@
 import { ref, reactive, onMounted } from "vue";
 import { ElMessage, FormInstance, FormRules } from "element-plus";
 import { CirclePlus, Delete, EditPen, Refresh } from "@element-plus/icons-vue";
-import type { AdminUser, Role } from "@/api/interface";
+import type { AdminUser, Role, Tenant } from "@/api/interface";
 import { useHandleData } from "@/hooks/useHandleData";
+import { useUserStore } from "@/stores/modules/user";
+import { getTenantOptionsApi } from "@/api/modules/tenant";
 import ProTable from "@/components/ProTable/index.vue";
 import { ProTableInstance, ColumnProps } from "@/components/ProTable/interface";
 import {
@@ -118,8 +145,22 @@ import { getRoleList } from "@/api/modules/role";
 // ProTable 实例
 const proTable = ref<ProTableInstance>();
 
+const userStore = useUserStore();
+
 // 角色列表
 const roleList = ref<Role.ResRole[]>([]);
+
+const tenantOptions = ref<Tenant.ResTenantOption[]>([]);
+
+const loadTenantOptions = async () => {
+  if (!userStore.isPlatformAdmin) return;
+  try {
+    const { data } = await getTenantOptionsApi();
+    tenantOptions.value = Array.isArray(data) ? data : [];
+  } catch {
+    tenantOptions.value = [];
+  }
+};
 
 // 数据回调处理
 const dataCallback = (data: any) => {
@@ -158,6 +199,12 @@ const columns = reactive<ColumnProps<AdminUser.ResAdminUserList>[]>([
     width: 150,
     isShow: true,
     search: { el: "input" }
+  },
+  {
+    prop: "tenant_name",
+    label: "租户",
+    width: 140,
+    showOverflowTooltip: true
   },
   {
     prop: "email",
@@ -215,6 +262,7 @@ const formData = reactive<AdminUser.ReqAdminUserCreate & AdminUser.ReqAdminUserU
   password: "",
   email: "",
   role_id: undefined,
+  tenant_id: undefined,
   remark: ""
 });
 
@@ -245,15 +293,17 @@ const formRules: FormRules = {
   ]
 };
 
-const openDrawer = (title: string, row: Partial<AdminUser.ResAdminUserList> = {}) => {
+const openDrawer = async (title: string, row: Partial<AdminUser.ResAdminUserList> = {}) => {
   drawerTitle.value = title;
   isEdit.value = !!row.id;
+  await loadTenantOptions();
 
   // 重置表单
   formData.username = row.username || "";
   formData.password = "";
   formData.email = row.email || "";
   formData.role_id = row.role_id || undefined;
+  formData.tenant_id = row.tenant_id ?? undefined;
   formData.remark = row.remark || "";
   if (row.id) {
     formData.id = row.id;
@@ -274,6 +324,9 @@ const handleSubmit = async () => {
     if (isEdit.value && formData.id) {
       // 编辑
       const { id, username, ...updateData } = formData;
+      if (!userStore.isPlatformAdmin) {
+        delete (updateData as { tenant_id?: number }).tenant_id;
+      }
       // 如果密码为空，则不更新密码
       if (!updateData.password) {
         const { password, ...dataWithoutPassword } = updateData;
@@ -285,6 +338,9 @@ const handleSubmit = async () => {
     } else {
       // 新增
       const { id, ...createData } = formData;
+      if (!userStore.isPlatformAdmin) {
+        delete (createData as { tenant_id?: number }).tenant_id;
+      }
       await addAdminUser(createData as AdminUser.ReqAdminUserCreate);
       ElMessage.success("创建成功");
     }
@@ -318,6 +374,7 @@ const changeStatus = async (row: AdminUser.ResAdminUserList) => {
 // 初始化
 onMounted(() => {
   loadRoleList();
+  loadTenantOptions();
 });
 </script>
 

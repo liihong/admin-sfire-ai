@@ -7,6 +7,8 @@ from fastapi import APIRouter, Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from db import get_db
+from core.deps import get_current_admin_user
+from models.admin_user import AdminUser as AdminUserModel
 from schemas.admin_user import (
     AdminUserCreate,
     AdminUserUpdate,
@@ -27,14 +29,11 @@ async def get_admin_users(
     role_id: Optional[int] = Query(None, description="角色ID"),
     is_active: Optional[bool] = Query(None, description="是否激活"),
     db: AsyncSession = Depends(get_db),
+    current_admin: AdminUserModel = Depends(get_current_admin_user),
 ):
-    """
-    获取管理员用户列表（分页）
-    
-    支持按用户名、邮箱、角色ID、状态筛选
-    """
+    """获取管理员用户列表（分页）；租户管理员仅能看本租户管理员。"""
     admin_user_service = AdminUserService(db)
-    
+
     params = AdminUserQueryParams(
         pageNum=pageNum,
         pageSize=pageSize,
@@ -43,9 +42,12 @@ async def get_admin_users(
         role_id=role_id,
         is_active=is_active,
     )
-    
-    users, total = await admin_user_service.get_users(params)
-    
+
+    users, total = await admin_user_service.get_users(
+        params,
+        scoped_tenant_id=current_admin.tenant_id,
+    )
+
     return page_response(
         items=users,
         total=total,
@@ -68,10 +70,14 @@ async def get_status_options():
 async def get_admin_user(
     user_id: str,
     db: AsyncSession = Depends(get_db),
+    current_admin: AdminUserModel = Depends(get_current_admin_user),
 ):
     """获取管理员用户详情"""
     admin_user_service = AdminUserService(db)
-    user = await admin_user_service.get_user_by_id(user_id)
+    user = await admin_user_service.get_user_by_id(
+        int(user_id),
+        scoped_tenant_id=current_admin.tenant_id,
+    )
     return success(data=user)
 
 
@@ -79,10 +85,14 @@ async def get_admin_user(
 async def create_admin_user(
     user_data: AdminUserCreate,
     db: AsyncSession = Depends(get_db),
+    current_admin: AdminUserModel = Depends(get_current_admin_user),
 ):
     """创建新管理员用户"""
     admin_user_service = AdminUserService(db)
-    user = await admin_user_service.create_user(user_data)
+    user = await admin_user_service.create_user(
+        user_data,
+        scoped_tenant_id=current_admin.tenant_id,
+    )
     return success(data=user, msg=ResponseMsg.CREATED)
 
 
@@ -91,10 +101,15 @@ async def update_admin_user(
     user_id: int,
     user_data: AdminUserUpdate,
     db: AsyncSession = Depends(get_db),
+    current_admin: AdminUserModel = Depends(get_current_admin_user),
 ):
     """更新管理员用户信息"""
     admin_user_service = AdminUserService(db)
-    user = await admin_user_service.update_user(user_id, user_data)
+    user = await admin_user_service.update_user(
+        user_id,
+        user_data,
+        scoped_tenant_id=current_admin.tenant_id,
+    )
     return success(data=user, msg=ResponseMsg.UPDATED)
 
 
@@ -102,10 +117,14 @@ async def update_admin_user(
 async def delete_admin_user(
     user_id: int,
     db: AsyncSession = Depends(get_db),
+    current_admin: AdminUserModel = Depends(get_current_admin_user),
 ):
     """删除管理员用户（软删除）"""
     admin_user_service = AdminUserService(db)
-    await admin_user_service.delete_user(user_id)
+    await admin_user_service.delete_user(
+        user_id,
+        scoped_tenant_id=current_admin.tenant_id,
+    )
     return success(msg=ResponseMsg.DELETED)
 
 
@@ -114,9 +133,13 @@ async def change_admin_user_status(
     user_id: int,
     status: int = Query(..., ge=0, le=1, description="状态: 0-封禁, 1-正常"),
     db: AsyncSession = Depends(get_db),
+    current_admin: AdminUserModel = Depends(get_current_admin_user),
 ):
     """修改管理员用户状态"""
     admin_user_service = AdminUserService(db)
-    await admin_user_service.change_status(user_id, status)
+    await admin_user_service.change_status(
+        user_id,
+        status,
+        scoped_tenant_id=current_admin.tenant_id,
+    )
     return success(msg=ResponseMsg.UPDATED)
-

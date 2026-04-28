@@ -226,6 +226,12 @@ const columns = reactive<ColumnProps<UserType.ResUserList>[]>([
     search: { el: "input", tooltip: "支持模糊搜索" }
   },
   {
+    prop: "tenantName",
+    label: "租户",
+    minWidth: 120,
+    showOverflowTooltip: true
+  },
+  {
     prop: "phone",
     label: "手机号",
     minWidth: 120,

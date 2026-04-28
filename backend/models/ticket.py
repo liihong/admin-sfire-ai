@@ -46,12 +46,21 @@ class Ticket(BaseModel):
     """
     __tablename__ = "tickets"
     __table_args__ = (
+        Index("ix_tickets_tenant_id", "tenant_id"),
         Index("ix_tickets_type", "type"),
         Index("ix_tickets_status", "status"),
         Index("ix_tickets_user_id", "user_id"),
         Index("ix_tickets_creator_id", "creator_id"),
         Index("ix_tickets_created_at", "created_at"),
         {"comment": "工单表"},
+    )
+
+    tenant_id: Mapped[int] = mapped_column(
+        BigInteger,
+        ForeignKey("tenants.id", ondelete="RESTRICT"),
+        nullable=False,
+        default=1,
+        comment="租户ID",
     )
     
     # === 基础字段 ===

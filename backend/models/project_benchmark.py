@@ -21,9 +21,18 @@ class ProjectBenchmarkAccount(BaseModel):
     __tablename__ = "project_benchmark_accounts"
     __table_args__ = (
         UniqueConstraint("project_id", "sec_uid", name="uq_project_benchmark_sec_uid"),
+        Index("ix_pba_tenant_id", "tenant_id"),
         Index("ix_pba_project_id", "project_id"),
         Index("ix_pba_user_id", "user_id"),
         {"comment": "项目对标抖音账号"},
+    )
+
+    tenant_id: Mapped[int] = mapped_column(
+        BigInteger,
+        ForeignKey("tenants.id", ondelete="RESTRICT"),
+        nullable=False,
+        default=1,
+        comment="租户ID",
     )
 
     user_id: Mapped[int] = mapped_column(

@@ -2,7 +2,7 @@
 用户音色映射模型
 支持 C 端用户与 B 端管理员双端使用，通过 owner_type + owner_id 区分
 """
-from sqlalchemy import String, BigInteger, Integer, Index, UniqueConstraint
+from sqlalchemy import String, BigInteger, Integer, Index, UniqueConstraint, ForeignKey
 from sqlalchemy.orm import Mapped, mapped_column
 
 from models.base import BaseModel
@@ -18,9 +18,18 @@ class UserVoiceSpeaker(BaseModel):
     """
     __tablename__ = "user_voice_speakers"
     __table_args__ = (
-        UniqueConstraint("owner_type", "owner_id", name="uq_user_voice_speaker_owner"),
+        UniqueConstraint("tenant_id", "owner_type", "owner_id", name="uq_user_voice_speaker_tenant_owner"),
+        Index("ix_user_voice_speakers_tenant_id", "tenant_id"),
         Index("ix_user_voice_speakers_owner", "owner_type", "owner_id"),
         {"comment": "用户音色映射表（工具包-声音复刻）"},
+    )
+
+    tenant_id: Mapped[int] = mapped_column(
+        BigInteger,
+        ForeignKey("tenants.id", ondelete="RESTRICT"),
+        nullable=False,
+        default=1,
+        comment="租户ID",
     )
 
     owner_type: Mapped[str] = mapped_column(

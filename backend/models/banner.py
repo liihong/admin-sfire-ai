@@ -12,6 +12,7 @@ from sqlalchemy import (
     DateTime,
     Index,
     Enum as SQLEnum,
+    ForeignKey,
 )
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -41,10 +42,19 @@ class Banner(BaseModel):
     """
     __tablename__ = "banners"
     __table_args__ = (
+        Index("ix_banners_tenant_id", "tenant_id"),
         Index("ix_banners_position", "position"),
         Index("ix_banners_sort_order", "sort_order"),
         Index("ix_banners_is_enabled", "is_enabled"),
         {"comment": "Banner表"},
+    )
+
+    tenant_id: Mapped[int] = mapped_column(
+        BigInteger,
+        ForeignKey("tenants.id", ondelete="RESTRICT"),
+        nullable=False,
+        default=1,
+        comment="租户ID",
     )
     
     # === 基础字段 ===

@@ -13,6 +13,7 @@ from sqlalchemy import (
     Index,
     DateTime,
     func,
+    ForeignKey,
 )
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -48,10 +49,19 @@ class ComputeFreezeLog(BaseModel):
     __tablename__ = "compute_freeze_logs"
     __table_args__ = (
         Index("ix_compute_freeze_logs_request_id", "request_id", unique=True),  # ✅ 唯一索引（幂等性核心）
+        Index("ix_compute_freeze_tenant_id", "tenant_id"),
         Index("ix_compute_freeze_logs_user_id", "user_id"),
         Index("ix_compute_freeze_logs_status", "status"),
         Index("ix_compute_freeze_logs_created_at", "created_at"),
         {"comment": "算力冻结记录表（幂等性保证）"},
+    )
+
+    tenant_id: Mapped[int] = mapped_column(
+        BigInteger,
+        ForeignKey("tenants.id", ondelete="RESTRICT"),
+        nullable=False,
+        default=1,
+        comment="租户ID",
     )
 
     # === 核心字段（幂等性控制） ===

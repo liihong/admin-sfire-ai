@@ -63,12 +63,21 @@ class Conversation(BaseModel):
     """
     __tablename__ = "conversations"
     __table_args__ = (
+        Index("ix_conversations_tenant_id", "tenant_id"),
         Index("ix_conversations_user_id", "user_id"),
         Index("ix_conversations_agent_id", "agent_id"),
         Index("ix_conversations_project_id", "project_id"),
         Index("ix_conversations_status", "status"),
         Index("ix_conversations_created_at", "created_at"),
         {"comment": "对话会话表"},
+    )
+
+    tenant_id: Mapped[int] = mapped_column(
+        BigInteger,
+        ForeignKey("tenants.id", ondelete="RESTRICT"),
+        nullable=False,
+        default=1,
+        comment="租户ID",
     )
     
     # === 关联字段 ===

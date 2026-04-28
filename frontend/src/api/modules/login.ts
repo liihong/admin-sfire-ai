@@ -11,6 +11,11 @@ export const loginApi = (params: Login.ReqLoginForm) => {
   return http.post<Login.ResLogin>(PORT1 + `/auth/login`, params, { loading: false });
 };
 
+/** 当前管理员资料（含租户归属 / 是否平台管理员） */
+export const getAdminMeApi = () => {
+  return http.get<Login.ResAdminMe>(PORT1 + `/auth/me`, {}, { loading: false });
+};
+
 // 获取菜单列表（从后端动态获取）
 export const getAuthMenuListApi = () => {
   return http.get<Menu.MenuOptions[]>(PORT1 + `/menu/list`, {}, { loading: false });

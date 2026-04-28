@@ -11,6 +11,7 @@ from sqlalchemy import (
     Text,
     Index,
     Enum as SQLEnum,
+    ForeignKey,
 )
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -46,20 +47,28 @@ class QuickEntry(BaseModel):
     """
     __tablename__ = "quick_entries"
     __table_args__ = (
+        Index("ix_quick_entries_tenant_id", "tenant_id"),
         Index("ix_quick_entries_type", "type"),
         Index("ix_quick_entries_status", "status"),
         Index("ix_quick_entries_priority", "priority"),
         Index("ix_quick_entries_tag", "tag"),
-        Index("ix_quick_entries_unique_key", "unique_key", unique=True),
+        Index("ix_quick_entries_tenant_unique_key", "tenant_id", "unique_key", unique=True),
         {"comment": "快捷入口配置表"},
+    )
+
+    tenant_id: Mapped[int] = mapped_column(
+        BigInteger,
+        ForeignKey("tenants.id", ondelete="RESTRICT"),
+        nullable=False,
+        default=1,
+        comment="租户ID",
     )
     
     # === 基础标识字段 ===
     unique_key: Mapped[str] = mapped_column(
         String(64),
-        unique=True,
         nullable=False,
-        comment="唯一标识（如：story, opinion, agent_001）",
+        comment="唯一标识（同租户内唯一，如：story, opinion, agent_001）",
     )
     
     type: Mapped[EntryType] = mapped_column(

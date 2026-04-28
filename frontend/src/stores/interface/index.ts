@@ -49,6 +49,12 @@ export interface UserInfo {
   totalUsed: number; // 累计消耗
   createTime?: string;
   lastLoginTime?: string;
+  /** 后台管理员归属租户；null 表示平台超级管理员 */
+  tenant_id?: number | null;
+  tenant_name?: string | null;
+  is_platform_admin?: boolean;
+  role_id?: number | null;
+  role_name?: string | null;
 }
 
 /* UserState */

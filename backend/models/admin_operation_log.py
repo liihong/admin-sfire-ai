@@ -36,13 +36,22 @@ class AdminOperationLog(BaseModel):
     """
     __tablename__ = "admin_operation_logs"
     __table_args__ = (
+        Index("ix_admin_operation_logs_tenant_id", "tenant_id"),
         Index("ix_admin_operation_logs_admin_user_id", "admin_user_id"),
         Index("ix_admin_operation_logs_user_id", "user_id"),
         Index("ix_admin_operation_logs_operation_type", "operation_type"),
         Index("ix_admin_operation_logs_created_at", "created_at"),
         {"comment": "管理员操作日志表"},
     )
-    
+
+    tenant_id: Mapped[int] = mapped_column(
+        BigInteger,
+        ForeignKey("tenants.id", ondelete="RESTRICT"),
+        nullable=False,
+        default=1,
+        comment="租户ID（被操作用户的租户）",
+    )
+
     # === 关联字段 ===
     admin_user_id: Mapped[int] = mapped_column(
         BigInteger,

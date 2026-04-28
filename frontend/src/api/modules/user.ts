@@ -24,11 +24,12 @@ export const addUser = (params: {
   password: string;
   phone?: string;
   nickname?: string;
-  level?: string; // "normal" | "member" | "partner"（已废弃，请使用level_code）
-  level_code?: string; // 用户等级代码（normal/vip/svip/max）
-  vip_expire_date?: string; // VIP到期时间（YYYY-MM-DD格式，可选）
+  level?: string;
+  level_code?: string;
+  vip_expire_date?: string;
   remark?: string;
   parent_id?: number;
+  tenant_id?: number;
 }) => {
   return http.post(PORT1 + `/users`, params);
 };
@@ -39,11 +40,12 @@ export const editUser = (params: {
   username?: string;
   phone?: string;
   nickname?: string;
-  level?: string; // "normal" | "member" | "partner"（已废弃，请使用level_code）
-  level_code?: string; // 用户等级代码（normal/vip/svip/max）
-  vip_expire_date?: string; // VIP到期时间（YYYY-MM-DD格式，可选）
+  level?: string;
+  level_code?: string;
+  vip_expire_date?: string;
   is_active?: boolean;
   remark?: string;
+  tenant_id?: number;
 }) => {
   const { id, ...data } = params;
   if (!id) {

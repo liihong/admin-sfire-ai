@@ -10,6 +10,7 @@ from sqlalchemy import (
     DECIMAL,
     Index,
     DateTime,
+    ForeignKey,
 )
 from sqlalchemy.sql import func
 from sqlalchemy.orm import Mapped, mapped_column
@@ -32,12 +33,21 @@ class AdminDebugLog(BaseModel):
     """
     __tablename__ = "admin_debug_logs"
     __table_args__ = (
+        Index("ix_admin_debug_logs_tenant_id", "tenant_id"),
         Index("ix_admin_debug_logs_admin_user_id", "admin_user_id"),
         Index("ix_admin_debug_logs_agent_id", "agent_id"),
         Index("ix_admin_debug_logs_created_at", "created_at"),
         {"comment": "Admin调试日志表"},
     )
-    
+
+    tenant_id: Mapped[int] = mapped_column(
+        BigInteger,
+        ForeignKey("tenants.id", ondelete="RESTRICT"),
+        nullable=False,
+        default=1,
+        comment="租户ID",
+    )
+
     # === 关联字段 ===
     admin_user_id: Mapped[int] = mapped_column(
         BigInteger,
