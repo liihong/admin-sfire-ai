@@ -4,6 +4,7 @@
 import { request } from '@/utils/request'
 import { useAuthStore } from '@/stores/auth'
 import { getMiniProgramAppId } from '@/utils/wechat'
+import { DINGMA_PUBLIC_TENANT_SCOPE } from '@/constants/tenant'
 
 /**
  * 用户等级信息类型
@@ -243,7 +244,11 @@ export function uploadAvatar(filePath: string): Promise<UploadAvatarResponse> {
 
     // 构建完整 URL
     const BASE_URL = __API_BASE_URL__
-    const url = BASE_URL + '/api/v1/client/upload/avatar'
+    const qs = new URLSearchParams({
+      tenant_id: DINGMA_PUBLIC_TENANT_SCOPE.tenant_id,
+      appid: DINGMA_PUBLIC_TENANT_SCOPE.appid,
+    })
+    const url = `${BASE_URL}/api/v1/client/upload/avatar?${qs.toString()}`
 
     // 显示上传进度
     uni.showLoading({
@@ -258,7 +263,9 @@ export function uploadAvatar(filePath: string): Promise<UploadAvatarResponse> {
       name: 'file', // 后端接收文件的字段名
       header: {
         'Authorization': `Bearer ${token}`,
-        'X-My-Gate-Key': 'Huoyuan2026'
+        'X-My-Gate-Key': 'Huoyuan2026',
+        'X-Wechat-App-Id': DINGMA_PUBLIC_TENANT_SCOPE.appid,
+        'X-Tenant-Code': DINGMA_PUBLIC_TENANT_SCOPE.tenant_id,
       },
       success: (res) => {
         uni.hideLoading()

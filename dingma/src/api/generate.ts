@@ -3,6 +3,7 @@
  */
 import { request } from '@/utils/request'
 import { useAuthStore } from '@/stores/auth'
+import { DINGMA_PUBLIC_TENANT_SCOPE } from '@/constants/tenant'
 
 const BASE_URL = __API_BASE_URL__
 
@@ -170,7 +171,9 @@ export function chatStream(
     const header: Record<string, string> = {
       'Content-Type': 'application/json',
       'Accept': 'text/event-stream',
-      'X-My-Gate-Key': 'Huoyuan2026'
+      'X-My-Gate-Key': 'Huoyuan2026',
+      'X-Wechat-App-Id': DINGMA_PUBLIC_TENANT_SCOPE.appid,
+      'X-Tenant-Code': DINGMA_PUBLIC_TENANT_SCOPE.tenant_id,
     }
     if (token) {
       header['Authorization'] = `Bearer ${token}`

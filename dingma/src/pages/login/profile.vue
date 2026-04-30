@@ -229,10 +229,9 @@ const handleSubmit = async () => {
         duration: 1500
       })
       
-      // 跳转到IP工作台
       setTimeout(() => {
         uni.switchTab({
-          url: '/pages/project/index'
+          url: '/pages/quick-entries/index'
         })
       }, 1500)
     } else {
@@ -263,7 +262,7 @@ const handleSkip = () => {
     success: (res) => {
       if (res.confirm) {
         uni.switchTab({
-          url: '/pages/project/index'
+          url: '/pages/quick-entries/index'
         })
       }
     }

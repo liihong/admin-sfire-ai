@@ -8,6 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from loguru import logger
 
 from db import get_db
+from core.client_public_scope import resolve_optional_public_tenant_id
 from schemas.article import ArticleCategoryCode, ArticleQueryParams
 from services.resource import ArticleService
 from utils.response import success, page_response, fail
@@ -26,6 +27,7 @@ async def get_articles(
             "示例：GET /api/v1/client/articles?category=01&pageNum=1"
         ),
     ),
+    scoped_tenant_id: Optional[int] = Depends(resolve_optional_public_tenant_id),
     db: AsyncSession = Depends(get_db),
 ):
     """
@@ -45,7 +47,11 @@ async def get_articles(
             category=category,
         )
         
-        articles, total = await article_service.get_articles(params, only_published=True)
+        articles, total = await article_service.get_articles(
+            params,
+            only_published=True,
+            scoped_tenant_id=scoped_tenant_id,
+        )
         
         return page_response(
             items=articles,
@@ -61,6 +67,7 @@ async def get_articles(
 @router.get("/{article_id}", summary="获取文章详情")
 async def get_article_detail(
     article_id: int,
+    scoped_tenant_id: Optional[int] = Depends(resolve_optional_public_tenant_id),
     db: AsyncSession = Depends(get_db),
 ):
     """
@@ -69,6 +76,10 @@ async def get_article_detail(
     自动增加浏览量
     """
     article_service = ArticleService(db)
-    article = await article_service.get_article_by_id(article_id, increment_view=True)
+    article = await article_service.get_article_by_id(
+        article_id,
+        increment_view=True,
+        scoped_tenant_id=scoped_tenant_id,
+    )
     return success(data=article, msg="获取成功")
 

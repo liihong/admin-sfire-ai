@@ -4,7 +4,7 @@
         <span class="editor-title">System Prompt</span>
         <div class="editor-actions">
           <el-button size="small" text :icon="DocumentCopy" @click="handleCopy">复制</el-button>
-          <el-button size="small" text :icon="Delete" @click="handleClear">清空</el-button>
+          <el-button v-if="!readOnly" size="small" text :icon="Delete" @click="handleClear">清空</el-button>
         </div>
       </div>
       <div class="editor-wrapper">
@@ -23,6 +23,7 @@
           type="textarea"
           :rows="minRows"
           :maxlength="5000"
+          :readonly="readOnly"
           placeholder="请输入系统提示词（System Prompt）..."
           class="editor-textarea"
           @input="handleInput"
@@ -43,11 +44,14 @@
   interface Props {
     modelValue: string;
     minRows?: number;
+    /** 只读：不可编辑、不可清空（仍可复制） */
+    readOnly?: boolean;
   }
   
   const props = withDefaults(defineProps<Props>(), {
     modelValue: "",
-    minRows: 12
+    minRows: 12,
+    readOnly: false,
   });
   
   const emit = defineEmits<{
@@ -102,6 +106,7 @@
   
   // 清空内容
   const handleClear = () => {
+    if (props.readOnly) return;
     modelValue.value = "";
   };
   

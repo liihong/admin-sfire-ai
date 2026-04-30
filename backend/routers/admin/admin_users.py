@@ -8,6 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from db import get_db
 from core.deps import get_current_admin_user
+from core.tenant_helpers import resolve_admin_agent_scope_tenant_id
 from models.admin_user import AdminUser as AdminUserModel
 from schemas.admin_user import (
     AdminUserCreate,
@@ -34,6 +35,12 @@ async def get_admin_users(
     """获取管理员用户列表（分页）；租户管理员仅能看本租户管理员。"""
     admin_user_service = AdminUserService(db)
 
+    scope_tid = await resolve_admin_agent_scope_tenant_id(
+        db,
+        admin_tenant_id=current_admin.tenant_id,
+        admin_username=current_admin.username,
+    )
+
     params = AdminUserQueryParams(
         pageNum=pageNum,
         pageSize=pageSize,
@@ -45,7 +52,7 @@ async def get_admin_users(
 
     users, total = await admin_user_service.get_users(
         params,
-        scoped_tenant_id=current_admin.tenant_id,
+        scoped_tenant_id=scope_tid,
     )
 
     return page_response(
@@ -74,9 +81,14 @@ async def get_admin_user(
 ):
     """获取管理员用户详情"""
     admin_user_service = AdminUserService(db)
+    scope_tid = await resolve_admin_agent_scope_tenant_id(
+        db,
+        admin_tenant_id=current_admin.tenant_id,
+        admin_username=current_admin.username,
+    )
     user = await admin_user_service.get_user_by_id(
         int(user_id),
-        scoped_tenant_id=current_admin.tenant_id,
+        scoped_tenant_id=scope_tid,
     )
     return success(data=user)
 
@@ -89,9 +101,14 @@ async def create_admin_user(
 ):
     """创建新管理员用户"""
     admin_user_service = AdminUserService(db)
+    scope_tid = await resolve_admin_agent_scope_tenant_id(
+        db,
+        admin_tenant_id=current_admin.tenant_id,
+        admin_username=current_admin.username,
+    )
     user = await admin_user_service.create_user(
         user_data,
-        scoped_tenant_id=current_admin.tenant_id,
+        scoped_tenant_id=scope_tid,
     )
     return success(data=user, msg=ResponseMsg.CREATED)
 
@@ -105,10 +122,15 @@ async def update_admin_user(
 ):
     """更新管理员用户信息"""
     admin_user_service = AdminUserService(db)
+    scope_tid = await resolve_admin_agent_scope_tenant_id(
+        db,
+        admin_tenant_id=current_admin.tenant_id,
+        admin_username=current_admin.username,
+    )
     user = await admin_user_service.update_user(
         user_id,
         user_data,
-        scoped_tenant_id=current_admin.tenant_id,
+        scoped_tenant_id=scope_tid,
     )
     return success(data=user, msg=ResponseMsg.UPDATED)
 
@@ -121,9 +143,14 @@ async def delete_admin_user(
 ):
     """删除管理员用户（软删除）"""
     admin_user_service = AdminUserService(db)
+    scope_tid = await resolve_admin_agent_scope_tenant_id(
+        db,
+        admin_tenant_id=current_admin.tenant_id,
+        admin_username=current_admin.username,
+    )
     await admin_user_service.delete_user(
         user_id,
-        scoped_tenant_id=current_admin.tenant_id,
+        scoped_tenant_id=scope_tid,
     )
     return success(msg=ResponseMsg.DELETED)
 
@@ -137,9 +164,14 @@ async def change_admin_user_status(
 ):
     """修改管理员用户状态"""
     admin_user_service = AdminUserService(db)
+    scope_tid = await resolve_admin_agent_scope_tenant_id(
+        db,
+        admin_tenant_id=current_admin.tenant_id,
+        admin_username=current_admin.username,
+    )
     await admin_user_service.change_status(
         user_id,
         status,
-        scoped_tenant_id=current_admin.tenant_id,
+        scoped_tenant_id=scope_tid,
     )
     return success(msg=ResponseMsg.UPDATED)

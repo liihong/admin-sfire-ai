@@ -9,6 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from db import get_db
 from core.deps import get_current_admin_user
+from core.tenant_helpers import resolve_admin_agent_scope_tenant_id
 from core.tenant_constants import effective_tenant_id
 from models.admin_user import AdminUser
 from schemas.user import (
@@ -44,7 +45,13 @@ async def get_users(
     支持按用户名、手机号、等级、状态、算力余额筛选
     """
     user_service = UserService(db)
-    
+
+    scope_tid = await resolve_admin_agent_scope_tenant_id(
+        db,
+        admin_tenant_id=current_admin.tenant_id,
+        admin_username=current_admin.username,
+    )
+
     params = UserQueryParams(
         pageNum=pageNum,
         pageSize=pageSize,
@@ -56,7 +63,7 @@ async def get_users(
         maxBalance=maxBalance,
     )
     
-    users, total = await user_service.get_users(params, scoped_tenant_id=current_admin.tenant_id)
+    users, total = await user_service.get_users(params, scoped_tenant_id=scope_tid)
     
     return page_response(
         items=users,
@@ -73,11 +80,17 @@ async def get_user_options(
 ):
     """获取用户相关的所有选项（状态和等级）"""
     from services.system.user_level import UserLevelService
-    
+
+    scope_tid = await resolve_admin_agent_scope_tenant_id(
+        db,
+        admin_tenant_id=current_admin.tenant_id,
+        admin_username=current_admin.username,
+    )
+
     # 获取用户等级选项（从数据库查询）
     user_level_service = UserLevelService(db)
     levels = await user_level_service.get_all_enabled_levels(
-        tenant_id=effective_tenant_id(current_admin.tenant_id)
+        tenant_id=effective_tenant_id(scope_tid)
     )
     
     # 转换为前端需要的格式
@@ -112,9 +125,15 @@ async def get_unionid_statistics(
     from sqlalchemy import select, func, and_
     from models.user import User
 
+    scope_tid = await resolve_admin_agent_scope_tenant_id(
+        db,
+        admin_tenant_id=current_admin.tenant_id,
+        admin_username=current_admin.username,
+    )
+
     base_conditions = [User.is_deleted == False]
-    if current_admin.tenant_id is not None:
-        base_conditions.append(User.tenant_id == current_admin.tenant_id)
+    if scope_tid is not None:
+        base_conditions.append(User.tenant_id == scope_tid)
     base_where = and_(*base_conditions)
 
     total_query = select(func.count(User.id)).where(base_where)
@@ -159,9 +178,14 @@ async def get_user(
 ):
     """获取用户详情"""
     user_service = UserService(db)
+    scope_tid = await resolve_admin_agent_scope_tenant_id(
+        db,
+        admin_tenant_id=current_admin.tenant_id,
+        admin_username=current_admin.username,
+    )
     user = await user_service.get_user_by_id(
         int(user_id),
-        scoped_tenant_id=current_admin.tenant_id,
+        scoped_tenant_id=scope_tid,
     )
     return success(data=user)
 
@@ -174,9 +198,14 @@ async def create_user(
 ):
     """创建新用户"""
     user_service = UserService(db)
+    scope_tid = await resolve_admin_agent_scope_tenant_id(
+        db,
+        admin_tenant_id=current_admin.tenant_id,
+        admin_username=current_admin.username,
+    )
     user = await user_service.create_user(
         user_data,
-        scoped_tenant_id=current_admin.tenant_id,
+        scoped_tenant_id=scope_tid,
     )
     return success(data=user, msg=ResponseMsg.CREATED)
 
@@ -190,10 +219,15 @@ async def update_user(
 ):
     """更新用户信息"""
     user_service = UserService(db)
+    scope_tid = await resolve_admin_agent_scope_tenant_id(
+        db,
+        admin_tenant_id=current_admin.tenant_id,
+        admin_username=current_admin.username,
+    )
     user = await user_service.update_user(
         user_id,
         user_data,
-        scoped_tenant_id=current_admin.tenant_id,
+        scoped_tenant_id=scope_tid,
     )
     return success(data=user, msg=ResponseMsg.UPDATED)
 
@@ -206,7 +240,12 @@ async def delete_user(
 ):
     """删除用户（软删除）"""
     user_service = UserService(db)
-    await user_service.delete_user(user_id, scoped_tenant_id=current_admin.tenant_id)
+    scope_tid = await resolve_admin_agent_scope_tenant_id(
+        db,
+        admin_tenant_id=current_admin.tenant_id,
+        admin_username=current_admin.username,
+    )
+    await user_service.delete_user(user_id, scoped_tenant_id=scope_tid)
     return success(msg=ResponseMsg.DELETED)
 
 
@@ -219,10 +258,15 @@ async def change_user_status(
 ):
     """修改用户状态"""
     user_service = UserService(db)
+    scope_tid = await resolve_admin_agent_scope_tenant_id(
+        db,
+        admin_tenant_id=current_admin.tenant_id,
+        admin_username=current_admin.username,
+    )
     await user_service.change_status(
         user_id,
         status,
-        scoped_tenant_id=current_admin.tenant_id,
+        scoped_tenant_id=scope_tid,
     )
     return success(msg=ResponseMsg.UPDATED)
 
@@ -235,12 +279,17 @@ async def recharge_user(
 ):
     """为用户充值算力"""
     user_service = UserService(db)
+    scope_tid = await resolve_admin_agent_scope_tenant_id(
+        db,
+        admin_tenant_id=current_admin.tenant_id,
+        admin_username=current_admin.username,
+    )
     await user_service.recharge(
         user_id=int(request.userId),
         amount=request.amount,
         remark=request.remark,
         operator_id=current_admin.id,
-        scoped_tenant_id=current_admin.tenant_id,
+        scoped_tenant_id=scope_tid,
     )
     return success(msg="充值成功")
 
@@ -253,11 +302,16 @@ async def deduct_user(
 ):
     """扣除用户算力"""
     user_service = UserService(db)
+    scope_tid = await resolve_admin_agent_scope_tenant_id(
+        db,
+        admin_tenant_id=current_admin.tenant_id,
+        admin_username=current_admin.username,
+    )
     await user_service.deduct(
         user_id=int(request.userId),
         amount=request.amount,
         reason=request.reason,
-        scoped_tenant_id=current_admin.tenant_id,
+        scoped_tenant_id=scope_tid,
     )
     return success(msg="扣费成功")
 
@@ -272,7 +326,13 @@ async def change_user_level(
     from datetime import datetime
     
     user_service = UserService(db)
-    
+
+    scope_tid = await resolve_admin_agent_scope_tenant_id(
+        db,
+        admin_tenant_id=current_admin.tenant_id,
+        admin_username=current_admin.username,
+    )
+
     # 解析VIP到期时间（设置为UTC时区，时间设为23:59:59）
     vip_expire_date = None
     if request.vip_expire_date:
@@ -294,7 +354,7 @@ async def change_user_level(
         vip_expire_date=vip_expire_date,
         remark=request.remark,
         operator_id=current_admin.id,
-        scoped_tenant_id=current_admin.tenant_id,
+        scoped_tenant_id=scope_tid,
     )
     return success(msg="等级修改成功")
 
@@ -315,6 +375,11 @@ async def reset_user_password(
     用户可以使用新密码 123456 登录
     """
     user_service = UserService(db)
-    await user_service.reset_password(user_id, scoped_tenant_id=current_admin.tenant_id)
+    scope_tid = await resolve_admin_agent_scope_tenant_id(
+        db,
+        admin_tenant_id=current_admin.tenant_id,
+        admin_username=current_admin.username,
+    )
+    await user_service.reset_password(user_id, scoped_tenant_id=scope_tid)
     return success(msg="密码重置成功，新密码为：123456")
 

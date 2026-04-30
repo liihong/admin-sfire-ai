@@ -12,7 +12,8 @@
           </div>
         </div>
         <div class="header-right">
-          <el-button type="primary" :icon="Document" @click="handleSaveConfig">保存配置</el-button>
+          <el-tag v-if="configReadOnly" type="warning" style="margin-right: 12px">公用智能体·配置只读</el-tag>
+          <el-button v-if="!configReadOnly" type="primary" :icon="Document" @click="handleSaveConfig">保存配置</el-button>
         </div>
       </div>
   
@@ -29,6 +30,7 @@
               ref="configPanelRef"
               :agent-config="agentConfig"
               :model-list="modelList"
+              :disabled="configReadOnly"
               @config-change="handleConfigChange"
             />
           </div>
@@ -82,6 +84,7 @@
   
   // 保存原始agent数据（用于保存配置时）
   const originalAgentData = ref<Partial<Agent.ResAgentItem>>({});
+  const configReadOnly = ref(false);
   
   // 智能体配置
   const agentConfig = reactive<{
@@ -142,6 +145,7 @@
   
       // 保存原始数据
       originalAgentData.value = { ...agent };
+      configReadOnly.value = !!agent.readOnly;
   
       agentInfo.value = {
         id: agent.id,
@@ -180,6 +184,7 @@
   
   // 保存配置
   const handleSaveConfig = async () => {
+    if (configReadOnly.value) return;
     try {
       await ElMessageBox.confirm("确定要保存当前配置吗？", "提示", {
         type: "warning"

@@ -9,6 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from db import get_db
 from core.deps import get_current_admin_user
+from core.tenant_helpers import resolve_admin_agent_scope_tenant_id
 from models.admin_user import AdminUser
 from models.llm_model import LLMModel
 from schemas.agent import (
@@ -48,7 +49,12 @@ async def get_agents(
     返回 modelName 供列表展示（模型名称而非 ID）
     """
     agent_service = AgentService(db)
-    
+    scope_tid = await resolve_admin_agent_scope_tenant_id(
+        db,
+        admin_tenant_id=current_admin.tenant_id,
+        admin_username=current_admin.username,
+    )
+
     params = AgentQueryParams(
         pageNum=pageNum,
         pageSize=pageSize,
@@ -59,7 +65,7 @@ async def get_agents(
     
     result = await agent_service.get_agent_list(
         params,
-        scoped_tenant_id=current_admin.tenant_id,
+        scoped_tenant_id=scope_tid,
     )
     
     # 收集所有 agent 使用的 model ID，批量查询模型名称
@@ -71,7 +77,11 @@ async def get_agents(
         model_name_map = {str(r.id): r.name for r in rows}
     
     items = [
-        agent_to_response(agent, model_name=model_name_map.get(str(agent.model), "未知"))
+        agent_to_response(
+            agent,
+            model_name=model_name_map.get(str(agent.model), "未知"),
+            viewer_scoped_tenant_id=scope_tid,
+        )
         for agent in result.list
     ]
     
@@ -123,8 +133,13 @@ async def get_agent(
 ):
     """获取智能体详情"""
     agent_service = AgentService(db)
-    agent = await agent_service.get_agent_by_id(agent_id, scoped_tenant_id=current_admin.tenant_id)
-    return success(data=agent_to_response(agent))
+    scope_tid = await resolve_admin_agent_scope_tenant_id(
+        db,
+        admin_tenant_id=current_admin.tenant_id,
+        admin_username=current_admin.username,
+    )
+    agent = await agent_service.get_agent_by_id(agent_id, scoped_tenant_id=scope_tid)
+    return success(data=agent_to_response(agent, viewer_scoped_tenant_id=scope_tid))
 
 
 @router.post("", summary="创建智能体")
@@ -135,9 +150,14 @@ async def create_agent(
 ):
     """创建智能体"""
     agent_service = AgentService(db)
-    agent = await agent_service.create_agent(agent_data, scoped_tenant_id=current_admin.tenant_id)
+    scope_tid = await resolve_admin_agent_scope_tenant_id(
+        db,
+        admin_tenant_id=current_admin.tenant_id,
+        admin_username=current_admin.username,
+    )
+    agent = await agent_service.create_agent(agent_data, scoped_tenant_id=scope_tid)
     await db.commit()
-    return success(data=agent_to_response(agent), msg="创建成功")
+    return success(data=agent_to_response(agent, viewer_scoped_tenant_id=scope_tid), msg="创建成功")
 
 
 @router.put("/{agent_id}", summary="更新智能体")
@@ -149,9 +169,14 @@ async def update_agent(
 ):
     """更新智能体"""
     agent_service = AgentService(db)
-    agent = await agent_service.update_agent(agent_id, agent_data, scoped_tenant_id=current_admin.tenant_id)
+    scope_tid = await resolve_admin_agent_scope_tenant_id(
+        db,
+        admin_tenant_id=current_admin.tenant_id,
+        admin_username=current_admin.username,
+    )
+    agent = await agent_service.update_agent(agent_id, agent_data, scoped_tenant_id=scope_tid)
     await db.commit()
-    return success(data=agent_to_response(agent), msg="更新成功")
+    return success(data=agent_to_response(agent, viewer_scoped_tenant_id=scope_tid), msg="更新成功")
 
 
 @router.delete("/{agent_id}", summary="删除智能体")
@@ -162,7 +187,12 @@ async def delete_agent(
 ):
     """删除智能体"""
     agent_service = AgentService(db)
-    await agent_service.delete_agent(agent_id, scoped_tenant_id=current_admin.tenant_id)
+    scope_tid = await resolve_admin_agent_scope_tenant_id(
+        db,
+        admin_tenant_id=current_admin.tenant_id,
+        admin_username=current_admin.username,
+    )
+    await agent_service.delete_agent(agent_id, scoped_tenant_id=scope_tid)
     await db.commit()
     return success(msg="删除成功")
 
@@ -176,9 +206,14 @@ async def change_agent_status(
 ):
     """修改智能体状态（上架/下架）"""
     agent_service = AgentService(db)
-    agent = await agent_service.update_status(agent_id, status_data.status, scoped_tenant_id=current_admin.tenant_id)
+    scope_tid = await resolve_admin_agent_scope_tenant_id(
+        db,
+        admin_tenant_id=current_admin.tenant_id,
+        admin_username=current_admin.username,
+    )
+    agent = await agent_service.update_status(agent_id, status_data.status, scoped_tenant_id=scope_tid)
     await db.commit()
-    return success(data=agent_to_response(agent), msg="状态更新成功")
+    return success(data=agent_to_response(agent, viewer_scoped_tenant_id=scope_tid), msg="状态更新成功")
 
 
 @router.patch("/{agent_id}/sort", summary="修改智能体排序")
@@ -190,9 +225,14 @@ async def update_agent_sort(
 ):
     """修改智能体排序"""
     agent_service = AgentService(db)
-    agent = await agent_service.update_sort_order(agent_id, sort_data.sortOrder, scoped_tenant_id=current_admin.tenant_id)
+    scope_tid = await resolve_admin_agent_scope_tenant_id(
+        db,
+        admin_tenant_id=current_admin.tenant_id,
+        admin_username=current_admin.username,
+    )
+    agent = await agent_service.update_sort_order(agent_id, sort_data.sortOrder, scoped_tenant_id=scope_tid)
     await db.commit()
-    return success(data=agent_to_response(agent), msg="排序更新成功")
+    return success(data=agent_to_response(agent, viewer_scoped_tenant_id=scope_tid), msg="排序更新成功")
 
 
 @router.post("/batch-sort", summary="批量修改排序")
@@ -203,8 +243,13 @@ async def batch_update_sort(
 ):
     """批量修改智能体排序"""
     agent_service = AgentService(db)
+    scope_tid = await resolve_admin_agent_scope_tenant_id(
+        db,
+        admin_tenant_id=current_admin.tenant_id,
+        admin_username=current_admin.username,
+    )
     items = [{"id": item.id, "sortOrder": item.sortOrder} for item in batch_data.items]
-    await agent_service.batch_update_sort(items, scoped_tenant_id=current_admin.tenant_id)
+    await agent_service.batch_update_sort(items, scoped_tenant_id=scope_tid)
     await db.commit()
     return success(msg="批量排序更新成功")
 

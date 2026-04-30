@@ -22,9 +22,7 @@ async def tenant_options(
 ):
     """
     用于新建用户等场景选择租户。
-    平台管理员可选全部租户；租户管理员仅返回当前租户。
-    注意：与「平台管理员」判定一致（见 admin_has_platform_privilege），
-    勿仅用 tenant_id IS NULL，否则主租户 id 回填后会只看到一条。
+    平台管理员（admin.tenant_id 为空）可选全部租户；租户管理员仅返回当前租户。
     """
     svc = TenantService(db)
     if admin_has_platform_privilege(

@@ -62,7 +62,15 @@ class AgentBase(BaseModel):
 
 class AgentCreate(AgentBase):
     """创建智能体请求"""
-    pass
+
+    tenantId: Optional[int] = Field(
+        None,
+        description="仅平台管理员：归属租户 ID；省略则写入主租户",
+    )
+    sharedToAllTenants: bool = Field(
+        False,
+        description="仅平台管理员：为 True 时 tenant_id 存为 NULL（全租户可用）",
+    )
 
 
 class AgentUpdate(BaseModel):

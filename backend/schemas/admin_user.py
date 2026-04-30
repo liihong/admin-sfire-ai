@@ -4,9 +4,18 @@ AdminUser Pydantic Schemas
 """
 from datetime import datetime
 from typing import Optional, List
-from pydantic import BaseModel, Field, EmailStr
+from pydantic import BaseModel, Field, EmailStr, field_validator
 
 from .common import PageParams
+
+
+def _optional_email_before(v):
+    """空字符串视为未填邮箱，避免 EmailStr 校验报错"""
+    if v is None:
+        return None
+    if isinstance(v, str) and not v.strip():
+        return None
+    return v.strip() if isinstance(v, str) else v
 
 
 class AdminUserBase(BaseModel):
@@ -15,6 +24,11 @@ class AdminUserBase(BaseModel):
     email: Optional[EmailStr] = Field(None, description="邮箱")
     role_id: Optional[int] = Field(None, description="角色ID")
     remark: Optional[str] = Field(None, description="备注")
+
+    @field_validator("email", mode="before")
+    @classmethod
+    def email_empty_to_none(cls, v):
+        return _optional_email_before(v)
 
 
 class AdminUserCreate(AdminUserBase):
@@ -35,6 +49,11 @@ class AdminUserUpdate(BaseModel):
     is_active: Optional[bool] = Field(None, description="是否激活")
     remark: Optional[str] = Field(None, description="备注")
     tenant_id: Optional[int] = Field(None, description="租户ID；仅平台管理员可修改")
+
+    @field_validator("email", mode="before")
+    @classmethod
+    def email_empty_to_none(cls, v):
+        return _optional_email_before(v)
 
 
 class AdminUserResponse(BaseModel):

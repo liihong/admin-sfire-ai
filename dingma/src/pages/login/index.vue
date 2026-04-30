@@ -225,18 +225,16 @@ const handleGetPhoneNumber = async (e: any) => {
         duration: 1500
       })
 
-      // 登录成功后统一跳转到IP工作台
+      // 登录成功后进入快捷指令页（或新用户先完善资料）
       const isNewUser = data.is_new_user ?? false
       setTimeout(() => {
         if (isNewUser) {
-          // 新用户，先跳转到完善资料页，完善后再跳转到IP工作台
           uni.redirectTo({
             url: '/pages/login/profile'
           })
         } else {
-          // 老用户，直接跳转到IP工作台
           uni.switchTab({
-            url: '/pages/project/index'
+            url: '/pages/quick-entries/index'
           })
         }
       }, 1500)
@@ -309,7 +307,7 @@ const handleSkipLogin = () => {
           })
 
           uni.switchTab({
-            url: '/pages/index/index'
+            url: '/pages/quick-entries/index'
           })
         }
       }

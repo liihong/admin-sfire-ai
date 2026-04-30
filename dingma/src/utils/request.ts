@@ -6,6 +6,7 @@
  */
 
 import { useAuthStore } from '@/stores/auth'
+import { DINGMA_PUBLIC_TENANT_SCOPE } from '@/constants/tenant'
 
 // 请求配置类型
 export interface RequestConfig {
@@ -44,6 +45,32 @@ const BASE_URL = __API_BASE_URL__
 // 请求超时时间（毫秒）
 const TIMEOUT = 100000
 
+const CLIENT_API_PREFIX = '/api/v1/client'
+
+/** 为 dingma 租户小程序所有 C 端接口附加租户标识（Query/Body + Header），供后端按租户过滤公开数据 */
+function attachDingmaTenantScope(config: RequestConfig): void {
+  const fullUrl = config.url.startsWith('http') ? config.url : BASE_URL + config.url
+  if (!fullUrl.includes(CLIENT_API_PREFIX)) {
+    return
+  }
+
+  const scope = DINGMA_PUBLIC_TENANT_SCOPE as Record<string, string>
+  config.header = config.header || {}
+  config.header['X-Wechat-App-Id'] = scope.appid
+  config.header['X-Tenant-Code'] = scope.tenant_id
+
+  const method = (config.method || 'GET').toUpperCase()
+  // GET：租户条件走 Query（tenant_id=dingma&appid=...）；其余方法仅依赖 Header，避免污染 JSON Body 导致部分接口校验失败
+  if (method === 'GET') {
+    const prev =
+      typeof config.data === 'object' && config.data !== null && !Array.isArray(config.data)
+        ? { ...(config.data as Record<string, unknown>) }
+        : {}
+    config.data = { ...prev, ...scope }
+    return
+  }
+}
+
 // 防止重复处理 401 错误的标志
 let isHandling401 = false
 
@@ -55,9 +82,14 @@ function requestInterceptor(config: RequestConfig): RequestConfig {
   if (!config.url.startsWith('http')) {
     config.url = BASE_URL + config.url
   }
+
+  attachDingmaTenantScope(config)
   
+  const upperMethod = (config.method || 'GET').toUpperCase()
+  config.method = upperMethod as RequestConfig['method']
+
   // GET 请求：将 data 转换为查询参数，并过滤掉 undefined/null 值
-  if (config.method === 'GET' && config.data) {
+  if (upperMethod === 'GET' && config.data) {
     const params: string[] = []
     Object.keys(config.data).forEach(key => {
       const value = config.data[key]

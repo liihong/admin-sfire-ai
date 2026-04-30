@@ -2,7 +2,7 @@
 AI Service
 AI 对话服务
 """
-from typing import List, Optional, AsyncGenerator, Union
+from typing import List, Optional, AsyncGenerator, Union, Tuple
 from sqlalchemy.ext.asyncio import AsyncSession
 from loguru import logger
 import asyncio
@@ -151,7 +151,43 @@ class AIService:
             logger.warning(f"Failed to get model config for {model_id}: {e}")
 
         return None, None
-    
+
+    async def _resolve_model_identity(self, model: str) -> Tuple[str, Optional[str]]:
+        """
+        解析数据库中的模型记录，得到上游 model_id 与 provider。
+        model 可为数字主键或 model_id 字符串。
+        """
+        actual_model_id = model
+        provider: Optional[str] = None
+        try:
+            if model.isdigit():
+                llm_model = await self.llm_model_service.get_llm_model_by_id(int(model))
+            else:
+                llm_model = await self.llm_model_service.get_llm_model_by_model_id(model)
+            if llm_model:
+                actual_model_id = llm_model.model_id
+                provider = llm_model.provider
+        except Exception:
+            pass
+        return actual_model_id, provider
+
+    @staticmethod
+    def _is_deepseek_api(provider: Optional[str], base_url: Optional[str]) -> bool:
+        """是否走 DeepSeek 官方兼容接口（可开启思考模式）。"""
+        if provider == "deepseek":
+            return True
+        if base_url and "deepseek" in base_url.lower():
+            return True
+        return False
+
+    @staticmethod
+    def _deepseek_thinking_fields() -> dict:
+        """DeepSeek V4 思考模式：与 OpenAI SDK extra_body 扁平化后的 JSON 一致。"""
+        return {
+            "reasoning_effort": "high",
+            "thinking": {"type": "enabled"},
+        }
+
     async def chat(
         self,
         messages: List[Union[dict, ChatMessage]],
@@ -205,19 +241,8 @@ class AIService:
                     "content": msg.content
                 })
         
-        # 确定实际使用的模型标识（从数据库模型配置中获取 model_id）
-        actual_model_id = model
-        try:
-            try:
-                db_id = int(model)
-                llm_model = await self.llm_model_service.get_llm_model_by_id(db_id)
-                if llm_model:
-                    actual_model_id = llm_model.model_id
-            except (ValueError, Exception):
-                # 如果 model 不是数字ID，直接使用
-                pass
-        except Exception:
-            pass
+        # 确定实际使用的模型标识与 provider（用于 DeepSeek 思考模式等）
+        actual_model_id, db_provider = await self._resolve_model_identity(model)
 
         # 为 Claude 模型的 system 消息添加 cache_control，使系统提示词能命中缓存
         formatted_messages = self._apply_cache_control_for_claude(
@@ -245,6 +270,8 @@ class AIService:
             "presence_penalty": presence_penalty,
             "stream": False,
         }
+        if self._is_deepseek_api(db_provider, base_url):
+            request_body.update(self._deepseek_thinking_fields())
 
         # 手动序列化JSON,确保正确的编码
         request_body_json = json.dumps(request_body, ensure_ascii=False)
@@ -318,14 +345,19 @@ class AIService:
                     # 使用异步后台任务更新，不阻塞主流程
                     self._update_token_usage_async(actual_model_id, total_tokens)
 
-            # 格式化响应
+            # 格式化响应（DeepSeek 思考模式会返回 reasoning_content）
+            raw_msg = data["choices"][0]["message"]
+            message_out = {
+                "role": raw_msg["role"],
+                "content": raw_msg.get("content"),
+            }
+            if raw_msg.get("reasoning_content"):
+                message_out["reasoning_content"] = raw_msg["reasoning_content"]
+
             return {
                 "id": data.get("id", str(uuid.uuid4())),
                 "model": data.get("model", actual_model_id),
-                "message": {
-                    "role": data["choices"][0]["message"]["role"],
-                    "content": data["choices"][0]["message"]["content"],
-                },
+                "message": message_out,
                 "usage": usage,
                 "finish_reason": data["choices"][0].get("finish_reason"),
             }
@@ -383,19 +415,8 @@ class AIService:
                     "content": msg.content
                 })
         
-        # 确定实际使用的模型标识（从数据库模型配置中获取 model_id）
-        actual_model_id = model
-        try:
-            try:
-                db_id = int(model)
-                llm_model = await self.llm_model_service.get_llm_model_by_id(db_id)
-                if llm_model:
-                    actual_model_id = llm_model.model_id
-            except (ValueError, Exception):
-                # 如果 model 不是数字ID，直接使用
-                pass
-        except Exception:
-            pass
+        # 确定实际使用的模型标识与 provider
+        actual_model_id, db_provider = await self._resolve_model_identity(model)
 
         # 为 Claude 模型的 system 消息添加 cache_control，使系统提示词能命中缓存
         formatted_messages = self._apply_cache_control_for_claude(
@@ -460,6 +481,8 @@ class AIService:
             "presence_penalty": presence_penalty,
             "stream": True,
         }
+        if self._is_deepseek_api(db_provider, base_url):
+            request_body.update(self._deepseek_thinking_fields())
 
         # 计算并打印请求体大小
         # 手动序列化JSON,使用ensure_ascii=False支持中文
@@ -599,16 +622,21 @@ class AIService:
                                 # 提取 delta content
                                 choices = data.get("choices", [])
                                 delta = choices[0]["delta"] if choices and "delta" in choices[0] else {}
-                                content = delta.get("content", "")
+                                content = delta.get("content") or ""
+                                reasoning_piece = delta.get("reasoning_content") or ""
 
-                                if content:
+                                if content or reasoning_piece:
                                     # 格式化为前端需要的格式，附带 usage 供调用方计费使用
+                                    delta_out = {}
+                                    if content:
+                                        delta_out["content"] = content
+                                    if reasoning_piece:
+                                        delta_out["reasoning_content"] = reasoning_piece
+                                    if delta.get("role") is not None:
+                                        delta_out["role"] = delta.get("role")
                                     chunk_data = {
                                         "id": data.get("id", ""),
-                                        "delta": {
-                                            "content": content,
-                                            "role": delta.get("role"),
-                                        },
+                                        "delta": delta_out,
                                         "finish_reason": choices[0].get("finish_reason") if choices else None,
                                     }
                                     if "usage" in data:

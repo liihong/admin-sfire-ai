@@ -34,7 +34,12 @@ class HomeService:
         self.banner_service = BannerService(db)
         self.article_service = ArticleService(db)
     
-    async def get_home_content(self, position: Optional[str] = None) -> Dict:
+    async def get_home_content(
+        self,
+        position: Optional[str] = None,
+        *,
+        scoped_tenant_id: Optional[int] = None,
+    ) -> Dict:
         """
         获取首页内容（聚合接口）
         
@@ -56,38 +61,46 @@ class HomeService:
         # 同一 AsyncSession 上不可并发 execute（asyncio.gather 会触发 isce）；
         # 字典、Banner、推荐模块与各类文章均顺序执行。
         category_labels = await self.article_service.get_article_category_label_map()
-        banners = await self._get_enabled_banners(position=position)
-        featured_modules = await self._get_featured_modules()
+        banners = await self._get_enabled_banners(
+            position=position,
+            scoped_tenant_id=scoped_tenant_id,
+        )
+        featured_modules = await self._get_featured_modules(scoped_tenant_id=scoped_tenant_id)
 
         founder_stories = await self._get_articles_by_category(
             ARTICLE_CATEGORY_FOUNDER,
             limit=5,
             category_labels=category_labels,
             include_content=False,
+            scoped_tenant_id=scoped_tenant_id,
         )
         operation_articles = await self._get_articles_by_category(
             ARTICLE_CATEGORY_TRAFFIC,
             limit=10,
             category_labels=category_labels,
             include_content=False,
+            scoped_tenant_id=scoped_tenant_id,
         )
         recent_landing_articles = await self._get_articles_by_category(
             ARTICLE_CATEGORY_RECENT_LANDING,
             limit=8,
             category_labels=category_labels,
             include_content=False,
+            scoped_tenant_id=scoped_tenant_id,
         )
         announcements = await self._get_articles_by_category(
             ARTICLE_CATEGORY_BUSINESS,
             limit=3,
             category_labels=category_labels,
             include_content=False,
+            scoped_tenant_id=scoped_tenant_id,
         )
         customer_cases = await self._get_articles_by_category(
             ARTICLE_CATEGORY_MANUAL,
             limit=5,
             category_labels=category_labels,
             include_content=False,
+            scoped_tenant_id=scoped_tenant_id,
         )
 
         return {
@@ -100,7 +113,12 @@ class HomeService:
             "featured_modules": featured_modules,
         }
     
-    async def _get_enabled_banners(self, position: Optional[str] = None) -> Dict[str, List[Dict]]:
+    async def _get_enabled_banners(
+        self,
+        position: Optional[str] = None,
+        *,
+        scoped_tenant_id: Optional[int] = None,
+    ) -> Dict[str, List[Dict]]:
         """
         获取启用的Banner（按位置分组）
         
@@ -122,6 +140,8 @@ class HomeService:
                 (Banner.end_time.is_(None)) | (Banner.end_time >= now)
             ),
         ]
+        if scoped_tenant_id is not None:
+            conditions.append(Banner.tenant_id == scoped_tenant_id)
         filter_position: Optional[str] = None
         if position:
             try:
@@ -165,6 +185,8 @@ class HomeService:
         limit: int = 10,
         category_labels: Optional[Dict[str, str]] = None,
         include_content: bool = True,
+        *,
+        scoped_tenant_id: Optional[int] = None,
     ) -> List[Dict]:
         """
         获取指定类型的已发布文章（category 为 sys_dict article_category 的 item_value）
@@ -178,13 +200,15 @@ class HomeService:
         Returns:
             文章列表
         """
-        query = select(Article).where(
-            and_(
-                Article.category == category,
-                Article.is_published == True,
-                Article.is_enabled == True,
-            )
-        ).order_by(
+        q_parts = [
+            Article.category == category,
+            Article.is_published == True,
+            Article.is_enabled == True,
+        ]
+        if scoped_tenant_id is not None:
+            q_parts.append(Article.tenant_id == scoped_tenant_id)
+
+        query = select(Article).where(and_(*q_parts)).order_by(
             desc(Article.publish_time),
             desc(Article.created_at),
             asc(Article.sort_order)
@@ -304,7 +328,11 @@ class HomeService:
         
         return json_str
     
-    async def _get_featured_modules(self) -> List[Dict]:
+    async def _get_featured_modules(
+        self,
+        *,
+        scoped_tenant_id: Optional[int] = None,
+    ) -> List[Dict]:
         """
         获取推荐模块配置（功能入口）
         
@@ -317,12 +345,14 @@ class HomeService:
         """
         try:
             # 查询 featured_modules 配置
-            query = select(HomeConfig).where(
-                and_(
-                    HomeConfig.config_key == "featured_modules",
-                    HomeConfig.is_enabled == True
-                )
-            )
+            query_base = [
+                HomeConfig.config_key == "featured_modules",
+                HomeConfig.is_enabled == True,
+            ]
+            if scoped_tenant_id is not None:
+                query_base.append(HomeConfig.tenant_id == scoped_tenant_id)
+
+            query = select(HomeConfig).where(and_(*query_base))
             result = await self.db.execute(query)
             config = result.scalar_one_or_none()
             

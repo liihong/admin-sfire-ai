@@ -7,6 +7,9 @@ from fastapi import APIRouter, Depends, Query, Body
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from db import get_db
+from core.deps import get_current_admin_user
+from core.tenant_helpers import resolve_admin_agent_scope_tenant_id
+from models.admin_user import AdminUser
 from schemas.article import (
     ArticleCategoryCode,
     ArticleCreate,
@@ -18,6 +21,15 @@ from services.resource import ArticleService
 from utils.response import success, page_response, ResponseMsg
 
 router = APIRouter()
+
+
+async def _admin_scope_tid(db: AsyncSession, admin: AdminUser) -> Optional[int]:
+    """与智能体、小程序用户一致：登录名纠偏 + 严格租户隔离"""
+    return await resolve_admin_agent_scope_tenant_id(
+        db,
+        admin_tenant_id=admin.tenant_id,
+        admin_username=admin.username,
+    )
 
 
 @router.get("", summary="获取文章列表")
@@ -33,14 +45,16 @@ async def get_articles(
     is_published: Optional[bool] = Query(None, description="是否已发布"),
     is_enabled: Optional[bool] = Query(None, description="是否启用"),
     db: AsyncSession = Depends(get_db),
+    current_admin: AdminUser = Depends(get_current_admin_user),
 ):
     """
     获取文章列表（分页）
     
-    支持按类型、标题、标签、发布状态、启用状态筛选
+    支持按类型、标题、标签、发布状态、启用状态筛选；租户管理员仅本租户数据。
     """
     article_service = ArticleService(db)
-    
+    scope_tid = await _admin_scope_tid(db, current_admin)
+
     params = ArticleQueryParams(
         pageNum=pageNum,
         pageSize=pageSize,
@@ -50,9 +64,11 @@ async def get_articles(
         is_published=is_published,
         is_enabled=is_enabled,
     )
-    
-    articles, total = await article_service.get_articles(params)
-    
+
+    articles, total = await article_service.get_articles(
+        params, scoped_tenant_id=scope_tid
+    )
+
     return page_response(
         items=articles,
         total=total,
@@ -65,10 +81,13 @@ async def get_articles(
 async def get_article(
     article_id: int,
     db: AsyncSession = Depends(get_db),
+    current_admin: AdminUser = Depends(get_current_admin_user),
 ):
     """获取文章详情"""
     article_service = ArticleService(db)
-    article = await article_service.get_article_by_id(article_id)
+    article = await article_service.get_article_by_id(
+        article_id, scoped_tenant_id=await _admin_scope_tid(db, current_admin)
+    )
     return success(data=article)
 
 
@@ -76,10 +95,14 @@ async def get_article(
 async def create_article(
     article_data: ArticleCreate,
     db: AsyncSession = Depends(get_db),
+    current_admin: AdminUser = Depends(get_current_admin_user),
 ):
     """创建新文章"""
     article_service = ArticleService(db)
-    article = await article_service.create_article(article_data)
+    article = await article_service.create_article(
+        article_data,
+        scoped_tenant_id=await _admin_scope_tid(db, current_admin),
+    )
     return success(data=article, msg=ResponseMsg.CREATED)
 
 
@@ -88,10 +111,15 @@ async def update_article(
     article_id: int,
     article_data: ArticleUpdate,
     db: AsyncSession = Depends(get_db),
+    current_admin: AdminUser = Depends(get_current_admin_user),
 ):
     """更新文章信息"""
     article_service = ArticleService(db)
-    article = await article_service.update_article(article_id, article_data)
+    article = await article_service.update_article(
+        article_id,
+        article_data,
+        scoped_tenant_id=await _admin_scope_tid(db, current_admin),
+    )
     return success(data=article, msg=ResponseMsg.UPDATED)
 
 
@@ -99,10 +127,13 @@ async def update_article(
 async def delete_article(
     article_id: int,
     db: AsyncSession = Depends(get_db),
+    current_admin: AdminUser = Depends(get_current_admin_user),
 ):
     """删除文章"""
     article_service = ArticleService(db)
-    await article_service.delete_article(article_id)
+    await article_service.delete_article(
+        article_id, scoped_tenant_id=await _admin_scope_tid(db, current_admin)
+    )
     return success(msg=ResponseMsg.DELETED)
 
 
@@ -111,6 +142,7 @@ async def update_article_status(
     article_id: int,
     request: ArticleStatusRequest,
     db: AsyncSession = Depends(get_db),
+    current_admin: AdminUser = Depends(get_current_admin_user),
 ):
     """更新文章发布状态或启用状态"""
     article_service = ArticleService(db)
@@ -118,19 +150,6 @@ async def update_article_status(
         article_id,
         is_published=request.is_published,
         is_enabled=request.is_enabled,
+        scoped_tenant_id=await _admin_scope_tid(db, current_admin),
     )
     return success(data=article, msg=ResponseMsg.UPDATED)
-
-
-
-
-
-
-
-
-
-
-
-
-
-

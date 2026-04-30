@@ -7,18 +7,19 @@
   },
   "pages": [
     {
-      "path": "pages/index/index",
+      "path": "pages/splash/index",
       "style": {
-        "navigationBarTitleText": "发现",
+        "navigationStyle": "custom",
+        "navigationBarTitleText": "",
         "disableScroll": true
       }
     },
     {
-      "path": "pages/project/index",
+      "path": "pages/quick-entries/index",
       "style": {
-        "navigationBarTitleText": "IP操作台",
         "navigationStyle": "custom",
-        "disableScroll": true
+        "navigationBarTitleText": "",
+        "enablePullDownRefresh": false
       }
     },
     {
@@ -84,19 +85,6 @@
             "navigationBarTitleText": "隐私政策",
             "navigationStyle": "custom",
             "disableScroll": false
-          }
-        }
-      ]
-    },
-    {
-      "root": "pages/agent",
-      "name": "agent",
-      "pages": [
-        {
-          "path": "index",
-          "style": {
-            "navigationBarTitleText": "dingma 智能体",
-            "disableScroll": true
           }
         }
       ]
@@ -173,63 +161,13 @@
       ]
     },
     {
-      "root": "pages/project/create",
-      "name": "project-create",
-      "pages": [
-        {
-          "path": "index",
-          "style": {
-            "navigationBarTitleText": "创建项目",
-            "navigationStyle": "custom",
-            "disableScroll": true
-          }
-        }
-      ]
-    },
-    {
-      "root": "pages/project/report",
-      "name": "project-report",
-      "pages": [
-        {
-          "path": "index",
-          "style": {
-            "navigationBarTitleText": "IP定位报告",
-            "navigationStyle": "custom",
-            "disableScroll": false
-          }
-        }
-      ]
-    },
-    {
-      "root": "pages/copywriting",
-      "name": "copywriting",
-      "pages": [
-        {
-          "path": "index",
-          "style": {
-            "navigationBarTitleText": "AI 文案生成",
-            "navigationStyle": "custom",
-            "disableScroll": true
-          }
-        },
-        {
-          "path": "library/index",
-          "style": {
-            "navigationBarTitleText": "文案库",
-            "navigationStyle": "custom",
-            "disableScroll": true
-          }
-        }
-      ]
-    },
-    {
       "root": "pages/aichat",
       "name": "aichat",
       "pages": [
         {
           "path": "index",
           "style": {
-            "navigationBarTitleText": "AI 对话",
+            "navigationBarTitleText": "对话",
             "navigationStyle": "custom",
             "disableScroll": true
           }
@@ -237,107 +175,27 @@
       ]
     },
     {
-      "root": "pages/inspiration",
-      "name": "inspiration",
+      "root": "pages/common",
+      "name": "common",
       "pages": [
         {
-          "path": "index",
+          "path": "webview",
           "style": {
-            "navigationBarTitleText": "我的灵感",
-            "navigationStyle": "custom",
-            "disableScroll": true
-          }
-        }
-      ]
-    },
-    {
-      "root": "pages/article",
-      "name": "article",
-      "pages": [
-        {
-          "path": "detail",
-          "style": {
-            "navigationBarTitleText": "文章详情",
-            "navigationStyle": "custom",
-            "disableScroll": false
-          }
-        },
-        {
-          "path": "list",
-          "style": {
-            "navigationBarTitleText": "文章列表",
-            "navigationStyle": "custom",
-            "disableScroll": false
-          }
-        }
-      ]
-    },
-    {
-      "root": "pages/hotspot",
-      "name": "hotspot",
-      "pages": [
-        {
-          "path": "index",
-          "style": {
-            "navigationBarTitleText": "抖音热点榜单",
-            "navigationStyle": "custom",
-            "disableScroll": true
-          }
-        }
-      ]
-    },
-    {
-      "root": "pages/tools",
-      "name": "tools",
-      "pages": [
-        {
-          "path": "text-extract/index",
-          "style": {
-            "navigationBarTitleText": "文案提取",
-            "navigationStyle": "custom",
-            "disableScroll": false
-          }
-        }
-      ]
-    },
-    {
-      "root": "pages/conversation",
-      "name": "conversation",
-      "pages": [
-        {
-          "path": "list",
-          "style": {
-            "navigationBarTitleText": "历史对话",
-            "navigationStyle": "custom",
-            "disableScroll": true
+            "navigationBarTitleText": "页面",
+            "navigationStyle": "default"
           }
         }
       ]
     }
   ],
   "preloadRule": {
-    "pages/index/index": {
+    "pages/quick-entries/index": {
       "network": "all",
-      "packages": ["article", "agent", "copywriting", "tools"]
-    },
-    "pages/project/index": {
-      "network": "all",
-      "packages": [
-        "project-create",
-        "project-report",
-        "conversation",
-        "aichat"
-      ]
+      "packages": ["common", "aichat"]
     },
     "pages/mine/index": {
       "network": "all",
-      "packages": [
-        "mine-power",
-        "mine-referral",
-        "mine-contact",
-        "mine-membership",
-        "auth-login"
-      ]
+      "packages": ["mine-power", "mine-referral", "mine-contact", "mine-membership", "auth-login"]
     }
   },
   "globalStyle": {
@@ -353,14 +211,8 @@
     "borderStyle": "white",
     "list": [
       {
-        "pagePath": "pages/index/index",
-        "text": "发现",
-        "iconPath": "static/tab/home.png",
-        "selectedIconPath": "static/tab/home-active.png"
-      },
-      {
-        "pagePath": "pages/project/index",
-        "text": "IP操作台",
+        "pagePath": "pages/quick-entries/index",
+        "text": "快捷指令",
         "iconPath": "static/tab/sfire.png",
         "selectedIconPath": "static/tab/sfire-active.png"
       },

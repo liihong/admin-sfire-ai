@@ -45,6 +45,7 @@
                       <el-tag size="small" :type="agent.status === 1 ? 'success' : 'info'">
                         {{ agent.status === 1 ? "上架" : "下架" }}
                       </el-tag>
+                      <el-tag v-if="agent.readOnly" size="small" type="warning">公用·只读</el-tag>
                       <span class="meta-item">模型: {{ agent.modelName ?? agent.model }}</span>
                       <span class="meta-item">使用次数: {{ agent.usageCount }}</span>
                     </div>
@@ -52,6 +53,7 @@
                 </div>
                 <div class="card-actions">
                  <el-switch v-model="agent.status" :active-value="1" :inactive-value="0"
+                    :disabled="!!agent.readOnly"
                     :loading="statusLoading === agent.id" @change="handleStatusChange(agent)" />
                 </div>
               </div>
@@ -60,17 +62,20 @@
                 <div class="sort-control">
                   <span class="sort-label">排序:</span>
                  <el-input-number v-model="agent.sortOrder" :min="0" :max="9999" :step="1" size="small"
+                    :disabled="!!agent.readOnly"
                     style="width: 100px" @change="handleSortChange(agent)" />
                 </div>
                 <div class="action-buttons">
-                 <el-button v-if="agent.agentMode === 1" type="success" link :icon="MagicStick"
+                 <el-button v-if="agent.agentMode === 1 && !agent.readOnly" type="success" link :icon="MagicStick"
                     @click="handleRoutingDebug(agent)">
                     路由测试
                   </el-button>
                  <el-button type="warning" link :icon="Cpu" class="debug-button"
                     @click="handleDebug(agent)">调试</el-button>
-                  <el-button type="primary" link :icon="EditPen" @click="handleEdit(agent)">编辑</el-button>
-                  <el-button type="danger" link :icon="Delete" @click="handleDelete(agent)">删除</el-button>
+                  <el-button type="primary" link :icon="EditPen" @click="handleEdit(agent)">
+                    {{ agent.readOnly ? "查看" : "编辑" }}
+                  </el-button>
+                  <el-button v-if="!agent.readOnly" type="danger" link :icon="Delete" @click="handleDelete(agent)">删除</el-button>
                 </div>
               </div>
             </el-card>
@@ -102,6 +107,7 @@
         ref="formRef"
         :form-data="currentAgent"
         :is-edit="isEdit"
+        :read-only="!!currentAgent.readOnly"
         @submit="handleSubmit"
         @cancel="dialogVisible = false"
       />
@@ -210,7 +216,7 @@ const handleAdd = () => {
 
 // 编辑
 const handleEdit = (agent: Agent.ResAgentItem) => {
-  dialogTitle.value = "编辑智能体";
+  dialogTitle.value = agent.readOnly ? "查看智能体（公用·只读）" : "编辑智能体";
   isEdit.value = true;
   currentAgent.value = { ...agent };
   dialogVisible.value = true;
@@ -228,6 +234,7 @@ const handleRoutingDebug = (agent: any) => {
 
 // 删除
 const handleDelete = async (agent: Agent.ResAgentItem) => {
+  if (agent.readOnly) return;
   try {
     await ElMessageBox.confirm(`确定要删除智能体【${agent.name}】吗？`, "提示", {
       type: "warning"
@@ -244,6 +251,10 @@ const handleDelete = async (agent: Agent.ResAgentItem) => {
 
 // 状态切换
 const handleStatusChange = async (agent: Agent.ResAgentItem) => {
+  if (agent.readOnly) {
+    agent.status = agent.status === 1 ? 0 : 1;
+    return;
+  }
   const newStatus = agent.status === 1 ? 1 : 0;
   const action = newStatus === 1 ? "上架" : "下架";
 
@@ -262,6 +273,10 @@ const handleStatusChange = async (agent: Agent.ResAgentItem) => {
 
 // 排序变更
 const handleSortChange = async (agent: Agent.ResAgentItem) => {
+  if (agent.readOnly) {
+    fetchAgentList();
+    return;
+  }
   try {
     await updateAgentSort(agent.id, agent.sortOrder);
     ElMessage.success("排序更新成功");

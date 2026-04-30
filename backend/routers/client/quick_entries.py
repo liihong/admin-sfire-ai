@@ -11,6 +11,7 @@ from db import get_db
 from models.quick_entry import QuickEntry, EntryType
 from services.resource import QuickEntryService
 from utils.response import success
+from core.client_public_scope import resolve_optional_public_tenant_id
 
 router = APIRouter()
 
@@ -19,6 +20,7 @@ router = APIRouter()
 async def get_quick_entries(
     type: Optional[str] = Query(None, description="入口类型筛选（category-今天拍点啥, command-快捷指令库）"),
     agent_type: Optional[str] = Query(None, description="Agent类型筛选（关联sys_dict id=3的字典项）"),
+    scoped_tenant_id: Optional[int] = Depends(resolve_optional_public_tenant_id),
     db: AsyncSession = Depends(get_db),
 ):
     """
@@ -34,6 +36,9 @@ async def get_quick_entries(
     
     # 只返回启用的入口
     conditions.append(QuickEntry.status == 1)
+
+    if scoped_tenant_id is not None:
+        conditions.append(QuickEntry.tenant_id == scoped_tenant_id)
     
     # 按类型筛选
     if type:

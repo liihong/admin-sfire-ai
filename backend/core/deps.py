@@ -114,9 +114,9 @@ async def require_platform_admin(
     current_user: AdminUser = Depends(get_current_admin),
 ) -> AdminUser:
     """
-    仅平台超级管理员可访问：tenant_id 为空，或为系统管理员角色（见 core.constants）。
+    仅平台超级管理员可访问：admin_users.tenant_id 必须为空（显式平台账号）。
 
-    租户数据迁移后存量 admin 常被回填 tenant_id=主租户，仅靠 tenant_id 会误判，故同时信任角色 id。
+    已绑定租户的「管理员」角色仅能操作本租户数据，不能走平台专属接口。
     """
     if not admin_has_platform_privilege(
         tenant_id=current_user.tenant_id,

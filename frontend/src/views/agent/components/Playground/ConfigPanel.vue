@@ -10,6 +10,7 @@
           placeholder="选择预设模板"
           clearable
           style="width: 100%"
+          :disabled="disabled"
           @change="handleTemplateChange"
         >
           <el-option
@@ -23,7 +24,7 @@
   
       <!-- System Prompt 编辑器 -->
       <div class="config-section">
-        <PromptEditor v-model="localConfig.systemPrompt" :min-rows="12" />
+        <PromptEditor v-model="localConfig.systemPrompt" :min-rows="12" :read-only="disabled" />
       </div>
   
       <!-- 模型参数 -->
@@ -31,7 +32,7 @@
         <div class="section-header">
           <span class="section-title">模型参数</span>
         </div>
-        <el-form :model="localConfig" label-width="120px" label-position="right">
+        <el-form :model="localConfig" label-width="120px" label-position="right" :disabled="disabled">
           <el-form-item label="模型">
             <el-select
               v-model="localConfig.model"
@@ -128,7 +129,7 @@
       <div class="config-section">
         <div class="section-header">
           <span class="section-title">上下文预设</span>
-          <el-button size="small" text :icon="Plus" @click="handleAddContext">添加示例</el-button>
+          <el-button v-if="!disabled" size="small" text :icon="Plus" @click="handleAddContext">添加示例</el-button>
         </div>
         <div class="context-list">
           <div
@@ -141,6 +142,7 @@
                 {{ context.role === "user" ? "用户" : "助手" }}
               </el-tag>
               <el-button
+                v-if="!disabled"
                 size="small"
                 text
                 type="danger"
@@ -153,6 +155,7 @@
               type="textarea"
               :rows="3"
               placeholder="请输入示例内容..."
+              :disabled="disabled"
               @input="handleConfigChange"
             />
           </div>
@@ -183,9 +186,13 @@
       contextMessages: Array<{ role: "user" | "assistant"; content: string }>;
     };
     modelList: Array<{ id: string; name: string; maxTokens: number }>;
+    /** 公用智能体：禁止改配置（仍可试聊） */
+    disabled?: boolean;
   }
-  
-  const props = defineProps<Props>();
+
+  const props = withDefaults(defineProps<Props>(), {
+    disabled: false,
+  });
   
   const emit = defineEmits<{
     "config-change": [config: Partial<Props["agentConfig"]>];

@@ -42,9 +42,17 @@ class BannerService(BaseService):
             "updated_at": banner.updated_at.isoformat() if banner.updated_at else None,
         }
     
+    async def _get_banner_scoped(self, banner_id: int, scoped_tenant_id: Optional[int]) -> Banner:
+        banner = await super().get_by_id(banner_id, error_msg="Banner不存在")
+        if scoped_tenant_id is not None and banner.tenant_id != scoped_tenant_id:
+            raise NotFoundException(msg="Banner不存在")
+        return banner
+
     async def get_banners(
         self,
-        params: BannerQueryParams
+        params: BannerQueryParams,
+        *,
+        scoped_tenant_id: Optional[int] = None,
     ) -> Tuple[List[dict], int]:
         """
         获取Banner列表
@@ -57,7 +65,9 @@ class BannerService(BaseService):
         """
         # 构建查询条件
         conditions = []
-        
+        if scoped_tenant_id is not None:
+            conditions.append(Banner.tenant_id == scoped_tenant_id)
+
         if params.title:
             conditions.append(Banner.title.like(f"%{params.title}%"))
         
@@ -90,7 +100,9 @@ class BannerService(BaseService):
         
         return banner_list, total
     
-    async def get_banner_by_id(self, banner_id: int) -> dict:
+    async def get_banner_by_id(
+        self, banner_id: int, *, scoped_tenant_id: Optional[int] = None
+    ) -> dict:
         """
         根据ID获取Banner
         
@@ -100,10 +112,15 @@ class BannerService(BaseService):
         Returns:
             Banner信息
         """
-        banner = await super().get_by_id(banner_id, error_msg="Banner不存在")
+        banner = await self._get_banner_scoped(banner_id, scoped_tenant_id)
         return self._format_response(banner)
     
-    async def create_banner(self, banner_data: BannerCreate) -> dict:
+    async def create_banner(
+        self,
+        banner_data: BannerCreate,
+        *,
+        scoped_tenant_id: Optional[int] = None,
+    ) -> dict:
         """
         创建Banner
         
@@ -120,6 +137,8 @@ class BannerService(BaseService):
         
         def before_create(banner: Banner, data: BannerCreate):
             """创建前的钩子函数"""
+            if scoped_tenant_id is not None:
+                banner.tenant_id = scoped_tenant_id
             # 转换枚举类型
             if hasattr(data, "link_type") and data.link_type:
                 banner.link_type = LinkType(data.link_type)
@@ -136,7 +155,13 @@ class BannerService(BaseService):
         
         return self._format_response(banner)
     
-    async def update_banner(self, banner_id: int, banner_data: BannerUpdate) -> dict:
+    async def update_banner(
+        self,
+        banner_id: int,
+        banner_data: BannerUpdate,
+        *,
+        scoped_tenant_id: Optional[int] = None,
+    ) -> dict:
         """
         更新Banner
         
@@ -148,7 +173,7 @@ class BannerService(BaseService):
             更新后的Banner信息
         """
         # 验证时间范围
-        banner = await super().get_by_id(banner_id)
+        banner = await self._get_banner_scoped(banner_id, scoped_tenant_id)
         start_time = banner_data.start_time if banner_data.start_time is not None else banner.start_time
         end_time = banner_data.end_time if banner_data.end_time is not None else banner.end_time
         
@@ -176,17 +201,26 @@ class BannerService(BaseService):
         
         return self._format_response(banner)
     
-    async def delete_banner(self, banner_id: int) -> None:
+    async def delete_banner(
+        self, banner_id: int, *, scoped_tenant_id: Optional[int] = None
+    ) -> None:
         """
         删除Banner
         
         Args:
             banner_id: Banner ID
         """
+        await self._get_banner_scoped(banner_id, scoped_tenant_id)
         await super().delete(banner_id, hard_delete=True)
         await self.db.flush()
     
-    async def update_banner_status(self, banner_id: int, is_enabled: bool) -> dict:
+    async def update_banner_status(
+        self,
+        banner_id: int,
+        is_enabled: bool,
+        *,
+        scoped_tenant_id: Optional[int] = None,
+    ) -> dict:
         """
         更新Banner状态
         
@@ -197,14 +231,19 @@ class BannerService(BaseService):
         Returns:
             更新后的Banner信息
         """
-        banner = await super().get_by_id(banner_id)
+        banner = await self._get_banner_scoped(banner_id, scoped_tenant_id)
         banner.is_enabled = is_enabled
         await self.db.flush()
         await self.db.refresh(banner)
         
         return self._format_response(banner)
     
-    async def update_banner_sort(self, sort_items: List[dict]) -> None:
+    async def update_banner_sort(
+        self,
+        sort_items: List[dict],
+        *,
+        scoped_tenant_id: Optional[int] = None,
+    ) -> None:
         """
         批量更新Banner排序
         
@@ -219,7 +258,7 @@ class BannerService(BaseService):
                 continue
             
             try:
-                banner = await super().get_by_id(banner_id)
+                banner = await self._get_banner_scoped(banner_id, scoped_tenant_id)
                 banner.sort_order = sort_order
             except NotFoundException:
                 continue

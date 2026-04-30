@@ -15,6 +15,7 @@ from db import get_db
 from models.user import User
 from core.deps import get_current_miniprogram_user, get_current_miniprogram_user_optional
 from core.tenant_constants import DEFAULT_TENANT_ID
+from core.client_public_scope import resolve_optional_public_tenant_id
 from services.resource import ProjectService
 from services.shared.llm_service import LLMFactory
 from services.resource import LLMModelService
@@ -581,15 +582,18 @@ async def refund_frozen_coin(
 async def list_agents(
     db: AsyncSession = Depends(get_db),
     current_user: Optional[User] = Depends(get_current_miniprogram_user_optional),
+    scoped_public_tenant_id: Optional[int] = Depends(resolve_optional_public_tenant_id),
 ):
     """获取所有可用的智能体列表（从数据库读取）"""
-    # 从未登录或未传 token：仅展示主租户（与线上主小程序行为一致）；已登录：展示该用户租户
+    # 已登录：展示该用户租户；未登录：URL 传 tenant_id/appid 时展示对应租户，否则主租户（兼容主小程序）
     tenant_pid = DEFAULT_TENANT_ID
     if current_user is not None:
         tenant_pid = current_user.tenant_id
+    elif scoped_public_tenant_id is not None:
+        tenant_pid = scoped_public_tenant_id
 
     # 从数据库查询启用的智能体
-    from sqlalchemy import select, and_
+    from sqlalchemy import select, and_, or_
     from models.agent import Agent
     
     result = await db.execute(
@@ -597,7 +601,7 @@ async def list_agents(
             and_(
                 Agent.status == 1,  # 只返回上架的智能体
                 Agent.is_system == 0,  # 过滤掉系统自用智能体
-                Agent.tenant_id == tenant_pid,
+                or_(Agent.tenant_id == tenant_pid, Agent.tenant_id.is_(None)),
             )
         ).order_by(Agent.sort_order, Agent.created_at)
     )
@@ -630,15 +634,17 @@ async def get_agent_detail(
     agent_id: int,
     db: AsyncSession = Depends(get_db),
     current_user: Optional[User] = Depends(get_current_miniprogram_user_optional),
+    scoped_public_tenant_id: Optional[int] = Depends(resolve_optional_public_tenant_id),
 ):
     """获取单个智能体详情，仅返回上架且非系统自用的智能体，不返回提示词"""
     tenant_pid = DEFAULT_TENANT_ID
     if current_user is not None:
         tenant_pid = current_user.tenant_id
+    elif scoped_public_tenant_id is not None:
+        tenant_pid = scoped_public_tenant_id
 
-    from sqlalchemy import select, and_
+    from sqlalchemy import select, and_, or_
     from models.agent import Agent
-    from utils.serializers import agent_to_client_detail_response
 
     result = await db.execute(
         select(Agent).where(
@@ -646,7 +652,7 @@ async def get_agent_detail(
                 Agent.id == agent_id,
                 Agent.status == 1,  # 只返回上架的智能体
                 Agent.is_system == 0,  # 过滤掉系统自用智能体
-                Agent.tenant_id == tenant_pid,
+                or_(Agent.tenant_id == tenant_pid, Agent.tenant_id.is_(None)),
             )
         )
     )
@@ -698,7 +704,10 @@ async def generate_chat(
                 select(Agent).where(
                     and_(
                         Agent.id == agent_id,
-                        Agent.tenant_id == current_user.tenant_id,
+                        or_(
+                            Agent.tenant_id == current_user.tenant_id,
+                            Agent.tenant_id.is_(None),
+                        ),
                         or_(Agent.is_system == 1, Agent.status == 1),
                     )
                 )
@@ -724,7 +733,10 @@ async def generate_chat(
                         select(Agent).where(
                             and_(
                                 Agent.id == agent_id,
-                                Agent.tenant_id == current_user.tenant_id,
+                                or_(
+                                    Agent.tenant_id == current_user.tenant_id,
+                                    Agent.tenant_id.is_(None),
+                                ),
                                 or_(Agent.is_system == 1, Agent.status == 1),
                             )
                         )
@@ -1265,9 +1277,16 @@ async def generate_chat(
                             # 提取 content（AIService 返回的格式）
                             delta = chunk_data.get("delta", {})
                             content = delta.get("content", "")
+                            reasoning_piece = delta.get("reasoning_content", "")
                             if content:
                                 assistant_content += content
-                                yield f"data: {json.dumps({'content': content}, ensure_ascii=False)}\n\n"
+                            if content or reasoning_piece:
+                                out = {}
+                                if content:
+                                    out["content"] = content
+                                if reasoning_piece:
+                                    out["reasoning_content"] = reasoning_piece
+                                yield f"data: {json.dumps(out, ensure_ascii=False)}\n\n"
                         except json.JSONDecodeError:
                             # 如果不是 JSON（不应该发生，但为了安全），直接作为内容处理
                             assistant_content += chunk_json

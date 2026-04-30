@@ -3,7 +3,7 @@ Agent Service
 智能体管理服务
 """
 from typing import List, Optional
-from sqlalchemy import select, func, and_, desc, asc
+from sqlalchemy import select, func, and_, or_, desc, asc
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from models.agent import Agent
@@ -46,7 +46,12 @@ class AgentService(BaseService):
         conditions = []
 
         if scoped_tenant_id is not None:
-            conditions.append(Agent.tenant_id == scoped_tenant_id)
+            conditions.append(
+                or_(
+                    Agent.tenant_id == scoped_tenant_id,
+                    Agent.tenant_id.is_(None),
+                )
+            )
         
         # 按名称模糊查询
         if params.name:
@@ -83,15 +88,40 @@ class AgentService(BaseService):
     async def get_agent_by_id(self, agent_id: int, scoped_tenant_id: Optional[int] = None) -> Agent:
         """根据ID获取智能体"""
         agent = await super().get_by_id(agent_id, error_msg=f"智能体 {agent_id} 不存在")
-        if scoped_tenant_id is not None and getattr(agent, "tenant_id", None) != scoped_tenant_id:
-            raise NotFoundException(msg=f"智能体 {agent_id} 不存在")
+        if scoped_tenant_id is not None:
+            aid = getattr(agent, "tenant_id", None)
+            if aid is not None and aid != scoped_tenant_id:
+                raise NotFoundException(msg=f"智能体 {agent_id} 不存在")
         return agent
+
+    def _assert_agent_mutable_for_scope(
+        self, agent: Agent, scoped_tenant_id: Optional[int]
+    ) -> None:
+        """租户管理员不可改删全租户公用智能体（tenant_id 为空）。"""
+        if scoped_tenant_id is None:
+            return
+        if getattr(agent, "tenant_id", None) is None:
+            raise BadRequestException(msg="全租户公用智能体仅平台管理员可编辑或删除")
+        if agent.tenant_id != scoped_tenant_id:
+            raise NotFoundException(msg=f"智能体 {agent.id} 不存在")
     
     async def create_agent(self, agent_data: AgentCreate, *, scoped_tenant_id: Optional[int] = None) -> Agent:
         """创建智能体"""
         from core.tenant_constants import DEFAULT_TENANT_ID
 
-        tid = scoped_tenant_id if scoped_tenant_id is not None else DEFAULT_TENANT_ID
+        if scoped_tenant_id is not None:
+            if getattr(agent_data, "sharedToAllTenants", False):
+                raise BadRequestException(msg="仅平台管理员可创建全租户公用智能体")
+            tid = scoped_tenant_id
+        else:
+            if getattr(agent_data, "sharedToAllTenants", False):
+                if getattr(agent_data, "tenantId", None) is not None:
+                    raise BadRequestException(msg="全租户公用与 tenantId 不能同时指定")
+                tid = None
+            elif getattr(agent_data, "tenantId", None) is not None:
+                tid = agent_data.tenantId
+            else:
+                tid = DEFAULT_TENANT_ID
         # 检查名称唯一性
         from utils.query import check_unique
         await check_unique(
@@ -131,6 +161,7 @@ class AgentService(BaseService):
         
         # 获取现有智能体
         agent = await self.get_agent_by_id(agent_id, scoped_tenant_id=scoped_tenant_id)
+        self._assert_agent_mutable_for_scope(agent, scoped_tenant_id)
         
         # 检查名称唯一性（如果名称有变化）
         if agent_data.name and agent_data.name != agent.name:
@@ -182,13 +213,15 @@ class AgentService(BaseService):
     
     async def delete_agent(self, agent_id: int, *, scoped_tenant_id: Optional[int] = None) -> None:
         """删除智能体"""
-        await self.get_agent_by_id(agent_id, scoped_tenant_id=scoped_tenant_id)
+        agent = await self.get_agent_by_id(agent_id, scoped_tenant_id=scoped_tenant_id)
+        self._assert_agent_mutable_for_scope(agent, scoped_tenant_id)
         await super().delete(agent_id, hard_delete=True)
         await self.db.flush()
     
     async def update_status(self, agent_id: int, status: int, *, scoped_tenant_id: Optional[int] = None) -> Agent:
         """更新智能体状态（上架/下架）"""
         agent = await self.get_agent_by_id(agent_id, scoped_tenant_id=scoped_tenant_id)
+        self._assert_agent_mutable_for_scope(agent, scoped_tenant_id)
         agent.status = status
         await self.db.flush()
         await self.db.refresh(agent)
@@ -197,6 +230,7 @@ class AgentService(BaseService):
     async def update_sort_order(self, agent_id: int, sort_order: int, *, scoped_tenant_id: Optional[int] = None) -> Agent:
         """更新智能体排序"""
         agent = await self.get_agent_by_id(agent_id, scoped_tenant_id=scoped_tenant_id)
+        self._assert_agent_mutable_for_scope(agent, scoped_tenant_id)
         agent.sort_order = sort_order
         await self.db.flush()
         await self.db.refresh(agent)
@@ -210,6 +244,7 @@ class AgentService(BaseService):
             if agent_id and sort_order is not None:
                 try:
                     agent = await self.get_agent_by_id(agent_id, scoped_tenant_id=scoped_tenant_id)
+                    self._assert_agent_mutable_for_scope(agent, scoped_tenant_id)
                     agent.sort_order = sort_order
                 except NotFoundException:
                     continue

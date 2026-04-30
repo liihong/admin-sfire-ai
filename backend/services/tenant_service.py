@@ -4,6 +4,7 @@ from typing import List, Tuple, Optional
 from sqlalchemy import select, func, update, and_
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from core.config import settings
 from models.tenant import Tenant
 from schemas.tenant import TenantCreate, TenantUpdate, TenantQueryParams
 from utils.exceptions import NotFoundException, BadRequestException
@@ -14,6 +15,10 @@ class TenantService:
         self.db = db
 
     def _to_dict(self, t: Tenant) -> dict:
+        env_id = (settings.WECHAT_APP_ID or "").strip()
+        raw_sec = (t.wechat_app_secret or "").strip()
+        wid = (t.wechat_app_id or "").strip()
+        secret_ok = bool(raw_sec) or (bool(wid) and wid == env_id)
         return {
             "id": t.id,
             "code": t.code,
@@ -21,6 +26,7 @@ class TenantService:
             "is_default": bool(t.is_default),
             "remark": t.remark,
             "wechat_app_id": t.wechat_app_id,
+            "wechat_secret_configured": secret_ok,
             "created_at": t.created_at.isoformat() if t.created_at else None,
             "updated_at": t.updated_at.isoformat() if t.updated_at else None,
         }
@@ -89,6 +95,7 @@ class TenantService:
             is_default=data.is_default,
             remark=data.remark,
             wechat_app_id=data.wechat_app_id,
+            wechat_app_secret=data.wechat_app_secret,
         )
         self.db.add(tenant)
         await self.db.commit()

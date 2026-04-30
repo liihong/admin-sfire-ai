@@ -26,9 +26,17 @@ AGENT_TYPE_DICT_ID = 3
 class QuickEntryService(BaseService):
     """快捷入口管理服务类"""
     
-    def __init__(self, db: AsyncSession):
+    def __init__(        self, db: AsyncSession):
         super().__init__(db, QuickEntry, "快捷入口", check_soft_delete=False)
     
+    async def _get_entry_scoped(
+        self, entry_id: int, scoped_tenant_id: Optional[int]
+    ) -> QuickEntry:
+        entry = await super().get_by_id(entry_id, error_msg="快捷入口不存在")
+        if scoped_tenant_id is not None and entry.tenant_id != scoped_tenant_id:
+            raise NotFoundException(msg="快捷入口不存在")
+        return entry
+
     async def _get_agent_type_names(self, agent_types: set) -> Dict[str, str]:
         """根据 agent_type 集合查询字典名称（sys_dict id=3）"""
         if not agent_types:
@@ -67,7 +75,9 @@ class QuickEntryService(BaseService):
     
     async def get_quick_entries(
         self,
-        params: QuickEntryQueryParams
+        params: QuickEntryQueryParams,
+        *,
+        scoped_tenant_id: Optional[int] = None,
     ) -> Tuple[List[dict], int]:
         """
         获取快捷入口列表
@@ -80,7 +90,9 @@ class QuickEntryService(BaseService):
         """
         # 构建查询条件
         conditions = []
-        
+        if scoped_tenant_id is not None:
+            conditions.append(QuickEntry.tenant_id == scoped_tenant_id)
+
         if params.type:
             type_enum = EntryType(params.type)
             conditions.append(QuickEntry.type == type_enum)
@@ -124,7 +136,9 @@ class QuickEntryService(BaseService):
         
         return entry_list, total
     
-    async def get_quick_entry_by_id(self, entry_id: int) -> dict:
+    async def get_quick_entry_by_id(
+        self, entry_id: int, *, scoped_tenant_id: Optional[int] = None
+    ) -> dict:
         """
         根据ID获取快捷入口
         
@@ -134,14 +148,19 @@ class QuickEntryService(BaseService):
         Returns:
             快捷入口信息
         """
-        entry = await super().get_by_id(entry_id, error_msg="快捷入口不存在")
+        entry = await self._get_entry_scoped(entry_id, scoped_tenant_id)
         agent_type_name = None
         if entry.agent_type:
             agent_type_names = await self._get_agent_type_names({entry.agent_type})
             agent_type_name = agent_type_names.get(entry.agent_type)
         return self._format_response(entry, agent_type_name)
     
-    async def create_quick_entry(self, entry_data: QuickEntryCreate) -> dict:
+    async def create_quick_entry(
+        self,
+        entry_data: QuickEntryCreate,
+        *,
+        scoped_tenant_id: Optional[int] = None,
+    ) -> dict:
         """
         创建快捷入口
         
@@ -151,8 +170,25 @@ class QuickEntryService(BaseService):
         Returns:
             新快捷入口信息
         """
+        if scoped_tenant_id is not None:
+            tid_check = scoped_tenant_id
+        else:
+            from core.tenant_constants import DEFAULT_TENANT_ID
+
+            tid_check = DEFAULT_TENANT_ID
+        exists = await self.db.execute(
+            select(QuickEntry.id).where(
+                QuickEntry.tenant_id == tid_check,
+                QuickEntry.unique_key == entry_data.unique_key,
+            )
+        )
+        if exists.scalar_one_or_none() is not None:
+            raise BadRequestException(msg="唯一标识已存在")
+
         def before_create(entry: QuickEntry, data: QuickEntryCreate):
             """创建前的钩子函数"""
+            if scoped_tenant_id is not None:
+                entry.tenant_id = scoped_tenant_id
             # 转换枚举类型
             entry.type = EntryType(data.type)
             entry.action_type = ActionType(data.action_type)
@@ -160,9 +196,6 @@ class QuickEntryService(BaseService):
         
         entry = await super().create(
             data=entry_data,
-            unique_fields={
-                "unique_key": {"error_msg": "唯一标识已存在"}
-            },
             before_create=before_create,
         )
         
@@ -175,7 +208,13 @@ class QuickEntryService(BaseService):
             agent_type_name = agent_type_names.get(entry.agent_type)
         return self._format_response(entry, agent_type_name)
     
-    async def update_quick_entry(self, entry_id: int, entry_data: QuickEntryUpdate) -> dict:
+    async def update_quick_entry(
+        self,
+        entry_id: int,
+        entry_data: QuickEntryUpdate,
+        *,
+        scoped_tenant_id: Optional[int] = None,
+    ) -> dict:
         """
         更新快捷入口
         
@@ -186,6 +225,19 @@ class QuickEntryService(BaseService):
         Returns:
             更新后的快捷入口信息
         """
+        entry_row = await self._get_entry_scoped(entry_id, scoped_tenant_id)
+
+        if entry_data.unique_key is not None:
+            exists = await self.db.execute(
+                select(QuickEntry.id).where(
+                    QuickEntry.tenant_id == entry_row.tenant_id,
+                    QuickEntry.unique_key == entry_data.unique_key,
+                    QuickEntry.id != entry_id,
+                )
+            )
+            if exists.scalar_one_or_none() is not None:
+                raise BadRequestException(msg="唯一标识已存在")
+
         def before_update(entry: QuickEntry, data: QuickEntryUpdate):
             """更新前的钩子函数"""
             # 处理枚举类型转换
@@ -197,17 +249,10 @@ class QuickEntryService(BaseService):
             if "tag" in update_data and update_data["tag"] is not None:
                 entry.tag = EntryTag(update_data["tag"])
         
-        # 检查唯一性（如果更新了 unique_key）
-        unique_fields = None
-        if entry_data.unique_key is not None:
-            unique_fields = {
-                "unique_key": {"error_msg": "唯一标识已存在"}
-            }
-        
+        # 已在本租户内校验 unique_key，不再用全局 unique_fields
         entry = await super().update(
             obj_id=entry_id,
             data=entry_data,
-            unique_fields=unique_fields,
             before_update=before_update,
         )
         
@@ -220,17 +265,26 @@ class QuickEntryService(BaseService):
             agent_type_name = agent_type_names.get(entry.agent_type)
         return self._format_response(entry, agent_type_name)
     
-    async def delete_quick_entry(self, entry_id: int) -> None:
+    async def delete_quick_entry(
+        self, entry_id: int, *, scoped_tenant_id: Optional[int] = None
+    ) -> None:
         """
         删除快捷入口
         
         Args:
             entry_id: 入口ID
         """
+        await self._get_entry_scoped(entry_id, scoped_tenant_id)
         await super().delete(entry_id, hard_delete=True)
         await self.db.flush()
     
-    async def update_quick_entry_status(self, entry_id: int, status: int) -> dict:
+    async def update_quick_entry_status(
+        self,
+        entry_id: int,
+        status: int,
+        *,
+        scoped_tenant_id: Optional[int] = None,
+    ) -> dict:
         """
         更新快捷入口状态
         
@@ -244,7 +298,7 @@ class QuickEntryService(BaseService):
         if status not in [0, 1, 2]:
             raise BadRequestException(msg="状态值无效，必须是0、1或2")
         
-        entry = await super().get_by_id(entry_id)
+        entry = await self._get_entry_scoped(entry_id, scoped_tenant_id)
         entry.status = status
         await self.db.flush()
         await self.db.refresh(entry)
@@ -255,7 +309,12 @@ class QuickEntryService(BaseService):
             agent_type_name = agent_type_names.get(entry.agent_type)
         return self._format_response(entry, agent_type_name)
     
-    async def update_quick_entry_sort(self, sort_items: List[dict]) -> None:
+    async def update_quick_entry_sort(
+        self,
+        sort_items: List[dict],
+        *,
+        scoped_tenant_id: Optional[int] = None,
+    ) -> None:
         """
         批量更新快捷入口排序
         
@@ -270,7 +329,7 @@ class QuickEntryService(BaseService):
                 continue
             
             try:
-                entry = await super().get_by_id(entry_id)
+                entry = await self._get_entry_scoped(entry_id, scoped_tenant_id)
                 entry.priority = priority
             except NotFoundException:
                 continue

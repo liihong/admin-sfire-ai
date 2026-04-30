@@ -35,6 +35,7 @@ class HomeConfigService:
         """格式化配置响应"""
         return {
             "id": config.id,
+            "tenant_id": config.tenant_id,
             "config_key": config.config_key,
             "config_value": config.config_value,
             "config_type": config.config_type,
@@ -44,56 +45,64 @@ class HomeConfigService:
             "updated_at": config.updated_at.isoformat() if config.updated_at else None,
         }
     
-    async def _get_cache_key(self, config_key: str) -> str:
-        """获取缓存键"""
-        return f"home_config:{config_key}"
+    async def _get_cache_key(self, tenant_id: int, config_key: str) -> str:
+        """获取缓存键（按租户隔离）"""
+        return f"home_config:{tenant_id}:{config_key}"
     
-    async def _get_from_cache(self, config_key: str) -> Optional[str]:
+    async def _get_from_cache(self, tenant_id: int, config_key: str) -> Optional[str]:
         """从缓存获取配置"""
         try:
             redis = await self._get_redis()
             if redis:
-                cache_key = await self._get_cache_key(config_key)
+                cache_key = await self._get_cache_key(tenant_id, config_key)
                 return await redis.get(cache_key)
         except Exception as e:
             logger.warning(f"Failed to get config from cache: {e}")
         return None
     
-    async def _set_to_cache(self, config_key: str, config_value: str, ttl: int = 3600):
+    async def _set_to_cache(self, tenant_id: int, config_key: str, config_value: str, ttl: int = 3600):
         """设置配置到缓存"""
         try:
             redis = await self._get_redis()
             if redis:
-                cache_key = await self._get_cache_key(config_key)
+                cache_key = await self._get_cache_key(tenant_id, config_key)
                 await redis.setex(cache_key, ttl, config_value)
         except Exception as e:
             logger.warning(f"Failed to set config to cache: {e}")
     
-    async def _delete_from_cache(self, config_key: str):
+    async def _delete_from_cache(self, tenant_id: int, config_key: str):
         """从缓存删除配置"""
         try:
             redis = await self._get_redis()
             if redis:
-                cache_key = await self._get_cache_key(config_key)
+                cache_key = await self._get_cache_key(tenant_id, config_key)
                 await redis.delete(cache_key)
         except Exception as e:
             logger.warning(f"Failed to delete config from cache: {e}")
     
-    async def get_all_configs(self) -> List[dict]:
+    async def get_all_configs(
+        self, *, scoped_tenant_id: Optional[int] = None
+    ) -> List[dict]:
         """
-        获取所有配置
-        
-        Returns:
-            配置列表
+        获取配置列表
+
+        scoped_tenant_id 非空时仅返回该租户配置；平台管理员为空时返回全部租户配置。
         """
-        result = await self.db.execute(
-            select(HomeConfig).order_by(HomeConfig.config_key)
-        )
+        q = select(HomeConfig).order_by(HomeConfig.tenant_id, HomeConfig.config_key)
+        if scoped_tenant_id is not None:
+            q = q.where(HomeConfig.tenant_id == scoped_tenant_id)
+        result = await self.db.execute(q)
         configs = result.scalars().all()
         
         return [self._format_config_response(config) for config in configs]
     
-    async def get_config_by_key(self, config_key: str, use_cache: bool = True) -> dict:
+    async def get_config_by_key(
+        self,
+        config_key: str,
+        *,
+        scoped_tenant_id: Optional[int] = None,
+        use_cache: bool = True,
+    ) -> dict:
         """
         根据配置键获取配置
         
@@ -104,35 +113,38 @@ class HomeConfigService:
         Returns:
             配置信息
         """
-        # 尝试从缓存获取
-        if use_cache:
-            cached_value = await self._get_from_cache(config_key)
-            if cached_value is not None:
-                result = await self.db.execute(
-                    select(HomeConfig).where(HomeConfig.config_key == config_key)
-                )
-                config = result.scalar_one_or_none()
-                if config:
-                    return self._format_config_response(config)
-        
-        # 从数据库获取
-        result = await self.db.execute(
-            select(HomeConfig).where(HomeConfig.config_key == config_key)
-        )
-        config = result.scalar_one_or_none()
-        
-        if not config:
+        # 从数据库加载（按租户范围）
+        base = select(HomeConfig).where(HomeConfig.config_key == config_key)
+        if scoped_tenant_id is not None:
+            base = base.where(HomeConfig.tenant_id == scoped_tenant_id)
+
+        result = await self.db.execute(base)
+        rows = result.scalars().all()
+
+        if not rows:
             raise NotFoundException(msg=f"配置不存在: {config_key}")
-        
+
+        if len(rows) > 1:
+            raise BadRequestException(
+                msg="存在多条同名配置，请使用已绑定租户的账号登录后台维护"
+            )
+
+        config = rows[0]
+
         config_dict = self._format_config_response(config)
         
-        # 更新缓存
         if use_cache and config.config_value:
-            await self._set_to_cache(config_key, config.config_value)
+            await self._set_to_cache(config.tenant_id, config_key, config.config_value)
         
         return config_dict
     
-    async def update_config(self, config_key: str, config_data: HomeConfigUpdate) -> dict:
+    async def update_config(
+        self,
+        config_key: str,
+        config_data: HomeConfigUpdate,
+        *,
+        scoped_tenant_id: Optional[int] = None,
+    ) -> dict:
         """
         更新配置
         
@@ -143,13 +155,19 @@ class HomeConfigService:
         Returns:
             更新后的配置信息
         """
-        result = await self.db.execute(
-            select(HomeConfig).where(HomeConfig.config_key == config_key)
-        )
-        config = result.scalar_one_or_none()
+        base = select(HomeConfig).where(HomeConfig.config_key == config_key)
+        if scoped_tenant_id is not None:
+            base = base.where(HomeConfig.tenant_id == scoped_tenant_id)
+        result = await self.db.execute(base)
+        rows = result.scalars().all()
         
-        if not config:
+        if not rows:
             raise NotFoundException(msg=f"配置不存在: {config_key}")
+        if len(rows) > 1:
+            raise BadRequestException(
+                msg="存在多条同名配置，请使用已绑定租户的账号登录后台维护"
+            )
+        config = rows[0]
         
         # 验证JSON格式
         if config_data.config_value is not None:
@@ -174,17 +192,22 @@ class HomeConfigService:
         await self.db.flush()
         await self.db.refresh(config)
         
-        # 更新缓存
+        tid = config.tenant_id
         if config.config_value:
-            await self._set_to_cache(config_key, config.config_value)
+            await self._set_to_cache(tid, config_key, config.config_value)
         else:
-            await self._delete_from_cache(config_key)
+            await self._delete_from_cache(tid, config_key)
         
-        logger.info(f"Home config updated: {config_key}")
+        logger.info(f"Home config updated: {config_key} (tenant_id={tid})")
         
         return self._format_config_response(config)
     
-    async def batch_update_configs(self, batch_data: HomeConfigBatchUpdate) -> List[dict]:
+    async def batch_update_configs(
+        self,
+        batch_data: HomeConfigBatchUpdate,
+        *,
+        scoped_tenant_id: Optional[int] = None,
+    ) -> List[dict]:
         """
         批量更新配置
         
@@ -201,14 +224,17 @@ class HomeConfigService:
             if not config_key:
                 continue
             
-            result = await self.db.execute(
-                select(HomeConfig).where(HomeConfig.config_key == config_key)
-            )
-            config = result.scalar_one_or_none()
-            
-            if not config:
-                logger.warning(f"Config not found: {config_key}, skipping")
+            stmt = select(HomeConfig).where(HomeConfig.config_key == config_key)
+            if scoped_tenant_id is not None:
+                stmt = stmt.where(HomeConfig.tenant_id == scoped_tenant_id)
+            result = await self.db.execute(stmt)
+            rows = result.scalars().all()
+            if len(rows) != 1:
+                logger.warning(
+                    f"Config not found or ambiguous: {config_key} (tenant scope), skipping"
+                )
                 continue
+            config = rows[0]
             
             # 更新字段
             if "config_value" in config_item:
@@ -251,10 +277,11 @@ class HomeConfigService:
         # 更新缓存
         for config in updated_configs:
             await self.db.refresh(config)
+            tid = config.tenant_id
             if config.config_value:
-                await self._set_to_cache(config.config_key, config.config_value)
+                await self._set_to_cache(tid, config.config_key, config.config_value)
             else:
-                await self._delete_from_cache(config.config_key)
+                await self._delete_from_cache(tid, config.config_key)
         
         logger.info(f"Batch updated {len(updated_configs)} home configs")
         

@@ -24,7 +24,7 @@ from core.security import create_access_token, create_refresh_token, decode_toke
 from core.config import settings
 from core.deps import get_current_miniprogram_user
 from services.user import UserService
-from services.tenant_resolver import resolve_tenant_id_by_wechat_app_id
+from services.tenant_resolver import resolve_wechat_miniprogram_credentials
 from utils.response import success
 from utils.exceptions import BadRequestException, ServerErrorException
 
@@ -81,31 +81,25 @@ class UserInfo(BaseModel):
 
 # ============== Helper Functions ==============
 
-async def get_wechat_openid(code: str) -> tuple[str, Optional[str]]:
+async def get_wechat_openid(
+    code: str,
+    *,
+    app_id: str,
+    app_secret: str,
+) -> tuple[str, Optional[str]]:
     """
-    调用微信 API 获取 openid 和 session_key
-    
-    Args:
-        code: 微信登录 code
-    
-    Returns:
-        (openid, unionid) 元组
-    
-    Raises:
-        BadRequestException: 微信 API 调用失败
-        ServerErrorException: 微信配置未设置
+    调用微信 API 获取 openid 和 session_key（须与签发 code 的小程序 AppID 一致）。
     """
-    # 检查微信配置是否已设置
-    if not settings.WECHAT_APP_ID or not settings.WECHAT_APP_SECRET:
-        raise ServerErrorException("微信小程序配置未设置，请配置 WECHAT_APP_ID 和 WECHAT_APP_SECRET")
+    if not app_id or not app_secret:
+        raise ServerErrorException("微信小程序 AppID 或 AppSecret 未配置")
     
     try:
         async with httpx.AsyncClient(timeout=10.0) as client:
             response = await client.get(
                 "https://api.weixin.qq.com/sns/jscode2session",
                 params={
-                    "appid": settings.WECHAT_APP_ID,
-                    "secret": settings.WECHAT_APP_SECRET,
+                    "appid": app_id,
+                    "secret": app_secret,
                     "js_code": code,
                     "grant_type": "authorization_code"
                 }
@@ -146,36 +140,27 @@ async def get_wechat_openid(code: str) -> tuple[str, Optional[str]]:
         raise ServerErrorException(f"微信登录失败: {str(e)}")
 
 
-async def get_wechat_phone_number(phone_code: str) -> Optional[str]:
+async def get_wechat_phone_number(
+    phone_code: str,
+    *,
+    app_id: str,
+    app_secret: str,
+) -> Optional[str]:
     """
-    调用微信 API 获取手机号
-    
-    Args:
-        phone_code: 手机号授权 code，从 getPhoneNumber 获取
-    
-    Returns:
-        手机号字符串，如果获取失败返回 None
-    
-    Note:
-        需要先获取 access_token，然后调用 getuserphonenumber API
-        如果微信配置未设置，会抛出异常
+    调用微信 API 获取手机号（须与小程序同一套 AppID/Secret）。
     """
-    # 检查微信配置是否已设置
-    if not settings.WECHAT_APP_ID or not settings.WECHAT_APP_SECRET:
-        logger.error("WECHAT_APP_ID or WECHAT_APP_SECRET not configured, cannot get phone number")
-        # 不抛出异常，返回None，让登录流程继续（手机号是可选的）
+    if not app_id or not app_secret:
+        logger.error("app_id/app_secret missing, cannot get phone number")
         return None
     
     try:
-        # 1. 获取 access_token
         async with httpx.AsyncClient(timeout=10.0) as client:
-            # 获取 access_token
             token_response = await client.get(
                 "https://api.weixin.qq.com/cgi-bin/token",
                 params={
                     "grant_type": "client_credential",
-                    "appid": settings.WECHAT_APP_ID,
-                    "secret": settings.WECHAT_APP_SECRET
+                    "appid": app_id,
+                    "secret": app_secret,
                 }
             )
             token_data = token_response.json()
@@ -474,17 +459,20 @@ async def miniprogram_login(
             if not request.phone_code:
                 raise BadRequestException("PC扫码登录需要手机号授权")
 
-        # 1. 调用微信 API 获取 openid
-        openid, unionid = await get_wechat_openid(request.code)
+        # 1. 按租户/AppID 解析微信凭据并换取 openid
+        login_tenant_id, wx_app_id, wx_secret = await resolve_wechat_miniprogram_credentials(db, request.wechat_app_id)
+        openid, unionid = await get_wechat_openid(
+            request.code, app_id=wx_app_id, app_secret=wx_secret
+        )
         logger.info(f"Login attempt: openid={openid}, unionid={unionid if unionid else 'None'}")
-
-        login_tenant_id = await resolve_tenant_id_by_wechat_app_id(db, request.wechat_app_id)
         
         # 2. 如果提供了 phone_code，获取手机号
         phone_number = None
         if request.phone_code:
             logger.info(f"Received phone_code, attempting to get phone number")
-            phone_number = await get_wechat_phone_number(request.phone_code)
+            phone_number = await get_wechat_phone_number(
+                request.phone_code, app_id=wx_app_id, app_secret=wx_secret
+            )
             logger.info(f"Phone number result: {phone_number if phone_number else 'None'}")
             if request.scene and not phone_number:
                 raise BadRequestException("获取手机号失败，请重试")

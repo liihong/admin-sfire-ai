@@ -41,7 +41,10 @@ class Tenant(BaseModel):
     wechat_app_id: Mapped[Optional[str]] = mapped_column(
         String(64), nullable=True, comment="绑定的微信小程序 AppID"
     )
-    # Secret 不写库，继续使用环境变量或后续扩展 KMS
+    # 与 wechat_app_id 成对使用；为空且 AppID 与 .env WECHAT_APP_ID 一致时使用环境变量 WECHAT_APP_SECRET
+    wechat_app_secret: Mapped[Optional[str]] = mapped_column(
+        String(128), nullable=True, comment="微信小程序 AppSecret（可选，多租户独立小程序时填写）"
+    )
 
     def __repr__(self) -> str:
         return f"<Tenant(id={self.id}, code={self.code})>"

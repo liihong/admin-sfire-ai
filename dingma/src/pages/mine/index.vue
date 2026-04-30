@@ -170,17 +170,7 @@ const formatNumber = (num: string | number): string => {
   return numStr.replace(/\B(?=(\d{3})+(?!\d))/g, ',')
 }
 
-// 功能菜单列表（第一条「我的灵感」仅登录后展示）
 const allMenuList = [
-  {
-    id: 'inspiration',
-    name: '我的灵感',
-    desc: '每一次灵感，都是潜在的爆款选题',
-    icon: 'linggan',
-    iconBg: '#F37021', // 橙色背景
-    path: '/pages/inspiration/index',
-    requiresLogin: true
-  },
   {
     id: 'referral',
     name: '我要推荐',

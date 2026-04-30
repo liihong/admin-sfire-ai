@@ -14,14 +14,23 @@ def is_full_menu_role(role_id: Optional[int]) -> bool:
 
 def admin_has_platform_privilege(*, tenant_id: Optional[int], role_id: Optional[int]) -> bool:
     """
-    是否具备「平台级」后台权限（跨租户管理租户、全局配置等）。
+    是否具备「平台级」后台权限（跨租户管理租户、查看全量数据等）。
 
-    - tenant_id 为空：显式平台管理员；
-    - tenant_id 非空但 role_id 为系统管理员（SYSTEM_ADMIN_ROLE_ID）：兼容迁移后主租户 id 被回填的情况，
-      与 is_full_menu_role 约定一致，仍视为平台超级管理员。
+    仅当 admin_users.tenant_id 为空时视为平台超级管理员。
+    已绑定任意租户（含主租户、dingma 等）的管理员，无论角色是否为「系统管理员」，
+    数据范围均以该 tenant_id 为准，不会看到其它租户或全平台数据。
     """
-    if tenant_id is None:
-        return True
-    if role_id == SYSTEM_ADMIN_ROLE_ID:
-        return True
-    return False
+    _ = role_id  # 保留签名兼容调用方，不再参与判定
+    return tenant_id is None
+
+
+def admin_data_scope_tenant_id(*, tenant_id: Optional[int], role_id: Optional[int]) -> Optional[int]:
+    """
+    B 端传给 Service 的 scoped_tenant_id（列表过滤 / 创建写入归属 / 更新校验）。
+
+    - 返回 None：平台视角 —— 不按租户过滤列表；创建管理员/C 端用户时可使用请求体中的 tenant_id。
+    - 返回具体 id：租户管理员 —— 仅能访问、写入该租户。
+    """
+    if admin_has_platform_privilege(tenant_id=tenant_id, role_id=role_id):
+        return None
+    return tenant_id

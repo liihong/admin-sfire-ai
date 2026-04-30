@@ -42,12 +42,11 @@ class Agent(BaseModel):
         {"comment": "智能体配置表"},
     )
 
-    tenant_id: Mapped[int] = mapped_column(
+    tenant_id: Mapped[Optional[int]] = mapped_column(
         BigInteger,
         ForeignKey("tenants.id", ondelete="RESTRICT"),
-        nullable=False,
-        default=1,
-        comment="租户ID",
+        nullable=True,
+        comment="租户ID；NULL 表示全租户可用的公用智能体",
     )
     
     # === 基础字段 ===

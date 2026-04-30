@@ -6,6 +6,7 @@
       :rules="rules"
       label-width="120px"
       label-position="right"
+      :disabled="readOnly"
     >
       <el-row :gutter="24">
         <el-col :span="12">
@@ -207,8 +208,10 @@
       </el-form-item>
 
       <el-form-item>
-        <el-button type="primary" :loading="submitting" @click="handleSubmit">保存</el-button>
-        <el-button @click="handleCancel">取消</el-button>
+        <template v-if="!readOnly">
+          <el-button type="primary" :loading="submitting" @click="handleSubmit">保存</el-button>
+        </template>
+        <el-button @click="handleCancel">{{ readOnly ? "关闭" : "取消" }}</el-button>
       </el-form-item>
     </el-form>
 
@@ -240,11 +243,14 @@ import SkillSelector from "@/views/skill-assembly/components/SkillSelector.vue";
 interface Props {
   formData?: Partial<Agent.ResAgentItem>;
   isEdit?: boolean;
+  /** 公用智能体在租户后台仅查看 */
+  readOnly?: boolean;
 }
 
 const props = withDefaults(defineProps<Props>(), {
   formData: () => ({}),
   isEdit: false,
+  readOnly: false,
 });
 
 const emit = defineEmits<{
@@ -376,6 +382,7 @@ const handleSkillChange = (skills: any[]) => {
 
 // 提交表单
 const handleSubmit = async () => {
+  if (props.readOnly) return;
   if (!formRef.value) return;
 
   // 技能组装模式下验证技能

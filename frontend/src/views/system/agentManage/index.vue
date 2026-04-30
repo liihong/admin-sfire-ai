@@ -41,11 +41,13 @@
             <div class="agent-info">
               <h3 class="agent-name">{{ agent.name }}</h3>
               <p class="agent-model">{{ agent.modelName ?? agent.model }}</p>
+              <el-tag v-if="agent.readOnly" type="warning" size="small" style="margin-top: 8px">公用·只读</el-tag>
             </div>
             <el-switch
               v-model="agent.status"
               :active-value="1"
               :inactive-value="0"
+              :disabled="!!agent.readOnly"
               :loading="statusLoading === agent.id"
               @change="handleStatusChange(agent)"
             />
@@ -69,12 +71,12 @@
           <!-- 卡片底部 -->
           <div class="card-footer">
             <el-button type="primary" link :icon="Edit" @click="openEditor(agent)">
-              编辑配置
+              {{ agent.readOnly ? "查看" : "编辑配置" }}
             </el-button>
             <el-button type="info" link :icon="CopyDocument" @click="duplicateAgent(agent)">
               复制
             </el-button>
-            <el-button type="danger" link :icon="Delete" @click="handleDelete(agent)">
+            <el-button v-if="!agent.readOnly" type="danger" link :icon="Delete" @click="handleDelete(agent)">
               删除
             </el-button>
           </div>
@@ -90,7 +92,9 @@
     <!-- 全屏编辑对话框 -->
     <el-dialog
       v-model="editorVisible"
-      :title="isEdit ? '编辑智能体' : '新建智能体'"
+      :title="
+        isEdit ? (editorReadOnly ? '查看智能体（公用·只读）' : '编辑智能体') : '新建智能体'
+      "
       fullscreen
       :close-on-click-modal="false"
       class="agent-editor-dialog"
@@ -104,6 +108,7 @@
             :rules="formRules"
             label-position="top"
             class="agent-form"
+            :disabled="editorReadOnly"
           >
             <div class="form-section">
               <h4 class="section-title">
@@ -197,7 +202,7 @@
             <h4 class="section-title">
               <el-icon><Document /></el-icon>
               System Prompt
-              <el-dropdown trigger="click" @command="applyTemplate">
+              <el-dropdown v-if="!editorReadOnly" trigger="click" @command="applyTemplate">
                 <el-button type="primary" link class="template-btn">
                   <el-icon><MagicStick /></el-icon>
                   预设模板
@@ -231,6 +236,7 @@
               :rows="10"
               class="prompt-textarea"
               resize="none"
+              :readonly="editorReadOnly"
             />
             <div class="prompt-stats">
               <span>字数: {{ formData.systemPrompt?.length || 0 }}</span>
@@ -257,6 +263,7 @@
                 :max="2"
                 :step="0.1"
                 :marks="temperatureMarks"
+                :disabled="editorReadOnly"
               />
               <p class="param-desc">较低值使输出更确定，较高值使输出更随机多样</p>
             </div>
@@ -271,6 +278,7 @@
                 :min="100"
                 :max="4096"
                 :step="100"
+                :disabled="editorReadOnly"
               />
               <p class="param-desc">控制单次回复的最大长度</p>
             </div>
@@ -285,6 +293,7 @@
                 :min="0"
                 :max="1"
                 :step="0.05"
+                :disabled="editorReadOnly"
               />
               <p class="param-desc">控制输出的多样性，与 Temperature 配合使用</p>
             </div>
@@ -299,6 +308,7 @@
                 :min="0"
                 :max="2"
                 :step="0.1"
+                :disabled="editorReadOnly"
               />
               <p class="param-desc">降低重复词汇的出现频率</p>
             </div>
@@ -313,11 +323,12 @@
                 :min="0"
                 :max="2"
                 :step="0.1"
+                :disabled="editorReadOnly"
               />
               <p class="param-desc">鼓励模型谈论新话题</p>
             </div>
 
-            <el-button type="info" plain class="reset-params-btn" @click="resetParams">
+            <el-button v-if="!editorReadOnly" type="info" plain class="reset-params-btn" @click="resetParams">
               <el-icon><RefreshLeft /></el-icon>
               恢复默认参数
             </el-button>
@@ -327,9 +338,9 @@
 
       <template #footer>
         <div class="dialog-footer">
-          <el-button @click="editorVisible = false">取消</el-button>
-          <el-button type="primary" :loading="submitLoading" @click="handleSubmit">
-            {{ isEdit ? '保存修改' : '创建智能体' }}
+          <el-button @click="editorVisible = false">关闭</el-button>
+          <el-button v-if="!editorReadOnly" type="primary" :loading="submitLoading" @click="handleSubmit">
+            {{ isEdit ? "保存修改" : "创建智能体" }}
           </el-button>
         </div>
       </template>
@@ -384,6 +395,7 @@ const filteredAgents = computed(() => {
 
 // 编辑器相关
 const editorVisible = ref(false);
+const editorReadOnly = ref(false);
 const isEdit = ref(false);
 const submitLoading = ref(false);
 const formRef = ref<FormInstance>();
@@ -462,6 +474,7 @@ const formatNumber = (num: number) => {
 
 // 打开编辑器
 const openEditor = async (agent?: Agent.ResAgentItem) => {
+  editorReadOnly.value = !!(agent?.readOnly);
   isEdit.value = !!agent;
   
   if (agent) {
@@ -516,6 +529,7 @@ const resetParams = () => {
 
 // 提交表单
 const handleSubmit = async () => {
+  if (editorReadOnly.value) return;
   if (!formRef.value) return;
   
   await formRef.value.validate();
@@ -538,6 +552,10 @@ const handleSubmit = async () => {
 
 // 状态变更
 const handleStatusChange = async (agent: Agent.ResAgentItem) => {
+  if (agent.readOnly) {
+    agent.status = agent.status === 1 ? 0 : 1;
+    return;
+  }
   const action = agent.status === 1 ? "上架" : "下架";
   
   try {
@@ -554,6 +572,7 @@ const handleStatusChange = async (agent: Agent.ResAgentItem) => {
 
 // 复制智能体
 const duplicateAgent = (agent: Agent.ResAgentItem) => {
+  editorReadOnly.value = false;
   Object.assign(formData, {
     id: undefined,
     name: agent.name + " (副本)",

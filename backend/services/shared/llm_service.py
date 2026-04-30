@@ -107,7 +107,9 @@ class DeepSeekLLM(BaseLLM):
             ],
             "temperature": kwargs.get("temperature", 0.7),
             "max_tokens": kwargs.get("max_tokens", 2048),
-            "stream": False
+            "stream": False,
+            "reasoning_effort": "high",
+            "thinking": {"type": "enabled"},
         }
         
         if "system_prompt" in kwargs:
@@ -141,7 +143,9 @@ class DeepSeekLLM(BaseLLM):
             ],
             "temperature": kwargs.get("temperature", 0.7),
             "max_tokens": kwargs.get("max_tokens", 2048),
-            "stream": True
+            "stream": True,
+            "reasoning_effort": "high",
+            "thinking": {"type": "enabled"},
         }
         
         if "system_prompt" in kwargs:

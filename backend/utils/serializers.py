@@ -42,15 +42,24 @@ def agent_to_client_detail_response(agent: Agent, model_name: Optional[str] = No
     }
 
 
-def agent_to_response(agent: Agent, model_name: Optional[str] = None) -> dict:
+def agent_to_response(
+    agent: Agent,
+    model_name: Optional[str] = None,
+    *,
+    viewer_scoped_tenant_id: Optional[int] = None,
+) -> dict:
     """将 Agent 模型转换为响应格式
     
     Args:
         agent: Agent 模型实例
         model_name: 可选，模型显示名称（用于列表展示，不传则前端可继续用 model ID）
+        viewer_scoped_tenant_id: 当前管理员的数据范围租户 ID；
+            非空且智能体 tenant_id 为空时表示「全租户公用」，对租户管理员只读展示。
     """
     config_data = agent.config or {}
     config = AgentConfig(**config_data)
+
+    read_only = viewer_scoped_tenant_id is not None and getattr(agent, "tenant_id", None) is None
     
     result = {
         "id": str(agent.id),
@@ -74,6 +83,8 @@ def agent_to_response(agent: Agent, model_name: Optional[str] = None) -> dict:
         "skillVariables": agent.skill_variables,
         # 系统自用标识
         "isSystem": agent.is_system,
+        "tenantId": agent.tenant_id,
+        "readOnly": read_only,
     }
     return result
 

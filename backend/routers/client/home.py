@@ -8,6 +8,7 @@ from fastapi import APIRouter, Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from db import get_db
+from core.client_public_scope import resolve_optional_public_tenant_id
 from services.resource.home import HomeService
 from utils.response import success
 
@@ -20,6 +21,7 @@ async def get_home_content(
         None,
         description="Banner位置筛选：home_top/home_middle/home_bottom/web，不传则返回所有位置"
     ),
+    scoped_tenant_id: Optional[int] = Depends(resolve_optional_public_tenant_id),
     db: AsyncSession = Depends(get_db),
 ):
     """
@@ -38,7 +40,10 @@ async def get_home_content(
     路径：GET /api/v1/client/home
     """
     home_service = HomeService(db)
-    content = await home_service.get_home_content(position=position)
+    content = await home_service.get_home_content(
+        position=position,
+        scoped_tenant_id=scoped_tenant_id,
+    )
     
     return success(data=content, msg="获取成功")
 

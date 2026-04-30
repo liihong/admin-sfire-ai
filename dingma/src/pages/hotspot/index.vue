@@ -211,7 +211,7 @@ async function handleUseHotspot(item: HotspotItem) {
 function goBack() {
   uni.navigateBack({
     fail: () => {
-      uni.switchTab({ url: '/pages/index/index' })
+      uni.switchTab({ url: '/pages/quick-entries/index' })
     },
   })
 }

@@ -20,7 +20,7 @@ from db.redis import RedisCache
 from core.security import create_access_token, create_refresh_token, verify_password
 from core.config import settings
 from models.user import User
-from services.user import UserService
+from services.tenant_resolver import resolve_wechat_miniprogram_credentials
 from utils.response import success
 from utils.exceptions import BadRequestException, ServerErrorException
 
@@ -55,6 +55,10 @@ class QrcodeLoginRequest(BaseModel):
     """小程序码登录请求（小程序端调用）"""
     code: str = Field(..., description="微信登录 code，从 uni.login() 获取")
     scene: str = Field(..., description="场景值（scene_str）")
+    wechat_app_id: Optional[str] = Field(
+        default=None,
+        description="小程序 AppID；与登录换票时使用的前端 manifest 小程序一致",
+    )
 
 
 class QrcodeLoginResponse(BaseModel):
@@ -239,8 +243,13 @@ async def qrcode_login(
             logger.error(f"Failed to parse scene data: scene={request.scene}")
             raise BadRequestException("二维码数据异常，请重新扫描")
         
-        # 1. 调用微信 API 获取 openid 和 unionid
-        openid, unionid = await get_wechat_openid(request.code)
+        # 1. 按租户解析 AppID/AppSecret，并调用微信 API 获取 openid 和 unionid
+        login_tenant_id, wx_app_id, wx_secret = await resolve_wechat_miniprogram_credentials(
+            db, request.wechat_app_id
+        )
+        openid, unionid = await get_wechat_openid(
+            request.code, app_id=wx_app_id, app_secret=wx_secret
+        )
 
         # 2. 查找或创建用户
         user_service = UserService(db)
@@ -279,6 +288,7 @@ async def qrcode_login(
                 "unionid": unionid,
                 "nickname": "微信用户",
                 "is_active": True,
+                "tenant_id": login_tenant_id,
             }
             logger.info(f"Creating new user for QR code login: openid={openid}, unionid={unionid}")
             user = await user_service.create_user_from_dict(user_data)

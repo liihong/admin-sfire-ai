@@ -14,7 +14,7 @@ from schemas.article import (
     ArticleUpdate,
     ArticleQueryParams,
 )
-from utils.exceptions import BadRequestException
+from utils.exceptions import BadRequestException, NotFoundException
 from services.base import BaseService
 
 VALID_CATEGORY_CODES = frozenset({"01", "02", "03", "04", "05"})
@@ -25,6 +25,14 @@ class ArticleService(BaseService):
     
     def __init__(self, db: AsyncSession):
         super().__init__(db, Article, "文章", check_soft_delete=False)
+
+    async def _get_article_scoped(
+        self, article_id: int, scoped_tenant_id: Optional[int]
+    ) -> Article:
+        article = await super().get_by_id(article_id, error_msg="文章不存在")
+        if scoped_tenant_id is not None and article.tenant_id != scoped_tenant_id:
+            raise NotFoundException(msg="文章不存在")
+        return article
 
     async def get_article_category_label_map(self) -> Dict[str, str]:
         """article_category 的 item_value -> item_label；与字典同步，缺项时用 ARTICLE_CATEGORY_LABELS 兜底"""
@@ -85,7 +93,9 @@ class ArticleService(BaseService):
     async def get_articles(
         self,
         params: ArticleQueryParams,
-        only_published: bool = False
+        only_published: bool = False,
+        *,
+        scoped_tenant_id: Optional[int] = None,
     ) -> Tuple[List[dict], int]:
         """
         获取文章列表
@@ -99,7 +109,9 @@ class ArticleService(BaseService):
         """
         # 构建查询条件
         conditions = []
-        
+        if scoped_tenant_id is not None:
+            conditions.append(Article.tenant_id == scoped_tenant_id)
+
         if params.category:
             if params.category not in VALID_CATEGORY_CODES:
                 raise BadRequestException(
@@ -163,7 +175,9 @@ class ArticleService(BaseService):
     async def get_article_by_id(
         self,
         article_id: int,
-        increment_view: bool = False
+        increment_view: bool = False,
+        *,
+        scoped_tenant_id: Optional[int] = None,
     ) -> dict:
         """
         根据ID获取文章
@@ -175,7 +189,7 @@ class ArticleService(BaseService):
         Returns:
             文章信息
         """
-        article = await super().get_by_id(article_id, error_msg="文章不存在")
+        article = await self._get_article_scoped(article_id, scoped_tenant_id)
         
         # 增加浏览量
         if increment_view:
@@ -186,7 +200,12 @@ class ArticleService(BaseService):
         category_labels = await self.get_article_category_label_map()
         return self._format_response(article, category_labels=category_labels)
     
-    async def create_article(self, article_data: ArticleCreate) -> dict:
+    async def create_article(
+        self,
+        article_data: ArticleCreate,
+        *,
+        scoped_tenant_id: Optional[int] = None,
+    ) -> dict:
         """
         创建文章
         
@@ -198,6 +217,8 @@ class ArticleService(BaseService):
         """
         def before_create(article: Article, data: ArticleCreate):
             """创建前的钩子函数"""
+            if scoped_tenant_id is not None:
+                article.tenant_id = scoped_tenant_id
             # 处理标签：确保是列表格式
             if data.tags:
                 article.tags = data.tags if isinstance(data.tags, list) else []
@@ -215,7 +236,13 @@ class ArticleService(BaseService):
         category_labels = await self.get_article_category_label_map()
         return self._format_response(article, category_labels=category_labels)
 
-    async def update_article(self, article_id: int, article_data: ArticleUpdate) -> dict:
+    async def update_article(
+        self,
+        article_id: int,
+        article_data: ArticleUpdate,
+        *,
+        scoped_tenant_id: Optional[int] = None,
+    ) -> dict:
         """
         更新文章
         
@@ -226,6 +253,8 @@ class ArticleService(BaseService):
         Returns:
             更新后的文章信息
         """
+        await self._get_article_scoped(article_id, scoped_tenant_id)
+
         def before_update(article: Article, data: ArticleUpdate):
             """更新前的钩子函数"""
             update_data = data.model_dump(exclude_unset=True)
@@ -254,13 +283,16 @@ class ArticleService(BaseService):
         category_labels = await self.get_article_category_label_map()
         return self._format_response(article, category_labels=category_labels)
 
-    async def delete_article(self, article_id: int) -> None:
+    async def delete_article(
+        self, article_id: int, *, scoped_tenant_id: Optional[int] = None
+    ) -> None:
         """
         删除文章
         
         Args:
             article_id: 文章ID
         """
+        await self._get_article_scoped(article_id, scoped_tenant_id)
         await super().delete(article_id, hard_delete=True)
         await self.db.flush()
     
@@ -268,7 +300,9 @@ class ArticleService(BaseService):
         self,
         article_id: int,
         is_published: Optional[bool] = None,
-        is_enabled: Optional[bool] = None
+        is_enabled: Optional[bool] = None,
+        *,
+        scoped_tenant_id: Optional[int] = None,
     ) -> dict:
         """
         更新文章状态
@@ -281,7 +315,7 @@ class ArticleService(BaseService):
         Returns:
             更新后的文章信息
         """
-        article = await super().get_by_id(article_id)
+        article = await self._get_article_scoped(article_id, scoped_tenant_id)
         
         if is_published is not None:
             article.is_published = is_published

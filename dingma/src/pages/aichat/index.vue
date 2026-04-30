@@ -31,7 +31,7 @@
 
         <view v-else-if="msg.role === 'assistant'" class="message-row assistant-row">
           <view class="ai-avatar">
-            <SvgIcon name="agent" size="36" color="#fff" />
+            <image class="ai-avatar-img" :src="assistantAvatarUrl" mode="aspectFill" />
           </view>
           <view class="message-bubble assistant-bubble">
             <text class="bubble-text">{{ msg.content }}</text>
@@ -52,7 +52,7 @@
 
         <view v-else-if="msg.role === 'membership_hint'" class="message-row assistant-row">
           <view class="ai-avatar">
-            <SvgIcon name="agent" size="36" color="#fff" />
+            <image class="ai-avatar-img" :src="assistantAvatarUrl" mode="aspectFill" />
           </view>
           <view class="message-bubble assistant-bubble membership-hint-bubble">
             <text class="bubble-text">{{ msg.content }}</text>
@@ -66,7 +66,7 @@
       <view v-if="isGenerating" class="message-wrapper assistant">
         <view class="message-row assistant-row">
           <view class="ai-avatar">
-            <SvgIcon name="agent" size="36" color="#fff" />
+            <image class="ai-avatar-img" :src="assistantAvatarUrl" mode="aspectFill" />
           </view>
           <view class="message-bubble assistant-bubble loading-bubble">
             <view class="typing-indicator">
@@ -117,6 +117,9 @@ import { msgSecCheck } from '@/utils/security'
 import { getConversationDetail } from '@/api/conversation'
 import SvgIcon from '@/components/base/SvgIcon.vue'
 import SafeAreaTop from '@/components/common/SafeAreaTop.vue'
+import { DINGMA_AGENT_DEFAULT_AVATAR_URL } from '@/constants/tenant'
+
+const assistantAvatarUrl = DINGMA_AGENT_DEFAULT_AVATAR_URL
 
 const authStore = useAuthStore()
 const agentStore = useAgentStore()
@@ -153,7 +156,7 @@ const inputPlaceholder = computed(() => {
 function goBack() {
   uni.navigateBack({
     fail: () => {
-      uni.switchTab({ url: '/pages/project/index' })
+      uni.switchTab({ url: '/pages/quick-entries/index' })
     }
   })
 }
@@ -464,19 +467,24 @@ onLoad(async (options?: PageOptions) => {
   }
 
   if (options?.agentId) {
-    if (!agentStore.activeAgent || agentStore.activeAgent.id !== options.agentId) {
-      agentStore.loadActiveAgentFromStorage()
-
-      if (!agentStore.activeAgent || agentStore.activeAgent.id !== options.agentId) {
-        agentStore.setActiveAgent({
-          id: options.agentId,
-          name: '智能体',
-          label: options.label,
-          icon: '',
-          description: ''
-        }, { persist: false })
+    let label = '智能体'
+    if (options.label) {
+      try {
+        label = decodeURIComponent(String(options.label))
+      } catch {
+        label = String(options.label)
       }
     }
+    agentStore.setActiveAgent(
+      {
+        id: String(options.agentId),
+        name: label,
+        label,
+        icon: DINGMA_AGENT_DEFAULT_AVATAR_URL,
+        description: ''
+      },
+      { persist: true }
+    )
   } else {
     if (!agentStore.activeAgent) {
       agentStore.loadActiveAgentFromStorage()
@@ -654,13 +662,17 @@ $border-light: rgba(0, 0, 0, 0.06);
       width: 72rpx;
       height: 72rpx;
       border-radius: 50%;
-      background: linear-gradient(135deg, #667EEA, #764BA2);
-      display: flex;
-      align-items: center;
-      justify-content: center;
+      overflow: hidden;
       margin-right: 16rpx;
       flex-shrink: 0;
-      box-shadow: 0 4rpx 12rpx rgba(102, 126, 234, 0.3);
+      box-shadow: 0 4rpx 12rpx rgba(0, 0, 0, 0.1);
+      background: #fff;
+
+      .ai-avatar-img {
+        width: 100%;
+        height: 100%;
+        display: block;
+      }
     }
   }
 }
