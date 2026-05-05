@@ -669,7 +669,8 @@ async def generate_chat(
     request: ChatRequest,
     background_tasks: BackgroundTasks,
     current_user: User = Depends(get_current_miniprogram_user),
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    scoped_public_tenant_id: Optional[int] = Depends(resolve_optional_public_tenant_id),
 ):
     """对话式创作接口（支持向量检索和异步保存）"""
     try:
@@ -691,12 +692,24 @@ async def generate_chat(
         agent_id = request.agent_id
         if agent_id is None and request.agent_type and request.agent_type.isdigit():
             agent_id = int(request.agent_type)
-        logger.info(f"📊 [Chat] agent_id={agent_id}, request.agent_id={request.agent_id}, request.agent_type={request.agent_type}")
+        logger.info(
+            f"📊 [Chat] agent_id={agent_id}, request.agent_id={request.agent_id}, "
+            f"request.agent_type={request.agent_type}, user_tid={current_user.tenant_id}, "
+            f"scoped_tid={scoped_public_tenant_id}"
+        )
 
         agent_config = None
         agent_type_source = "preset"
         db_agent = None
         agent_model_type = request.model_type or "doubao"  # 默认值
+
+        # 智能体租户可见性：归属 JWT 租户 / 全租户公用(NULL) / 当前请求解析的小程序租户（POST 仅靠 Header）
+        agent_tenant_visible = [
+            Agent.tenant_id == current_user.tenant_id,
+            Agent.tenant_id.is_(None),
+        ]
+        if scoped_public_tenant_id is not None:
+            agent_tenant_visible.append(Agent.tenant_id == scoped_public_tenant_id)
 
         # 优先用 agent_id 查数据库（前端传 agent_id 时，agent_type 可能为预设如 ip_collector）
         if agent_id is not None:
@@ -704,10 +717,7 @@ async def generate_chat(
                 select(Agent).where(
                     and_(
                         Agent.id == agent_id,
-                        or_(
-                            Agent.tenant_id == current_user.tenant_id,
-                            Agent.tenant_id.is_(None),
-                        ),
+                        or_(*agent_tenant_visible),
                         or_(Agent.is_system == 1, Agent.status == 1),
                     )
                 )
@@ -733,10 +743,7 @@ async def generate_chat(
                         select(Agent).where(
                             and_(
                                 Agent.id == agent_id,
-                                or_(
-                                    Agent.tenant_id == current_user.tenant_id,
-                                    Agent.tenant_id.is_(None),
-                                ),
+                                or_(*agent_tenant_visible),
                                 or_(Agent.is_system == 1, Agent.status == 1),
                             )
                         )

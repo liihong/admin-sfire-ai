@@ -23,6 +23,8 @@ export interface UserLevelInfo {
  * 认证用户信息类型（完整用户信息）
  */
 export interface AuthUserInfo {
+  /** 用户数字 ID（个人中心展示） */
+  user_id?: number
   openid: string
   nickname: string
   avatarUrl: string

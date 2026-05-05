@@ -15,6 +15,14 @@
       }
     },
     {
+      "path": "pages/home/index",
+      "style": {
+        "navigationStyle": "custom",
+        "navigationBarTitleText": "",
+        "enablePullDownRefresh": false
+      }
+    },
+    {
       "path": "pages/quick-entries/index",
       "style": {
         "navigationStyle": "custom",
@@ -189,6 +197,10 @@
     }
   ],
   "preloadRule": {
+    "pages/home/index": {
+      "network": "all",
+      "packages": ["common", "aichat"]
+    },
     "pages/quick-entries/index": {
       "network": "all",
       "packages": ["common", "aichat"]
@@ -206,19 +218,25 @@
   },
   "tabBar": {
     "color": "#999999",
-    "selectedColor": "#F37021",
+    "selectedColor": "#3B82F6",
     "backgroundColor": "#ffffff",
     "borderStyle": "white",
     "list": [
       {
+        "pagePath": "pages/home/index",
+        "text": "创富工具",
+        "iconPath": "static/tab/home.png",
+        "selectedIconPath": "static/tab/home-active.png"
+      },
+      {
         "pagePath": "pages/quick-entries/index",
-        "text": "快捷指令",
+        "text": "经营进阶",
         "iconPath": "static/tab/sfire.png",
         "selectedIconPath": "static/tab/sfire-active.png"
       },
       {
         "pagePath": "pages/mine/index",
-        "text": "我的",
+        "text": "我的学员",
         "iconPath": "static/tab/mine.png",
         "selectedIconPath": "static/tab/mine-active.png"
       }

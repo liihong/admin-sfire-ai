@@ -156,7 +156,7 @@ const inputPlaceholder = computed(() => {
 function goBack() {
   uni.navigateBack({
     fail: () => {
-      uni.switchTab({ url: '/pages/quick-entries/index' })
+      uni.switchTab({ url: '/pages/home/index' })
     }
   })
 }

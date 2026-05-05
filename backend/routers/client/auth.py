@@ -54,6 +54,7 @@ class UserLevelInfo(BaseModel):
 
 class UserInfo(BaseModel):
     """用户信息模型（完整信息）"""
+    user_id: Optional[int] = Field(default=None, description="用户数字ID（小程序内展示）")
     openid: str = Field(..., description="用户 openid")
     nickname: str = Field(default="", description="用户昵称")
     avatar: str = Field(default="", description="头像URL")
@@ -404,6 +405,7 @@ def build_user_info(user: User) -> UserInfo:
     masked_phone = mask_phone(user.phone)
     
     return UserInfo(
+        user_id=user.id,
         openid=user.openid or "",
         nickname=user.nickname or "微信用户",
         avatar=avatar_url,

@@ -234,7 +234,7 @@ const handleGetPhoneNumber = async (e: any) => {
           })
         } else {
           uni.switchTab({
-            url: '/pages/quick-entries/index'
+            url: '/pages/home/index'
           })
         }
       }, 1500)
@@ -307,7 +307,7 @@ const handleSkipLogin = () => {
           })
 
           uni.switchTab({
-            url: '/pages/quick-entries/index'
+            url: '/pages/home/index'
           })
         }
       }

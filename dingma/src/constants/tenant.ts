@@ -6,6 +6,9 @@ export const DINGMA_TENANT_CODE = 'dingma'
 /** 小程序首页全屏展示图 */
 export const DINGMA_SPLASH_IMAGE_URL = 'https://oss.sourcefire.cn/dingma/dingmavi.jpg'
 
+/** 创富工具 Tab 顶部横幅（可替换为与设计稿一致的主题图） */
+export const DINGMA_HOME_BANNER_URL = 'https://oss.sourcefire.cn/dingma/dingmavi.jpg'
+
 /** 仅首次进入小程序时播放首页轻微放大动画，标记后不再播放 */
 export const STORAGE_DINGMA_SPLASH_ZOOM_PLAYED = 'dingma_splash_zoom_played'
 

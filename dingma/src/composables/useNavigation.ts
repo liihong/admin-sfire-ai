@@ -27,7 +27,7 @@ export function useNavigation() {
   function goBack() {
     uni.navigateBack({
       fail: () => {
-        safeSwitchTab({ url: '/pages/quick-entries/index' })
+        safeSwitchTab({ url: '/pages/home/index' })
       }
     })
   }

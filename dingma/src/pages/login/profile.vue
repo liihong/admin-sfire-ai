@@ -231,7 +231,7 @@ const handleSubmit = async () => {
       
       setTimeout(() => {
         uni.switchTab({
-          url: '/pages/quick-entries/index'
+          url: '/pages/home/index'
         })
       }, 1500)
     } else {
@@ -262,7 +262,7 @@ const handleSkip = () => {
     success: (res) => {
       if (res.confirm) {
         uni.switchTab({
-          url: '/pages/quick-entries/index'
+          url: '/pages/home/index'
         })
       }
     }

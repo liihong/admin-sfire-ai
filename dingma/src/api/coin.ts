@@ -54,6 +54,36 @@ export interface CoinTransactionsResponse {
 }
 
 /**
+ * 算力/使用统计（与 /coin/statistics 一致）
+ */
+export interface CoinStatisticsData {
+  balance: number
+  frozenBalance: number
+  availableBalance: number
+  totalRecharge: number
+  totalConsume: number
+  totalRefund: number
+  totalReward: number
+  totalCommission: number
+  totalAdjustment: number
+  monthConsumption: number
+  /** 累计 AI 助手消息数，用作「调用 AI」参考 */
+  totalContent: number
+  withDay: number
+}
+
+/**
+ * 用户算力与使用汇总统计
+ */
+export function getCoinStatistics() {
+  return request<{ code: number; data: CoinStatisticsData; msg: string }>({
+    url: '/api/v1/client/coin/statistics',
+    method: 'GET',
+    showLoading: false
+  })
+}
+
+/**
  * 获取算力交易记录
  */
 export function getCoinTransactions(params: CoinTransactionsRequest) {
