@@ -18,6 +18,7 @@ from utils.exceptions import (
 )
 from utils.pagination import paginate_query, PageResult
 from services.base import BaseService
+from core.tenant_constants import DEFAULT_TENANT_ID
 
 
 class AgentService(BaseService):
@@ -52,7 +53,15 @@ class AgentService(BaseService):
                     Agent.tenant_id.is_(None),
                 )
             )
-        
+        else:
+            # 平台管理员：仅主租户专属 + 全租户公用，不包含其他子租户专属智能体
+            conditions.append(
+                or_(
+                    Agent.tenant_id.is_(None),
+                    Agent.tenant_id == DEFAULT_TENANT_ID,
+                )
+            )
+
         # 按名称模糊查询
         if params.name:
             conditions.append(Agent.name.like(f"%{params.name}%"))
@@ -88,10 +97,12 @@ class AgentService(BaseService):
     async def get_agent_by_id(self, agent_id: int, scoped_tenant_id: Optional[int] = None) -> Agent:
         """根据ID获取智能体"""
         agent = await super().get_by_id(agent_id, error_msg=f"智能体 {agent_id} 不存在")
+        aid = getattr(agent, "tenant_id", None)
         if scoped_tenant_id is not None:
-            aid = getattr(agent, "tenant_id", None)
             if aid is not None and aid != scoped_tenant_id:
                 raise NotFoundException(msg=f"智能体 {agent_id} 不存在")
+        elif aid is not None and aid != DEFAULT_TENANT_ID:
+            raise NotFoundException(msg=f"智能体 {agent_id} 不存在")
         return agent
 
     def _assert_agent_mutable_for_scope(
@@ -107,8 +118,6 @@ class AgentService(BaseService):
     
     async def create_agent(self, agent_data: AgentCreate, *, scoped_tenant_id: Optional[int] = None) -> Agent:
         """创建智能体"""
-        from core.tenant_constants import DEFAULT_TENANT_ID
-
         if scoped_tenant_id is not None:
             if getattr(agent_data, "sharedToAllTenants", False):
                 raise BadRequestException(msg="仅平台管理员可创建全租户公用智能体")

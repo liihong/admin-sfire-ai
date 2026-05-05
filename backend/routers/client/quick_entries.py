@@ -12,6 +12,7 @@ from models.quick_entry import QuickEntry, EntryType
 from services.resource import QuickEntryService
 from utils.response import success
 from core.client_public_scope import resolve_optional_public_tenant_id
+from core.tenant_constants import DEFAULT_TENANT_ID
 
 router = APIRouter()
 
@@ -25,9 +26,10 @@ async def get_quick_entries(
 ):
     """
     获取启用的快捷入口列表
-    
-    只返回 status=1（启用）的入口，按 priority 排序
-    根据 agent_type 增加 agent_type_name 字段，显示数据字典对应的名称
+
+    按租户隔离：Query tenant_id / appid 或 Header 解析租户；均未命中时默认主租户（与 C 端智能体列表一致）。
+    只返回 status=1（启用）的入口，按 priority 排序。
+    根据 agent_type 增加 agent_type_name 字段，显示数据字典对应的名称。
     """
     quick_entry_service = QuickEntryService(db)
     
@@ -37,8 +39,11 @@ async def get_quick_entries(
     # 只返回启用的入口
     conditions.append(QuickEntry.status == 1)
 
-    if scoped_tenant_id is not None:
-        conditions.append(QuickEntry.tenant_id == scoped_tenant_id)
+    # 必须按租户隔离：未传 appid/tenant 时与主小程序一致，默认主租户
+    effective_tenant_id = (
+        scoped_tenant_id if scoped_tenant_id is not None else DEFAULT_TENANT_ID
+    )
+    conditions.append(QuickEntry.tenant_id == effective_tenant_id)
     
     # 按类型筛选
     if type:

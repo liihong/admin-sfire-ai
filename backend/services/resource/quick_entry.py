@@ -17,6 +17,7 @@ from schemas.quick_entry import (
 )
 from utils.exceptions import NotFoundException, BadRequestException
 from services.base import BaseService
+from core.tenant_constants import DEFAULT_TENANT_ID
 
 
 # agent_type 关联的字典 ID（sys_dict id=3）
@@ -33,7 +34,10 @@ class QuickEntryService(BaseService):
         self, entry_id: int, scoped_tenant_id: Optional[int]
     ) -> QuickEntry:
         entry = await super().get_by_id(entry_id, error_msg="快捷入口不存在")
-        if scoped_tenant_id is not None and entry.tenant_id != scoped_tenant_id:
+        if scoped_tenant_id is not None:
+            if entry.tenant_id != scoped_tenant_id:
+                raise NotFoundException(msg="快捷入口不存在")
+        elif entry.tenant_id != DEFAULT_TENANT_ID:
             raise NotFoundException(msg="快捷入口不存在")
         return entry
 
@@ -92,6 +96,9 @@ class QuickEntryService(BaseService):
         conditions = []
         if scoped_tenant_id is not None:
             conditions.append(QuickEntry.tenant_id == scoped_tenant_id)
+        else:
+            # 平台管理员：仅主租户快捷库，不包含其他租户数据
+            conditions.append(QuickEntry.tenant_id == DEFAULT_TENANT_ID)
 
         if params.type:
             type_enum = EntryType(params.type)
@@ -173,8 +180,6 @@ class QuickEntryService(BaseService):
         if scoped_tenant_id is not None:
             tid_check = scoped_tenant_id
         else:
-            from core.tenant_constants import DEFAULT_TENANT_ID
-
             tid_check = DEFAULT_TENANT_ID
         exists = await self.db.execute(
             select(QuickEntry.id).where(
