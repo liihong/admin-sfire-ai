@@ -48,7 +48,9 @@ export function getQuickEntries(type?: 'category' | 'command', agentType?: strin
   return request<QuickEntryListResponse>({
     url,
     method: 'GET',
-    showLoading: false
+    showLoading: false,
+    // 公开列表，勿携带可能过期的 JWT，避免网关/中间层对无效 Bearer 返回 401
+    needToken: false
   })
 }
 

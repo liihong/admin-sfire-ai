@@ -58,6 +58,8 @@ function attachDingmaTenantScope(config: RequestConfig): void {
   config.header = config.header || {}
   config.header['X-Wechat-App-Id'] = scope.appid
   config.header['X-Tenant-Code'] = scope.tenant_id
+  // 与前端网关一致：匿名访问 C 端公开接口也必须带密钥；原先仅在存在 token 时附加，未登录时易被线上网关拒绝
+  config.header['X-My-Gate-Key'] = 'Huoyuan2026'
 
   const method = (config.method || 'GET').toUpperCase()
   // GET：租户条件走 Query（tenant_id=dingma&appid=...）；其余方法仅依赖 Header，避免污染 JSON Body 导致部分接口校验失败
@@ -119,7 +121,6 @@ function requestInterceptor(config: RequestConfig): RequestConfig {
         const token = authStore.getToken()
         if (token) {
           config.header['Authorization'] = `Bearer ${token}`
-          config.header["X-My-Gate-Key"] = "Huoyuan2026";
         }
       }
     } catch {

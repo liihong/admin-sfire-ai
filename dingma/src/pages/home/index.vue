@@ -252,6 +252,8 @@ onMounted(() => {
       ? safeArea.value.top
       : safeArea.value.statusBarHeight || 0
   topInsetPx.value = Math.ceil(top > 0 ? top + 8 : 12)
+  // 与 onShow 互补：部分机型/首进 Tab 时仅 onShow 请求偶发失败，挂载后再拉一次保障可见
+  loadCommandEntries()
 })
 </script>
 
