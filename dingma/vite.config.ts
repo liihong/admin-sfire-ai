@@ -2,7 +2,7 @@ import { defineConfig } from "vite";
 import uni from "@dcloudio/vite-plugin-uni";
 
 // dingma 租户小程序：开发/生产 API 与 miniprogram 共用同一后端时保持默认即可；独立域名请改 PROD_API_URL。
-const DEV_API_URL = "http://127.0.0.1:8000";
+const DEV_API_URL = "https://sourcefire.cn";
 // 生产环境 API 地址（部署时修改此处）
 const PROD_API_URL = "https://sourcefire.cn";
 

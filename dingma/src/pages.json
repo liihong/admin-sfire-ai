@@ -197,10 +197,6 @@
     }
   ],
   "preloadRule": {
-    "pages/home/index": {
-      "network": "all",
-      "packages": ["common", "aichat"]
-    },
     "pages/quick-entries/index": {
       "network": "all",
       "packages": ["common", "aichat"]
@@ -223,20 +219,14 @@
     "borderStyle": "white",
     "list": [
       {
-        "pagePath": "pages/home/index",
-        "text": "创富工具",
+        "pagePath": "pages/quick-entries/index",
+        "text": "首页",
         "iconPath": "static/tab/home.png",
         "selectedIconPath": "static/tab/home-active.png"
       },
       {
-        "pagePath": "pages/quick-entries/index",
-        "text": "经营进阶",
-        "iconPath": "static/tab/sfire.png",
-        "selectedIconPath": "static/tab/sfire-active.png"
-      },
-      {
         "pagePath": "pages/mine/index",
-        "text": "我的学员",
+        "text": "我的",
         "iconPath": "static/tab/mine.png",
         "selectedIconPath": "static/tab/mine-active.png"
       }

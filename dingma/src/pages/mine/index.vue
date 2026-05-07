@@ -15,7 +15,7 @@
             >
               <image
                 class="avatar-img"
-                :src="userInfo.avatar || '/static/default-avatar.png'"
+:src="userInfo.avatar || assistantAvatarUrl"
                 mode="aspectFill"
               />
             </button>
@@ -128,10 +128,13 @@ import { updateUserInfo, uploadAvatar } from '@/api/user'
 import { getCoinStatistics, type CoinStatisticsData } from '@/api/coin'
 import { useAuthStore } from '@/stores/auth'
 import SvgIcon from '@/components/base/SvgIcon.vue'
+import { DINGMA_AGENT_DEFAULT_AVATAR_URL } from '@/constants/tenant'
 
 const authStore = useAuthStore()
 
 const coinStats = ref<CoinStatisticsData | null>(null)
+
+const assistantAvatarUrl = DINGMA_AGENT_DEFAULT_AVATAR_URL
 
 const noop = () => {}
 

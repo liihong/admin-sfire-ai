@@ -15,16 +15,6 @@
             <text class="info-icon">i</text>
           </view>
         </view>
-        <view class="banner-bottom-row">
-          <view class="price-block">
-            <text class="promo-line">创富年费特惠</text>
-            <text class="price-line">¥365 /年</text>
-          </view>
-          <view class="learn-btn" @tap="onLearnDingma">
-            <text class="learn-btn-text">了解顶妈</text>
-            <text class="learn-btn-arrow">›</text>
-          </view>
-        </view>
       </view>
     </view>
 
@@ -131,16 +121,6 @@ function onBannerInfo() {
     content: '面向内容创作者的随身 AI 帮手，助你高效产出文案、脚本与话术。',
     showCancel: false,
     confirmText: '知道了'
-  })
-}
-
-function onLearnDingma() {
-  uni.showModal({
-    title: '了解顶妈',
-    content:
-      '顶妈团队将多年私域实战与新媒体经验沉淀为可复用的方法论，本产品提供 AI 创富工具与进阶经营能力。',
-    confirmText: '好的',
-    showCancel: false
   })
 }
 
@@ -262,56 +242,6 @@ $page-bg: #f4f6f8;
   font-weight: 700;
   font-style: italic;
   color: #fff;
-}
-
-.banner-bottom-row {
-  display: flex;
-  align-items: flex-end;
-  justify-content: space-between;
-  gap: 24rpx;
-}
-
-.promo-line {
-  display: block;
-  font-size: 22rpx;
-  color: rgba(255, 255, 255, 0.88);
-  margin-bottom: 6rpx;
-}
-
-.price-line {
-  display: block;
-  font-size: 48rpx;
-  font-weight: 700;
-  color: #fff;
-  letter-spacing: 0.02em;
-}
-
-.learn-btn {
-  flex-shrink: 0;
-  display: flex;
-  align-items: center;
-  gap: 4rpx;
-  padding: 16rpx 28rpx;
-  border-radius: 999rpx;
-  background: #fff;
-  box-shadow: 0 6rpx 24rpx rgba(0, 0, 0, 0.12);
-}
-
-.learn-btn:active {
-  opacity: 0.92;
-}
-
-.learn-btn-text {
-  font-size: 26rpx;
-  font-weight: 600;
-  color: #2563eb;
-}
-
-.learn-btn-arrow {
-  font-size: 28rpx;
-  font-weight: 600;
-  color: #2563eb;
-  line-height: 1;
 }
 
 .section {

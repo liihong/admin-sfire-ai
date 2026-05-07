@@ -1,36 +1,38 @@
 <template>
   <view class="page">
     <SafeAreaTop />
-    <view class="header">
-      <text class="slogan">今天你在做什么？来和顶顶妈的AI分身对话把~</text>
-    </view>
+   <scroll-view scroll-y class="list-wrap" :refresher-enabled="true" :refresher-triggered="refreshing"
+      @refresherrefresh="onRefresh">
+      <view class="hero">
+        <view class="hero-orb">
+          <image class="hero-logo" :src="entryListAvatarUrl" mode="aspectFill" />
+        </view>
+        <text class="hero-title">顶妈 AI</text>
+        <text class="hero-sub">您的私人创富助理</text>
+      </view>
 
-    <scroll-view scroll-y class="list-wrap" :refresher-enabled="true" :refresher-triggered="refreshing" @refresherrefresh="onRefresh">
       <view v-if="loading && entries.length === 0" class="state">加载中…</view>
-      <view v-else-if="!loading && entries.length === 0" class="state muted">暂无快捷指令</view>
+     <view v-else-if="!loading && entries.length === 0" class="state muted">暂无进阶能力，敬请期待</view>
       <view v-else class="list">
         <view
-          v-for="item in entries"
+v-for="(item, index) in entries"
           :key="item.id"
           class="card"
           @tap="onEntryTap(item)"
         >
-          <view class="icon-col">
-            <view class="icon-wrap">
-              <image class="icon-img" :src="entryListAvatarUrl" mode="aspectFill" />
-            </view>
+         <view class="icon-tile" :style="{ background: iconBg(item, index) }">
+            <SvgIcon :name="iconName(item)" :size="44" color="#FFFFFF" />
           </view>
           <view class="meta">
-            <view class="row-top">
+           <view class="row-title">
               <text class="card-title">{{ item.title }}</text>
-              <text v-if="item.tag !== 'none'" class="tag" :class="'tag--' + item.tag">{{ tagLabel(item.tag) }}</text>
+             <text v-if="item.tag !== 'none'" class="tag" :class="'tag--' + item.tag">{{
+                tagLabel(item.tag)
+              }}</text>
             </view>
-            <text v-if="item.subtitle" class="card-sub">{{ item.subtitle }}</text>
-            <view class="row-bottom">
-              <text class="type-pill">{{ actionLabel(item.action_type) }}</text>
-              <text v-if="item.agent_type_name" class="hint">{{ item.agent_type_name }}</text>
-            </view>
+           <text class="card-sub">{{ item.subtitle || defaultSubtitle(item) }}</text>
           </view>
+         <text class="chevron">›</text>
         </view>
       </view>
       <view class="bottom-gap" />
@@ -43,9 +45,13 @@ import { ref } from 'vue'
 import { onShow } from '@dcloudio/uni-app'
 import { getQuickEntries, type QuickEntry } from '@/api/quickEntry'
 import SafeAreaTop from '@/components/common/SafeAreaTop.vue'
+import SvgIcon from '@/components/base/SvgIcon.vue'
 import { DINGMA_AGENT_DEFAULT_AVATAR_URL } from '@/constants/tenant'
 
 const entryListAvatarUrl = DINGMA_AGENT_DEFAULT_AVATAR_URL
+
+/** 参考 KITTEN 类界面的图标强调色轮转（接口未下发 bg_color 时使用） */
+const ACCENT_FALLBACK = ['#22C55E', '#F97316', '#14B8A6', '#15803D', '#2563EB']
 
 const entries = ref<QuickEntry[]>([])
 const loading = ref(true)
@@ -57,14 +63,28 @@ function tagLabel(tag: QuickEntry['tag']) {
   return ''
 }
 
-function actionLabel(t: QuickEntry['action_type']) {
-  const m: Record<string, string> = {
-    agent: '智能体',
-    skill: '技能',
-    prompt: '提示词',
-    url: '链接'
+function iconName(item: QuickEntry) {
+  const raw = (item.icon_class || '').trim()
+  if (raw) return raw
+  return 'linggan'
+}
+
+function iconBg(item: QuickEntry, index: number) {
+  const c = (item.bg_color || '').trim()
+  if (c && /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(c)) return c
+  if (c && c.startsWith('rgb')) return c
+  return ACCENT_FALLBACK[index % ACCENT_FALLBACK.length]
+}
+
+function defaultSubtitle(item: QuickEntry) {
+  if (item.agent_type_name) return item.agent_type_name
+  const labels: Record<string, string> = {
+    agent: '对话智能体',
+    skill: '技能能力',
+    prompt: '一键复制提示词',
+    url: '打开关联页面'
   }
-  return m[t] || t
+  return labels[item.action_type] || '点击进入使用'
 }
 
 async function loadList() {
@@ -132,28 +152,58 @@ onShow(() => {
 
 .page {
   min-height: 100vh;
-  background: #f5f7fa;
+  background-color: #ffffff;
+    background-image: radial-gradient(circle, rgba(0, 0, 0, 0.06) 1rpx, transparent 1rpx);
+    background-size: 28rpx 28rpx;
   display: flex;
   flex-direction: column;
-}
-
-.header {
-  padding: 8rpx 32rpx 24rpx;
-  background: $white;
-  border-bottom: 1rpx solid #f0f0f0;
-}
-
-.slogan {
-  display: block;
-  font-size: 30rpx;
-  font-weight: 600;
-  color: #1d2129;
-  line-height: 1.55;
 }
 
 .list-wrap {
   flex: 1;
   height: 0;
+}
+
+.hero {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 24rpx 32rpx 40rpx;
+}
+
+.hero-orb {
+  width: 180rpx;
+  height: 180rpx;
+  border-radius: 50%;
+  background: linear-gradient(160deg, #1e3a5f 0%, #0f172a 55%, #020617 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow:
+    0 20rpx 56rpx rgba(15, 23, 42, 0.28),
+    inset 0 2rpx 0 rgba(255, 255, 255, 0.12);
+}
+
+.hero-logo {
+  width: 120rpx;
+  height: 120rpx;
+  border-radius: 50%;
+  display: block;
+}
+
+.hero-title {
+  margin-top: 28rpx;
+  font-size: 44rpx;
+  font-weight: 700;
+  color: #000000;
+  letter-spacing: 2rpx;
+}
+
+.hero-sub {
+  margin-top: 12rpx;
+  font-size: 28rpx;
+  color: #888888;
+  font-weight: 400;
 }
 
 .state {
@@ -168,41 +218,33 @@ onShow(() => {
 }
 
 .list {
-  padding: 24rpx;
+  padding: 0 32rpx;
 }
 
 .card {
   display: flex;
+  align-items: center;
   gap: 24rpx;
-  padding: 28rpx;
-  margin-bottom: 20rpx;
-  background: $white;
-  border-radius: 20rpx;
-  box-shadow: 0 4rpx 20rpx rgba(0, 0, 0, 0.06);
+  padding: 28rpx 24rpx;
+    margin-bottom: 24rpx;
+    background: #ffffff;
+    border-radius: 24rpx;
+    border: 1rpx solid rgba(0, 0, 0, 0.06);
+    box-shadow: 0 8rpx 32rpx rgba(15, 23, 42, 0.06);
 }
 
 .card:active {
   opacity: 0.92;
 }
 
-.icon-col {
+.icon-tile {
   flex-shrink: 0;
-}
-
-.icon-wrap {
-  width: 96rpx;
-  height: 96rpx;
-  border-radius: 20rpx;
-  overflow: hidden;
-  flex-shrink: 0;
-  background: #f5f5f5;
-  box-shadow: 0 2rpx 12rpx rgba(0, 0, 0, 0.06);
-}
-
-.icon-img {
-  width: 100%;
-  height: 100%;
-  display: block;
+  width: 100rpx;
+    height: 100rpx;
+    border-radius: 22rpx;
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
 
 .meta {
@@ -213,7 +255,7 @@ onShow(() => {
   gap: 10rpx;
 }
 
-.row-top {
+.row-title {
   display: flex;
   align-items: center;
   gap: 12rpx;
@@ -224,7 +266,8 @@ onShow(() => {
   min-width: 0;
   font-size: 32rpx;
   font-weight: 600;
-  color: #1d2129;
+  color: #000000;
+    line-height: 1.35;
 }
 
 .tag {
@@ -246,28 +289,21 @@ onShow(() => {
 
 .card-sub {
   font-size: 26rpx;
-  color: #86909c;
+  color: #888888;
   line-height: 1.45;
+  display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
 }
 
-.row-bottom {
-  display: flex;
-  align-items: center;
-  gap: 16rpx;
-  flex-wrap: wrap;
-}
-
-.type-pill {
-  font-size: 22rpx;
-  color: #f37021;
-  background: rgba(243, 112, 33, 0.12);
-  padding: 6rpx 16rpx;
-  border-radius: 999rpx;
-}
-
-.hint {
-  font-size: 22rpx;
+.chevron {
+  flex-shrink: 0;
+  font-size: 36rpx;
   color: #c9cdd4;
+  font-weight: 300;
+    line-height: 1;
+    padding-left: 8rpx;
 }
 
 .bottom-gap {

@@ -91,11 +91,7 @@ function handleFallback(fallbackUrl?: string): void {
     // 有指定的回退路径，则跳转
     if (fallbackUrl.startsWith('/pages/')) {
       // tabBar 页面使用 switchTab
-      const tabBarPages = [
-        '/pages/home/index',
-        '/pages/quick-entries/index',
-        '/pages/mine/index'
-      ]
+      const tabBarPages = ['/pages/quick-entries/index', '/pages/mine/index']
       if (tabBarPages.includes(fallbackUrl)) {
         uni.switchTab({ url: fallbackUrl })
       } else {
@@ -104,7 +100,7 @@ function handleFallback(fallbackUrl?: string): void {
     }
   } else {
     // 默认跳转到首页
-    uni.switchTab({ url: '/pages/home/index' })
+    uni.switchTab({ url: '/pages/quick-entries/index' })
   }
 }
 

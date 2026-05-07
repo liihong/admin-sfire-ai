@@ -53,6 +53,13 @@ class QuickEntry(BaseModel):
         Index("ix_quick_entries_priority", "priority"),
         Index("ix_quick_entries_tag", "tag"),
         Index("ix_quick_entries_tenant_unique_key", "tenant_id", "unique_key", unique=True),
+        Index(
+            "ix_quick_entries_tenant_type_status_priority",
+            "tenant_id",
+            "type",
+            "status",
+            "priority",
+        ),
         {"comment": "快捷入口配置表"},
     )
 

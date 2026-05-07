@@ -55,7 +55,7 @@ function handleSkip() {
     clearTimeout(fallbackTimer)
     fallbackTimer = null
   }
-  uni.switchTab({ url: '/pages/home/index' })
+  uni.switchTab({ url: '/pages/quick-entries/index' })
 }
 
 function updateSkipInset() {
@@ -69,7 +69,7 @@ function updateSkipInset() {
 }
 
 function goMainTab() {
-  uni.switchTab({ url: '/pages/home/index' })
+  uni.switchTab({ url: '/pages/quick-entries/index' })
 }
 
 onShow(() => {

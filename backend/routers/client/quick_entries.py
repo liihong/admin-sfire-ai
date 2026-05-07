@@ -4,11 +4,10 @@ Quick Entry Client Endpoints
 """
 from typing import Optional
 from fastapi import APIRouter, Depends, Query
-from sqlalchemy import select, asc, and_
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from db import get_db
-from models.quick_entry import QuickEntry, EntryType
+from models.quick_entry import EntryType
 from services.resource import QuickEntryService
 from utils.response import success
 from core.client_public_scope import resolve_optional_public_tenant_id
@@ -32,49 +31,17 @@ async def get_quick_entries(
     根据 agent_type 增加 agent_type_name 字段，显示数据字典对应的名称。
     """
     quick_entry_service = QuickEntryService(db)
-    
-    # 构建查询条件
-    conditions = []
-    
-    # 只返回启用的入口
-    conditions.append(QuickEntry.status == 1)
 
-    # 必须按租户隔离：未传 appid/tenant 时与主小程序一致，默认主租户
     effective_tenant_id = (
         scoped_tenant_id if scoped_tenant_id is not None else DEFAULT_TENANT_ID
     )
-    conditions.append(QuickEntry.tenant_id == effective_tenant_id)
-    
-    # 按类型筛选
-    if type:
-        type_enum = EntryType(type)
-        conditions.append(QuickEntry.type == type_enum)
-    
-    # 按 agent_type 筛选
-    if agent_type:
-        conditions.append(QuickEntry.agent_type == agent_type)
-    
-    # 查询数据（按 priority 排序）
-    query = select(QuickEntry)
-    if conditions:
-        query = query.where(and_(*conditions))
-    query = query.order_by(asc(QuickEntry.priority))
-    
-    result = await db.execute(query)
-    entries = result.scalars().all()
-    
-    # 查询 agent_type 对应的字典名称（sys_dict id=3）
-    agent_types = {e.agent_type for e in entries if e.agent_type}
-    agent_type_names = await quick_entry_service._get_agent_type_names(agent_types)
-    
-    # 格式化响应，附加 agent_type_name
-    entry_list = []
-    for entry in entries:
-        item = quick_entry_service._format_response(
-            entry,
-            agent_type_names.get(entry.agent_type) if entry.agent_type else None,
-        )
-        entry_list.append(item)
-    
-    return success(data={"entries": entry_list}, msg="获取成功")
 
+    entry_type_enum = EntryType(type) if type else None
+
+    entry_list = await quick_entry_service.list_public_enabled_entries(
+        effective_tenant_id,
+        entry_type=entry_type_enum,
+        agent_type=agent_type,
+    )
+
+    return success(data={"entries": entry_list}, msg="获取成功")

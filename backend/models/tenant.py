@@ -21,6 +21,7 @@ class Tenant(BaseModel):
     __table_args__ = (
         Index("ix_tenants_code", "code", unique=True),
         Index("ix_tenants_is_default", "is_default"),
+        Index("ix_tenants_wechat_app_id", "wechat_app_id"),
         {"comment": "租户表"},
     )
 

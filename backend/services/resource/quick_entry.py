@@ -54,6 +54,55 @@ class QuickEntryService(BaseService):
         )
         result = await self.db.execute(query)
         return {row[0]: row[1] for row in result.all()}
+
+    async def list_public_enabled_entries(
+        self,
+        effective_tenant_id: int,
+        *,
+        entry_type: Optional[EntryType] = None,
+        agent_type: Optional[str] = None,
+    ) -> List[dict]:
+        """
+        C 端列表：启用项 + 排序；一次查询 LEFT JOIN 字典标签，避免二次 round-trip。
+        """
+        conditions = [
+            QuickEntry.status == 1,
+            QuickEntry.tenant_id == effective_tenant_id,
+        ]
+        if entry_type is not None:
+            conditions.append(QuickEntry.type == entry_type)
+        if agent_type is not None:
+            conditions.append(QuickEntry.agent_type == agent_type)
+
+        # 每个 item_value 聚合成一行，避免 dict 表重复项导致 quick_entries 行膨胀
+        agent_label_sq = (
+            select(
+                DictionaryItem.item_value,
+                func.min(DictionaryItem.item_label).label("item_label"),
+            )
+            .where(
+                and_(
+                    DictionaryItem.dict_id == AGENT_TYPE_DICT_ID,
+                    DictionaryItem.is_enabled == True,
+                )
+            )
+            .group_by(DictionaryItem.item_value)
+            .subquery()
+        )
+        stmt = (
+            select(QuickEntry, agent_label_sq.c.item_label)
+            .outerjoin(
+                agent_label_sq,
+                QuickEntry.agent_type == agent_label_sq.c.item_value,
+            )
+            .where(and_(*conditions))
+            .order_by(asc(QuickEntry.priority))
+        )
+        result = await self.db.execute(stmt)
+        rows = result.all()
+        return [
+            self._format_response(entry, label) for entry, label in rows
+        ]
     
     def _format_response(self, entry: QuickEntry, agent_type_name: Optional[str] = None) -> dict:
         """格式化快捷入口响应，agent_type_name 为数据字典对应的名称"""

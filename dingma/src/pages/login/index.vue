@@ -20,10 +20,10 @@
     <view class="logo-section">
       <view class="logo-glass-wrapper">
         <view class="logo-gradient-ball">
-          <image class="logo" src="/static/logo.png" mode="aspectFit" />
+          <image class="logo" :src="entryListAvatarUrl" mode="aspectFit" />
         </view>
       </view>
-      <text class="app-name">dingma</text>
+      <text class="app-name">顶顶妈的AI分身</text>
       <view class="ai-tip-capsule">
         <view class="breathing-dot"></view>
         <text class="ai-tip-text">AI 驱动的智能创作平台</text>
@@ -77,6 +77,9 @@ import { useAuthStore } from '@/stores/auth'
 import { request } from '@/utils/request'
 import { wxLogin, getMiniProgramAppId } from '@/utils/wechat'
 import SvgIcon from '@/components/base/SvgIcon.vue'
+import { DINGMA_AGENT_DEFAULT_AVATAR_URL } from '@/constants/tenant'
+
+const entryListAvatarUrl = DINGMA_AGENT_DEFAULT_AVATAR_URL
 
 const authStore = useAuthStore()
 
@@ -234,7 +237,7 @@ const handleGetPhoneNumber = async (e: any) => {
           })
         } else {
           uni.switchTab({
-            url: '/pages/home/index'
+            url: '/pages/quick-entries/index'
           })
         }
       }, 1500)
@@ -307,7 +310,7 @@ const handleSkipLogin = () => {
           })
 
           uni.switchTab({
-            url: '/pages/home/index'
+            url: '/pages/quick-entries/index'
           })
         }
       }
@@ -451,6 +454,7 @@ $wechat-green: #07C160;
 .logo {
   width: 100%;
   height: 100%;
+  border-radius: 50%;
 }
 
 .app-name {

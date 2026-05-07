@@ -267,7 +267,7 @@ const openPrivacyPolicy = () => {
  * 关闭小程序
  */
 const handleCloseMiniProgram = () => {
-  exitMiniProgram('/pages/home/index')
+  exitMiniProgram('/pages/quick-entries/index')
 }
 
 /**
