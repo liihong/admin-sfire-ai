@@ -15,17 +15,17 @@
             >
               <image
                 class="avatar-img"
-:src="userInfo.avatar || assistantAvatarUrl"
+:src="userInfo.avatar || defaultProfileAvatarUrl"
                 mode="aspectFill"
               />
             </button>
             <view v-else class="avatar-btn avatar-btn-static" @tap="goToLogin">
-              <image class="avatar-img" src="/static/default-avatar.png" mode="aspectFill" />
+              <image class="avatar-img" :src="defaultProfileAvatarUrl" mode="aspectFill" />
             </view>
             <!-- #endif -->
             <!-- #ifndef MP-WEIXIN -->
             <view class="avatar-btn avatar-btn-static">
-              <image class="avatar-img" :src="userInfo.avatar || '/static/default-avatar.png'" mode="aspectFill" />
+              <image class="avatar-img" :src="userInfo.avatar || defaultProfileAvatarUrl" mode="aspectFill" />
             </view>
             <!-- #endif -->
           </view>
@@ -70,7 +70,7 @@
 
     <view class="module-body">
       <!-- 合伙人计划 -->
-      <view v-if="authStore.isLoggedIn" class="module-partner-banner" @tap="goToReferral">
+      <!-- <view v-if="authStore.isLoggedIn" class="module-partner-banner" @tap="goToReferral">
         <view class="partner-icon-wrap">
           <text class="partner-emoji">🏆</text>
         </view>
@@ -81,7 +81,7 @@
         <view class="partner-cta">
           <text class="partner-cta-text">去赚钱</text>
         </view>
-      </view>
+      </view> -->
 
       <!-- 开通会员 -->
       <view v-if="authStore.isLoggedIn && userInfo.level_code === 'normal'" class="module-upgrade-banner" @tap="goToMembership">
@@ -128,13 +128,13 @@ import { updateUserInfo, uploadAvatar } from '@/api/user'
 import { getCoinStatistics, type CoinStatisticsData } from '@/api/coin'
 import { useAuthStore } from '@/stores/auth'
 import SvgIcon from '@/components/base/SvgIcon.vue'
-import { DINGMA_AGENT_DEFAULT_AVATAR_URL } from '@/constants/tenant'
+import { DINGMA_DEFAULT_PROFILE_AVATAR_URL } from '@/constants/tenant'
 
 const authStore = useAuthStore()
 
 const coinStats = ref<CoinStatisticsData | null>(null)
 
-const assistantAvatarUrl = DINGMA_AGENT_DEFAULT_AVATAR_URL
+const defaultProfileAvatarUrl = DINGMA_DEFAULT_PROFILE_AVATAR_URL
 
 const noop = () => {}
 
@@ -229,6 +229,15 @@ const shareEarningDisplay = computed(() => {
 })
 
 const allMenuList = [
+  {
+    id: 'creation-records',
+    name: '我的创作记录',
+    desc: '查看您的历史创作记录',
+    icon: 'works',
+    iconBg: '#7C3AED',
+    path: '/pages/mine/creation-records/index',
+    requiresLogin: true
+  },
   {
     id: 'referral',
     name: '我要推荐',

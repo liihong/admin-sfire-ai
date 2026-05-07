@@ -165,7 +165,7 @@ async function fetchArticleDetail() {
 function goBack() {
   uni.navigateBack({
     fail: () => {
-      uni.switchTab({ url: '/pages/quick-entries/index' })
+      uni.switchTab({ url: '/pages/home/index' })
     }
   })
 }
@@ -175,7 +175,7 @@ onShareAppMessage(() => {
   if (!article.value) {
     return {
       title: '火源灵感火花 - AI驱动的智能创作平台',
-      path: '/pages/quick-entries/index',
+      path: '/pages/home/index',
       imageUrl: '/static/logo.png'
     }
   }

@@ -42,72 +42,29 @@
         </view>
       </view>
 
-    <!-- 选择会员套餐区 - 横向滚动 -->
+    <!-- 会员套餐 -->
       <view class="section-container">
         <view class="section-header">
-         <text class="section-title">选择会员套餐</text>
+         <text class="section-title">会员套餐</text>
         </view>
-       <scroll-view scroll-x class="package-scroll" show-scrollbar="false">
-          <view class="package-list">
-            <!-- 月卡会员 -->
-            <view class="package-card selected">
-              <view class="package-header">
-               <view class="package-name-wrapper">
-                  <text class="package-name">月卡会员</text>
-                </view>
-               <view class="limit-badge">限时优惠</view>
+       <view class="package-single">
+          <view class="package-card selected popular">
+            <view class="popular-tag">限时优惠</view>
+            <view class="package-header">
+              <view class="package-name-wrapper">
+               <text class="package-name">顶妈会员年卡</text>
               </view>
-              <view class="package-price-row">
-                <view class="package-price">
-                  <text class="price-symbol">¥</text>
-                  <text class="price-value">199</text>
-                </view>
-                <text class="price-original">原价¥299</text>
+           </view>
+            <view class="package-price-row">
+              <view class="package-price">
+                <text class="price-symbol">¥</text>
+               <text class="price-value">365</text>
+                <text class="price-unit">/年</text>
               </view>
-              <text class="package-desc">限时优惠，每个用户仅限一次</text>
+             <text class="price-original">原价¥599</text>
             </view>
-
-            <!-- VIP年卡会员 -->
-            <view class="package-card selected popular" @tap="selectPackage('vip')">
-              <view class="popular-tag">推荐</view>
-              <view class="package-header">
-                <view class="package-name-wrapper">
-                  <text class="package-name">VIP年卡会员</text>
-                </view>
-              </view>
-              <view class="package-price-row">
-                <view class="package-price">
-                  <text class="price-symbol">¥</text>
-                  <text class="price-value">1980</text>
-                </view>
-              </view>
-              <text class="package-desc">可解锁1个IP席位，享受全部VIP特权</text>
-
-            </view>
-
-            <!-- SVIP超级会员 -->
-            <view class="package-card selected premium" @tap="selectPackage('svip')">
-              <view class="premium-tag">超值</view>
-              <view class="package-header">
-                <view class="package-name-wrapper">
-                  <text class="package-name">SVIP超级会员</text>
-                </view>
-              </view>
-              <view class="package-price-row">
-               <view class="package-price">
-                  <text class="price-symbol">¥</text>
-                  <text class="price-value">3980</text>
-                </view>
-             </view>
-             <text class="package-desc">可解锁5个IP席位，享受全部SVIP特权</text>
-
-            </view>
+           <text class="package-desc">全年畅享会员权益，具体以开通说明为准</text>
           </view>
-       </scroll-view>
-
-      <!-- 更多席位提示 -->
-        <view class="more-seats-tip">
-          <text class="tip-text">如需更多席位，请联系管理员</text>
         </view>
       </view>
 
@@ -122,7 +79,7 @@
               mode="aspectFit" />
           </view>
          <text class="qr-hint">扫一扫上面的二维码图案，加我为朋友</text>
-          <text class="qr-action">长按二维码添加隔壁老陈导师微信</text>
+         <text class="qr-action">长按二维码添加顶妈微信</text>
        </view>
       </view>
 
@@ -138,17 +95,6 @@ import BaseHeader from '@/components/base/BaseHeader.vue'
 // 返回上一页
 const goBack = () => {
   uni.navigateBack()
-}
-
-// 选中的套餐类型
-type PackageType = 'monthly' | 'vip' | 'svip' | null
-
-// 选中的套餐
-const selectedPackage = ref<PackageType>('vip')
-
-// 选择套餐
-const selectPackage = (type: PackageType) => {
-  selectedPackage.value = type
 }
 
 // 会员权益列表
@@ -322,37 +268,26 @@ const benefitsList = ref([
   overflow-wrap: break-word;
 }
 
-.package-scroll {
-  white-space: nowrap;
+.package-single {
   width: 100%;
-}
-
-.package-list {
-  display: inline-flex;
-  gap: 20rpx;
-  padding: 4rpx 0;
 }
 
 .package-card {
   position: relative;
-  display: inline-block;
-    width: 320rpx;
+  display: block;
+    width: 100%;
+    box-sizing: border-box;
   padding: 40rpx 32rpx;
   background: $white;
-    border-radius: $radius-md;
+  border-radius: $radius-md;
     border: 2rpx solid $border-color;
     box-shadow: $shadow-sm;
-    vertical-align: top;
   &.selected {
     border-color: $primary-orange;
-    }
+  
 
-                &.popular {
-                  border-color: rgba(243, 112, 33, 0.3);
-                }
-
-                &.premium {
-                  border-color: rgba(139, 92, 246, 0.3);
+    &.popular {
+    border-color: rgba(243, 112, 33, 0.35);
   }
 }
 
@@ -387,18 +322,6 @@ const benefitsList = ref([
     font-weight: 600;
   }
   
-  .premium-tag {
-    position: absolute;
-    top: -12rpx;
-    right: 24rpx;
-    padding: 6rpx 20rpx;
-    background: #8B5CF6;
-    border-radius: 999rpx;
-    font-size: 20rpx;
-    color: $white;
-    font-weight: 600;
-}
-
 .limit-badge {
   position: absolute;
   top: -12rpx;
@@ -407,7 +330,7 @@ const benefitsList = ref([
   background: #EF4444;
   border-radius: 999rpx;
   font-size: 20rpx;
-    color: $white;
+  color: $white;
   font-weight: 600;
 }
 
@@ -432,11 +355,17 @@ const benefitsList = ref([
 
 .price-value {
   font-size: 56rpx;
-    color: $primary-orange;
+  color: $primary-orange;
     font-weight: 700;
   }
-  
-  .price-original {
+.price-unit {
+  font-size: 28rpx;
+  color: $primary-orange;
+  font-weight: 600;
+  align-self: baseline;
+}
+
+.price-original {
     font-size: 24rpx;
     color: $text-second;
     text-decoration: line-through;
@@ -471,18 +400,6 @@ const benefitsList = ref([
   font-weight: 700;
 }
 
-.more-seats-tip {
-  margin-top: 24rpx;
-  padding: 20rpx;
-  background: rgba(243, 112, 33, 0.05);
-  border-radius: $radius-sm;
-  border-left: 4rpx solid $primary-orange;
-}
-
-.tip-text {
-  font-size: 24rpx;
-  color: $text-second;
-}
 .qr-card {
   padding: 40rpx;
   background: $white;

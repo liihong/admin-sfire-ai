@@ -155,6 +155,20 @@
       ]
     },
     {
+      "root": "pages/mine/creation-records",
+      "name": "mine-creation-records",
+      "pages": [
+        {
+          "path": "index",
+          "style": {
+            "navigationBarTitleText": "我的创作记录",
+            "enablePullDownRefresh": false,
+            "backgroundTextStyle": "dark"
+          }
+        }
+      ]
+    },
+    {
       "root": "pages/mine/membership",
       "name": "mine-membership",
       "pages": [
@@ -197,13 +211,20 @@
     }
   ],
   "preloadRule": {
-    "pages/quick-entries/index": {
+    "pages/home/index": {
       "network": "all",
       "packages": ["common", "aichat"]
     },
     "pages/mine/index": {
       "network": "all",
-      "packages": ["mine-power", "mine-referral", "mine-contact", "mine-membership", "auth-login"]
+      "packages": [
+        "mine-power",
+        "mine-referral",
+        "mine-contact",
+        "mine-creation-records",
+        "mine-membership",
+        "auth-login"
+      ]
     }
   },
   "globalStyle": {
@@ -219,10 +240,10 @@
     "borderStyle": "white",
     "list": [
       {
-        "pagePath": "pages/quick-entries/index",
+        "pagePath": "pages/home/index",
         "text": "首页",
-        "iconPath": "static/tab/home.png",
-        "selectedIconPath": "static/tab/home-active.png"
+        "iconPath": "static/tab/sfire.png",
+        "selectedIconPath": "static/tab/sfire-active.png"
       },
       {
         "pagePath": "pages/mine/index",

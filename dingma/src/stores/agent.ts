@@ -26,6 +26,8 @@ export interface ActiveAgent {
   name: string
   icon?: string
   description?: string
+  /** 对话页首条助手气泡；与接口 welcomeMessage 对齐 */
+  welcomeMessage?: string
 }
 
 // ============== Storage Key ==============
@@ -85,16 +87,25 @@ export const useAgentStore = defineStore('agent', () => {
    * @param forceRefresh 是否强制刷新（忽略缓存），默认 false
    */
   async function setActiveAgentById(agentId: string, forceRefresh: boolean = false) {
-    // 如果已经是当前激活的智能体，直接返回
-    if (activeAgent.value?.id === agentId && !forceRefresh) {
+    // 已是当前智能体且已有 welcomeMessage 字段（含空字符串）时跳过请求
+    if (
+      activeAgent.value?.id === agentId &&
+      !forceRefresh &&
+      activeAgent.value &&
+      Object.prototype.hasOwnProperty.call(activeAgent.value, 'welcomeMessage')
+    ) {
       return
     }
 
     // 如果不是强制刷新，先检查 storage 中是否已经有该智能体的信息
     if (!forceRefresh) {
       const stored = getActiveAgentFromStorage()
-      if (stored && stored.id === agentId) {
-        // storage 中已有该智能体信息，直接使用，不需要请求 API
+      // 旧版本缓存无 welcomeMessage 字段，需重新拉取列表以展示欢迎语等
+      if (
+        stored &&
+        stored.id === agentId &&
+        Object.prototype.hasOwnProperty.call(stored, 'welcomeMessage')
+      ) {
         activeAgent.value = stored
         return
       }
@@ -116,7 +127,8 @@ export const useAgentStore = defineStore('agent', () => {
             label: agent.name,
             name: agent.name,
             icon: agent.icon,
-            description: agent.description
+            description: agent.description,
+            welcomeMessage: agent.welcomeMessage
           }
           activeAgent.value = agentInfo
           saveActiveAgentToStorage(agentInfo)
@@ -127,7 +139,8 @@ export const useAgentStore = defineStore('agent', () => {
             label: '智能体',
             name: '智能体',
             icon: '',
-            description: ''
+            description: '',
+            welcomeMessage: undefined
           }
           activeAgent.value = agentInfo
           saveActiveAgentToStorage(agentInfo)
@@ -139,7 +152,8 @@ export const useAgentStore = defineStore('agent', () => {
           label: '智能体',
           name: '智能体',
           icon: '',
-          description: ''
+          description: '',
+          welcomeMessage: undefined
         }
         activeAgent.value = agentInfo
         saveActiveAgentToStorage(agentInfo)
@@ -151,7 +165,8 @@ export const useAgentStore = defineStore('agent', () => {
         label: '智能体',
         name: '智能体',
         icon: '',
-        description: ''
+        description: '',
+        welcomeMessage: undefined
       }
       activeAgent.value = agentInfo
       saveActiveAgentToStorage(agentInfo)
@@ -167,7 +182,14 @@ export const useAgentStore = defineStore('agent', () => {
    * @param agent 智能体信息（至少包含 id 和 name）
    */
   function setActiveAgent(
-    agent: { id: string; name: string; label?: string; icon?: string; description?: string },
+    agent: {
+      id: string
+      name: string
+      label?: string
+      icon?: string
+      description?: string
+      welcomeMessage?: string
+    },
     options?: { persist?: boolean }
   ) {
     const agentInfo: ActiveAgent = {
@@ -175,7 +197,8 @@ export const useAgentStore = defineStore('agent', () => {
       label: agent.label ?? agent.name,
       name: agent.name,
       icon: agent.icon,
-      description: agent.description
+      description: agent.description,
+      welcomeMessage: agent.welcomeMessage
     }
     activeAgent.value = agentInfo
     if (options?.persist !== false) {

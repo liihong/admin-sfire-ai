@@ -35,7 +35,7 @@
           </view>
           <view class="message-bubble assistant-bubble">
             <text class="bubble-text">{{ msg.content }}</text>
-            <view class="bubble-actions">
+            <view v-if="shouldShowAssistantCopy(msg, idx)" class="bubble-actions">
               <view class="action-item" @tap="copyMessage(msg.content)">
                 <SvgIcon name="edit" size="24" color="#999" />
                 <text class="action-label">复制</text>
@@ -129,6 +129,8 @@ interface ChatMessage {
   role: 'user' | 'assistant' | 'system_hint' | 'membership_hint'
   content: string
   timestamp: number
+  /** 为 true 时不展示复制（如首条欢迎语） */
+  hideCopy?: boolean
 }
 
 const chatHistory = reactive<ChatMessage[]>([])
@@ -153,10 +155,21 @@ const inputPlaceholder = computed(() => {
   return '向智能体发送消息...'
 })
 
+/** 欢迎语或未序列化到端的 hideCopy 时仍隐藏复制（小程序等对 v-for 项自定义字段绑定可能不完整） */
+function shouldShowAssistantCopy(msg: ChatMessage, index: number): boolean {
+  if (msg.role !== 'assistant') return true
+  if (msg.hideCopy === true) return false
+  const welcome = agentStore.activeAgent?.welcomeMessage?.trim()
+  if (!welcome) return true
+  const firstAssistantIdx = chatHistory.findIndex((m) => m.role === 'assistant')
+  if (firstAssistantIdx !== index) return true
+  return msg.content.trim() !== welcome
+}
+
 function goBack() {
   uni.navigateBack({
     fail: () => {
-      uni.switchTab({ url: '/pages/quick-entries/index' })
+      uni.switchTab({ url: '/pages/home/index' })
     }
   })
 }
@@ -419,6 +432,19 @@ interface PageOptions {
   [key: string]: any
 }
 
+function appendWelcomeBubbleIfEmpty() {
+  if (chatHistory.length > 0) return
+  const welcome = agentStore.activeAgent?.welcomeMessage?.trim()
+  if (!welcome) return
+  chatHistory.push({
+    role: 'assistant',
+    content: welcome,
+    timestamp: Date.now(),
+    hideCopy: true,
+  })
+  nextTick(() => scrollToBottom())
+}
+
 async function loadConversationHistory(convId: number) {
   try {
     const detail = await getConversationDetail(convId)
@@ -446,6 +472,7 @@ async function loadConversationHistory(convId: number) {
         scrollToBottom()
       })
     }
+    appendWelcomeBubbleIfEmpty()
   } catch (error) {
     console.error('加载历史对话失败:', error)
     uni.showToast({
@@ -467,24 +494,19 @@ onLoad(async (options?: PageOptions) => {
   }
 
   if (options?.agentId) {
-    let label = '智能体'
+    let labelFromUrl = ''
     if (options.label) {
       try {
-        label = decodeURIComponent(String(options.label))
+        labelFromUrl = decodeURIComponent(String(options.label))
       } catch {
-        label = String(options.label)
+        labelFromUrl = String(options.label)
       }
     }
-    agentStore.setActiveAgent(
-      {
-        id: String(options.agentId),
-        name: label,
-        label,
-        icon: DINGMA_AGENT_DEFAULT_AVATAR_URL,
-        description: ''
-      },
-      { persist: true }
-    )
+    await agentStore.setActiveAgentById(String(options.agentId))
+    if (labelFromUrl && agentStore.activeAgent) {
+      const cur = agentStore.activeAgent
+      agentStore.setActiveAgent({ ...cur, label: labelFromUrl }, { persist: true })
+    }
   } else {
     if (!agentStore.activeAgent) {
       agentStore.loadActiveAgentFromStorage()
@@ -495,12 +517,16 @@ onLoad(async (options?: PageOptions) => {
         icon: 'none'
       })
       setTimeout(() => goBack(), 1500)
+    } else if (agentStore.getActiveAgentId) {
+      await agentStore.setActiveAgentById(agentStore.getActiveAgentId)
     }
   }
 
   if (options?.content) {
     inputText.value = decodeURIComponent(options.content)
   }
+
+  appendWelcomeBubbleIfEmpty()
 })
 
 const onKeyboardHeightChange = (res: { height: number }) => {

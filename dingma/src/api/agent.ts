@@ -12,6 +12,8 @@ export interface Agent {
   name: string
   icon: string
   description: string
+  /** 欢迎语（后台配置；空则前端不展示欢迎气泡） */
+  welcomeMessage?: string
 }
 
 /**

@@ -15,6 +15,9 @@ export const STORAGE_DINGMA_SPLASH_ZOOM_PLAYED = 'dingma_splash_zoom_played'
 /** 对话页智能体（顶顶妈分身）默认头像 */
 export const DINGMA_AGENT_DEFAULT_AVATAR_URL = 'https://oss.sourcefire.cn/dingma/dingmalogo.jpg'
 
+/** 「我的」页未登录 / 无头像时的默认展示（顶妈品牌） */
+export const DINGMA_DEFAULT_PROFILE_AVATAR_URL = DINGMA_AGENT_DEFAULT_AVATAR_URL
+
 /** 微信小程序 AppID（与 manifest mp-weixin.appid 一致，勿带首尾空格） */
 export const DINGMA_WECHAT_APP_ID = 'wx22d311d2ee7c7ae6'
 
