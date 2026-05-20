@@ -22,7 +22,7 @@ if (type) params.push(`type=${encodeURIComponent(type)}`)
 const query = params.join('&')
 ```
 
-**已修复文件**：`src/api/quickEntry.ts`、`src/api/conversation.ts`（使用 data 对象，由 request 工具转换）
+**已修复文件**：`src/api/quickEntry.ts`、`src/api/conversation.ts`（使用 data 对象，由 request 工具转换）、`src/api/user.ts`（`uploadAvatar` 上传头像）
 
 ### 2. atob / btoa
 

@@ -244,13 +244,14 @@ export function uploadAvatar(filePath: string): Promise<UploadAvatarResponse> {
       return
     }
 
-    // 构建完整 URL
+    // 构建完整 URL（小程序环境不支持 URLSearchParams）
     const BASE_URL = __API_BASE_URL__
-    const qs = new URLSearchParams({
-      tenant_id: DINGMA_PUBLIC_TENANT_SCOPE.tenant_id,
-      appid: DINGMA_PUBLIC_TENANT_SCOPE.appid,
-    })
-    const url = `${BASE_URL}/api/v1/client/upload/avatar?${qs.toString()}`
+    const { tenant_id, appid } = DINGMA_PUBLIC_TENANT_SCOPE
+    const query = [
+      `tenant_id=${encodeURIComponent(tenant_id)}`,
+      `appid=${encodeURIComponent(appid)}`,
+    ].join('&')
+    const url = `${BASE_URL}/api/v1/client/upload/avatar?${query}`
 
     // 显示上传进度
     uni.showLoading({

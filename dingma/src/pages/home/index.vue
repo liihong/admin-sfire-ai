@@ -58,11 +58,10 @@ v-for="(vm, idx) in tools" :key="vm.raw.id ?? idx"
 import { ref, computed, onMounted } from 'vue'
 import { onShow } from '@dcloudio/uni-app'
 import { getQuickEntries, type QuickEntry } from '@/api/quickEntry'
-import { DINGMA_HOME_BANNER_URL } from '@/constants/tenant'
 import { useSafeArea } from '@/composables/useSafeArea'
 import SvgIcon from '@/components/base/SvgIcon.vue'
 
-const bannerUrl = DINGMA_HOME_BANNER_URL
+const bannerUrl = 'https://sfire-ai.oss-cn-beijing.aliyuncs.com/dingma/class.jpg'
 
 /** 背景图置顶对齐（aspectFill 默认居中裁剪） */
 const bannerWrapStyle = computed(() => ({

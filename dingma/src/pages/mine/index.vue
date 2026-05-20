@@ -1,62 +1,33 @@
 <template>
   <view class="page-mine">
-    <!-- 顶部渐变 + 个人信息 -->
-    <view class="module-header">
-      <view class="header-gradient" />
-      <view class="header-inner">
-        <view class="profile-row">
-          <view class="avatar-side">
-            <!-- #ifdef MP-WEIXIN -->
-            <button
-              v-if="authStore.isLoggedIn"
-              class="avatar-btn"
-              open-type="chooseAvatar"
-              @chooseavatar="handleChooseAvatar"
-            >
-              <image
-                class="avatar-img"
-:src="userInfo.avatar || defaultProfileAvatarUrl"
-                mode="aspectFill"
-              />
-            </button>
-            <view v-else class="avatar-btn avatar-btn-static" @tap="goToLogin">
-              <image class="avatar-img" :src="defaultProfileAvatarUrl" mode="aspectFill" />
+    <view class="page-content">
+      <!-- 顶妈脑爆年卡 -->
+      <view class="vip-annual-card" @tap="goToMembership">
+        <view class="vip-card-top">
+          <view class="vip-title-row">
+            <view class="vip-crown-box">
+              <text class="vip-crown">👑</text>
             </view>
-            <!-- #endif -->
-            <!-- #ifndef MP-WEIXIN -->
-            <view class="avatar-btn avatar-btn-static">
-              <image class="avatar-img" :src="userInfo.avatar || defaultProfileAvatarUrl" mode="aspectFill" />
-            </view>
-            <!-- #endif -->
+            <text class="vip-title">{{ vipCardTitle }}</text>
           </view>
-
-          <view class="profile-text">
-            <view v-if="!authStore.isLoggedIn" class="login-line">
-              <text class="nickname" @tap="goToLogin">点击登录</text>
-              <text class="sub-muted">登录后查看学员信息与算力</text>
-            </view>
-            <template v-else>
-              <text class="nickname">{{ displayName }}</text>
-              <view class="badge-row">
-                <view class="vip-pill" v-if="showVipBadge">
-                  <text class="vip-pill-icon">★</text>
-                  <text class="vip-pill-text">{{ vipBadgeText }}</text>
-                </view>
-                <text class="user-id" v-if="displayUserId">ID: {{ displayUserId }}</text>
-              </view>
-            </template>
+          <view class="vip-pass-badge">
+            <text class="vip-pass-text">VIP PASS</text>
           </view>
         </view>
+        <text class="vip-desc">{{ vipCardDesc }}</text>
+        <text class="vip-cta">{{ vipCardCta }} ›</text>
+      </view>
 
-        <!-- 三列数据 -->
-        <view class="stats-card">
+      <!-- 三列数据（未登录模糊 + 登录解锁） -->
+      <view class="stats-wrap">
+        <view class="stats-card" :class="{ 'stats-card--locked': !authStore.isLoggedIn }">
           <view class="stat-col" @tap.stop="noop">
-            <text class="stat-value stat-value-dark">{{ aiCallDisplay }}</text>
+            <text class="stat-value">{{ aiCallDisplay }}</text>
             <text class="stat-label">调用 AI（次）</text>
           </view>
           <view class="stat-divider" />
           <view class="stat-col tap" @tap="goToPowerCenter">
-            <text class="stat-value stat-value-dark">{{ powerDisplay }}</text>
+            <text class="stat-value">{{ powerDisplay }}</text>
             <text class="stat-label">剩余算力</text>
           </view>
           <view class="stat-divider" />
@@ -65,44 +36,18 @@
             <text class="stat-label">分享收益</text>
           </view>
         </view>
-      </view>
-    </view>
-
-    <view class="module-body">
-      <!-- 合伙人计划 -->
-      <!-- <view v-if="authStore.isLoggedIn" class="module-partner-banner" @tap="goToReferral">
-        <view class="partner-icon-wrap">
-          <text class="partner-emoji">🏆</text>
-        </view>
-        <view class="partner-copy">
-          <text class="partner-title">合伙人计划</text>
-          <text class="partner-sub">推荐学员享 20% 实时返佣</text>
-        </view>
-        <view class="partner-cta">
-          <text class="partner-cta-text">去赚钱</text>
-        </view>
-      </view> -->
-
-      <!-- 开通会员 -->
-      <view v-if="authStore.isLoggedIn && userInfo.level_code === 'normal'" class="module-upgrade-banner" @tap="goToMembership">
-        <view class="partner-icon-wrap upgrade-icon-wrap">
-          <SvgIcon name="suanli" size="36" color="#FBBF24" />
-        </view>
-        <view class="partner-copy">
-          <text class="partner-title upgrade-title-white">开通会员</text>
-          <text class="partner-sub upgrade-sub-grey">解锁更多 AI 能力与算力优待</text>
-        </view>
-        <view class="partner-cta upgrade-cta-orange">
-          <text class="partner-cta-text upgrade-cta-text-dark">立即开通</text>
+        <view v-if="!authStore.isLoggedIn" class="stats-login-mask">
+          <view class="stats-login-btn" @tap.stop="goToLogin">登录解锁数据</view>
         </view>
       </view>
 
-      <!-- 菜单：每项独立白卡片，仅样式调整，功能不变 -->
-      <view class="module-menus">
+      <!-- 菜单：单卡片分组 -->
+      <view class="menu-group-card">
         <view
           v-for="(item, index) in menuList"
-          :key="index"
-          class="menu-card"
+          :key="item.id"
+          class="menu-row"
+          :class="{ 'menu-row--last': index === menuList.length - 1 }"
           @tap="handleMenuClick(item)"
         >
           <view class="menu-left">
@@ -124,17 +69,13 @@
 <script setup lang="ts">
 import { computed, ref, onMounted } from 'vue'
 import { onShow, onPullDownRefresh } from '@dcloudio/uni-app'
-import { updateUserInfo, uploadAvatar } from '@/api/user'
 import { getCoinStatistics, type CoinStatisticsData } from '@/api/coin'
 import { useAuthStore } from '@/stores/auth'
 import SvgIcon from '@/components/base/SvgIcon.vue'
-import { DINGMA_DEFAULT_PROFILE_AVATAR_URL } from '@/constants/tenant'
 
 const authStore = useAuthStore()
 
 const coinStats = ref<CoinStatisticsData | null>(null)
-
-const defaultProfileAvatarUrl = DINGMA_DEFAULT_PROFILE_AVATAR_URL
 
 const noop = () => {}
 
@@ -142,61 +83,39 @@ const userInfo = computed(() => {
   const storeUserInfo = authStore.userInfo
   if (!storeUserInfo) {
     return {
-      avatar: '',
-      avatarUrl: '',
-      phone: '',
-      nickname: '',
-      expireDate: '',
-      vip_expire_date: '',
       power: '0',
-      balance: '0.00',
-      partnerBalance: '0.00',
       partner_balance: '0.00',
-      partnerStatus: '普通用户',
-      partner_status: '普通用户',
+      partnerBalance: '0.00',
       level_code: 'normal',
-      level_name: '普通用户',
-      user_id: undefined as number | undefined
+      level_name: '普通用户'
     }
   }
 
   return {
-    avatar: storeUserInfo.avatar || storeUserInfo.avatarUrl || '',
-    avatarUrl: storeUserInfo.avatarUrl || storeUserInfo.avatar || '',
-    phone: storeUserInfo.phone || '',
-    nickname: storeUserInfo.nickname || '',
-    expireDate: storeUserInfo.expireDate || storeUserInfo.vip_expire_date || '',
-    vip_expire_date: storeUserInfo.vip_expire_date || storeUserInfo.expireDate || '',
     power: storeUserInfo.power || '0',
     balance: storeUserInfo.partnerBalance || storeUserInfo.partner_balance || '0.00',
     partnerBalance: storeUserInfo.partnerBalance || storeUserInfo.partner_balance || '0.00',
     partner_balance: storeUserInfo.partner_balance || storeUserInfo.partnerBalance || '0.00',
-    partnerStatus: storeUserInfo.partnerStatus || storeUserInfo.partner_status || '普通用户',
-    partner_status: storeUserInfo.partner_status || storeUserInfo.partnerStatus || '普通用户',
     level_code: storeUserInfo.level_code || 'normal',
-    level_name: storeUserInfo.level_name || '普通用户',
-    user_id: storeUserInfo.user_id
+    level_name: storeUserInfo.level_name || '普通用户'
   }
 })
 
-const displayName = computed(() => {
-  const n = userInfo.value.nickname?.trim()
-  if (n) return n
-  return '顶妈学员'
-})
+const isVipMember = computed(
+  () => authStore.isLoggedIn && userInfo.value.level_code !== 'normal'
+)
 
-const displayUserId = computed(() => {
-  const id = userInfo.value.user_id
-  return id !== undefined && id !== null ? String(id) : ''
-})
+const vipCardTitle = computed(() =>
+  isVipMember.value ? '顶妈脑爆年卡 · 尊享特权生效中' : '顶妈脑爆年卡 · 开通尊享特权'
+)
 
-const showVipBadge = computed(() => authStore.isLoggedIn && userInfo.value.level_code !== 'normal')
+const vipCardDesc = computed(() =>
+  isVipMember.value
+    ? `当前身份：${userInfo.value.level_name || 'VIP 学员'}，畅享爆单文案与创业导师`
+    : '每天只需1元钱，全自动解锁爆单文案与创业导师帮你思考'
+)
 
-const vipBadgeText = computed(() => {
-  const name = userInfo.value.level_name?.trim()
-  if (name && name !== '普通用户') return name
-  return 'VIP 学员'
-})
+const vipCardCta = computed(() => (isVipMember.value ? '查看会员权益' : '立即去开通'))
 
 const formatNumberInt = (num: string | number): string => {
   const numStr = String(num ?? '0').split('.')[0]
@@ -212,19 +131,21 @@ const formatMoneyYuan = (s: string | number): string => {
   return `¥ ${decPart !== undefined ? `${withSep}.${decPart}` : withSep}`
 }
 
+const lockedPlaceholder = '---'
+
 const aiCallDisplay = computed(() => {
-  if (!authStore.isLoggedIn) return '—'
+  if (!authStore.isLoggedIn) return lockedPlaceholder
   const v = coinStats.value?.totalContent
-  return v !== undefined && v !== null ? formatNumberInt(v) : '—'
+  return v !== undefined && v !== null ? formatNumberInt(v) : '0'
 })
 
 const powerDisplay = computed(() => {
-  if (!authStore.isLoggedIn) return '—'
+  if (!authStore.isLoggedIn) return lockedPlaceholder
   return formatNumberInt(userInfo.value.power || '0')
 })
 
 const shareEarningDisplay = computed(() => {
-  if (!authStore.isLoggedIn) return '—'
+  if (!authStore.isLoggedIn) return lockedPlaceholder
   return formatMoneyYuan(userInfo.value.partner_balance || userInfo.value.partnerBalance || '0')
 })
 
@@ -250,7 +171,7 @@ const allMenuList = [
   {
     id: 'contact',
     name: '联系客服',
-    desc: '升级会员或寻求帮助',
+    desc: '升级会员或寻求使用帮助',
     icon: 'service',
     iconBg: '#10B981',
     path: '/pages/mine/contact/index',
@@ -280,35 +201,6 @@ const refreshCoinStatistics = async () => {
     }
   } catch {
     coinStats.value = null
-  }
-}
-
-const handleChooseAvatar = async (e: any) => {
-  const avatarUrl = e.detail.avatarUrl
-  if (!avatarUrl) {
-    uni.showToast({ title: '获取头像失败', icon: 'none' })
-    return
-  }
-
-  try {
-    const uploadResponse = await uploadAvatar(avatarUrl)
-
-    if (uploadResponse.code === 200 && uploadResponse.data?.url) {
-      const updateResponse = await updateUserInfo({
-        avatar: uploadResponse.data.url
-      })
-
-      if (updateResponse.code === 200) {
-        uni.showToast({ title: '头像更新成功', icon: 'success' })
-        await refreshUserInfo()
-      } else {
-        uni.showToast({ title: (updateResponse as any).msg || '更新失败', icon: 'none' })
-      }
-    } else {
-      uni.showToast({ title: uploadResponse.msg || '上传失败', icon: 'none' })
-    }
-  } catch (error: any) {
-    uni.showToast({ title: error?.message || '上传失败，请重试', icon: 'none' })
   }
 }
 
@@ -362,145 +254,127 @@ onPullDownRefresh(async () => {
 <style scoped lang="scss">
 .page-mine {
   min-height: 100vh;
-  background: #f1f5f9;
+  background: #f7f8fa;
   padding-bottom: 180rpx;
   box-sizing: border-box;
 }
 
-/* ---------- 顶部：渐变 + 资料 + 三列 ---------- */
-.module-header {
+.page-content {
+  padding: 24rpx 28rpx 0;
+}
+
+/* ---------- 顶妈脑爆年卡 ---------- */
+.vip-annual-card {
   position: relative;
-  padding-bottom: 8rpx;
+  padding: 32rpx 28rpx 28rpx;
+  border-radius: 28rpx;
+  margin-bottom: 24rpx;
+  background: linear-gradient(145deg, #3d3228 0%, #2a221c 42%, #1a1a1a 100%);
+  box-shadow: 0 12rpx 36rpx rgba(26, 20, 14, 0.28);
+  overflow: hidden;
+
+  &:active {
+    opacity: 0.94;
+  }
 }
 
-.header-gradient {
-  position: absolute;
-  left: 0;
-  right: 0;
-  top: 0;
-  height: 320rpx;
-  background: linear-gradient(180deg, #dfefff 0%, #f1f5f9 100%);
-  pointer-events: none;
-}
-
-.header-inner {
-  position: relative;
-  z-index: 1;
-  padding: 48rpx 32rpx 0;
-}
-
-.profile-row {
+.vip-card-top {
   display: flex;
   flex-direction: row;
-  align-items: center;
-  gap: 28rpx;
-  margin-bottom: 36rpx;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16rpx;
+  margin-bottom: 20rpx;
 }
 
-.avatar-side {
-  flex-shrink: 0;
-}
-
-.avatar-btn {
-  width: 132rpx;
-  height: 132rpx;
-  padding: 0;
-  margin: 0;
-  border-radius: 50%;
-  overflow: hidden;
-  border: 4rpx solid #fff;
-  box-shadow: 0 8rpx 24rpx rgba(15, 23, 42, 0.12);
-  background: #e2e8f0;
-  line-height: 1;
-}
-
-.avatar-btn::after {
-  border: none;
-}
-
-.avatar-btn-static {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.avatar-img {
-  width: 100%;
-  height: 100%;
-  border-radius: 50%;
-}
-
-.profile-text {
+.vip-title-row {
   flex: 1;
   min-width: 0;
   display: flex;
-  flex-direction: column;
-  gap: 12rpx;
+  flex-direction: row;
+  align-items: center;
+  gap: 14rpx;
 }
 
-.login-line {
+.vip-crown-box {
+  width: 52rpx;
+  height: 52rpx;
+  border-radius: 14rpx;
+  background: linear-gradient(135deg, #fcd34d 0%, #f59e0b 100%);
   display: flex;
-  flex-direction: column;
-  gap: 8rpx;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
 }
 
-.nickname {
-  font-size: 40rpx;
+.vip-crown {
+  font-size: 28rpx;
+  line-height: 1;
+}
+
+.vip-title {
+  flex: 1;
+  font-size: 30rpx;
   font-weight: 700;
-  color: #0f172a;
-  line-height: 1.25;
+  color: #fef3c7;
+  line-height: 1.35;
 }
 
-.sub-muted {
-  font-size: 26rpx;
-  color: #94a3b8;
-}
-
-.badge-row {
-  display: flex;
-  flex-direction: row;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 12rpx 20rpx;
-}
-
-.vip-pill {
-  display: inline-flex;
-  flex-direction: row;
-  align-items: center;
-  gap: 6rpx;
-  padding: 6rpx 18rpx;
-  background: #3b82f6;
+.vip-pass-badge {
+  flex-shrink: 0;
+  padding: 6rpx 16rpx;
+  border: 1rpx solid rgba(251, 191, 36, 0.65);
   border-radius: 999rpx;
+  background: rgba(251, 191, 36, 0.12);
 }
 
-.vip-pill-icon {
-  font-size: 22rpx;
-  color: #fff;
-  line-height: 1;
+.vip-pass-text {
+  font-size: 20rpx;
+  font-weight: 700;
+  color: #fbbf24;
+  letter-spacing: 1rpx;
 }
 
-.vip-pill-text {
-  font-size: 22rpx;
-  color: #fff;
-  font-weight: 600;
-  line-height: 1;
-}
-
-.user-id {
+.vip-desc {
+  display: block;
   font-size: 24rpx;
-  color: #94a3b8;
+  color: rgba(254, 243, 199, 0.72);
+  line-height: 1.5;
+  margin-bottom: 24rpx;
+}
+
+.vip-cta {
+  font-size: 30rpx;
+  font-weight: 700;
+  color: #fbbf24;
+  line-height: 1.2;
+}
+
+/* ---------- 数据统计 ---------- */
+.stats-wrap {
+  position: relative;
+  margin-bottom: 24rpx;
 }
 
 .stats-card {
   background: #fff;
-  border-radius: 24rpx;
-  padding: 36rpx 16rpx;
+  border-radius: 28rpx;
+  padding: 40rpx 16rpx 36rpx;
   display: flex;
   flex-direction: row;
   align-items: stretch;
   justify-content: space-between;
-  box-shadow: 0 8rpx 32rpx rgba(15, 23, 42, 0.06);
+  box-shadow: 0 6rpx 24rpx rgba(15, 23, 42, 0.05);
+
+  &--locked .stat-value,
+  &--locked .stat-label {
+    filter: blur(6rpx);
+    opacity: 0.45;
+  }
+
+  &--locked .stat-value-blue {
+    color: #94a3b8;
+  }
 }
 
 .stat-col {
@@ -519,7 +393,7 @@ onPullDownRefresh(async () => {
 
 .stat-divider {
   width: 1rpx;
-  background: #e9ecf0;
+  background: #eef0f3;
   margin: 8rpx 0;
   align-self: stretch;
 }
@@ -527,11 +401,8 @@ onPullDownRefresh(async () => {
 .stat-value {
   font-size: 40rpx;
   font-weight: 700;
-  line-height: 1.15;
-}
-
-.stat-value-dark {
   color: #0f172a;
+  line-height: 1.15;
 }
 
 .stat-value-blue {
@@ -544,126 +415,55 @@ onPullDownRefresh(async () => {
   text-align: center;
 }
 
-/* ---------- 下方模块 ---------- */
-.module-body {
-  padding: 28rpx 24rpx 0;
-}
-
-.module-partner-banner,
-.module-upgrade-banner {
-  display: flex;
-  flex-direction: row;
-  align-items: center;
-  gap: 20rpx;
-  padding: 28rpx 28rpx;
-  border-radius: 24rpx;
-  margin-bottom: 28rpx;
-  box-shadow: 0 8rpx 28rpx rgba(15, 23, 42, 0.12);
-
-  &:active {
-    opacity: 0.92;
-  }
-}
-
-.module-partner-banner {
-  background: linear-gradient(135deg, #0f172a 0%, #1e293b 92%);
-}
-
-.module-upgrade-banner {
-  background: linear-gradient(135deg, #1e3a5f 0%, #0f172a 95%);
-}
-
-.partner-icon-wrap {
-  width: 72rpx;
-  height: 72rpx;
-  border-radius: 18rpx;
-  background: rgba(255, 255, 255, 0.12);
+.stats-login-mask {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  bottom: 0;
   display: flex;
   align-items: center;
   justify-content: center;
-  flex-shrink: 0;
+  border-radius: 28rpx;
+  background: rgba(255, 255, 255, 0.35);
 }
 
-.upgrade-icon-wrap {
-  background: rgba(251, 191, 36, 0.15);
-}
-
-.partner-emoji {
-  font-size: 38rpx;
-  line-height: 1;
-}
-
-.partner-copy {
-  flex: 1;
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 8rpx;
-}
-
-.partner-title {
-  font-size: 32rpx;
-  font-weight: 700;
-  color: #fff;
-  line-height: 1.2;
-}
-
-.upgrade-title-white {
-  color: #fff;
-}
-
-.partner-sub {
-  font-size: 24rpx;
-  color: #94a3b8;
-  line-height: 1.35;
-}
-
-.upgrade-sub-grey {
-  color: #cbd5e1;
-}
-
-.partner-cta {
-  flex-shrink: 0;
-  padding: 16rpx 28rpx;
-  background: #ffd60a;
+.stats-login-btn {
+  padding: 22rpx 56rpx;
+  background: linear-gradient(135deg, #1e3a5f 0%, #0f2744 100%);
   border-radius: 999rpx;
-}
-
-.upgrade-cta-orange {
-  background: #f37021;
-}
-
-.partner-cta-text {
-  font-size: 26rpx;
-  font-weight: 700;
-  color: #0f172a;
-}
-
-.upgrade-cta-text-dark {
+  font-size: 30rpx;
+  font-weight: 600;
   color: #fff;
+  box-shadow: 0 8rpx 24rpx rgba(15, 39, 68, 0.28);
+
+  &:active {
+    opacity: 0.88;
+  }
 }
 
-/* ---------- 菜单独立卡片 ---------- */
-.module-menus {
-  display: flex;
-  flex-direction: column;
-  gap: 20rpx;
-  padding-bottom: 24rpx;
-}
-
-.menu-card {
+/* ---------- 菜单分组卡片 ---------- */
+.menu-group-card {
   background: #fff;
-  border-radius: 24rpx;
-  padding: 28rpx 32rpx;
+  border-radius: 28rpx;
+  overflow: hidden;
+  box-shadow: 0 6rpx 24rpx rgba(15, 23, 42, 0.05);
+}
+
+.menu-row {
   display: flex;
   flex-direction: row;
   align-items: center;
   justify-content: space-between;
-  box-shadow: 0 4rpx 20rpx rgba(15, 23, 42, 0.05);
+  padding: 28rpx 32rpx;
+  border-bottom: 1rpx solid #f0f2f5;
 
   &:active {
-    opacity: 0.9;
     background: #fafbfc;
+  }
+
+  &--last {
+    border-bottom: none;
   }
 }
 
@@ -696,7 +496,7 @@ onPullDownRefresh(async () => {
 
 .menu-name {
   font-size: 30rpx;
-  font-weight: 500;
+  font-weight: 600;
   color: #1d2129;
 }
 
