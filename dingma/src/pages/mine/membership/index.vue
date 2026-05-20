@@ -275,18 +275,19 @@ const benefitsList = ref([
 .package-card {
   position: relative;
   display: block;
-    width: 100%;
-    box-sizing: border-box;
+  width: 100%;
+  box-sizing: border-box;
   padding: 40rpx 32rpx;
   background: $white;
   border-radius: $radius-md;
-    border: 2rpx solid $border-color;
-    box-shadow: $shadow-sm;
+  border: 2rpx solid $border-color;
+  box-shadow: $shadow-sm;
+
   &.selected {
     border-color: $primary-orange;
-  
+  }
 
-    &.popular {
+  &.popular {
     border-color: rgba(243, 112, 33, 0.35);
   }
 }

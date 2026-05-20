@@ -10,6 +10,10 @@ import asyncio
 from core.config import settings
 from schemas.ai import ChatMessage
 from services.resource import LLMModelService
+from services.shared.llm_service import (
+    normalize_model_id_for_google_gemini_api,
+    resolve_google_gemini_chat_completions_url,
+)
 import httpx
 import json
 import uuid
@@ -172,8 +176,15 @@ class AIService:
         return actual_model_id, provider
 
     @staticmethod
+    def _is_wavespeed_api(base_url: Optional[str]) -> bool:
+        """是否经 WaveSpeed 网关（可减少推理片段输出以降低 token）。"""
+        return bool(base_url and "wavespeed" in base_url.lower())
+
+    @staticmethod
     def _is_deepseek_api(provider: Optional[str], base_url: Optional[str]) -> bool:
         """是否走 DeepSeek 官方兼容接口（可开启思考模式）。"""
+        if AIService._is_wavespeed_api(base_url):
+            return False
         if provider == "deepseek":
             return True
         if base_url and "deepseek" in base_url.lower():
@@ -187,6 +198,15 @@ class AIService:
             "reasoning_effort": "high",
             "thinking": {"type": "enabled"},
         }
+
+    @staticmethod
+    def _sanitize_request_body_for_gemini(request_body: dict) -> None:
+        """
+        Gemini HTTP OpenAI 兼容接口会拒绝部分 OpenAI 专有字段（Protobuf 严格校验），
+        例如 frequency_penalty / presence_penalty，传入即 400。
+        """
+        request_body.pop("frequency_penalty", None)
+        request_body.pop("presence_penalty", None)
 
     async def chat(
         self,
@@ -249,19 +269,25 @@ class AIService:
             formatted_messages, actual_model_id
         )
         
-        # 规范化 base_url 并构建完整 URL
+        # 规范化 base_url 并构建完整 URL（与环境变量中带完整路径的配置兼容）
         normalized_base_url = base_url.rstrip('/')
         if '/chat/completions' in normalized_base_url:
             normalized_base_url = normalized_base_url.split('/chat/completions')[0]
-        # # 检查 base_url 是否已经包含 /v1，如果没有则添加
-        # if '/v1' not in normalized_base_url and not normalized_base_url.endswith('/v1'):
-        #     api_url = f"{normalized_base_url}/v1/chat/completions"
+        normalized_base_url = normalized_base_url.rstrip('/')
+        if db_provider == "google":
+            api_url = resolve_google_gemini_chat_completions_url(normalized_base_url)
         else:
             api_url = f"{normalized_base_url}/chat/completions"
 
+        model_for_upstream = (
+            normalize_model_id_for_google_gemini_api(actual_model_id, normalized_base_url)
+            if db_provider == "google"
+            else actual_model_id
+        )
+
         # 构建请求体
         request_body = {
-            "model": actual_model_id,
+            "model": model_for_upstream,
             "messages": formatted_messages,
             "temperature": temperature,
             "max_tokens": max_tokens,
@@ -272,6 +298,10 @@ class AIService:
         }
         if self._is_deepseek_api(db_provider, base_url):
             request_body.update(self._deepseek_thinking_fields())
+        if self._is_wavespeed_api(base_url):
+            request_body["include_reasoning"] = False
+        if db_provider == "google":
+            self._sanitize_request_body_for_gemini(request_body)
 
         # 手动序列化JSON,确保正确的编码
         request_body_json = json.dumps(request_body, ensure_ascii=False)
@@ -317,7 +347,9 @@ class AIService:
                 logger.error(f"❌ [API] LLM API请求失败 (非流式):")
                 logger.error(f"  - HTTP Status: {response.status_code}")
                 logger.error(f"  - API URL: {api_url}")
-                logger.error(f"  - Model ID: {actual_model_id}")
+                logger.error(f"  - Request Model: {model_for_upstream}")
+                if model_for_upstream != actual_model_id:
+                    logger.error(f"  - Catalog Model: {actual_model_id}")
                 logger.error(f"  - Model Type: {model}")
                 logger.error(f"  - Response Headers: {dict(response.headers)}")
                 logger.error(f"  - Error Response: {error_text[:1000]}")  # 限制长度
@@ -440,16 +472,22 @@ class AIService:
         normalized_base_url = base_url.rstrip('/')
         if '/chat/completions' in normalized_base_url:
             normalized_base_url = normalized_base_url.split('/chat/completions')[0]
-        # 检查 base_url 是否已经包含 /v1，如果没有则添加
-        # if '/v1' not in normalized_base_url and not normalized_base_url.endswith('/v1'):
-        #     api_url = f"{normalized_base_url}/v1/chat/completions"
+        normalized_base_url = normalized_base_url.rstrip('/')
+        if db_provider == "google":
+            api_url = resolve_google_gemini_chat_completions_url(normalized_base_url)
         else:
             api_url = f"{normalized_base_url}/chat/completions"
+
+        model_for_upstream = (
+            normalize_model_id_for_google_gemini_api(actual_model_id, normalized_base_url)
+            if db_provider == "google"
+            else actual_model_id
+        )
 
         # 🔍 调试日志: 打印请求详情
         logger.info(f"🔍 [DEBUG] API Request Details:")
         logger.info(f"  - API URL: {api_url}")
-        logger.info(f"  - Model: {actual_model_id}")
+        logger.info(f"  - Model: {model_for_upstream}")
         logger.info(f"  - Messages count: {len(formatted_messages)}")
         logger.info(f"  - HTTP/2 enabled: True")
         logger.info(f"  - Gzip compression: enabled")
@@ -472,7 +510,7 @@ class AIService:
 
         # 构建请求体
         request_body = {
-            "model": actual_model_id,
+            "model": model_for_upstream,
             "messages": formatted_messages,
             "temperature": temperature,
             "max_tokens": max_tokens,
@@ -483,6 +521,10 @@ class AIService:
         }
         if self._is_deepseek_api(db_provider, base_url):
             request_body.update(self._deepseek_thinking_fields())
+        if self._is_wavespeed_api(base_url):
+            request_body["include_reasoning"] = False
+        if db_provider == "google":
+            self._sanitize_request_body_for_gemini(request_body)
 
         # 计算并打印请求体大小
         # 手动序列化JSON,使用ensure_ascii=False支持中文
@@ -531,7 +573,9 @@ class AIService:
                         logger.error(f"❌ [API] LLM API请求失败:")
                         logger.error(f"  - HTTP Status: {response.status_code}")
                         logger.error(f"  - API URL: {api_url}")
-                        logger.error(f"  - Model ID: {actual_model_id}")
+                        logger.error(f"  - Request Model: {model_for_upstream}")
+                        if model_for_upstream != actual_model_id:
+                            logger.error(f"  - Catalog Model: {actual_model_id}")
                         logger.error(f"  - Model Type: {model}")
                         logger.error(f"  - Response Headers: {dict(response.headers)}")
                         logger.error(f"  - Error Response: {error_text_str[:1000]}")  # 限制长度
@@ -553,7 +597,8 @@ class AIService:
                                 "type": "APIError",
                                 "status_code": response.status_code,
                                 "api_url": api_url,
-                                "model_id": actual_model_id
+                                "model_id": actual_model_id,
+                                "request_model": model_for_upstream,
                             }
                         }
                         yield json.dumps(error_chunk)
@@ -658,7 +703,7 @@ class AIService:
                 logger.error(f"  - Error Type: {type(e).__name__}")
                 logger.error(f"  - Error Message: {str(e)}")
                 logger.error(f"  - API URL: {api_url}")
-                logger.error(f"  - Model ID: {actual_model_id}")
+                logger.error(f"  - Request Model: {model_for_upstream}")
                 
                 # 提取底层异常信息
                 if hasattr(e, '__cause__') and e.__cause__:
@@ -676,6 +721,7 @@ class AIService:
                         "type": "ConnectionError",
                         "api_url": api_url,
                         "model_id": actual_model_id,
+                        "request_model": model_for_upstream,
                         "details": "请检查网络连接和API服务状态"
                     }
                 }
@@ -685,7 +731,7 @@ class AIService:
                 # 超时错误
                 logger.error(f"❌ [API] 请求超时:")
                 logger.error(f"  - API URL: {api_url}")
-                logger.error(f"  - Model ID: {actual_model_id}")
+                logger.error(f"  - Request Model: {model_for_upstream}")
                 logger.error(f"  - Timeout: {self._client_config.get('timeout')}")
                 
                 error_chunk = {
@@ -693,7 +739,8 @@ class AIService:
                         "message": f"AI服务响应超时: {str(e) if str(e) else '请求超时'}",
                         "type": "TimeoutError",
                         "api_url": api_url,
-                        "model_id": actual_model_id
+                        "model_id": actual_model_id,
+                        "request_model": model_for_upstream,
                     }
                 }
                 yield json.dumps(error_chunk)
@@ -705,7 +752,7 @@ class AIService:
                 logger.error(f"  - Error Type: {type(e).__name__}")
                 logger.error(f"  - Error Message: {str(e)}")
                 logger.error(f"  - API URL: {api_url}")
-                logger.error(f"  - Model ID: {actual_model_id}")
+                logger.error(f"  - Request Model: {model_for_upstream}")
                 logger.error(f"  - Traceback:\n{traceback.format_exc()}")
                 
                 error_chunk = {
@@ -713,7 +760,8 @@ class AIService:
                         "message": f"AI服务请求失败: {str(e)}",
                         "type": type(e).__name__,
                         "api_url": api_url,
-                        "model_id": actual_model_id
+                        "model_id": actual_model_id,
+                        "request_model": model_for_upstream,
                     }
                 }
                 yield json.dumps(error_chunk)

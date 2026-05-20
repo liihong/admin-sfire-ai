@@ -9,10 +9,94 @@ This module provides a unified interface for different LLM providers:
 """
 from abc import ABC, abstractmethod
 from typing import Optional, Dict, Any, AsyncGenerator, Union
+from urllib.parse import urlparse
 import httpx
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from core.config import settings
+
+# Gemini HTTP API（OpenAI 兼容）官方路径，见 Google AI Studio 文档。
+_GEMINI_OPENAI_COMPAT_TAIL = "/v1beta/openai/chat/completions"
+
+
+def strip_openai_chat_completions_suffix(url: str) -> str:
+    """去掉末尾的 /chat/completions，得到请求的 origin 路径前缀。"""
+    u = url.strip().rstrip("/")
+    suffix = "/chat/completions"
+    if u.lower().endswith(suffix):
+        u = u[: -len(suffix)].rstrip("/")
+    return u
+
+
+def resolve_google_gemini_chat_completions_url(configured_base_or_endpoint: str) -> str:
+    """
+    解析 Google Gemini（OpenAI 兼容）的完整 chat/completions URL。
+
+    - 官方域名为 generativelanguage.googleapis.com，路径需含 /v1beta/openai/chat/completions。
+    - 自建 Nginx：`location /gemini/` 转发到 Google 时，库中常配 `.../gemini/chat/completions`，
+      实际应对齐为 `.../gemini/v1beta/openai/chat/completions` 经 rewrite 后到 Google 正确路径。
+    - 聚合商（如 OpenRouter）基座不含上述特征时，保持 `{origin}/chat/completions`。
+    """
+    origin = strip_openai_chat_completions_suffix(configured_base_or_endpoint)
+    b = origin.rstrip("/")
+    lower_b = b.lower()
+    compat_marker = "/v1beta/openai"
+    if lower_b.endswith(compat_marker):
+        return f"{b}/chat/completions"
+    uses_google_host = "generativelanguage.googleapis.com" in lower_b
+    path_parts: list[str] = []
+    try:
+        path_parts = [
+            p for p in urlparse(b).path.strip("/").split("/") if p
+        ]
+    except Exception:
+        path_parts = []
+    uses_gemini_nginx = any(p.lower() == "gemini" for p in path_parts)
+    if uses_google_host or uses_gemini_nginx:
+        return f"{b}{_GEMINI_OPENAI_COMPAT_TAIL}"
+    return f"{b}/chat/completions"
+
+
+def is_google_ai_studio_openai_compatible_base(base_url: str) -> bool:
+    """
+    是否直连 Google generativelanguage（或等价的 /gemini/ Nginx 反代）。
+    OpenRouter 等聚合商不在此列，仍会使用其自身的 model 命名（可含 google/ 前缀）。
+    """
+    if not base_url or not base_url.strip():
+        return False
+    b = base_url.strip().rstrip("/")
+    lower = b.lower()
+    if "generativelanguage.googleapis.com" in lower:
+        return True
+    path_parts: list[str] = []
+    try:
+        path_parts = [p for p in urlparse(b).path.strip("/").split("/") if p]
+    except Exception:
+        path_parts = []
+    return any(p.lower() == "gemini" for p in path_parts)
+
+
+def normalize_model_id_for_google_gemini_api(model_id: str, base_url: str) -> str:
+    """
+    直连 Google Gemini OpenAI 兼容接口时，`model` 须为 publishers 模型 id（如 gemini-2.5-pro）。
+    OpenRouter 等使用的 `google/gemini-...` 会解析成错误的 resource：models/google/gemini-... → 404。
+    """
+    if not is_google_ai_studio_openai_compatible_base(base_url):
+        return model_id
+    m = model_id.strip()
+    if m.lower().startswith("google/"):
+        rest = m[7:].strip()
+        return rest if rest else m
+    return m
+
+
+def _wavespeed_disable_reasoning(payload: Dict[str, Any], base_url: str) -> None:
+    """经 WaveSpeed 网关时关闭推理/思考片段返回；移除 DeepSeek 思考开关字段以免冲突。"""
+    if not base_url or "wavespeed" not in base_url.lower():
+        return
+    payload["include_reasoning"] = False
+    payload.pop("reasoning_effort", None)
+    payload.pop("thinking", None)
 
 
 def _extract_content_from_openai_response(data: dict) -> str:
@@ -117,7 +201,8 @@ class DeepSeekLLM(BaseLLM):
                 "role": "system",
                 "content": kwargs["system_prompt"]
             })
-        
+        _wavespeed_disable_reasoning(payload, self.base_url)
+
         async with httpx.AsyncClient(timeout=60.0) as client:
             response = await client.post(
                 f"{self.base_url}/v1/chat/completions",
@@ -153,7 +238,8 @@ class DeepSeekLLM(BaseLLM):
                 "role": "system",
                 "content": kwargs["system_prompt"]
             })
-        
+        _wavespeed_disable_reasoning(payload, self.base_url)
+
         # 规范化 base_url 并构建完整 URL
         normalized_base_url = self.base_url.rstrip('/')
         if '/v1' not in normalized_base_url and not normalized_base_url.endswith('/v1'):
@@ -268,6 +354,7 @@ class ClaudeLLM(BaseLLM):
                 "max_tokens": kwargs.get("max_tokens", 2048),
                 "stream": False
             }
+            _wavespeed_disable_reasoning(payload, base_url)
             url = f"{base_url}/v1/chat/completions"
         else:
             # Anthropic 原生 API 格式
@@ -364,6 +451,7 @@ class ClaudeLLM(BaseLLM):
                 payload["frequency_penalty"] = kwargs["frequency_penalty"]
             if "presence_penalty" in kwargs:
                 payload["presence_penalty"] = kwargs["presence_penalty"]
+            _wavespeed_disable_reasoning(payload, self.base_url)
 
             # 记录 system_prompt 长度（可能很大）
             system_prompt_length = len(kwargs.get("system_prompt", "")) if "system_prompt" in kwargs else 0
@@ -470,7 +558,8 @@ class DoubaoLLM(BaseLLM):
                 "role": "system",
                 "content": kwargs["system_prompt"]
             })
-        
+        _wavespeed_disable_reasoning(payload, self.base_url)
+
         # 规范化 base_url 并构建完整 URL（Doubao 可能不需要 /v1）
         normalized_base_url = self.base_url.rstrip('/')
         # Doubao API 路径通常是 /api/v3/chat/completions
@@ -520,7 +609,8 @@ class DoubaoLLM(BaseLLM):
                 "role": "system",
                 "content": kwargs["system_prompt"]
             })
-        
+        _wavespeed_disable_reasoning(payload, self.base_url)
+
         # 规范化 base_url 并构建完整 URL（Doubao 流式）
         normalized_base_url = self.base_url.rstrip('/')
         if '/chat/completions' in normalized_base_url:
@@ -584,21 +674,14 @@ class GoogleLLM(BaseLLM):
         super().__init__(api_key)
         self.base_url = base_url or self.DEFAULT_BASE_URL
         raw_model = model or self.DEFAULT_MODEL
-        # 使用自定义 base_url（如网关）时保留完整 model_id（如 google/gemini-xxx），
-        # 使用默认 Google API 时仅传模型名（如 gemini-xxx）
-        if base_url and base_url != self.DEFAULT_BASE_URL:
-            self.model = raw_model
-        else:
+        if self.base_url == self.DEFAULT_BASE_URL:
             self.model = raw_model.split("/")[-1] if "/" in raw_model else raw_model
+        else:
+            self.model = normalize_model_id_for_google_gemini_api(raw_model, self.base_url)
 
     def _get_request_url(self) -> str:
         """构建请求 URL"""
-        normalized = self.base_url.rstrip("/")
-        if "/chat/completions" in normalized:
-            return normalized
-        if "/v1" in normalized or normalized.endswith("/v1"):
-            return f"{normalized}/chat/completions"
-        return f"{normalized}/v1/chat/completions"
+        return resolve_google_gemini_chat_completions_url(self.base_url)
 
     async def generate_text(self, prompt: str, **kwargs) -> str:
         """Generate text using Google Gemini API (OpenAI compatible format)."""
@@ -607,8 +690,12 @@ class GoogleLLM(BaseLLM):
             "Content-Type": "application/json",
             "X-My-Gate-Key": "Huoyuan2026",
         }
+        resolved_model = normalize_model_id_for_google_gemini_api(
+            kwargs.get("model", self.model),
+            self.base_url,
+        )
         payload = {
-            "model": kwargs.get("model", self.model),
+            "model": resolved_model,
             "messages": [{"role": "user", "content": prompt}],
             "temperature": kwargs.get("temperature", 0.7),
             "max_tokens": kwargs.get("max_tokens", 2048),
@@ -619,6 +706,7 @@ class GoogleLLM(BaseLLM):
                 "role": "system",
                 "content": kwargs["system_prompt"]
             })
+        _wavespeed_disable_reasoning(payload, self.base_url)
         request_url = self._get_request_url()
         async with httpx.AsyncClient(timeout=60.0) as client:
             response = await client.post(request_url, headers=headers, json=payload)
@@ -642,8 +730,12 @@ class GoogleLLM(BaseLLM):
             "Content-Type": "application/json",
             "X-My-Gate-Key": "Huoyuan2026",
         }
+        resolved_model = normalize_model_id_for_google_gemini_api(
+            kwargs.get("model", self.model),
+            self.base_url,
+        )
         payload = {
-            "model": kwargs.get("model", self.model),
+            "model": resolved_model,
             "messages": [{"role": "user", "content": prompt}],
             "temperature": kwargs.get("temperature", 0.7),
             "max_tokens": kwargs.get("max_tokens", 2048),
@@ -654,6 +746,7 @@ class GoogleLLM(BaseLLM):
                 "role": "system",
                 "content": kwargs["system_prompt"]
             })
+        _wavespeed_disable_reasoning(payload, self.base_url)
         request_url = self._get_request_url()
         async with httpx.AsyncClient(timeout=120.0) as client:
             async with client.stream("POST", request_url, headers=headers, json=payload) as response:
