@@ -1,47 +1,33 @@
 <template>
   <view class="inspiration-page">
-    <!-- 顶部导航栏 -->
-    <BaseHeader title="我的灵感" @back="goBack">
-    </BaseHeader>
-    
-    <!-- 搜索框 -->
-    <view class="search-section">
-      <view class="search-box">
-        <u-icon name="search" color="#86909C" size="18"></u-icon>
-        <input
-          class="search-input"
-          v-model="searchKeyword"
-          placeholder="搜索灵感内容..."
-          @input="handleSearchInput"
-        />
-        <view v-if="searchKeyword" class="clear-btn" @tap="clearSearch">
-          <u-icon name="close" color="#86909C" size="16"></u-icon>
+    <!-- 顶部导航 -->
+    <view class="page-nav" :style="{ paddingTop: safeArea.top + 'px' }">
+      <view class="nav-bar">
+        <view class="nav-back" @tap="goBack">
+          <text class="nav-back-icon">‹</text>
+        </view>
+        <text class="nav-title">我的灵感夹</text>
+        <view class="nav-more" @tap="onMoreTap">
+          <text class="nav-more-dots">••</text>
         </view>
       </view>
     </view>
-    
-    <!-- 筛选菜单 -->
-    <view v-if="showFilterMenu" class="filter-menu">
-      <view class="filter-item" :class="{ active: filterStatus === 'all' }" @tap="setFilterStatus('all')">
-        <text>全部</text>
-      </view>
-      <view class="filter-item" :class="{ active: filterStatus === 'active' }" @tap="setFilterStatus('active')">
-        <text>活跃</text>
-      </view>
-      <view class="filter-item" :class="{ active: filterStatus === 'archived' }" @tap="setFilterStatus('archived')">
-        <text>已归档</text>
-      </view>
-    </view>
-    
+
     <!-- 列表区域 -->
     <scroll-view
       class="list-container"
       scroll-y
+      :style="{ height: scrollHeight }"
       :refresher-enabled="true"
       :refresher-triggered="refreshing"
       @refresherrefresh="handleRefresh"
       @scrolltolower="handleLoadMore"
     >
+      <view v-if="inspirationList.length > 0" class="section-head">
+        <text class="section-icon">💡</text>
+        <text class="section-text">灵感备忘夹列表 (共 {{ total }} 条)</text>
+      </view>
+
       <!-- 灵感列表 -->
       <view v-if="inspirationList.length > 0" class="inspiration-list">
         <InspirationItem
@@ -57,30 +43,30 @@
           @click="handleItemClick"
         />
       </view>
-      
+
       <!-- 空状态 -->
       <view v-else-if="!loading" class="empty-state">
         <view class="empty-icon">💡</view>
         <text class="empty-text">还没有灵感记录</text>
         <text class="empty-hint">点击右下角按钮添加灵感</text>
       </view>
-      
+
       <!-- 加载中 -->
-      <view v-if="loading" class="loading-state">
-        <u-loading-icon mode="spinner" color="#3B82F6"></u-loading-icon>
+      <view v-if="loading && inspirationList.length === 0" class="loading-state">
+        <u-loading-icon mode="spinner" color="#b8864d"></u-loading-icon>
         <text class="loading-text">加载中...</text>
       </view>
-      
+
       <!-- 加载更多提示 -->
-      <view v-if="hasMore && !loading" class="load-more-hint">
+      <view v-if="hasMore && !loading && inspirationList.length > 0" class="load-more-hint">
         <text>上拉加载更多</text>
       </view>
-      
+
       <!-- 没有更多 -->
       <view v-if="!hasMore && inspirationList.length > 0" class="no-more-hint">
         <text>没有更多了</text>
       </view>
-      
+
       <!-- 底部安全区 -->
       <view class="bottom-safe-area"></view>
     </scroll-view>
@@ -142,16 +128,15 @@ import { getBalance } from '@/api/coin'
 import { useProjectStore } from '@/stores/project'
 import InspirationItem from './components/InspirationItem.vue'
 import InspirationCard from '@/components/inspiration/InspirationCard.vue'
-import BaseHeader from '@/components/base/BaseHeader.vue'
-import SvgIcon from '@/components/base/SvgIcon.vue'
+import { useSafeArea } from '@/composables/useSafeArea'
+
+const { safeArea, updateSafeArea } = useSafeArea()
 
 // 状态
 const inspirationList = ref<Inspiration[]>([])
 const loading = ref(false)
 const refreshing = ref(false)
-const searchKeyword = ref('')
-const filterStatus = ref<'all' | 'active' | 'archived'>('all')
-const showFilterMenu = ref(false)
+const filterStatus = ref<'all' | 'active' | 'archived'>('active')
 const showInspirationCard = ref(false)
 const inspirationText = ref('')
 const showGenerateModal = ref(false)
@@ -166,13 +151,30 @@ const hasMore = computed(() => {
   return inspirationList.value.length < total.value
 })
 
-// 防抖定时器
-let searchTimer: ReturnType<typeof setTimeout> | null = null
+const scrollHeight = computed(() => {
+  const navH = safeArea.value.top + 44
+  return `calc(100vh - ${navH}px)`
+})
 
 // 初始化
 onMounted(() => {
+  updateSafeArea()
   loadInspirationList()
 })
+
+function onMoreTap() {
+  uni.showActionSheet({
+    itemList: ['刷新列表', '全部', '活跃', '已归档'],
+    success: (res) => {
+      if (res.tapIndex === 0) {
+        handleRefresh()
+        return
+      }
+      const statusMap = ['all', 'active', 'archived'] as const
+      setFilterStatus(statusMap[res.tapIndex - 1])
+    },
+  })
+}
 
 // 加载灵感列表
 async function loadInspirationList(reset = false) {
@@ -188,7 +190,6 @@ async function loadInspirationList(reset = false) {
     const params = {
       pageNum: pageNum.value,
       pageSize: pageSize.value,
-      keyword: searchKeyword.value || undefined,
       status: filterStatus.value === 'all' ? undefined : filterStatus.value,
     }
     
@@ -213,27 +214,9 @@ async function loadInspirationList(reset = false) {
   }
 }
 
-// 搜索输入处理（防抖）
-function handleSearchInput() {
-  if (searchTimer) {
-    clearTimeout(searchTimer)
-  }
-  
-  searchTimer = setTimeout(() => {
-    loadInspirationList(true)
-  }, 300)
-}
-
-// 清空搜索
-function clearSearch() {
-  searchKeyword.value = ''
-  loadInspirationList(true)
-}
-
 // 设置筛选状态
 function setFilterStatus(status: 'all' | 'active' | 'archived') {
   filterStatus.value = status
-  showFilterMenu.value = false
   loadInspirationList(true)
 }
 
@@ -351,7 +334,7 @@ async function handleGenerate(inspiration: Inspiration) {
 // 跳转AI对话
 function handleChat(inspiration: Inspiration) {
   uni.navigateTo({
-    url: `/pages/copywriting/index?agentId=20&inspiration_id=${inspiration.id}&content=${encodeURIComponent(inspiration.content)}`,
+    url: `/pages/copywriting/index?agentId=35&inspiration_id=${inspiration.id}&content=${encodeURIComponent(inspiration.content)}`,
   })
 }
 
@@ -442,225 +425,270 @@ function copyGeneratedContent() {
 </script>
 
 <style lang="scss" scoped>
-@import '@/styles/_variables.scss';
+$page-bg: #fdfbf7;
+$text-primary: #332d2b;
+$text-muted: #998b82;
+$accent: #b8864d;
+$card-border: #f2e6d8;
 
 .inspiration-page {
   min-height: 100vh;
-  background: $bg-color;
-  
-  .search-section {
-    padding: $spacing-md $spacing-lg;
-    background: $white;
-    
-    .search-box {
+  background: $page-bg;
+}
+
+.page-nav {
+  background: $page-bg;
+}
+
+.nav-bar {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 88rpx;
+  padding: 0 32rpx;
+}
+
+.nav-back {
+  position: absolute;
+  left: 24rpx;
+  width: 64rpx;
+  height: 64rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  &:active {
+    opacity: 0.6;
+  }
+}
+
+.nav-back-icon {
+  font-size: 48rpx;
+  font-weight: 300;
+  color: $text-primary;
+  line-height: 1;
+}
+
+.nav-title {
+  font-size: 34rpx;
+  font-weight: 700;
+  color: $text-primary;
+}
+
+.nav-more {
+  position: absolute;
+  right: 32rpx;
+  min-width: 72rpx;
+  height: 56rpx;
+  padding: 0 20rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255, 255, 255, 0.85);
+  border: 1rpx solid $card-border;
+  border-radius: 999rpx;
+
+  &:active {
+    opacity: 0.75;
+  }
+}
+
+.nav-more-dots {
+  font-size: 22rpx;
+  letter-spacing: 2rpx;
+  color: $text-muted;
+  line-height: 1;
+}
+
+.list-container {
+  box-sizing: border-box;
+  padding: 8rpx 32rpx 0;
+}
+
+.section-head {
+  display: flex;
+  align-items: center;
+  gap: 10rpx;
+  padding: 16rpx 0 28rpx;
+}
+
+.section-icon {
+  font-size: 28rpx;
+  line-height: 1;
+}
+
+.section-text {
+  font-size: 28rpx;
+  font-weight: 600;
+  color: $text-primary;
+}
+
+.inspiration-list {
+  display: flex;
+  flex-direction: column;
+  gap: 24rpx;
+}
+
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 160rpx 32rpx;
+
+  .empty-icon {
+    font-size: 80rpx;
+    margin-bottom: 24rpx;
+  }
+
+  .empty-text {
+    font-size: 28rpx;
+    color: $text-muted;
+    margin-bottom: 12rpx;
+  }
+
+  .empty-hint {
+    font-size: 24rpx;
+    color: $text-muted;
+    opacity: 0.85;
+    text-align: center;
+    line-height: 1.6;
+  }
+}
+
+.loading-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 160rpx 32rpx;
+
+  .loading-text {
+    margin-top: 16rpx;
+    font-size: 24rpx;
+    color: $text-muted;
+  }
+}
+
+.load-more-hint,
+.no-more-hint {
+  text-align: center;
+  padding: 32rpx;
+  font-size: 24rpx;
+  color: $text-muted;
+  opacity: 0.75;
+}
+
+.fab-wrapper {
+  position: fixed;
+  bottom: 120rpx;
+  right: 32rpx;
+  z-index: 99;
+
+  .fab-btn {
+    width: 112rpx;
+    height: 112rpx;
+    background: linear-gradient(135deg, #d4a574 0%, #b8864d 100%);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 8rpx 24rpx rgba(184, 134, 77, 0.35);
+
+    &:active {
+      transform: scale(0.95);
+    }
+  }
+}
+
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+
+  .modal-content {
+    width: 90%;
+    max-height: 80vh;
+    background: #fff;
+    border-radius: 24rpx;
+    display: flex;
+    flex-direction: column;
+
+    .modal-header {
       display: flex;
       align-items: center;
-      gap: $spacing-sm;
-      padding: $spacing-sm $spacing-md;
-      background: $bg-light;
-      border-radius: $radius-xl;
-      
-      .search-input {
-        flex: 1;
-        font-size: $font-size-md;
-        color: $text-main;
+      justify-content: space-between;
+      padding: 32rpx;
+      border-bottom: 1rpx solid $card-border;
+
+      .modal-title {
+        font-size: 32rpx;
+        font-weight: 600;
+        color: $text-primary;
       }
-      
-      .clear-btn {
-        width: 32rpx;
-        height: 32rpx;
+
+      .modal-close {
+        width: 48rpx;
+        height: 48rpx;
         display: flex;
         align-items: center;
         justify-content: center;
       }
     }
-  }
-  
-  .filter-menu {
-    display: flex;
-    gap: $spacing-sm;
-    padding: $spacing-sm $spacing-lg;
-    background: $white;
-    border-bottom: 1rpx solid $border-color;
-    
-    .filter-item {
-      padding: 8rpx 16rpx;
-      border-radius: $radius-md;
-      font-size: $font-size-sm;
-      color: $text-second;
-      background: $bg-light;
-      
-      &.active {
-        color: $primary-orange;
-        background: rgba($primary-orange, 0.1);
-      }
-    }
-  }
-  
-  .list-container {
-    height: calc(100vh - 200rpx);
-  }
-  
-  .inspiration-list {
-    padding: $spacing-md $spacing-lg;
-  }
-  
-  .empty-state {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    padding: $spacing-xl * 2;
-    
-    .empty-icon {
-      font-size: 80rpx;
-      margin-bottom: $spacing-md;
-    }
-    
-    .empty-text {
-      font-size: $font-size-md;
-      color: $text-second;
-      margin-bottom: $spacing-sm;
-    }
-    
-    .empty-hint {
-      font-size: $font-size-sm;
-      color: $text-placeholder;
-    }
-  }
-  
-  .loading-state {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    padding: $spacing-xl;
-    
-    .loading-text {
-      margin-top: $spacing-sm;
-      font-size: $font-size-sm;
-      color: $text-second;
-    }
-  }
-  
-  .load-more-hint,
-  .no-more-hint {
-    text-align: center;
-    padding: $spacing-md;
-    font-size: $font-size-xs;
-    color: $text-placeholder;
-  }
-  
-  .fab-wrapper {
-    position: fixed;
-    bottom: 120rpx;
-    right: $spacing-lg;
-    z-index: 99;
-    
-    .fab-btn {
-      width: 112rpx;
-      height: 112rpx;
-      background: linear-gradient(135deg, $primary-orange 0%, $primary-orange-alt 100%);
-      border-radius: $radius-circle;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      box-shadow: 0 8rpx 24rpx rgba($primary-orange, 0.4);
-      
-      &:active {
-        transform: scale(0.95);
-      }
-    }
-  }
-  
-  .modal-overlay {
-    position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background: rgba(0, 0, 0, 0.5);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    z-index: 1000;
-    
-    .modal-content {
-      width: 90%;
-      max-height: 80vh;
-      background: $white;
-      border-radius: $radius-lg;
-      display: flex;
-      flex-direction: column;
-      
-      .modal-header {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        padding: $spacing-lg;
-        border-bottom: 1rpx solid $border-color;
-        
-        .modal-title {
-          font-size: $font-size-lg;
-          font-weight: 600;
-          color: $text-main;
-        }
-        
-        .modal-close {
-          width: 48rpx;
-          height: 48rpx;
-          display: flex;
-          align-items: center;
-          justify-content: center;
+
+    .modal-body {
+      flex: 1;
+      padding: 32rpx;
+      overflow: hidden;
+
+      .generated-content {
+        max-height: 60vh;
+
+        .content-text {
+          font-size: 28rpx;
+          color: $text-primary;
+          line-height: 1.8;
+          white-space: pre-wrap;
         }
       }
-      
-      .modal-body {
+    }
+
+    .modal-footer {
+      display: flex;
+      gap: 24rpx;
+      padding: 32rpx;
+      border-top: 1rpx solid $card-border;
+
+      .modal-btn {
         flex: 1;
-        padding: $spacing-lg;
-        overflow: hidden;
-        
-        .generated-content {
-          max-height: 60vh;
-          
-          .content-text {
-            font-size: $font-size-md;
-            color: $text-main;
-            line-height: 1.8;
-            white-space: pre-wrap;
-          }
+        padding: 24rpx;
+        text-align: center;
+        border-radius: 16rpx;
+        font-size: 28rpx;
+
+        &.secondary {
+          background: #f5f0ea;
+          color: $text-primary;
         }
-      }
-      
-      .modal-footer {
-        display: flex;
-        gap: $spacing-md;
-        padding: $spacing-lg;
-        border-top: 1rpx solid $border-color;
-        
-        .modal-btn {
-          flex: 1;
-          padding: $spacing-md;
-          text-align: center;
-          border-radius: $radius-md;
-          font-size: $font-size-md;
-          
-          &.secondary {
-            background: $bg-light;
-            color: $text-main;
-          }
-          
-          &.primary {
-            background: linear-gradient(135deg, $primary-orange 0%, $primary-orange-alt 100%);
-            color: $white;
-          }
+
+        &.primary {
+          background: linear-gradient(135deg, #d4a574 0%, #b8864d 100%);
+          color: #fff;
         }
       }
     }
   }
-  
-  .bottom-safe-area {
-    height: env(safe-area-inset-bottom);
-  }
+}
+
+.bottom-safe-area {
+  height: calc(32rpx + env(safe-area-inset-bottom));
 }
 </style>
 

@@ -9,6 +9,10 @@ export const DINGMA_SPLASH_IMAGE_URL = 'https://oss.sourcefire.cn/dingma/dingmav
 /** 创富工具 Tab 顶部横幅（可替换为与设计稿一致的主题图） */
 export const DINGMA_HOME_BANNER_URL = 'https://oss.sourcefire.cn/dingma/dingmavi.jpg'
 
+/** 首页 Banner 点击后打开的项目介绍 PDF */
+export const DINGMA_PROJECT_PDF_URL =
+  'https://sfire-ai.oss-cn-beijing.aliyuncs.com/dingma/dingmaproject.pdf'
+
 /** 仅首次进入小程序时播放首页轻微放大动画，标记后不再播放 */
 export const STORAGE_DINGMA_SPLASH_ZOOM_PLAYED = 'dingma_splash_zoom_played'
 

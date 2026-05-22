@@ -14,10 +14,12 @@
           </view>
         </view>
       </view>
-    </view>
-
-    <view class="persona-card-wrapper">
-      <AgentCard :project="activeProject" :persona-settings="currentPersonaSettings" />
+      <PersonaContextBar
+        :label="personaContextLabel"
+        show-new-session
+        @new-session="startNewSession"
+        @setup="openPersonaSetup"
+      />
     </view>
 
     <scroll-view class="chat-container" scroll-y :scroll-into-view="scrollIntoView" :scroll-with-animation="true"
@@ -108,21 +110,30 @@
         <text class="disclaimer-text">本内容由 AI 生成，不代表开发者立场。</text>
       </view>
     </view>
+
+    <PersonaProfileModal
+      v-model:visible="showPersonaModal"
+      :default-name="authStore.userInfo?.nickname"
+      @saved="onPersonaSaved"
+    />
   </view>
 </template>
 
 <script setup lang="ts">
 import { ref, reactive, computed, watch, onMounted, onUnmounted, nextTick } from 'vue'
-import { onLoad } from '@dcloudio/uni-app'
+import { onLoad, onShow } from '@dcloudio/uni-app'
 import { useAuthStore } from '@/stores/auth'
 import { useProjectStore } from '@/stores/project'
 import { useAgentStore } from '@/stores/agent'
 import { useQuickEntryStore } from '@/stores/quickEntry'
+import { fetchProjects } from '@/api/project'
 import { chatStream } from '@/api/generate'
 import { msgSecCheck } from '@/utils/security'
 import { getConversationDetail } from '@/api/conversation'
+import { buildPersonaContextLabel, resolveChatProjectId } from '@/utils/persona'
 import SvgIcon from '@/components/base/SvgIcon.vue'
-import AgentCard from './components/AgentCard.vue'
+import PersonaContextBar from '@/components/chat/PersonaContextBar.vue'
+import PersonaProfileModal from '@/components/mine/PersonaProfileModal.vue'
 import SafeAreaTop from '@/components/common/SafeAreaTop.vue'
 
 const authStore = useAuthStore()
@@ -141,29 +152,6 @@ function goBack() {
   })
 }
 
-// 添加防御性检查，确保数据安全
-const activeProject = computed(() => {
-  const project = projectStore.activeProject
-  if (!project) return null
-  // 确保关键字段存在且类型正确
-  return {
-    ...project,
-    name: project.name && typeof project.name === 'string' ? project.name : '',
-    avatar_color: project.avatar_color && typeof project.avatar_color === 'string' ? project.avatar_color : '#667eea',
-    avatar_letter: project.avatar_letter && typeof project.avatar_letter === 'string' ? project.avatar_letter : ''
-  }
-})
-
-const currentPersonaSettings = computed(() => {
-  const settings = projectStore.currentPersonaSettings
-  if (!settings) return {}
-  // 确保设置对象安全
-  return {
-    style_tones: settings.style_tones && typeof settings.style_tones === 'string' ? settings.style_tones : undefined,
-    cl_targetPopulation: settings.cl_targetPopulation && typeof settings.cl_targetPopulation === 'string' ? settings.cl_targetPopulation : undefined
-  }
-})
-
 interface ChatMessage {
   role: 'user' | 'assistant' | 'system_hint' | 'membership_hint'
   content: string
@@ -178,8 +166,11 @@ const conversationId = ref<number | undefined>(undefined)
 // 标记是否是从历史对话跳转的（从历史对话跳转时不需要设置默认指令）
 const isFromConversationHistory = ref(false)
 const keyboardHeight = ref(0)
+const showPersonaModal = ref(false)
 /** 防止 @tap 和 @confirm 同时触发导致重复发送 */
 let isSendingLock = false
+
+const personaContextLabel = computed(() => buildPersonaContextLabel(projectStore.activeProject))
 
 const canSend = computed(() => inputText.value.trim().length > 0)
 
@@ -218,11 +209,18 @@ function clearChat() {
 }
 
 function scrollToBottom() {
-  // 先清空再设置，确保 scroll-into-view 值变化以触发滚动（小程序同值不触发）
-  scrollIntoView.value = ''
+  const scroll = () => {
+    scrollIntoView.value = ''
+    nextTick(() => {
+      scrollIntoView.value = 'scroll-bottom-anchor'
+    })
+  }
+  scroll()
+  // 历史消息异步渲染后再次滚动，确保到达底部
   nextTick(() => {
-    scrollIntoView.value = 'scroll-bottom-anchor'
+    nextTick(scroll)
   })
+  setTimeout(scroll, 120)
 }
 
 function onScrollToUpper() {
@@ -246,6 +244,40 @@ function handleTextareaConfirm() {
 function goToMembership() {
   uni.navigateTo({
     url: '/pages/mine/membership/index'
+  })
+}
+
+async function loadPersonaProject() {
+  try {
+    const res = await fetchProjects()
+    projectStore.setProjectList(res.projects, res.active_project_id)
+  } catch (e) {
+    console.error('加载人设项目失败:', e)
+  }
+}
+
+function openPersonaSetup() {
+  showPersonaModal.value = true
+}
+
+function onPersonaSaved() {
+  loadPersonaProject()
+}
+
+function startNewSession() {
+  if (chatHistory.length === 0 && !conversationId.value) {
+    uni.showToast({ title: '已是新会话', icon: 'none' })
+    return
+  }
+  uni.showModal({
+    title: '新开会话',
+    content: '确定开启新会话吗？当前对话记录将被清空，IP 人设关联保持不变。',
+    success: (res) => {
+      if (!res.confirm) return
+      chatHistory.splice(0, chatHistory.length)
+      conversationId.value = undefined
+      uni.showToast({ title: '已开启新会话', icon: 'success' })
+    }
   })
 }
 
@@ -307,7 +339,7 @@ async function sendMessage() {
   let receivedContent = ''
 
   try {
-    const projectId = activeProject.value?.id ? parseInt(activeProject.value.id) : undefined
+    const projectId = resolveChatProjectId(projectStore.activeProject)
 
     const messages = chatHistory
       .filter(msg => (msg.role === 'user' || msg.role === 'assistant') && msg !== assistantMessage)
@@ -493,6 +525,8 @@ async function loadConversationHistory(convId: number) {
       nextTick(() => {
         scrollToBottom()
       })
+    } else {
+      scrollToBottom()
     }
   } catch (error) {
     console.error('加载历史对话失败:', error)
@@ -506,6 +540,7 @@ async function loadConversationHistory(convId: number) {
 
 onLoad(async (options?: PageOptions) => {
   quickEntryStore.loadActiveQuickEntryFromStorage()
+  await loadPersonaProject()
 
   // 如果提供了 conversationId，优先加载历史对话
   if (options?.conversationId) {
@@ -555,6 +590,10 @@ onLoad(async (options?: PageOptions) => {
   if (options?.content) {
     inputText.value = decodeURIComponent(options.content)
   }
+})
+
+onShow(() => {
+  loadPersonaProject()
 })
 
 const onKeyboardHeightChange = (res: { height: number }) => {
@@ -690,16 +729,10 @@ $border-light: rgba(0, 0, 0, 0.06);
   }
 }
 
-.persona-card-wrapper {
-  flex-shrink: 0;
-  overflow: visible;
-  padding-top: 170rpx;
-    /* 固定头部占位：安全区 + nav-content */
-}
-
 .chat-container {
   flex: 1;
   padding: 0 10rpx;
+  padding-top: 280rpx;
   padding-bottom: 200rpx;
     /* 底部输入栏占位，避免被 fixed 底部栏遮挡 */
   overflow: hidden;

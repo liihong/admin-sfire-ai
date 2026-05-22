@@ -14,8 +14,8 @@
       
       <!-- 标题信息 -->
       <view class="title-section">
-        <text class="main-title">火源AI智能体</text>
-        <text class="sub-title">HUOYUAN AI</text>
+        <text class="main-title">顶妈AI智能体</text>
+        <text class="sub-title">DingMa AI</text>
         <text class="desc">你的专属AI爆款引擎</text>
       </view>
     </view>

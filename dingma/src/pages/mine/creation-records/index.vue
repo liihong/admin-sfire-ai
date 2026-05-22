@@ -1,5 +1,18 @@
 <template>
   <view class="page-creation-records">
+    <!-- 自定义顶栏 -->
+    <view class="page-nav" :style="{ paddingTop: safeArea.top + 'px' }">
+      <view class="nav-bar">
+        <view class="nav-back" @tap="goBack">
+          <text class="nav-back-icon">‹</text>
+        </view>
+        <text class="nav-title">历史对话</text>
+        <view class="nav-more" @tap="onMoreTap">
+          <text class="nav-more-dots">••</text>
+        </view>
+      </view>
+    </view>
+
     <scroll-view
       class="list-scroll"
       scroll-y
@@ -12,26 +25,31 @@
         <text class="state-text">加载中...</text>
       </view>
 
-      <view v-else-if="list.length > 0" class="record-list">
-        <view
-          v-for="item in list"
-          :key="item.id"
-          class="record-card"
-          @tap="openConversation(item)"
-        >
-          <view class="record-main">
-            <text class="record-title">{{ item.title || '未命名对话' }}</text>
-            <view class="record-meta">
-              <text v-if="item.agent_name" class="meta-tag">{{ item.agent_name }}</text>
-              <text class="meta-time">{{ formatTime(item.updated_at || item.created_at) }}</text>
-            </view>
-          </view>
-          <text class="record-chevron">›</text>
+      <template v-else-if="list.length > 0">
+        <view class="section-head">
+          <text class="section-icon">🕒</text>
+          <text class="section-text">往期爆单对话归档 (共 {{ total }} 个)</text>
         </view>
-      </view>
+
+        <view class="record-list">
+          <view
+            v-for="(item, index) in list"
+            :key="item.id"
+            class="record-card"
+            @tap="openConversation(item)"
+          >
+            <view class="record-main">
+              <text class="record-title">{{ displayTitle(item, index) }}</text>
+              <text class="record-time">{{ formatCreateTime(item.created_at) }}</text>
+            </view>
+            <text class="record-action">载入查看 ›</text>
+          </view>
+        </view>
+      </template>
 
       <view v-else class="state-wrap">
-        <text class="state-text">暂无创作记录</text>
+        <text class="state-emoji">💬</text>
+        <text class="state-text">暂无历史对话</text>
         <text class="state-hint">在爆款助手与 AI 对话后，历史会保存在这里</text>
       </view>
 
@@ -48,13 +66,17 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, nextTick } from 'vue'
 import { onShow } from '@dcloudio/uni-app'
 import { getConversationList, type Conversation } from '@/api/conversation'
 import { useAuthStore } from '@/stores/auth'
+import { useSafeArea } from '@/composables/useSafeArea'
 
 const authStore = useAuthStore()
+const { safeArea, updateSafeArea } = useSafeArea()
 const PAGE_SIZE = 20
+
+const TITLE_EMOJIS = ['🔥', '💡', '🎬', '✨', '📣', '🛒']
 
 const list = ref<Conversation[]>([])
 const loading = ref(false)
@@ -65,20 +87,46 @@ const total = ref(0)
 
 const hasMore = computed(() => list.value.length < total.value)
 
-function formatTime(timeStr: string): string {
-  if (!timeStr) return ''
-  const date = new Date(timeStr)
-  const now = new Date()
-  const diff = now.getTime() - date.getTime()
-  const minutes = Math.floor(diff / 60000)
-  const hours = Math.floor(diff / 3600000)
-  const days = Math.floor(diff / 86400000)
+function goBack() {
+  uni.navigateBack({
+    fail: () => uni.switchTab({ url: '/pages/mine/index' }),
+  })
+}
 
-  if (minutes < 1) return '刚刚'
-  if (minutes < 60) return `${minutes} 分钟前`
-  if (hours < 24) return `${hours} 小时前`
-  if (days < 7) return `${days} 天前`
-  return date.toLocaleDateString('zh-CN', { month: 'short', day: 'numeric' })
+function onMoreTap() {
+  uni.showActionSheet({
+    itemList: ['刷新列表'],
+    success: (res) => {
+      if (res.tapIndex === 0) handleRefresh()
+    },
+  })
+}
+
+function displayTitle(item: Conversation, index: number): string {
+  const title = (item.title || '未命名对话').trim()
+  if (/^[\u{1F300}-\u{1FAFF}\u2600-\u27BF]/u.test(title)) return title
+  return `${TITLE_EMOJIS[index % TITLE_EMOJIS.length]} ${title}`
+}
+
+function formatCreateTime(timeStr: string): string {
+  if (!timeStr) return '创建时间：—'
+  const date = new Date(timeStr)
+  if (Number.isNaN(date.getTime())) return '创建时间：—'
+
+  const now = new Date()
+  const pad = (n: number) => String(n).padStart(2, '0')
+  const timePart = `${pad(date.getHours())}:${pad(date.getMinutes())}`
+
+  const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+  const startOfDate = new Date(date.getFullYear(), date.getMonth(), date.getDate())
+  const dayDiff = Math.floor((startOfToday.getTime() - startOfDate.getTime()) / 86400000)
+
+  if (dayDiff === 0) return `创建时间：今天 ${timePart}`
+  if (dayDiff === 1) return `创建时间：昨天 ${timePart}`
+  if (dayDiff === 2) return `创建时间：前天 ${timePart}`
+  if (dayDiff < 7) return `创建时间：${dayDiff}天前 ${timePart}`
+  const datePart = date.toLocaleDateString('zh-CN', { month: 'numeric', day: 'numeric' })
+  return `创建时间：${datePart} ${timePart}`
 }
 
 async function loadList(isRefresh = false) {
@@ -154,70 +202,146 @@ function ensureLogin() {
   return false
 }
 
-onMounted(() => {
+onMounted(async () => {
+  updateSafeArea()
   if (!ensureLogin()) return
-  loadList(true)
+  await nextTick()
+  loadList(false)
 })
 
 onShow(() => {
   if (!authStore.isLoggedIn) {
     list.value = []
+    total.value = 0
     return
   }
 })
 </script>
 
 <style scoped lang="scss">
+$page-bg: #fdfbf7;
+$text-primary: #332d2b;
+$text-muted: #998b82;
+$accent: #b8864d;
+$card-border: #f2e6d8;
+
 .page-creation-records {
-  min-height: 100vh;
-  background: #f1f5f9;
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  overflow: hidden;
+  background: $page-bg;
+}
+
+.page-nav {
+  background: $page-bg;
+}
+
+.nav-bar {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 88rpx;
+  padding: 0 32rpx;
+}
+
+.nav-back {
+  position: absolute;
+  left: 24rpx;
+  width: 64rpx;
+  height: 64rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  &:active {
+    opacity: 0.6;
+  }
+}
+
+.nav-back-icon {
+  font-size: 48rpx;
+  font-weight: 300;
+  color: $text-primary;
+  line-height: 1;
+}
+
+.nav-title {
+  font-size: 34rpx;
+  font-weight: 700;
+  color: $text-primary;
+}
+
+.nav-more {
+  position: absolute;
+  right: 32rpx;
+  min-width: 72rpx;
+  height: 56rpx;
+  padding: 0 20rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255, 255, 255, 0.85);
+  border: 1rpx solid $card-border;
+  border-radius: 999rpx;
+
+  &:active {
+    opacity: 0.75;
+  }
+}
+
+.nav-more-dots {
+  font-size: 22rpx;
+  letter-spacing: 2rpx;
+  color: $text-muted;
+  line-height: 1;
 }
 
 .list-scroll {
-  height: 100vh;
+  flex: 1;
+  height: 0;
   box-sizing: border-box;
-  padding: 24rpx;
+  padding: 8rpx 32rpx 0;
 }
 
-.state-wrap {
-  padding: 120rpx 32rpx;
+.section-head {
   display: flex;
-  flex-direction: column;
   align-items: center;
-  gap: 16rpx;
+  gap: 10rpx;
+  padding: 24rpx 0 28rpx;
 }
 
-.state-text {
+.section-icon {
   font-size: 28rpx;
-  color: #64748b;
+  line-height: 1;
 }
 
-.state-hint {
-  font-size: 24rpx;
-  color: #94a3b8;
-  text-align: center;
-  line-height: 1.5;
+.section-text {
+  font-size: 28rpx;
+  font-weight: 600;
+  color: $text-primary;
 }
 
 .record-list {
   display: flex;
   flex-direction: column;
-  gap: 20rpx;
+  gap: 24rpx;
 }
 
 .record-card {
-  background: #fff;
-  border-radius: 24rpx;
-  padding: 28rpx 32rpx;
   display: flex;
   flex-direction: row;
   align-items: center;
   justify-content: space-between;
-  box-shadow: 0 4rpx 20rpx rgba(15, 23, 42, 0.05);
+  gap: 20rpx;
+  padding: 28rpx 30rpx;
+  background: #fff;
+  border: 1rpx solid $card-border;
+  border-radius: 24rpx;
 
   &:active {
-    opacity: 0.92;
-    background: #fafbfc;
+    background: #fffaf5;
   }
 }
 
@@ -232,53 +356,62 @@ onShow(() => {
 .record-title {
   font-size: 30rpx;
   font-weight: 600;
-  color: #0f172a;
+  color: $text-primary;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.record-meta {
-  display: flex;
-  flex-direction: row;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 12rpx 16rpx;
+.record-time {
+  font-size: 24rpx;
+  color: $text-muted;
 }
 
-.meta-tag {
-  font-size: 22rpx;
-  color: #2563eb;
-  background: rgba(37, 99, 235, 0.08);
-  padding: 4rpx 14rpx;
-  border-radius: 999rpx;
-}
-
-.meta-time {
-  font-size: 22rpx;
-  color: #94a3b8;
-}
-
-.record-chevron {
-  font-size: 40rpx;
-  color: #cbd5e1;
-  font-weight: 300;
+.record-action {
   flex-shrink: 0;
-  margin-left: 16rpx;
+  font-size: 24rpx;
+  color: $accent;
+  white-space: nowrap;
+}
+
+.state-wrap {
+  padding: 160rpx 32rpx;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16rpx;
+}
+
+.state-emoji {
+  font-size: 64rpx;
+  margin-bottom: 8rpx;
+}
+
+.state-text {
+  font-size: 28rpx;
+  color: $text-muted;
+}
+
+.state-hint {
+  font-size: 24rpx;
+  color: $text-muted;
+  text-align: center;
+  line-height: 1.6;
+  opacity: 0.85;
 }
 
 .footer-state {
-  padding: 28rpx;
+  padding: 32rpx;
   text-align: center;
   font-size: 24rpx;
-  color: #64748b;
+  color: $text-muted;
 
   &.muted {
-    color: #94a3b8;
+    opacity: 0.75;
   }
 }
 
 .bottom-safe {
-  height: calc(40rpx + env(safe-area-inset-bottom));
+  height: calc(32rpx + env(safe-area-inset-bottom));
 }
 </style>

@@ -1,59 +1,46 @@
 <template>
-  <view class="inspiration-item" :class="{ pinned: inspiration.is_pinned }">
-    <!-- 置顶标识 -->
-    <view v-if="inspiration.is_pinned" class="pinned-badge">
-      <u-icon name="pin" color="#FF8800" size="16"></u-icon>
-      <text class="pinned-text">置顶</text>
-    </view>
-    
-    <!-- 内容区域 -->
-    <view class="item-content" @tap="handleItemClick">
-      <view class="content-text">{{ displayContent }}</view>
-      
-      <!-- 标签区域 -->
-      <view v-if="inspiration.tags && inspiration.tags.length > 0" class="tags-wrapper">
-        <view
-          v-for="tag in inspiration.tags"
-          :key="tag"
-          class="tag-item"
-        >
-          <text class="tag-text">{{ tag }}</text>
+  <view
+    class="inspiration-card"
+    :class="{ pinned: inspiration.is_pinned }"
+    @longpress="handleLongPress"
+  >
+    <view class="card-accent" />
+
+    <view class="card-body">
+      <view class="card-top">
+        <view class="card-title-row">
+          <text v-if="inspiration.is_pinned" class="pin-tag">置顶</text>
+          <text class="card-title">{{ displayTitle }}</text>
+        </view>
+        <text class="card-action" @tap.stop="handleChat">去AI沟通 ›</text>
+      </view>
+
+      <text v-if="displayDescription" class="card-desc">{{ displayDescription }}</text>
+
+      <view class="card-footer">
+        <view v-if="inspiration.tags?.length || inspiration.generated_content" class="card-meta">
+          <view v-if="inspiration.tags?.length" class="tags-row">
+            <text
+              v-for="tag in inspiration.tags.slice(0, 3)"
+              :key="tag"
+              class="tag-chip"
+            >{{ tag }}</text>
+          </view>
+          <text v-if="inspiration.generated_content" class="generated-tag">已生成文案</text>
+        </view>
+
+        <view class="delete-btn" @tap.stop="handleDelete">
+          <u-icon name="trash" color="#c47a6a" size="16"></u-icon>
+          <text class="delete-text">删除</text>
         </view>
       </view>
-      
-      <!-- 项目关联 -->
-      <view v-if="inspiration.project_name" class="project-info">
-        <u-icon name="folder" color="#86909C" size="14"></u-icon>
-        <text class="project-name">{{ inspiration.project_name }}</text>
-      </view>
-      
-      <!-- 底部信息 -->
-      <view class="item-footer">
-        <text class="time-text">{{ formatTime(inspiration.created_at) }}</text>
-        <view v-if="inspiration.generated_content" class="generated-badge">
-          <u-icon name="checkmark-circle" color="#10B981" size="14"></u-icon>
-          <text class="generated-text">已生成</text>
-        </view>
-      </view>
     </view>
-    
-    <!-- 操作按钮 -->
-    <InspirationActions
-      :inspiration="inspiration"
-      @generate="handleGenerate"
-      @chat="handleChat"
-      @edit="handleEdit"
-      @delete="handleDelete"
-      @pin="handlePin"
-      @archive="handleArchive"
-    />
   </view>
 </template>
 
 <script setup lang="ts">
 import { computed } from 'vue'
 import type { Inspiration } from '@/api/inspiration'
-import InspirationActions from './InspirationActions.vue'
 
 interface Props {
   inspiration: Inspiration
@@ -71,161 +58,229 @@ const emit = defineEmits<{
   click: [inspiration: Inspiration]
 }>()
 
-// 内容预览（前100字符）
-const displayContent = computed(() => {
-  const content = props.inspiration.content
-  if (content.length <= 100) {
-    return content
-  }
-  return content.substring(0, 100) + '...'
+const parsedContent = computed(() => parseContent(props.inspiration.content))
+
+const displayTitle = computed(() => parsedContent.value.title)
+
+const displayDescription = computed(() => {
+  const desc = parsedContent.value.description
+  if (!desc) return ''
+  if (desc.length <= 120) return desc
+  return `${desc.slice(0, 120)}...`
 })
 
-// 格式化时间
-function formatTime(timeStr: string): string {
-  const date = new Date(timeStr)
-  const now = new Date()
-  const diff = now.getTime() - date.getTime()
-  const minutes = Math.floor(diff / 60000)
-  const hours = Math.floor(diff / 3600000)
-  const days = Math.floor(diff / 86400000)
-  
-  if (minutes < 1) {
-    return '刚刚'
-  } else if (minutes < 60) {
-    return `${minutes}分钟前`
-  } else if (hours < 24) {
-    return `${hours}小时前`
-  } else if (days < 7) {
-    return `${days}天前`
-  } else {
-    return date.toLocaleDateString('zh-CN', { month: 'short', day: 'numeric' })
+function parseContent(content: string) {
+  const trimmed = content.trim()
+  if (!trimmed) {
+    return { title: '未命名灵感', description: '' }
   }
-}
 
-function handleItemClick() {
-  emit('click', props.inspiration)
-}
+  const lines = trimmed.split('\n').map((line) => line.trim()).filter(Boolean)
+  if (lines.length >= 2) {
+    return {
+      title: lines[0],
+      description: lines.slice(1).join('\n'),
+    }
+  }
 
-function handleGenerate() {
-  emit('generate', props.inspiration)
+  const sentenceMatch = trimmed.match(/^(.{2,24}?[，。！？、：:])\s*(.+)$/s)
+  if (sentenceMatch?.[2] && sentenceMatch[2].length >= 8) {
+    return {
+      title: sentenceMatch[1].replace(/[，。！？、：:]$/, ''),
+      description: sentenceMatch[2].trim(),
+    }
+  }
+
+  if (trimmed.length <= 20) {
+    return { title: trimmed, description: '' }
+  }
+
+  const splitAt = Math.min(16, trimmed.length)
+  return {
+    title: `${trimmed.slice(0, splitAt)}…`,
+    description: trimmed,
+  }
 }
 
 function handleChat() {
   emit('chat', props.inspiration)
 }
 
-function handleEdit() {
-  emit('edit', props.inspiration)
-}
-
 function handleDelete() {
   emit('delete', props.inspiration)
 }
 
-function handlePin() {
-  emit('pin', props.inspiration)
-}
+function handleLongPress() {
+  const pinLabel = props.inspiration.is_pinned ? '取消置顶' : '置顶'
+  const archiveLabel = props.inspiration.status === 'archived' ? '取消归档' : '归档'
 
-function handleArchive() {
-  emit('archive', props.inspiration)
+  uni.showActionSheet({
+    itemList: [pinLabel, archiveLabel, '编辑'],
+    success: (res) => {
+      switch (res.tapIndex) {
+        case 0:
+          emit('pin', props.inspiration)
+          break
+        case 1:
+          emit('archive', props.inspiration)
+          break
+        case 2:
+          emit('edit', props.inspiration)
+          break
+      }
+    },
+  })
 }
 </script>
 
 <style lang="scss" scoped>
-@import '@/styles/_variables.scss';
+$page-bg: #fdfbf7;
+$text-primary: #332d2b;
+$text-muted: #998b82;
+$accent: #b8864d;
+$card-border: #f2e6d8;
 
-.inspiration-item {
-  background: $white;
-  border-radius: $radius-lg;
-  padding: $spacing-md;
-  margin-bottom: $spacing-md;
-  box-shadow: $card-shadow;
+.inspiration-card {
   position: relative;
-  transition: all $transition-base;
-  
+  display: flex;
+  background: #fff;
+  border: 1rpx solid $card-border;
+  border-radius: 24rpx;
+  overflow: hidden;
+
   &.pinned {
-    border-left: 4rpx solid $primary-orange;
+    border-color: rgba($accent, 0.45);
   }
-  
-  .pinned-badge {
-    position: absolute;
-    top: $spacing-sm;
-    right: $spacing-sm;
-    display: flex;
-    align-items: center;
-    gap: 4rpx;
-    padding: 4rpx 8rpx;
-    background: rgba($primary-orange, 0.1);
-    border-radius: $radius-sm;
-    
-    .pinned-text {
-      font-size: $font-size-xs;
-      color: $primary-orange;
-    }
-  }
-  
-  .item-content {
-    padding-right: 80rpx;
-    
-    .content-text {
-      font-size: $font-size-md;
-      color: $text-main;
-      line-height: 1.6;
-      margin-bottom: $spacing-sm;
-    }
-    
-    .tags-wrapper {
-      display: flex;
-      flex-wrap: wrap;
-      gap: $spacing-xs;
-      margin-bottom: $spacing-sm;
-      
-      .tag-item {
-        padding: 4rpx 12rpx;
-        background: rgba($primary-orange, 0.1);
-        border-radius: $radius-sm;
-        
-        .tag-text {
-          font-size: $font-size-xs;
-          color: $primary-orange;
-        }
-      }
-    }
-    
-    .project-info {
-      display: flex;
-      align-items: center;
-      gap: 4rpx;
-      margin-bottom: $spacing-sm;
-      
-      .project-name {
-        font-size: $font-size-xs;
-        color: $text-second;
-      }
-    }
-    
-    .item-footer {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      
-      .time-text {
-        font-size: $font-size-xs;
-        color: $text-placeholder;
-      }
-      
-      .generated-badge {
-        display: flex;
-        align-items: center;
-        gap: 4rpx;
-        
-        .generated-text {
-          font-size: $font-size-xs;
-          color: $color-success;
-        }
-      }
-    }
+
+  &:active {
+    background: #fffaf5;
   }
 }
-</style>
 
+.card-accent {
+  flex-shrink: 0;
+  width: 10rpx;
+  margin: 24rpx 0 24rpx 0;
+  background: linear-gradient(180deg, #d4a574 0%, #b8864d 100%);
+  border-radius: 0 8rpx 8rpx 0;
+}
+
+.card-body {
+  flex: 1;
+  min-width: 0;
+  padding: 28rpx 28rpx 28rpx 20rpx;
+}
+
+.card-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 20rpx;
+  margin-bottom: 12rpx;
+}
+
+.card-title-row {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 10rpx;
+}
+
+.pin-tag {
+  flex-shrink: 0;
+  padding: 2rpx 10rpx;
+  font-size: 20rpx;
+  color: $accent;
+  background: rgba($accent, 0.12);
+  border-radius: 999rpx;
+}
+
+.card-title {
+  flex: 1;
+  min-width: 0;
+  font-size: 30rpx;
+  font-weight: 700;
+  color: $text-primary;
+  line-height: 1.4;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.card-action {
+  flex-shrink: 0;
+  padding-top: 4rpx;
+  font-size: 24rpx;
+  color: $accent;
+  white-space: nowrap;
+
+  &:active {
+    opacity: 0.7;
+  }
+}
+
+.card-desc {
+  display: block;
+  font-size: 26rpx;
+  color: $text-muted;
+  line-height: 1.65;
+  word-break: break-all;
+}
+
+.card-meta {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16rpx;
+}
+
+.card-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16rpx;
+  margin-top: 20rpx;
+}
+
+.delete-btn {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 6rpx;
+  margin-left: auto;
+  padding: 8rpx 12rpx;
+  border-radius: 999rpx;
+
+  &:active {
+    background: rgba(196, 122, 106, 0.12);
+  }
+}
+
+.delete-text {
+  font-size: 22rpx;
+  color: #c47a6a;
+}
+
+.tags-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8rpx;
+}
+
+.tag-chip {
+  padding: 4rpx 12rpx;
+  font-size: 20rpx;
+  color: $accent;
+  background: rgba($accent, 0.1);
+  border-radius: 999rpx;
+}
+
+.generated-tag {
+  flex-shrink: 0;
+  font-size: 20rpx;
+  color: #7a9b6e;
+}
+</style>

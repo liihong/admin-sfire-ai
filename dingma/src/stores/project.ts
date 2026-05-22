@@ -197,7 +197,10 @@ export const useProjectStore = defineStore('project', () => {
     const persona = activeProject.value.persona_settings
     const parts: string[] = []
     parts.push(`你现在扮演的是「${activeProject.value.name}」这个IP形象。`)
+    if (persona.ip_city) parts.push(`所在地区：${persona.ip_city}`)
+    if (persona.ip_identityTag) parts.push(`身份标签：${persona.ip_identityTag}`)
     if (persona.ip_experience) parts.push(`经历介绍：${persona.ip_experience}`)
+    if (persona.cl_mainProducts) parts.push(`主要产品：${persona.cl_mainProducts}`)
     if (persona.style_tones) parts.push(`语气风格：${persona.style_tones}`)
     if (persona.style_mantra) parts.push(`个人口头禅：${persona.style_mantra}`)
     if (persona.cl_targetPopulation) parts.push(`目标人群：${persona.cl_targetPopulation}`)

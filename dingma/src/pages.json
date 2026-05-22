@@ -33,9 +33,16 @@
     {
       "path": "pages/mine/index",
       "style": {
-        "navigationBarTitleText": "我的",
+        "navigationBarTitleText": "我的私房",
         "enablePullDownRefresh": true,
         "backgroundTextStyle": "dark"
+      }
+    },
+    {
+      "path": "pages/common/webview",
+      "style": {
+        "navigationBarTitleText": "页面",
+        "navigationStyle": "default"
       }
     }
   ],
@@ -161,7 +168,8 @@
         {
           "path": "index",
           "style": {
-            "navigationBarTitleText": "我的创作记录",
+            "navigationBarTitleText": "历史对话",
+            "navigationStyle": "custom",
             "enablePullDownRefresh": false,
             "backgroundTextStyle": "dark"
           }
@@ -183,6 +191,20 @@
       ]
     },
     {
+      "root": "pages/inspiration",
+      "name": "inspiration",
+      "pages": [
+        {
+          "path": "index",
+          "style": {
+            "navigationBarTitleText": "我的灵感夹",
+            "navigationStyle": "custom",
+            "enablePullDownRefresh": false
+          }
+        }
+      ]
+    },
+    {
       "root": "pages/aichat",
       "name": "aichat",
       "pages": [
@@ -197,14 +219,15 @@
       ]
     },
     {
-      "root": "pages/common",
-      "name": "common",
+      "root": "pages/copywriting",
+      "name": "copywriting",
       "pages": [
         {
-          "path": "webview",
+          "path": "index",
           "style": {
-            "navigationBarTitleText": "页面",
-            "navigationStyle": "default"
+            "navigationBarTitleText": "对话",
+            "navigationStyle": "custom",
+            "disableScroll": true
           }
         }
       ]
@@ -213,7 +236,7 @@
   "preloadRule": {
     "pages/home/index": {
       "network": "all",
-      "packages": ["common", "aichat"]
+      "packages": ["aichat"]
     },
     "pages/mine/index": {
       "network": "all",
@@ -223,7 +246,10 @@
         "mine-contact",
         "mine-creation-records",
         "mine-membership",
-        "auth-login"
+        "inspiration",
+        "auth-login",
+        "aichat",
+        "copywriting"
       ]
     }
   },
@@ -235,7 +261,7 @@
   },
   "tabBar": {
     "color": "#999999",
-    "selectedColor": "#3B82F6",
+    "selectedColor": "#F37021",
     "backgroundColor": "#ffffff",
     "borderStyle": "white",
     "list": [

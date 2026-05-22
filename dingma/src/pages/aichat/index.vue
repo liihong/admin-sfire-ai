@@ -14,9 +14,15 @@
           </view>
         </view>
       </view>
+      <PersonaContextBar
+        :label="personaContextLabel"
+        show-new-session
+        @new-session="startNewSession"
+        @setup="openPersonaSetup"
+      />
     </view>
 
-    <scroll-view class="chat-container" scroll-y :scroll-top="scrollTop" :scroll-with-animation="true"
+    <scroll-view class="chat-container" scroll-y :scroll-into-view="scrollIntoView" :scroll-with-animation="true"
       @scrolltoupper="onScrollToUpper">
 
       <view v-for="(msg, idx) in chatHistory" :key="idx" class="message-wrapper" :class="msg.role">
@@ -79,7 +85,7 @@
         </view>
       </view>
 
-      <view class="scroll-bottom-spacer"></view>
+      <view id="scroll-bottom-anchor" class="scroll-bottom-spacer"></view>
     </scroll-view>
 
     <view class="bottom-bar" :style="{ bottom: keyboardHeight + 'px' }">
@@ -103,20 +109,30 @@
         <text class="disclaimer-text">本内容由 AI 生成，不代表开发者立场。</text>
       </view>
     </view>
+
+    <PersonaProfileModal
+      v-model:visible="showPersonaModal"
+      :default-name="authStore.userInfo?.nickname"
+      @saved="onPersonaSaved"
+    />
   </view>
 </template>
 
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted, onUnmounted, nextTick } from 'vue'
-import { onLoad } from '@dcloudio/uni-app'
+import { onLoad, onShow } from '@dcloudio/uni-app'
 import { useAuthStore } from '@/stores/auth'
 import { useAgentStore } from '@/stores/agent'
 import { useProjectStore } from '@/stores/project'
+import { fetchProjects } from '@/api/project'
 import { chatStream } from '@/api/generate'
 import { msgSecCheck } from '@/utils/security'
-import { getConversationDetail } from '@/api/conversation'
+import { getConversationDetail, getConversationList } from '@/api/conversation'
+import { buildPersonaContextLabel, resolveChatProjectId } from '@/utils/persona'
 import SvgIcon from '@/components/base/SvgIcon.vue'
 import SafeAreaTop from '@/components/common/SafeAreaTop.vue'
+import PersonaContextBar from '@/components/chat/PersonaContextBar.vue'
+import PersonaProfileModal from '@/components/mine/PersonaProfileModal.vue'
 import { DINGMA_AGENT_DEFAULT_AVATAR_URL } from '@/constants/tenant'
 
 const assistantAvatarUrl = DINGMA_AGENT_DEFAULT_AVATAR_URL
@@ -136,11 +152,13 @@ interface ChatMessage {
 const chatHistory = reactive<ChatMessage[]>([])
 const inputText = ref('')
 const isGenerating = ref(false)
-const scrollTop = ref(0)
+const scrollIntoView = ref('')
 const conversationId = ref<number | undefined>(undefined)
 const isFromConversationHistory = ref(false)
 const keyboardHeight = ref(0)
-let scrollCounter = 0
+const showPersonaModal = ref(false)
+
+const personaContextLabel = computed(() => buildPersonaContextLabel(projectStore.activeProject))
 /** 防止 @tap 和 @confirm 同时触发导致重复发送 */
 let isSendingLock = false
 
@@ -180,6 +198,41 @@ function goToMembership() {
   })
 }
 
+async function loadPersonaProject() {
+  try {
+    const res = await fetchProjects()
+    projectStore.setProjectList(res.projects, res.active_project_id)
+  } catch (e) {
+    console.error('加载人设项目失败:', e)
+  }
+}
+
+function openPersonaSetup() {
+  showPersonaModal.value = true
+}
+
+function onPersonaSaved() {
+  loadPersonaProject()
+}
+
+function startNewSession() {
+  if (chatHistory.length === 0 && !conversationId.value) {
+    uni.showToast({ title: '已是新会话', icon: 'none' })
+    return
+  }
+  uni.showModal({
+    title: '新开会话',
+    content: '确定开启新会话吗？当前对话记录将被清空，IP 人设关联保持不变。',
+    success: (res) => {
+      if (!res.confirm) return
+      chatHistory.splice(0, chatHistory.length)
+      conversationId.value = undefined
+      appendWelcomeBubbleIfEmpty()
+      uni.showToast({ title: '已开启新会话', icon: 'success' })
+    }
+  })
+}
+
 function clearChat() {
   if (chatHistory.length === 0) {
     uni.showToast({
@@ -206,10 +259,18 @@ function clearChat() {
 }
 
 function scrollToBottom() {
+  const scroll = () => {
+    scrollIntoView.value = ''
+    nextTick(() => {
+      scrollIntoView.value = 'scroll-bottom-anchor'
+    })
+  }
+  scroll()
+  // 历史消息异步渲染后再次滚动，确保到达底部
   nextTick(() => {
-    scrollCounter++
-    scrollTop.value = scrollCounter
+    nextTick(scroll)
   })
+  setTimeout(scroll, 120)
 }
 
 function onScrollToUpper() {
@@ -301,16 +362,14 @@ async function sendMessage() {
       throw new Error('智能体ID不能为空')
     }
 
-    const projectId = projectStore.activeProject?.id
-      ? parseInt(projectStore.activeProject.id, 10)
-      : undefined
+    const projectId = resolveChatProjectId(projectStore.activeProject)
 
     await chatStream(
       {
         agent_type: agentType.toString(),
         conversation_id: conversationId.value,
         messages: messages,
-        project_id: typeof projectId === 'number' && !isNaN(projectId) ? projectId : undefined,
+        project_id: projectId,
         stream: true
       },
       {
@@ -471,8 +530,11 @@ async function loadConversationHistory(convId: number) {
       nextTick(() => {
         scrollToBottom()
       })
+    } else {
+      scrollToBottom()
     }
     appendWelcomeBubbleIfEmpty()
+    return true
   } catch (error) {
     console.error('加载历史对话失败:', error)
     uni.showToast({
@@ -480,10 +542,39 @@ async function loadConversationHistory(convId: number) {
       icon: 'none',
       duration: 2000
     })
+    return false
+  }
+}
+
+/** 加载当前智能体最近一次对话（首页进入时默认恢复上下文） */
+async function loadLatestConversationForAgent(agentId: string): Promise<boolean> {
+  const agentIdNum = parseInt(agentId, 10)
+  if (Number.isNaN(agentIdNum)) return false
+  if (!authStore.hasToken) return false
+
+  try {
+    const projectId = resolveChatProjectId(projectStore.activeProject)
+    const response = await getConversationList({
+      pageNum: 1,
+      pageSize: 1,
+      status: 'active',
+      agent_id: agentIdNum,
+      ...(projectId ? { project_id: projectId } : {}),
+    })
+
+    const latest = response.data?.list?.[0]
+    if (!latest?.id) return false
+
+    return await loadConversationHistory(latest.id)
+  } catch (error) {
+    console.error('加载最近对话失败:', error)
+    return false
   }
 }
 
 onLoad(async (options?: PageOptions) => {
+  await loadPersonaProject()
+
   if (options?.conversationId) {
     const convId = parseInt(options.conversationId)
     if (!isNaN(convId)) {
@@ -522,11 +613,21 @@ onLoad(async (options?: PageOptions) => {
     }
   }
 
+  const agentIdForHistory = options?.agentId || agentStore.getActiveAgentId
+  if (agentIdForHistory) {
+    const loaded = await loadLatestConversationForAgent(String(agentIdForHistory))
+    if (loaded) return
+  }
+
   if (options?.content) {
     inputText.value = decodeURIComponent(options.content)
   }
 
   appendWelcomeBubbleIfEmpty()
+})
+
+onShow(() => {
+  loadPersonaProject()
 })
 
 const onKeyboardHeightChange = (res: { height: number }) => {
@@ -639,7 +740,7 @@ $border-light: rgba(0, 0, 0, 0.06);
 .chat-container {
   flex: 1;
   padding: 0 24rpx;
-  padding-top: 220rpx; /* 固定头部占位：安全区 + nav-content */
+  padding-top: 280rpx; /* 固定头部占位：安全区 + nav-content + 人设条 */
   padding-bottom: 200rpx; /* 底部输入栏占位，避免被 fixed 底部栏遮挡 */
   overflow: hidden;
 }

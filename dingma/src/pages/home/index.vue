@@ -1,93 +1,97 @@
 <template>
-  <scroll-view scroll-y class="page" enhanced :show-scrollbar="false">
-    <view class="top-bar" :style="{ paddingTop: topInsetPx + 'px' }">
-      <text class="app-title">顶顶妈AI分身</text>
-      <view class="toggle-pill" @tap="onHeaderToggle">
-        <view class="toggle-dot toggle-dot--outline" />
-        <view class="toggle-dot toggle-dot--solid" />
-      </view>
-    </view>
-
-    <view class="banner-wrap" :style="bannerWrapStyle">
-      <view class="banner-mask" />
-      <view class="banner-inner">
-        <view class="banner-copy">
-          <text class="banner-title">顶妈 AI 爆款助手</text>
-          <text class="banner-sub">✨ 你身边不停歇的私人创业导师</text>
-        </view>
-        <view class="price-pill">
-          <text class="price-pill-text">¥ 365/年 · 让创业更简单一点</text>
+  <view class="page-root">
+    <scroll-view scroll-y class="page" :show-scrollbar="false">
+      <view class="top-bar" :style="{ paddingTop: topInsetPx + 'px' }">
+        <text class="app-title">顶妈AI分身-你身边的营销大脑</text>
+        <view class="toggle-pill" @tap="onHeaderToggle">
+          <view class="toggle-dot toggle-dot--outline" />
+          <view class="toggle-dot toggle-dot--solid" />
         </view>
       </view>
-    </view>
 
-    <view class="section">
-      <view class="section-head">
-        <text class="section-title">⚡️ 核心工具箱</text>
-        <text class="section-hint">SELECT TOOL</text>
-      </view>
+      <HomeBannerSwiper :banners="homeBanners" />
+      <QuoteMarquee :quotes="quoteList" />
 
-      <view v-if="loading && tools.length === 0" class="tool-state muted">加载中…</view>
-      <view v-else-if="!loading && tools.length === 0" class="tool-state muted">
-        暂无快捷指令，敬请期待
-      </view>
-      <view v-else class="tool-grid">
-        <view
-v-for="(vm, idx) in tools" :key="vm.raw.id ?? idx"
-          class="tool-card"
-:style="{ background: vm.bg }"
-          @tap="onToolTap(vm.raw)"
-        >
-          <view v-if="vm.hot" class="hot-badge">
-            <text class="hot-badge-text">HOT</text>
+      <view class="section">
+        <view v-if="loading && tools.length === 0" class="tool-state muted">加载中…</view>
+        <view v-else-if="!loading && tools.length === 0" class="tool-state muted">
+          暂无智能体，敬请期待
+        </view>
+        <template v-else>
+          <view
+v-if="featuredTool" class="agent-card agent-card--featured" @tap="onToolTap(featuredTool.raw)">
+            <view class="agent-card__icon-wrap" :style="{ background: featuredTool.iconWrapBg }">
+              <SvgIcon :name="featuredTool.icon" :size="48" :color="featuredTool.iconColor" />
+              <view v-if="featuredTool.hot" class="agent-card__dot" />
+            </view>
+            <view class="agent-card__body">
+              <text class="agent-card__title">{{ featuredTool.title }}</text>
+              <text class="agent-card__desc">{{ featuredTool.desc }}</text>
+            </view>
+            <text class="agent-card__arrow">›</text>
           </view>
-          <view class="tool-icon-wrap" :style="{ background: vm.iconWrapBg }">
-            <SvgIcon :name="vm.icon" :size="44" :color="vm.iconColor" />
-          </view>
-          <text class="tool-title">{{ vm.title }}</text>
-          <text class="tool-desc">{{ vm.desc }}</text>
-        </view>
-      </view>
-    </view>
 
-    <view class="page-bottom-space" />
-  </scroll-view>
+          <view v-if="gridTools.length > 0" class="agent-grid">
+            <view v-for="(vm, idx) in gridTools" :key="vm.raw.id ?? idx" class="agent-card agent-card--grid"
+              @tap="onToolTap(vm.raw)">
+              <view class="agent-card__top">
+                <view class="agent-card__icon-wrap agent-card__icon-wrap--sm" :style="{ background: vm.iconWrapBg }">
+                  <SvgIcon :name="vm.icon" :size="40" :color="vm.iconColor" />
+                  <view v-if="vm.hot" class="agent-card__dot" />
+                </view>
+                <text class="agent-card__arrow agent-card__arrow--sm">›</text>
+              </view>
+              <text class="agent-card__title">{{ vm.title }}</text>
+              <text class="agent-card__desc">{{ vm.desc }}</text>
+            </view>
+          </view>
+        </template>
+      </view>
+
+      <view class="page-bottom-space" />
+    </scroll-view>
+
+    <FloatingInspireFab @click="showInspireModal = true" />
+    <InspirationRecordModal v-model:visible="showInspireModal" />
+  </view>
 </template>
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { onShow } from '@dcloudio/uni-app'
 import { getQuickEntries, type QuickEntry } from '@/api/quickEntry'
+import { getHomeContent, type BannerItem } from '@/api/home'
 import { useSafeArea } from '@/composables/useSafeArea'
+import { useAgentStore } from '@/stores/agent'
 import SvgIcon from '@/components/base/SvgIcon.vue'
+import HomeBannerSwiper from '@/components/home/HomeBannerSwiper.vue'
+import QuoteMarquee from '@/components/home/QuoteMarquee.vue'
+import FloatingInspireFab from '@/components/home/FloatingInspireFab.vue'
+import InspirationRecordModal from '@/components/home/InspirationRecordModal.vue'
 
-const bannerUrl = 'https://sfire-ai.oss-cn-beijing.aliyuncs.com/dingma/class.jpg'
-
-/** 背景图置顶对齐（aspectFill 默认居中裁剪） */
-const bannerWrapStyle = computed(() => ({
-  backgroundImage: `url("${bannerUrl}")`
-}))
 const { safeArea, updateSafeArea } = useSafeArea()
+const agentStore = useAgentStore()
 const topInsetPx = ref(12)
 
 const loading = ref(true)
 const entries = ref<QuickEntry[]>([])
+const homeBanners = ref<BannerItem[]>([])
+const quoteList = ref<string[]>([])
+const showInspireModal = ref(false)
 
-/** 与原先静态卡片一致的浅色底（接口无 bg_color 时按序号轮转） */
-const CARD_PALETTE: Array<{ bg: string; iconWrapBg: string; iconColor: string }> = [
-  { bg: '#FFF7E6', iconWrapBg: 'rgba(234, 88, 12, 0.18)', iconColor: '#EA580C' },
-  { bg: '#F5F3FF', iconWrapBg: 'rgba(124, 58, 237, 0.2)', iconColor: '#7C3AED' },
-  { bg: '#E8F4FC', iconWrapBg: 'rgba(59, 130, 246, 0.2)', iconColor: '#2563EB' },
-  { bg: '#ECF5FF', iconWrapBg: 'rgba(37, 99, 235, 0.16)', iconColor: '#1D4ED8' },
-  { bg: '#FFFBEB', iconWrapBg: 'rgba(245, 158, 11, 0.22)', iconColor: '#D97706' },
-  { bg: '#FDF2F8', iconWrapBg: 'rgba(219, 39, 119, 0.16)', iconColor: '#DB2777' }
+const CARD_PALETTE: Array<{ iconWrapBg: string; iconColor: string }> = [
+  { iconWrapBg: 'rgba(243, 112, 33, 0.15)', iconColor: '#F37021' },
+  { iconWrapBg: 'rgba(124, 58, 237, 0.15)', iconColor: '#7C3AED' },
+  { iconWrapBg: 'rgba(59, 130, 246, 0.15)', iconColor: '#2563EB' },
+  { iconWrapBg: 'rgba(37, 99, 235, 0.14)', iconColor: '#1D4ED8' },
+  { iconWrapBg: 'rgba(245, 158, 11, 0.18)', iconColor: '#D97706' },
+  { iconWrapBg: 'rgba(219, 39, 119, 0.14)', iconColor: '#DB2777' }
 ]
 
 interface ToolCardVm {
   raw: QuickEntry
   title: string
   desc: string
-  bg: string
   iconWrapBg: string
   icon: string
   iconColor: string
@@ -114,45 +118,6 @@ function hexToRgb(hex: string): { r: number; g: number; b: number } | null {
   return { r: (n >> 16) & 255, g: (n >> 8) & 255, b: n & 255 }
 }
 
-function rgbToHex(r: number, g: number, b: number): string {
-  return (
-    '#' +
-    [r, g, b]
-      .map((x) =>
-        Math.max(0, Math.min(255, x))
-          .toString(16)
-          .padStart(2, '0')
-      )
-      .join('')
-  )
-}
-
-function mixRgbWhite(rgb: { r: number; g: number; b: number }, t: number): { r: number; g: number; b: number } {
-  return {
-    r: Math.round(rgb.r + (255 - rgb.r) * t),
-    g: Math.round(rgb.g + (255 - rgb.g) * t),
-    b: Math.round(rgb.b + (255 - rgb.b) * t)
-  }
-}
-
-function colorsFromBgColor(bgColor: string | null): { bg: string; iconWrapBg: string; iconColor: string } | null {
-  const c = (bgColor || '').trim()
-  const rgbFromApi = hexToRgb(c)
-  if (rgbFromApi) {
-    const light = mixRgbWhite(rgbFromApi, 0.88)
-    return {
-      bg: rgbToHex(light.r, light.g, light.b),
-      iconWrapBg: `rgba(${rgbFromApi.r},${rgbFromApi.g},${rgbFromApi.b},0.2)`,
-      iconColor: normalizeHex(c) || rgbToHex(rgbFromApi.r, rgbFromApi.g, rgbFromApi.b)
-    }
-  }
-  if (c.startsWith('rgb')) {
-    return { bg: '#F8FAFC', iconWrapBg: 'rgba(100,116,139,0.18)', iconColor: '#475569' }
-  }
-  return null
-}
-
-/** SvgIcon 使用 icon- 前缀内的名字，与快捷入口列表一致 */
 function iconName(item: QuickEntry): string {
   let raw = (item.icon_class || '').trim()
   if (raw.startsWith('icon-')) raw = raw.slice(5)
@@ -161,14 +126,26 @@ function iconName(item: QuickEntry): string {
 }
 
 function defaultSubtitle(item: QuickEntry): string {
+  if (item.subtitle?.trim()) return item.subtitle.trim()
   if (item.agent_type_name) return item.agent_type_name
   const labels: Record<string, string> = {
-    agent: '对话智能体',
+    agent: '点击进入对话',
     skill: '技能能力',
     prompt: '一键复制提示词',
     url: '打开关联页面'
   }
   return labels[item.action_type] || '点击进入使用'
+}
+
+function colorsFromBgColor(bgColor: string | null): { iconWrapBg: string; iconColor: string } | null {
+  const rgbFromApi = hexToRgb((bgColor || '').trim())
+  if (rgbFromApi) {
+    return {
+      iconWrapBg: `rgba(${rgbFromApi.r},${rgbFromApi.g},${rgbFromApi.b},0.18)`,
+      iconColor: normalizeHex(bgColor || '') || '#F37021'
+    }
+  }
+  return null
 }
 
 const tools = computed<ToolCardVm[]>(() =>
@@ -178,15 +155,17 @@ const tools = computed<ToolCardVm[]>(() =>
     return {
       raw: entry,
       title: entry.title,
-      desc: entry.subtitle || defaultSubtitle(entry),
-      bg: fromApi?.bg ?? palette.bg,
+      desc: defaultSubtitle(entry),
       iconWrapBg: fromApi?.iconWrapBg ?? palette.iconWrapBg,
       iconColor: fromApi?.iconColor ?? palette.iconColor,
       icon: iconName(entry),
-      hot: entry.tag === 'hot'
+      hot: entry.tag === 'hot' || entry.tag === 'new'
     }
   })
 )
+
+const featuredTool = computed(() => (tools.value.length > 0 ? tools.value[0] : null))
+const gridTools = computed(() => tools.value.slice(1))
 
 async function loadCommandEntries() {
   loading.value = true
@@ -205,17 +184,50 @@ async function loadCommandEntries() {
   }
 }
 
+async function loadHomeExtras() {
+  try {
+    const res = await getHomeContent({ position: 'home_top' })
+    if (res.code === 200 && res.data) {
+      homeBanners.value = res.data.banners?.home_top ?? []
+      const stories = res.data.founder_stories ?? []
+      const announcements = res.data.announcements ?? []
+      const fromArticles = [...stories, ...announcements]
+        .map((a) => (a.summary || a.title || '').trim())
+        .filter(Boolean)
+      quoteList.value = fromArticles
+    }
+  } catch {
+    /* 静默失败，使用组件内默认语录 */
+  }
+}
+
 function onHeaderToggle() {
   uni.showToast({ title: '更多设置即将上线', icon: 'none' })
 }
 
+function navigateToChat(agentId: string, label: string, instructions?: string | null) {
+  agentStore.setActiveAgent(
+    {
+      id: agentId,
+      name: label,
+      label,
+      welcomeMessage: instructions?.trim() || undefined
+    },
+    { persist: true }
+  )
+  const q = [
+    `agentId=${encodeURIComponent(agentId)}`,
+    `label=${encodeURIComponent(label)}`
+  ]
+  if (instructions?.trim()) {
+    q.push(`content=${encodeURIComponent(instructions.trim())}`)
+  }
+  uni.navigateTo({ url: `/pages/aichat/index?${q.join('&')}` })
+}
+
 function onToolTap(item: QuickEntry) {
   if (item.action_type === 'agent' && item.action_value) {
-    const label = encodeURIComponent(item.title || '智能体')
-    const id = encodeURIComponent(String(item.action_value))
-    uni.navigateTo({
-      url: `/pages/aichat/index?agentId=${id}&label=${label}`
-    })
+    navigateToChat(String(item.action_value), item.title || '智能体', item.instructions)
     return
   }
   if (item.action_type === 'url' && item.action_value) {
@@ -242,6 +254,7 @@ function onToolTap(item: QuickEntry) {
 
 onShow(() => {
   loadCommandEntries()
+  loadHomeExtras()
 })
 
 onMounted(() => {
@@ -251,53 +264,60 @@ onMounted(() => {
       ? safeArea.value.top
       : safeArea.value.statusBarHeight || 0
   topInsetPx.value = Math.ceil(top > 0 ? top + 8 : 12)
-  // 与 onShow 互补：部分机型/首进 Tab 时仅 onShow 请求偶发失败，挂载后再拉一次保障可见
-  loadCommandEntries()
 })
 </script>
 
 <style scoped lang="scss">
+@import '@/styles/_variables.scss';
+
+.page-root {
+  min-height: 100vh;
+  background: #faf8f5;
+}
+
 .page {
   min-height: 100vh;
-  background: #ffffff;
-    box-sizing: border-box;
-  }
-  
-  .top-bar {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding-left: 32rpx;
-    padding-right: 28rpx;
-    padding-bottom: 20rpx;
-    box-sizing: border-box;
-  }
-  
-  .app-title {
-    font-size: 40rpx;
-    font-weight: 700;
-    color: #1d2129;
-    letter-spacing: 0.02em;
-  }
-  
-  .toggle-pill {
-    display: flex;
-    align-items: center;
-    gap: 14rpx;
-    padding: 12rpx 22rpx;
-    border-radius: 999rpx;
-    background: #f3f4f6;
-    flex-shrink: 0;
-  }
-  
-  .toggle-pill:active {
+  box-sizing: border-box;
+}
+
+.top-bar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  padding-left: 32rpx;
+  padding-right: 28rpx;
+  padding-bottom: 20rpx;
+  box-sizing: border-box;
+}
+
+.app-title {
+  font-size: 36rpx;
+  font-weight: 700;
+  color: #1d2129;
+  letter-spacing: 0.04em;
+}
+
+.toggle-pill {
+  position: absolute;
+  right: 28rpx;
+  display: flex;
+  align-items: center;
+  gap: 14rpx;
+  padding: 12rpx 22rpx;
+  border-radius: 999rpx;
+  background: #f3f4f6;
+  flex-shrink: 0;
+
+  &:active {
     opacity: 0.88;
   }
-  
-  .toggle-dot {
-    width: 20rpx;
-    height: 20rpx;
-    border-radius: 50%;
+}
+
+.toggle-dot {
+  width: 20rpx;
+  height: 20rpx;
+  border-radius: 50%;
   box-sizing: border-box;
 }
 
@@ -309,175 +329,123 @@ onMounted(() => {
 .toggle-dot--solid {
   background: #6b7280;
 }
-.banner-wrap {
-  position: relative;
-  margin: 0 28rpx;
-  height: 360rpx;
-  border-radius: 40rpx;
-  overflow: hidden;
-  box-shadow: 0 12rpx 40rpx rgba(33, 37, 41, 0.1);
-    background-size: cover;
-    background-position: top center;
-    background-repeat: no-repeat;
-}
-
-.banner-mask {
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(
-    180deg,
-    rgba(0, 0, 0, 0.22) 0%,
-      rgba(0, 0, 0, 0.42) 100%
-  );
-}
-
-.banner-inner {
-  position: relative;
-  z-index: 2;
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
-  box-sizing: border-box;
-  height: 100%;
-  padding: 40rpx 32rpx 32rpx;
-}
-
-.banner-copy {
-  display: flex;
-  flex-direction: column;
-    gap: 16rpx;
-    align-items: flex-start;
-}
-
-.banner-title {
-  font-size: 44rpx;
-  font-weight: 700;
-  color: #fff;
-  letter-spacing: 0.02em;
-  text-shadow: 0 4rpx 16rpx rgba(0, 0, 0, 0.28);
-}
-
-.banner-sub {
-  font-size: 26rpx;
-  color: rgba(255, 255, 255, 0.95);
-  line-height: 1.4;
-  text-shadow: 0 2rpx 12rpx rgba(0, 0, 0, 0.2);
-}
-
-.price-pill {
-  align-self: flex-start;
-  padding: 14rpx 28rpx;
-  border-radius: 999rpx;
-  background: rgba(255, 255, 255, 0.88);
-    backdrop-filter: blur(8px);
-}
-
-.price-pill-text {
-  font-size: 24rpx;
-  font-weight: 600;
-  color: #334155;
-}
 
 .section {
-  margin-top: 44rpx;
+  margin-top: 28rpx;
   padding: 0 28rpx 24rpx;
 }
 
-.section-head {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  margin-bottom: 28rpx;
-}
+.tool-state {
+  padding: 48rpx 24rpx;
+  text-align: center;
+  font-size: 28rpx;
+  color: #64748b;
 
-.section-title {
-  font-size: 34rpx;
-  font-weight: 700;
-  color: #1d2129;
-}
-
-.section-hint {
-  font-size: 20rpx;
-  font-weight: 500;
-  color: #c0c4cc;
-  letter-spacing: 0.12em;
+  &.muted {
+    color: #94a3b8;
   }
-  
-  .tool-state {
-    padding: 48rpx 24rpx;
-    text-align: center;
-    font-size: 28rpx;
-    color: #64748b;
-  
-    &.muted {
-      color: #94a3b8;
-    }
 }
 
-.tool-grid {
+.agent-card {
+  background: $white;
+  border-radius: 24rpx;
+  box-shadow: 0 4rpx 24rpx rgba(0, 0, 0, 0.05);
+  box-sizing: border-box;
+
+  &:active {
+    opacity: 0.92;
+  }
+
+  &--featured {
+    display: flex;
+    align-items: center;
+    padding: 28rpx 24rpx;
+    margin-bottom: 20rpx;
+    gap: 20rpx;
+  }
+
+  &--grid {
+    padding: 24rpx 20rpx;
+    min-height: 200rpx;
+  }
+
+  &__top {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    margin-bottom: 16rpx;
+  }
+
+  &__icon-wrap {
+    position: relative;
+    width: 88rpx;
+    height: 88rpx;
+    border-radius: 20rpx;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+
+    &--sm {
+      width: 72rpx;
+      height: 72rpx;
+      border-radius: 18rpx;
+    }
+  }
+
+  &__dot {
+    position: absolute;
+    top: 6rpx;
+    right: 6rpx;
+    width: 14rpx;
+    height: 14rpx;
+    border-radius: 50%;
+    background: #3b82f6;
+    border: 2rpx solid $white;
+  }
+
+  &__body {
+    flex: 1;
+    min-width: 0;
+  }
+
+  &__title {
+    display: block;
+    font-size: 30rpx;
+    font-weight: 700;
+    color: #1d2129;
+    line-height: 1.35;
+    margin-bottom: 8rpx;
+  }
+
+  &__desc {
+    display: block;
+    font-size: 24rpx;
+    color: #86909c;
+    line-height: 1.45;
+  }
+
+  &__arrow {
+    font-size: 40rpx;
+    color: #c9cdd4;
+    font-weight: 300;
+    flex-shrink: 0;
+    line-height: 1;
+
+    &--sm {
+      font-size: 36rpx;
+    }
+  }
+}
+
+.agent-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 20rpx;
 }
 
-.tool-card {
-  position: relative;
-  border-radius: 28rpx;
-    padding: 28rpx 24rpx;
-    min-height: 208rpx;
-  box-sizing: border-box;
-  overflow: hidden;
-  box-shadow: 0 4rpx 20rpx rgba(0, 0, 0, 0.04);
-}
-
-.tool-card:active {
-  opacity: 0.92;
-}
-
-.hot-badge {
-  position: absolute;
-  top: 16rpx;
-  right: 16rpx;
-    padding: 4rpx 12rpx;
-    border-radius: 10rpx;
-    background: linear-gradient(135deg, #f87171 0%, #ef4444 100%);
-    box-shadow: 0 4rpx 10rpx rgba(239, 68, 68, 0.3);
-}
-
-.hot-badge-text {
-  font-size: 18rpx;
-  font-weight: 800;
-  color: #fff;
-  letter-spacing: 0.06em;
-}
-
-.tool-icon-wrap {
-  width: 64rpx;
-  height: 64rpx;
-  border-radius: 18rpx;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  margin-bottom: 20rpx;
-}
-
-.tool-title {
-  display: block;
-  font-size: 30rpx;
-  font-weight: 700;
-  color: #1d2129;
-  margin-bottom: 10rpx;
-}
-
-.tool-desc {
-  display: block;
-  font-size: 22rpx;
-  color: #64748b;
-  line-height: 1.45;
-}
-
 .page-bottom-space {
-  height: calc(28rpx + env(safe-area-inset-bottom));
-  height: calc(28rpx + constant(safe-area-inset-bottom));
+  height: calc(160rpx + env(safe-area-inset-bottom));
+  height: calc(160rpx + constant(safe-area-inset-bottom));
 }
 </style>

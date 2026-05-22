@@ -1,49 +1,57 @@
 <template>
   <view class="conversation-list-page">
-    <BaseHeader title="历史对话" @back="goBack" />
+    <view class="page-nav" :style="{ paddingTop: safeArea.top + 'px' }">
+      <view class="nav-bar">
+        <view class="nav-back" @tap="goBack">
+          <text class="nav-back-icon">‹</text>
+        </view>
+        <text class="nav-title">历史对话</text>
+        <view class="nav-more" @tap="onMoreTap">
+          <text class="nav-more-dots">••</text>
+        </view>
+      </view>
+    </view>
 
     <scroll-view
       class="list-container"
       scroll-y
+      :style="{ height: scrollHeight }"
       :refresher-enabled="true"
       :refresher-triggered="refreshing"
       @refresherrefresh="handleRefresh"
       @scrolltolower="handleLoadMore"
     >
-      <!-- 加载中（首次） -->
       <view v-if="loading && conversationList.length === 0" class="loading-wrapper">
         <text class="loading-text">加载中...</text>
       </view>
 
-      <!-- 对话列表 -->
-      <view v-else-if="conversationList.length > 0" class="conversation-list">
-        <view
-          v-for="conversation in conversationList"
-          :key="conversation.id"
-          class="conversation-item"
-          @tap="handleClick(conversation)"
-        >
-          <view class="conversation-content">
-            <text class="conversation-title">{{ conversation.title }}</text>
-            <view class="conversation-meta">
-              <text v-if="conversation.agent_name" class="agent-name">
-                {{ conversation.agent_name }}
-              </text>
-              <text class="time-text">{{ formatTime(conversation.created_at) }}</text>
+      <template v-else-if="conversationList.length > 0">
+        <view class="section-head">
+          <text class="section-icon">🕒</text>
+          <text class="section-text">往期爆单对话归档 (共 {{ total }} 个)</text>
+        </view>
+
+        <view class="conversation-list">
+          <view
+            v-for="(conversation, index) in conversationList"
+            :key="conversation.id"
+            class="conversation-item"
+            @tap="handleClick(conversation)"
+          >
+            <view class="conversation-content">
+              <text class="conversation-title">{{ displayTitle(conversation, index) }}</text>
+              <text class="time-text">{{ formatCreateTime(conversation.created_at) }}</text>
             </view>
-          </view>
-          <view class="conversation-arrow">
-            <text class="arrow-icon">›</text>
+            <text class="conversation-action">载入查看 ›</text>
           </view>
         </view>
-      </view>
+      </template>
 
-      <!-- 空状态 -->
       <view v-else-if="!loading" class="empty-wrapper">
+        <text class="empty-emoji">💬</text>
         <text class="empty-text">暂无历史对话</text>
       </view>
 
-      <!-- 加载更多 -->
       <view v-if="loadingMore" class="load-more">
         <text>加载中...</text>
       </view>
@@ -61,10 +69,12 @@ import { ref, computed, onMounted } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import { getConversationList, type Conversation } from '@/api/conversation'
 import { useProjectStore } from '@/stores/project'
-import BaseHeader from '@/components/base/BaseHeader.vue'
+import { useSafeArea } from '@/composables/useSafeArea'
 
 const projectStore = useProjectStore()
+const { safeArea, updateSafeArea } = useSafeArea()
 const PAGE_SIZE = 20
+const TITLE_EMOJIS = ['🔥', '💡', '🎬', '✨', '📣', '🛒']
 
 const conversationList = ref<Conversation[]>([])
 const loading = ref(false)
@@ -76,12 +86,53 @@ const projectId = ref<number | null>(null)
 
 const hasMore = computed(() => conversationList.value.length < total.value)
 
+const scrollHeight = computed(() => {
+  const navH = safeArea.value.top + 44
+  return `calc(100vh - ${navH}px)`
+})
+
 function goBack() {
   uni.navigateBack({
     fail: () => {
       uni.switchTab({ url: '/pages/project/index' })
-    }
+    },
   })
+}
+
+function onMoreTap() {
+  uni.showActionSheet({
+    itemList: ['刷新列表'],
+    success: (res) => {
+      if (res.tapIndex === 0) handleRefresh()
+    },
+  })
+}
+
+function displayTitle(item: Conversation, index: number): string {
+  const title = (item.title || '未命名对话').trim()
+  if (/^[\u{1F300}-\u{1FAFF}\u2600-\u27BF]/u.test(title)) return title
+  return `${TITLE_EMOJIS[index % TITLE_EMOJIS.length]} ${title}`
+}
+
+function formatCreateTime(timeStr: string): string {
+  if (!timeStr) return '创建时间：—'
+  const date = new Date(timeStr)
+  if (Number.isNaN(date.getTime())) return '创建时间：—'
+
+  const now = new Date()
+  const pad = (n: number) => String(n).padStart(2, '0')
+  const timePart = `${pad(date.getHours())}:${pad(date.getMinutes())}`
+
+  const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+  const startOfDate = new Date(date.getFullYear(), date.getMonth(), date.getDate())
+  const dayDiff = Math.floor((startOfToday.getTime() - startOfDate.getTime()) / 86400000)
+
+  if (dayDiff === 0) return `创建时间：今天 ${timePart}`
+  if (dayDiff === 1) return `创建时间：昨天 ${timePart}`
+  if (dayDiff === 2) return `创建时间：前天 ${timePart}`
+  if (dayDiff < 7) return `创建时间：${dayDiff}天前 ${timePart}`
+  const datePart = date.toLocaleDateString('zh-CN', { month: 'numeric', day: 'numeric' })
+  return `创建时间：${datePart} ${timePart}`
 }
 
 async function loadConversations(isRefresh = false) {
@@ -139,21 +190,6 @@ async function handleLoadMore() {
   await loadConversations(false)
 }
 
-function formatTime(timeStr: string): string {
-  const date = new Date(timeStr)
-  const now = new Date()
-  const diff = now.getTime() - date.getTime()
-  const minutes = Math.floor(diff / 60000)
-  const hours = Math.floor(diff / 3600000)
-  const days = Math.floor(diff / 86400000)
-
-  if (minutes < 1) return '刚刚'
-  if (minutes < 60) return `${minutes}分钟前`
-  if (hours < 24) return `${hours}小时前`
-  if (days < 7) return `${days}天前`
-  return date.toLocaleDateString('zh-CN', { month: 'short', day: 'numeric' })
-}
-
 function handleClick(conversation: Conversation) {
   const params: Record<string, string> = {
     conversationId: String(conversation.id),
@@ -178,6 +214,7 @@ onLoad((options?: { projectId?: string }) => {
 })
 
 onMounted(() => {
+  updateSafeArea()
   if (!projectId.value && projectStore.activeProject?.id) {
     const pid = parseInt(projectStore.activeProject.id)
     if (!isNaN(pid)) projectId.value = pid
@@ -187,44 +224,132 @@ onMounted(() => {
 </script>
 
 <style lang="scss" scoped>
-@import '@/styles/_variables.scss';
+$page-bg: #fdfbf7;
+$text-primary: #332d2b;
+$text-muted: #998b82;
+$accent: #b8864d;
+$card-border: #f2e6d8;
 
 .conversation-list-page {
   min-height: 100vh;
-  background: linear-gradient(180deg, #FAFBFC 0%, #F5F7FA 100%);
+  background: $page-bg;
+}
+
+.page-nav {
+  background: $page-bg;
+}
+
+.nav-bar {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 88rpx;
+  padding: 0 32rpx;
+}
+
+.nav-back {
+  position: absolute;
+  left: 24rpx;
+  width: 64rpx;
+  height: 64rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  &:active {
+    opacity: 0.6;
+  }
+}
+
+.nav-back-icon {
+  font-size: 48rpx;
+  font-weight: 300;
+  color: $text-primary;
+  line-height: 1;
+}
+
+.nav-title {
+  font-size: 34rpx;
+  font-weight: 700;
+  color: $text-primary;
+}
+
+.nav-more {
+  position: absolute;
+  right: 32rpx;
+  min-width: 72rpx;
+  height: 56rpx;
+  padding: 0 20rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255, 255, 255, 0.85);
+  border: 1rpx solid $card-border;
+  border-radius: 999rpx;
+
+  &:active {
+    opacity: 0.75;
+  }
+}
+
+.nav-more-dots {
+  font-size: 22rpx;
+  letter-spacing: 2rpx;
+  color: $text-muted;
+  line-height: 1;
 }
 
 .list-container {
-  height: calc(100vh - 120rpx);
-  padding: 24rpx $spacing-lg;
+  box-sizing: border-box;
+  padding: 8rpx 32rpx 0;
+}
+
+.section-head {
+  display: flex;
+  align-items: center;
+  gap: 10rpx;
+  padding: 24rpx 0 28rpx;
+}
+
+.section-icon {
+  font-size: 28rpx;
+  line-height: 1;
+}
+
+.section-text {
+  font-size: 28rpx;
+  font-weight: 600;
+  color: $text-primary;
 }
 
 .loading-wrapper {
-  padding: $spacing-xl;
+  padding: 120rpx 32rpx;
   text-align: center;
+
   .loading-text {
-    font-size: $font-size-sm;
-    color: $text-placeholder;
+    font-size: 28rpx;
+    color: $text-muted;
   }
 }
 
 .conversation-list {
   display: flex;
   flex-direction: column;
-  gap: $spacing-sm;
+  gap: 24rpx;
 
   .conversation-item {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: $spacing-md;
-    background: $white;
-    border-radius: $radius-md;
-    box-shadow: 0 2rpx 8rpx rgba(0, 0, 0, 0.06);
+    gap: 20rpx;
+    padding: 28rpx 30rpx;
+    background: #fff;
+    border: 1rpx solid $card-border;
+    border-radius: 24rpx;
 
     &:active {
-      transform: scale(0.98);
-      background: $bg-light;
+      background: #fffaf5;
     }
 
     .conversation-content {
@@ -232,65 +357,58 @@ onMounted(() => {
       min-width: 0;
       display: flex;
       flex-direction: column;
-      gap: 8rpx;
+      gap: 12rpx;
 
       .conversation-title {
-        font-size: $font-size-md;
+        font-size: 30rpx;
+        font-weight: 600;
+        color: $text-primary;
         white-space: nowrap;
         overflow: hidden;
         text-overflow: ellipsis;
       }
 
-      .conversation-meta {
-        display: flex;
-        align-items: center;
-        gap: $spacing-sm;
-
-        .agent-name {
-          font-size: $font-size-xs;
-          color: $primary-orange;
-          padding: 2rpx 8rpx;
-          background: rgba($primary-orange, 0.1);
-          border-radius: $radius-sm;
-        }
-
-        .time-text {
-          font-size: $font-size-xs;
-          color: $text-placeholder;
-        }
+      .time-text {
+        font-size: 24rpx;
+        color: $text-muted;
       }
     }
 
-    .conversation-arrow {
-      margin-left: $spacing-sm;
+    .conversation-action {
       flex-shrink: 0;
-      .arrow-icon {
-        font-size: 48rpx;
-        color: $text-placeholder;
-        font-weight: 300;
-      }
+      font-size: 24rpx;
+      color: $accent;
+      white-space: nowrap;
     }
   }
 }
 
 .empty-wrapper {
-  padding: $spacing-xl;
-  text-align: center;
+  padding: 160rpx 32rpx;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16rpx;
+
+  .empty-emoji {
+    font-size: 64rpx;
+  }
+
   .empty-text {
-    font-size: $font-size-sm;
-    color: $text-placeholder;
+    font-size: 28rpx;
+    color: $text-muted;
   }
 }
 
 .load-more,
 .no-more {
-  padding: $spacing-md;
+  padding: 32rpx;
   text-align: center;
-  font-size: $font-size-xs;
-  color: $text-placeholder;
+  font-size: 24rpx;
+  color: $text-muted;
 }
 
 .bottom-safe-area {
-  height: calc(40rpx + env(safe-area-inset-bottom));
+  height: calc(32rpx + env(safe-area-inset-bottom));
 }
 </style>
