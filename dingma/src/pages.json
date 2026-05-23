@@ -268,8 +268,8 @@
       {
         "pagePath": "pages/home/index",
         "text": "首页",
-        "iconPath": "static/tab/sfire.png",
-        "selectedIconPath": "static/tab/sfire-active.png"
+        "iconPath": "static/tab/home.png",
+        "selectedIconPath": "static/tab/home-active.png"
       },
       {
         "pagePath": "pages/mine/index",

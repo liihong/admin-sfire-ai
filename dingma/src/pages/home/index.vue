@@ -3,10 +3,7 @@
     <scroll-view scroll-y class="page" :show-scrollbar="false">
       <view class="top-bar" :style="{ paddingTop: topInsetPx + 'px' }">
         <text class="app-title">顶妈AI分身-你身边的营销大脑</text>
-        <view class="toggle-pill" @tap="onHeaderToggle">
-          <view class="toggle-dot toggle-dot--outline" />
-          <view class="toggle-dot toggle-dot--solid" />
-        </view>
+
       </view>
 
       <HomeBannerSwiper :banners="homeBanners" />
@@ -199,10 +196,6 @@ async function loadHomeExtras() {
   } catch {
     /* 静默失败，使用组件内默认语录 */
   }
-}
-
-function onHeaderToggle() {
-  uni.showToast({ title: '更多设置即将上线', icon: 'none' })
 }
 
 function navigateToChat(agentId: string, label: string, instructions?: string | null) {
