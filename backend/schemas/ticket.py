@@ -4,7 +4,7 @@
 from datetime import datetime
 from decimal import Decimal
 from typing import Optional, Literal
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 from .common import PageParams
 
@@ -27,6 +27,14 @@ class TicketMembershipCreate(BaseModel):
     payment_method: Optional[str] = Field(None, description="收费方式：微信/支付宝/对公转账等")
     voucher: Optional[str] = Field(None, description="凭证（图片URL或文字说明）")
     period_type: PeriodTypeLiteral = Field(..., description="会员周期：monthly-月度, quarterly-季度, yearly-年度")
+    gift_compute: bool = Field(default=False, description="是否赠送算力")
+    gift_compute_amount: Optional[Decimal] = Field(None, gt=0, description="赠送算力数量（gift_compute=true 时必填）")
+
+    @model_validator(mode="after")
+    def validate_gift_compute(self):
+        if self.gift_compute and (self.gift_compute_amount is None or self.gift_compute_amount <= 0):
+            raise ValueError("开启赠送算力时必须填写赠送数量")
+        return self
 
 
 class TicketRechargeCreate(BaseModel):

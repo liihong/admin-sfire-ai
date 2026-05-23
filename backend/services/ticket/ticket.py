@@ -13,6 +13,7 @@ from sqlalchemy.orm import selectinload
 from loguru import logger
 
 from models.ticket import Ticket, TicketType, TicketStatus
+from models.user import User
 from schemas.ticket import TicketCreate, TicketQueryParams, TicketResponse
 from utils.exceptions import BadRequestException, NotFoundException
 
@@ -22,6 +23,20 @@ class TicketService:
 
     def __init__(self, db: AsyncSession):
         self.db = db
+
+    async def _get_ticket_scoped(
+        self,
+        ticket_id: int,
+        scoped_tenant_id: Optional[int],
+    ) -> Ticket:
+        ticket = await self.get_ticket_by_id(ticket_id)
+        if not ticket:
+            raise NotFoundException(msg=f"工单 {ticket_id} 不存在")
+        if scoped_tenant_id is not None:
+            user_tid = ticket.user.tenant_id if ticket.user else None
+            if user_tid != scoped_tenant_id:
+                raise NotFoundException(msg=f"工单 {ticket_id} 不存在")
+        return ticket
 
     def _ticket_to_response(self, ticket: Ticket) -> dict:
         """将工单模型转为响应格式"""
@@ -69,6 +84,7 @@ class TicketService:
         self,
         data: TicketCreate,
         creator_id: int,
+        scoped_tenant_id: Optional[int] = None,
     ) -> Ticket:
         """
         创建工单
@@ -76,26 +92,32 @@ class TicketService:
         Args:
             data: 工单创建参数
             creator_id: 创建人（管理员）ID
+            scoped_tenant_id: 租户数据范围（非空时仅允许为本租户用户创建）
 
         Returns:
             创建的工单对象
         """
-        # 校验目标用户存在
-        from models.user import User
-        user_check = await self.db.execute(select(User).where(User.id == data.user_id, User.is_deleted == False))
-        if not user_check.scalar_one_or_none():
-            raise NotFoundException(msg=f"用户 {data.user_id} 不存在")
+        # 校验目标用户存在且属于当前租户范围
+        from services.user import UserService
+
+        user_service = UserService(self.db)
+        target_user = await user_service.require_user_accessible(data.user_id, scoped_tenant_id)
 
         if data.type == TicketType.MEMBERSHIP:
             if not data.membership:
                 raise BadRequestException(msg="会员工单必须填写 membership 详情")
-            extra_data = json.dumps({
+            extra_payload = {
                 "level_code": data.membership.level_code,
                 "vip_expire_date": data.membership.vip_expire_date,
-            }, ensure_ascii=False)
+            }
+            if data.membership.gift_compute:
+                extra_payload["gift_compute"] = True
+                extra_payload["gift_compute_amount"] = str(data.membership.gift_compute_amount)
+            extra_data = json.dumps(extra_payload, ensure_ascii=False)
             ticket = Ticket(
                 type=TicketType.MEMBERSHIP,
                 status=TicketStatus.PENDING,
+                tenant_id=target_user.tenant_id,
                 user_id=data.user_id,
                 creator_id=creator_id,
                 is_paid=data.membership.is_paid,
@@ -114,6 +136,7 @@ class TicketService:
             ticket = Ticket(
                 type=TicketType.RECHARGE,
                 status=TicketStatus.PENDING,
+                tenant_id=target_user.tenant_id,
                 user_id=data.user_id,
                 creator_id=creator_id,
                 extra_data=extra_data,
@@ -134,17 +157,21 @@ class TicketService:
     async def get_ticket_list(
         self,
         params: TicketQueryParams,
+        scoped_tenant_id: Optional[int] = None,
     ) -> Tuple[List[dict], int]:
         """
         获取工单列表（分页）
 
         Args:
             params: 查询参数
+            scoped_tenant_id: 租户数据范围（非空时仅返回本租户工单）
 
         Returns:
             (工单列表, 总数量)
         """
         conditions = []
+        if scoped_tenant_id is not None:
+            conditions.append(User.tenant_id == scoped_tenant_id)
         if params.type:
             conditions.append(Ticket.type == params.type)
         if params.status:
@@ -156,7 +183,7 @@ class TicketService:
 
         # 查询总数
         from sqlalchemy import func
-        count_query = select(func.count(Ticket.id))
+        count_query = select(func.count(Ticket.id)).join(User, Ticket.user_id == User.id)
         if conditions:
             count_query = count_query.where(and_(*conditions))
         total_result = await self.db.execute(count_query)
@@ -166,6 +193,7 @@ class TicketService:
         offset = (params.pageNum - 1) * params.pageSize
         query = (
             select(Ticket)
+            .join(User, Ticket.user_id == User.id)
             .options(
                 selectinload(Ticket.user),
                 selectinload(Ticket.creator),
@@ -197,17 +225,20 @@ class TicketService:
         result = await self.db.execute(query)
         return result.scalar_one_or_none()
 
-    async def get_ticket_detail(self, ticket_id: int) -> dict:
+    async def get_ticket_detail(
+        self,
+        ticket_id: int,
+        scoped_tenant_id: Optional[int] = None,
+    ) -> dict:
         """获取工单详情"""
-        ticket = await self.get_ticket_by_id(ticket_id)
-        if not ticket:
-            raise NotFoundException(msg=f"工单 {ticket_id} 不存在")
+        ticket = await self._get_ticket_scoped(ticket_id, scoped_tenant_id)
         return self._ticket_to_response(ticket)
 
     async def handle_ticket(
         self,
         ticket_id: int,
         handler_id: int,
+        scoped_tenant_id: Optional[int] = None,
     ) -> dict:
         """
         处理工单：执行开通会员或充值算力
@@ -221,9 +252,7 @@ class TicketService:
         Returns:
             处理后的工单详情
         """
-        ticket = await self.get_ticket_by_id(ticket_id)
-        if not ticket:
-            raise NotFoundException(msg=f"工单 {ticket_id} 不存在")
+        ticket = await self._get_ticket_scoped(ticket_id, scoped_tenant_id)
 
         if ticket.status != TicketStatus.PENDING:
             raise BadRequestException(msg=f"工单状态为 {ticket.status}，无法处理")
@@ -262,6 +291,18 @@ class TicketService:
                     remark=ticket.remark or f"工单#{ticket_id} 开通会员",
                     operator_id=handler_id,
                 )
+
+                if extra.get("gift_compute"):
+                    amount_str = extra.get("gift_compute_amount")
+                    if not amount_str:
+                        raise BadRequestException(msg="会员工单缺少赠送算力数量")
+                    gift_amount = Decimal(amount_str)
+                    await user_service.recharge(
+                        user_id=ticket.user_id,
+                        amount=gift_amount,
+                        remark=ticket.remark or f"工单#{ticket_id} 开通会员赠送算力",
+                        operator_id=handler_id,
+                    )
 
             elif ticket.type == TicketType.RECHARGE:
                 amount_str = extra.get("amount")

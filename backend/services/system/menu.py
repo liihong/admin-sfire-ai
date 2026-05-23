@@ -9,6 +9,7 @@ from sqlalchemy import select, and_, or_
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
+from core.constants import PLATFORM_MENU_ROOT_NAME, admin_gets_unfiltered_menu_tree, is_full_menu_role
 from models.menu import Menu
 from schemas.menu import MenuCreate, MenuUpdate, MenuResponse
 from utils.exceptions import NotFoundException, BadRequestException
@@ -23,6 +24,59 @@ class MenuService:
     
     def __init__(self, db: AsyncSession):
         self.db = db
+
+    async def get_platform_menu_subtree_ids(self) -> Set[int]:
+        """「系统管理」根菜单及其全部子孙菜单 ID（租户管理员须排除）。"""
+        result = await self.db.execute(select(Menu.id, Menu.parent_id, Menu.name))
+        rows = result.all()
+        root_ids = {int(r[0]) for r in rows if r[2] == PLATFORM_MENU_ROOT_NAME}
+        if not root_ids:
+            return set()
+
+        children_by_parent: Dict[int, List[int]] = defaultdict(list)
+        for mid, pid, _ in rows:
+            if pid is not None:
+                children_by_parent[int(pid)].append(int(mid))
+
+        out: Set[int] = set(root_ids)
+        stack = list(root_ids)
+        while stack:
+            cur = stack.pop()
+            for child in children_by_parent.get(cur, []):
+                if child not in out:
+                    out.add(child)
+                    stack.append(child)
+        return out
+
+    async def get_all_enabled_menu_ids(self) -> Set[int]:
+        result = await self.db.execute(select(Menu.id).where(Menu.is_enabled == True))
+        return {int(x) for x in result.scalars().all()}
+
+    async def resolve_admin_allowed_menu_ids(
+        self,
+        *,
+        tenant_id: Optional[int],
+        role_id: Optional[int],
+        role_permissions: Optional[List[int]] = None,
+    ) -> Optional[Set[int]]:
+        """
+        解析后台管理员可访问的菜单 ID 集合。
+
+        - 返回 None：平台超级管理员，加载全部启用菜单；
+        - 返回 set：按 ID 过滤；租户管理员始终排除「系统管理」子树。
+        """
+        if admin_gets_unfiltered_menu_tree(tenant_id=tenant_id, role_id=role_id):
+            return None
+
+        platform_ids = await self.get_platform_menu_subtree_ids()
+
+        if tenant_id is not None and is_full_menu_role(role_id):
+            return (await self.get_all_enabled_menu_ids()) - platform_ids
+
+        if role_id and role_permissions is not None:
+            return {int(x) for x in role_permissions} - platform_ids
+
+        return set()
 
     async def _expand_to_ancestor_ids(self, seed_ids: Set[int]) -> Set[int]:
         """从若干菜单 id 沿 parent_id 走到根，得到路径上全部 id（用于把禁用父级也载入内存以便建树）。"""
