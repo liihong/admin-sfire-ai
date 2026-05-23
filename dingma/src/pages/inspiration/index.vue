@@ -13,21 +13,23 @@
       </view>
     </view>
 
-    <!-- 列表区域 -->
+    <!-- 有列表时固定在顶栏下方，仅下列表滚动 -->
+    <view v-if="inspirationList.length > 0" class="section-head-strip">
+      <view class="section-head">
+        <text class="section-icon">💡</text>
+        <text class="section-text">灵感备忘夹列表 (共 {{ total }} 条)</text>
+      </view>
+    </view>
+
+    <!-- 列表区域（仅正文滚动） -->
     <scroll-view
       class="list-container"
       scroll-y
-      :style="{ height: scrollHeight }"
       :refresher-enabled="true"
       :refresher-triggered="refreshing"
       @refresherrefresh="handleRefresh"
       @scrolltolower="handleLoadMore"
     >
-      <view v-if="inspirationList.length > 0" class="section-head">
-        <text class="section-icon">💡</text>
-        <text class="section-text">灵感备忘夹列表 (共 {{ total }} 条)</text>
-      </view>
-
       <!-- 灵感列表 -->
       <view v-if="inspirationList.length > 0" class="inspiration-list">
         <InspirationItem
@@ -149,11 +151,6 @@ const pageSize = ref(10)
 const total = ref(0)
 const hasMore = computed(() => {
   return inspirationList.value.length < total.value
-})
-
-const scrollHeight = computed(() => {
-  const navH = safeArea.value.top + 44
-  return `calc(100vh - ${navH}px)`
 })
 
 // 初始化
@@ -425,19 +422,24 @@ function copyGeneratedContent() {
 </script>
 
 <style lang="scss" scoped>
-$page-bg: #fdfbf7;
+@import '@/styles/_variables.scss';
+
 $text-primary: #332d2b;
 $text-muted: #998b82;
 $accent: #b8864d;
-$card-border: #f2e6d8;
 
 .inspiration-page {
-  min-height: 100vh;
-  background: $page-bg;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  box-sizing: border-box;
+  background: $white;
 }
 
 .page-nav {
-  background: $page-bg;
+  flex-shrink: 0;
+  background: $white;
 }
 
 .nav-bar {
@@ -486,7 +488,7 @@ $card-border: #f2e6d8;
   align-items: center;
   justify-content: center;
   background: rgba(255, 255, 255, 0.85);
-  border: 1rpx solid $card-border;
+  border: 1rpx solid rgba(44, 30, 26, 0.08);
   border-radius: 999rpx;
 
   &:active {
@@ -501,16 +503,28 @@ $card-border: #f2e6d8;
   line-height: 1;
 }
 
-.list-container {
+.section-head-strip {
+  flex-shrink: 0;
   box-sizing: border-box;
-  padding: 8rpx 32rpx 0;
+  width: 100%;
+  padding: 16rpx 32rpx 16rpx;
+  background: $white;
+  border-bottom: 1rpx solid rgba(44, 30, 26, 0.06);
+}
+
+.list-container {
+  flex: 1;
+  height: 0;
+  min-height: 0;
+  box-sizing: border-box;
+  padding: 12rpx 32rpx 0;
 }
 
 .section-head {
   display: flex;
   align-items: center;
   gap: 10rpx;
-  padding: 16rpx 0 28rpx;
+  padding: 0;
 }
 
 .section-icon {
@@ -527,7 +541,7 @@ $card-border: #f2e6d8;
 .inspiration-list {
   display: flex;
   flex-direction: column;
-  gap: 24rpx;
+  gap: 28rpx;
 }
 
 .empty-state {
@@ -626,7 +640,7 @@ $card-border: #f2e6d8;
       align-items: center;
       justify-content: space-between;
       padding: 32rpx;
-      border-bottom: 1rpx solid $card-border;
+      border-bottom: 1rpx solid $border-color;
 
       .modal-title {
         font-size: 32rpx;
@@ -664,7 +678,7 @@ $card-border: #f2e6d8;
       display: flex;
       gap: 24rpx;
       padding: 32rpx;
-      border-top: 1rpx solid $card-border;
+      border-top: 1rpx solid $border-color;
 
       .modal-btn {
         flex: 1;

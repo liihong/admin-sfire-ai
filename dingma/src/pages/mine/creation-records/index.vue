@@ -13,6 +13,14 @@
       </view>
     </view>
 
+    <!-- 有小节标题时固定在顶栏下方，仅下列表区域滚动 -->
+    <view v-if="list.length > 0" class="section-head-strip">
+      <view class="section-head">
+        <text class="section-icon">🕒</text>
+        <text class="section-text">往期爆单对话归档 (共 {{ total }} 个)</text>
+      </view>
+    </view>
+
     <scroll-view
       class="list-scroll"
       scroll-y
@@ -26,11 +34,6 @@
       </view>
 
       <template v-else-if="list.length > 0">
-        <view class="section-head">
-          <text class="section-icon">🕒</text>
-          <text class="section-text">往期爆单对话归档 (共 {{ total }} 个)</text>
-        </view>
-
         <view class="record-list">
           <view
             v-for="(item, index) in list"
@@ -219,22 +222,33 @@ onShow(() => {
 </script>
 
 <style scoped lang="scss">
-$page-bg: #fdfbf7;
+@import '@/styles/_variables.scss';
+
 $text-primary: #332d2b;
 $text-muted: #998b82;
 $accent: #b8864d;
-$card-border: #f2e6d8;
 
 .page-creation-records {
   display: flex;
   flex-direction: column;
   height: 100vh;
   overflow: hidden;
-  background: $page-bg;
+  background: $white;
 }
 
 .page-nav {
-  background: $page-bg;
+  flex-shrink: 0;
+  background: $white;
+}
+
+/** 不参与滚动：与白底列表区隔开层次 */
+.section-head-strip {
+  flex-shrink: 0;
+  box-sizing: border-box;
+  width: 100%;
+  padding: 18rpx 32rpx 14rpx;
+  background: $white;
+  border-bottom: 1rpx solid rgba(44, 30, 26, 0.06);
 }
 
 .nav-bar {
@@ -283,7 +297,7 @@ $card-border: #f2e6d8;
   align-items: center;
   justify-content: center;
   background: rgba(255, 255, 255, 0.85);
-  border: 1rpx solid $card-border;
+  border: 1rpx solid rgba(44, 30, 26, 0.08);
   border-radius: 999rpx;
 
   &:active {
@@ -301,6 +315,7 @@ $card-border: #f2e6d8;
 .list-scroll {
   flex: 1;
   height: 0;
+  min-height: 0;
   box-sizing: border-box;
   padding: 8rpx 32rpx 0;
 }
@@ -309,7 +324,7 @@ $card-border: #f2e6d8;
   display: flex;
   align-items: center;
   gap: 10rpx;
-  padding: 24rpx 0 28rpx;
+  padding: 0;
 }
 
 .section-icon {
@@ -326,7 +341,7 @@ $card-border: #f2e6d8;
 .record-list {
   display: flex;
   flex-direction: column;
-  gap: 24rpx;
+  gap: 28rpx;
 }
 
 .record-card {
@@ -336,12 +351,20 @@ $card-border: #f2e6d8;
   justify-content: space-between;
   gap: 20rpx;
   padding: 28rpx 30rpx;
-  background: #fff;
-  border: 1rpx solid $card-border;
-  border-radius: 24rpx;
+  background: $white;
+  border: 1rpx solid rgba(44, 30, 26, 0.08);
+  border-radius: 36rpx;
+  box-sizing: border-box;
+  box-shadow: $shadow-card-elevated-list;
+  transition:
+    opacity 0.2s ease,
+    transform 0.22s cubic-bezier(0.33, 0.86, 0.42, 1),
+    box-shadow 0.22s cubic-bezier(0.33, 0.86, 0.42, 1);
 
   &:active {
-    background: #fffaf5;
+    opacity: 0.98;
+    transform: translateY(2rpx) scale(0.992);
+    box-shadow: $shadow-card-elevated-list-active;
   }
 }
 

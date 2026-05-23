@@ -134,26 +134,34 @@ function handleLongPress() {
 </script>
 
 <style lang="scss" scoped>
-$page-bg: #fdfbf7;
+@import '@/styles/_variables.scss';
+
 $text-primary: #332d2b;
 $text-muted: #998b82;
 $accent: #b8864d;
-$card-border: #f2e6d8;
 
 .inspiration-card {
   position: relative;
   display: flex;
-  background: #fff;
-  border: 1rpx solid $card-border;
-  border-radius: 24rpx;
+  background: $white;
+  border: 1rpx solid rgba(44, 30, 26, 0.08);
+  border-radius: 36rpx;
   overflow: hidden;
+  box-sizing: border-box;
+  box-shadow: $shadow-card-elevated-list;
+  transition:
+    opacity 0.2s ease,
+    transform 0.22s cubic-bezier(0.33, 0.86, 0.42, 1),
+    box-shadow 0.22s cubic-bezier(0.33, 0.86, 0.42, 1);
 
   &.pinned {
     border-color: rgba($accent, 0.45);
   }
 
   &:active {
-    background: #fffaf5;
+    opacity: 0.98;
+    transform: translateY(2rpx) scale(0.992);
+    box-shadow: $shadow-card-elevated-list-active;
   }
 }
 

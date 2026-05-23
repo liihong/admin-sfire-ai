@@ -1,8 +1,12 @@
 <template>
   <view class="quick-command-grid">
-    <view v-for="entry in quickEntryList" :key="entry.id" class="command-card" @tap="handleClick(entry)">
+    <view v-for="(entry, idx) in quickEntryList" :key="entry.id" class="command-card" @tap="handleClick(entry)">
       <view class="command-icon-wrapper">
-        <SvgIcon :name="entry.icon_class" :size="40" />
+        <SvgIcon
+          :name="entry.icon_class"
+          :size="40"
+          :color="svgIconColorFromBg(entry.bg_color, idx)"
+        />
       </view>
       <view class="command-content">
         <text class="command-title">{{ entry.title }}</text>
@@ -15,6 +19,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import SvgIcon from '@/components/base/SvgIcon.vue'
+import { svgIconColorFromBg } from '@/utils/iconColor'
 import { type QuickEntry } from '@/api/quickEntry'
 import { useQuickEntryStore } from '@/stores/quickEntry'
 import { useAgentStore } from '@/stores/agent'

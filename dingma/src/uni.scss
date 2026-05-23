@@ -16,27 +16,40 @@
 // 必须放在最前面，引入 uView-plus 的核心主题变量
 @import 'uview-plus/theme.scss';
 
+// uView-plus：顶顶温润艺匠稿（朱砂红主色 + 燕麦白底）（覆盖 theme.scss）
+$u-main-color: #2c1e1a;
+$u-content-color: #5e524c;
+$u-tips-color: #8a7e78;
+$u-light-color: rgba(138, 126, 120, 0.42);
+$u-border-color: rgba(44, 30, 26, 0.06);
+$u-bg-color: #ffffff;
+
+$u-primary: #d94b36;
+$u-primary-dark: #b45309;
+$u-primary-disabled: rgba(217, 75, 54, 0.35);
+$u-primary-light: rgba(217, 75, 54, 0.06);
+
 /* 行为相关颜色 */
-$uni-color-primary: #007aff;
+$uni-color-primary: #d94b36;
 $uni-color-success: #4cd964;
 $uni-color-warning: #f0ad4e;
 $uni-color-error: #dd524d;
 
 /* 文字基本颜色 */
-$uni-text-color: #333; // 基本色
+$uni-text-color: #2c1e1a;
 $uni-text-color-inverse: #fff; // 反色
-$uni-text-color-grey: #999; // 辅助灰色，如加载更多的提示信息
-$uni-text-color-placeholder: #808080;
+$uni-text-color-grey: #8a7e78;
+$uni-text-color-placeholder: rgba(138, 126, 120, 0.75);
 $uni-text-color-disable: #c0c0c0;
 
 /* 背景颜色 */
-$uni-bg-color: #fff;
-$uni-bg-color-grey: #f8f8f8;
-$uni-bg-color-hover: #f1f1f1; // 点击状态颜色
-$uni-bg-color-mask: rgba(0, 0, 0, 0.4); // 遮罩颜色
+$uni-bg-color: #ffffff;
+$uni-bg-color-grey: #f3efe9;
+$uni-bg-color-hover: #faf4ec;
+$uni-bg-color-mask: rgba(44, 30, 26, 0.35);
 
 /* 边框颜色 */
-$uni-border-color: #c8c7cc;
+$uni-border-color: rgba(44, 30, 26, 0.06);
 
 /* 尺寸变量 */
 

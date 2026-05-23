@@ -1,71 +1,137 @@
-// ========== 颜色变量 ==========
+// =======================================================================
+// 顶顶妈妈「极致温润艺匠」(DingMa Warm-Minimalist) —— 对齐参考 HTML 设计变量
+// 极简燕麦白 + 艺术卡纸白 + 招牌朱砂红 + 黑巧褐正文
+// =======================================================================
 
-// 品牌色
-$primary-orange: #F37021; // 爱马仕橙（主色）
-$primary-orange-alt: #fe9f63; // 爱马仕橙（辅助色）
-$primary-orange-light: rgba(255, 136, 0, 0.1); // 爱马仕橙（浅色）
-$brand-orange: #FF8800;           // 品牌橙色（兼容旧代码）
-$brand-orange-alt: #F37021;       // 品牌橙色（辅助，兼容旧代码）
+// --------- 语义色（推荐在业务中直接使用）---------
 
-// 背景色
-$bg-color: #F7F8FA;               // 页面底色
-$bg-light: #F5F7FA;               // 浅色背景（兼容旧代码）
-$white: #FFFFFF;                   // 白色
-$bg-dark: #1A1A2E;                // 深色背景
-$bg-card: rgba(255, 255, 255, 0.95); // 卡片背景
+$bg-base: #ffffff; // 当前：整体纯白底预览（原为暖燕麦白 #faf9f6）
+$bg-card-solid: #ffffff; // 艺术卡纸白
+$text-main-deep: #2c1e1a; // 经典黑巧深褐
+$text-muted-warm: #8a7e78; // 麦麸温润泥灰
 
-// 文字颜色
-$text-title: #3B82F6;
-$text-main: #1D2129;               // 核心文字
-$text-second: #86909C;             // 次要文字
-$text-placeholder: #C9CDD4;       // 占位符文字
-$text-primary: #1A1A2E;           // 主要文字（兼容）
-$text-secondary: #666;             // 次要文字（兼容）
-$text-muted: #999;                 // 弱化文字（兼容）
+// 主强调：招牌朱砂红（参考稿中 --accent-gold 实为印章红）
+$accent-stamp: #d94b36;
+$accent-stamp-light: rgba(217, 75, 54, 0.04); // 极淡晕
+$accent-stamp-mid: rgba(217, 75, 54, 0.08);
 
-// 边框颜色
-$border-color: #F2F3F5;            // 分割线颜色
-$border-light: rgba(0, 0, 0, 0.06); // 浅色边框
+// 点缀暖金（参考稿变量名 terracotta-red）
+$accent-yolk: #f5a623;
 
-// 功能色
-$color-success: #10B981;           // 成功色（绿色）
-$color-error: #EF4444;             // 错误色（红色）
-$color-warning: #F59E0B;          // 警告色（橙色）
-$color-info: #3B82F6;              // 信息色（蓝色）
+$terracotta-bg: #f3efe9; // 跑马灯、燕麦灰条底
 
-// ========== 尺寸变量 ==========
+/** 金句跑马条：与设计稿一致的暖燕麦底，与白页拉开层次（可与 $terracotta-bg 微调区分） */
+$quote-marquee-strip-bg: #faf9f6;
+$quote-feather-edge: rgba(250, 249, 246, 0.98); // 与金句条燕麦底相近，便于遮罩渐变衔接
 
-// 圆角
-$radius-sm: 8rpx;                  // 小圆角
-$radius-md: 16rpx;                 // 中圆角
-$radius-lg: 32rpx;                 // 大圆角
-$radius-xl: 40rpx;                 // 超大圆角
-$radius-circle: 50%;                // 圆形
+// 聊天用户气泡参考色
+$bubble-user-bg: #fffbeb;
+$bubble-user-text: #b45309;
 
-// 间距
-$spacing-xs: 8rpx;                 // 极小间距
-$spacing-sm: 16rpx;                // 小间距
-$spacing-md: 24rpx;                // 中间距
-$spacing-lg: 32rpx;                // 大间距
-$spacing-xl: 48rpx;                // 超大间距
+// 兼容别名：沿用 $accent-gold 命名映射到印章红，减少全仓重命名
+$accent-gold: #d94b36;
+$accent-gold-light: rgba(217, 75, 54, 0.06);
+$accent-gold-deep: #b45309;
+$accent-gold-midshade: #a03322;
 
-// 字体大小
-$font-size-xs: 20rpx;              // 极小字体
-$font-size-sm: 24rpx;              // 小字体
-$font-size-md: 28rpx;              // 中字体
-$font-size-lg: 32rpx;               // 大字体
-$font-size-xl: 36rpx;               // 超大字体
-$font-size-xxl: 44rpx;              // 特大字体
+$terracotta-red: #f5a623;
 
-// ========== 阴影变量 ==========
+// 次级蓝（少用）
+$accent-blue-soft: #3b82f6;
 
-$card-shadow: 0 4rpx 24rpx rgba(0, 0, 0, 0.04);                    // 卡片阴影
-$card-shadow-hover: 0 8rpx 32rpx rgba(0, 0, 0, 0.08);              // 卡片悬停阴影
-$shadow-sm: 0 2rpx 8rpx rgba(0, 0, 0, 0.04);                       // 小阴影
-$shadow-md: 0 4rpx 16rpx rgba(0, 0, 0, 0.06);                     // 中阴影
-$shadow-lg: 0 8rpx 24rpx rgba(0, 0, 0, 0.08);                     // 大阴影
+// --------- 历史 SCSS 变量名（映射到新美学）---------
 
-// ========== Z-index 层级 ==========
+$primary-orange: #d94b36;
+$primary-orange-alt: #b45309;
+$primary-orange-light: rgba(217, 75, 54, 0.1);
+
+$brand-orange: #d94b36;
+$brand-orange-alt: #b45309;
+
+$bg-color: #ffffff;
+$bg-light: #f4f2ee; // 输入条浅暖底
+$white: #ffffff;
+$bg-card: #ffffff;
+
+$text-title: #d94b36;
+$text-main: #2c1e1a;
+$text-second: #8a7e78;
+$text-placeholder: rgba(138, 126, 120, 0.78);
+
+$text-primary: #2c1e1a;
+$text-secondary: #8a7e78;
+$text-muted: #8a7e78;
+
+$border-color: rgba(44, 30, 26, 0.04);
+$border-light: rgba(44, 30, 26, 0.04);
+$border-organic-color: rgba(44, 30, 26, 0.04);
+
+$color-success: #10b981;
+$color-error: #d94b36;
+$color-warning: #f5a623;
+$color-info: #3b82f6;
+
+$bg-dark: #1c1513;
+
+// ========== 尺寸 ==========
+
+$radius-sm: 8rpx;
+$radius-md: 16rpx;
+$radius-lg: 32rpx;
+$radius-xl: 44rpx;
+$radius-xxl: 56rpx;
+$radius-circle: 50%;
+
+$spacing-xs: 8rpx;
+$spacing-sm: 16rpx;
+$spacing-md: 24rpx;
+$spacing-lg: 32rpx;
+$spacing-xl: 48rpx;
+
+$font-size-xs: 20rpx;
+$font-size-sm: 24rpx;
+$font-size-md: 28rpx;
+$font-size-lg: 32rpx;
+$font-size-xl: 36rpx;
+$font-size-xxl: 44rpx;
+
+// ========== 阴影（参考稿 airy paper）==========
+
+$shadow-premium: 0 24rpx 60rpx -20rpx rgba(44, 30, 26, 0.04),
+  0 8rpx 24rpx -16rpx rgba(44, 30, 26, 0.01),
+  inset 0 2rpx 0 rgba(255, 255, 255, 0.9);
+
+/** 纯白底上用：任务卡浮起更明显（顶高光 + 多层外扩柔影） */
+$shadow-card-elevated:
+  inset 0 2rpx 0 rgba(255, 255, 255, 0.98),
+  0 26rpx 56rpx -18rpx rgba(44, 30, 26, 0.14),
+  0 12rpx 28rpx -12rpx rgba(44, 30, 26, 0.09),
+  0 4rpx 10rpx -2rpx rgba(44, 30, 26, 0.05);
+
+/**
+ * 列表页内白卡：与首页任务卡同色、同体量感的立体层次，
+ * 不设顶 inset 高光，柔影仅以「向下」偏移晕染（无底角负 spread），
+ * 避免首张卡紧贴分区标题时出现「顶上泛阴影」的视觉脏边。
+ */
+$shadow-card-elevated-list:
+  0 24rpx 48rpx rgba(44, 30, 26, 0.12),
+  0 10rpx 24rpx rgba(44, 30, 26, 0.08),
+  0 3rpx 10rpx rgba(44, 30, 26, 0.05);
+
+$shadow-card-elevated-list-active:
+  0 14rpx 30rpx rgba(44, 30, 26, 0.09),
+  0 5rpx 12rpx rgba(44, 30, 26, 0.06);
+
+$shadow-banner-3d: 0 40rpx 80rpx -24rpx rgba(44, 30, 26, 0.1),
+  0 16rpx 32rpx -16rpx rgba(44, 30, 26, 0.03);
+
+$shadow-active: 0 8rpx 16rpx -8rpx rgba(217, 75, 54, 0.04);
+
+$card-shadow: $shadow-premium;
+$card-shadow-hover: 0 24rpx 48rpx -16rpx rgba(44, 30, 26, 0.08);
+$shadow-sm: 0 8rpx 20rpx rgba(44, 30, 26, 0.04);
+$shadow-md: 0 8rpx 32rpx rgba(44, 30, 26, 0.05);
+$shadow-lg: 0 16rpx 48rpx rgba(44, 30, 26, 0.06);
 
 $z-index-base: 1;
 $z-index-dropdown: 100;
@@ -76,8 +142,7 @@ $z-index-modal: 500;
 $z-index-popover: 600;
 $z-index-tooltip: 700;
 
-// ========== 过渡动画时间 ==========
-
 $transition-fast: 0.15s;
 $transition-base: 0.2s;
 $transition-slow: 0.3s;
+$transition-fluid: 0.4s cubic-bezier(0.16, 1, 0.3, 1);

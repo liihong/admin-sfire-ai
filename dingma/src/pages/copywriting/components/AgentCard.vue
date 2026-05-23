@@ -134,42 +134,37 @@ function handleGoToProjectList() {
 </script>
 
 <style lang="scss" scoped>
-// ============== 变量定义 ==============
-$primary-orange: #FF6B35;
-$primary-orange-light: #FF8C5A;
-$accent-blue: #4FACFE;
-$accent-cyan: #00F2FE;
-$bg-card: rgba(255, 255, 255, 0.95);
-$text-primary: #1A1A2E;
-$text-secondary: #666;
-$text-muted: #999;
+@import '@/styles/_variables.scss';
 
-// ============== 容器 ==============
 .persona-card-container {
   width: 100%;
   flex-shrink: 0;
 }
 
-// ============== IP 档案卡片 ==============
 .system-card {
-  background: $bg-card;
+  background: $bg-card-solid;
   border-radius: 28rpx;
   padding: 20rpx;
   margin: 24rpx;
   margin-bottom: 32rpx;
-  border: 2rpx solid transparent;
+  border: 2rpx solid $border-organic-color;
   background-clip: padding-box;
   position: relative;
-  box-shadow: 0 8rpx 32rpx rgba(79, 172, 254, 0.1);
+  box-shadow: $shadow-premium;
 
   &::before {
     content: '';
     position: absolute;
     inset: -2rpx;
     border-radius: 30rpx;
-    background: linear-gradient(135deg, $accent-blue, $accent-cyan, $primary-orange);
+    background: linear-gradient(
+      135deg,
+      rgba($accent-gold-light, 0.8) 0%,
+      $accent-gold 45%,
+      $accent-gold-deep 100%
+    );
     z-index: -1;
-    opacity: 0.6;
+    opacity: 0.45;
   }
 
   .card-header {
@@ -201,13 +196,13 @@ $text-muted: #999;
       .card-title {
         font-size: 36rpx;
         font-weight: 700;
-        color: $text-primary;
+        color: $text-main;
         display: block;
       }
 
       .card-subtitle {
         font-size: 24rpx;
-        color: $text-muted;
+        color: $text-second;
         margin-top: 4rpx;
       }
     }
@@ -244,7 +239,7 @@ $text-muted: #999;
 
       .info-label {
         font-size: 26rpx;
-        color: $text-secondary;
+        color: $text-second;
         width: 180rpx;
         display: flex;
         align-items: center;
@@ -254,7 +249,7 @@ $text-muted: #999;
       .info-value {
         flex: 1;
         font-size: 26rpx;
-        color: $text-primary;
+        color: $text-main;
         font-weight: 500;
 
         &.agent-value {
@@ -267,11 +262,11 @@ $text-muted: #999;
   .card-footer {
     margin-top: 20rpx;
     padding-top: 20rpx;
-    border-top: 1rpx dashed rgba(0, 0, 0, 0.08);
+    border-top: 1rpx dashed rgba(197, 139, 73, 0.12);
 
     .footer-hint {
       font-size: 24rpx;
-      color: $text-muted;
+      color: $text-second;
       text-align: center;
       display: block;
     }
@@ -285,13 +280,13 @@ $text-muted: #999;
 
 // ============== 空项目卡片 ==============
 .empty-project-card {
-  background: $bg-card;
+  background: $bg-card-solid;
   border-radius: 28rpx;
   padding: 60rpx 40rpx;
   margin: 24rpx;
   margin-bottom: 32rpx;
   text-align: center;
-  box-shadow: 0 8rpx 32rpx rgba(0, 0, 0, 0.06);
+  box-shadow: $shadow-premium;
 
   .empty-icon {
     display: flex;
@@ -303,14 +298,14 @@ $text-muted: #999;
   .empty-title {
     font-size: 32rpx;
     font-weight: 600;
-    color: $text-primary;
+    color: $text-main;
     display: block;
     margin-bottom: 16rpx;
   }
 
   .empty-desc {
     font-size: 26rpx;
-    color: $text-muted;
+    color: $text-second;
     display: block;
     margin-bottom: 32rpx;
     line-height: 1.6;
@@ -321,13 +316,13 @@ $text-muted: #999;
     align-items: center;
     justify-content: center;
     padding: 20rpx 48rpx;
-    background: linear-gradient(135deg, $primary-orange, $primary-orange-light);
+    background: linear-gradient(135deg, $accent-gold 0%, $accent-gold-deep 100%);
     border-radius: 40rpx;
     border: none;
     color: #fff;
     font-size: 28rpx;
     font-weight: 500;
-    box-shadow: 0 8rpx 24rpx rgba(255, 107, 53, 0.3);
+    box-shadow: 0 16rpx 40rpx rgba(197, 139, 73, 0.35);
 
     &::after {
       border: none;

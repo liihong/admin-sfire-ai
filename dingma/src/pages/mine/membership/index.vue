@@ -134,14 +134,14 @@ const benefitsList = ref([
   height: 100vh;
   display: flex;
   flex-direction: column;
-  background: #faf9f6;
+  background: $bg-base;
   overflow: hidden;
 }
 
 .page-container {
   flex: 1;
   height: 0;
-  background: #faf9f6;
+  background: $bg-base;
 }
 
 .page-content {
@@ -280,7 +280,7 @@ const benefitsList = ref([
   top: 0;
   right: 0;
   padding: 12rpx 32rpx;
-  background: linear-gradient(90deg, #f97316 0%, #f43f5e 100%);
+  background: linear-gradient(90deg, $accent-gold 0%, $terracotta-red 100%);
   border-radius: 0 0 0 32rpx;
   font-size: 20rpx;
   font-weight: 900;
@@ -325,20 +325,20 @@ const benefitsList = ref([
 .price-symbol {
   font-size: 36rpx;
   font-weight: 900;
-  color: #ea580c;
+  color: $accent-gold;
 }
 
 .price-value {
   font-size: 60rpx;
   font-weight: 900;
-  color: #ea580c;
+  color: $accent-gold;
   line-height: 1;
 }
 
 .price-unit {
   font-size: 24rpx;
   font-weight: 700;
-  color: rgba(234, 88, 12, 0.8);
+  color: rgba(164, 112, 54, 0.9);
 }
 
 .price-original {
@@ -371,13 +371,13 @@ const benefitsList = ref([
 .cta-btn {
   width: 100%;
   height: 96rpx;
-  background: linear-gradient(135deg, $primary-orange 0%, #ea580c 100%);
+  background: linear-gradient(135deg, $accent-gold 0%, $accent-gold-deep 100%);
   border-radius: 32rpx;
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 16rpx;
-  box-shadow: 0 12rpx 32rpx rgba(243, 112, 33, 0.25);
+  box-shadow: 0 12rpx 32rpx rgba(197, 139, 73, 0.28);
 }
 
 .cta-check {

@@ -11,11 +11,11 @@
           <!-- <text class="project-name">{{ displayProjectName }}</text> -->
           <view class="tags-wrapper">
             <view class="tag-item tag-industry">
-              <SvgIcon name="target_audience" :size="24" />
+              <SvgIcon name="target_audience" :size="24" color="#D94B36" />
               <text class="tag-text">{{ industry }}</text>
             </view>
            <view class="tag-item tag-tone">
-              <SvgIcon name="tone" :size="24" />
+              <SvgIcon name="tone" :size="24" color="#3B82F6" />
               <text class="tag-text">{{ displayTone }}</text>
            </view>
          </view>
@@ -175,18 +175,6 @@ defineEmits<{
           padding: 8rpx 16rpx;
           background: rgba(255, 255, 255, 0.7);
           border-radius: 20rpx;
-
-          &.tag-industry {
-            :deep(.iconfont) {
-              color: $color-error;
-            }
-          }
-
-          &.tag-tone {
-            :deep(.iconfont) {
-              color: $color-info;
-            }
-          }
 
           .tag-text {
             font-size: 22rpx;

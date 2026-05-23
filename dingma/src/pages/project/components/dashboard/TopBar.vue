@@ -3,7 +3,7 @@
    <view class="user-info-left" @tap="handleSwitchIP" v-if="projectName">
       <view class="user-dot"></view>
       <text class="user-name">{{ projectName || userName || '创作者' }}</text>
-     <SvgIcon name="qiehuan" :size="35" />
+     <SvgIcon name="qiehuan" :size="35" color="#D94B36" />
     </view>
     <!-- <view class="user-info-right">
       <view class="points-icon">💎</view>

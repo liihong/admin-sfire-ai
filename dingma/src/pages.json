@@ -17,8 +17,9 @@
     {
       "path": "pages/home/index",
       "style": {
-        "navigationStyle": "custom",
-        "navigationBarTitleText": "",
+        "navigationBarTitleText": "AI爆款",
+        "navigationBarBackgroundColor": "#FFFFFF",
+        "navigationBarTextStyle": "black",
         "enablePullDownRefresh": false
       }
     },
@@ -149,6 +150,21 @@
       ]
     },
     {
+      "root": "pages/mine/ip-info",
+      "name": "mine-ip-info",
+      "pages": [
+        {
+          "path": "index",
+          "style": {
+            "navigationBarTitleText": "ip信息",
+            "navigationBarBackgroundColor": "#FFFFFF",
+            "navigationBarTextStyle": "black",
+            "enablePullDownRefresh": false
+          }
+        }
+      ]
+    },
+    {
       "root": "pages/mine/contact",
       "name": "mine-contact",
       "pages": [
@@ -257,17 +273,17 @@
     "navigationBarTextStyle": "black",
     "navigationBarTitleText": "dingma",
     "navigationBarBackgroundColor": "#FFFFFF",
-    "backgroundColor": "#F5F7FA"
+    "backgroundColor": "#FFFFFF"
   },
   "tabBar": {
-    "color": "#999999",
-    "selectedColor": "#F37021",
+    "color": "#8A7E78",
+    "selectedColor": "#D94B36",
     "backgroundColor": "#ffffff",
     "borderStyle": "white",
     "list": [
       {
         "pagePath": "pages/home/index",
-        "text": "首页",
+        "text": "AI爆款",
         "iconPath": "static/tab/sfire.png",
         "selectedIconPath": "static/tab/sfire-active.png"
       },

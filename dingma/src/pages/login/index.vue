@@ -37,7 +37,7 @@ class="login-btn-glass" :class="{ disabled: !isAgreed, shake: !isAgreed && showS
         open-type="getPhoneNumber" @getphonenumber="handleGetPhoneNumber" @tap="handleLoginTap">
         <view class="btn-content">
          <view class="wechat-icon-wrapper">
-           <SvgIcon name="send" />
+           <SvgIcon name="send" size="34" color="#FFFFFF" />
           </view>
          <text class="btn-text">手机号快捷登录</text>
         </view>

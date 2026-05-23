@@ -156,35 +156,24 @@ onHide(() => {
 @import '@/styles/iconfont.css';
 /* 全局样式 */
 page {
-  background-color: #f5f5f5;
-  font-family: -apple-system, BlinkMacSystemFont, 'Helvetica Neue', Helvetica,
-      Segoe UI, Arial, Roboto, 'PingFang SC', 'miui', 'Hiragino Sans GB', 'Microsoft Yahei',
-      sans-serif;
-  
-    /* 开启字体抗锯齿，让文字在 iOS 上更清晰 */
-    -webkit-font-smoothing: antialiased;
-    -moz-osx-font-smoothing: grayscale;
-    /* 1. 颜色不要用纯黑 #000，太刺眼，用深灰 */
-    color: #333333;
-  
-    /* 2. 行高设为字号的 1.5 到 1.6 倍 */
-    line-height: 1.6;
-  
-    /* 3. 适当增加字间距 */
-    letter-spacing: 1rpx;
+  background-color: #ffffff;
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'PingFang SC',
+    'Hiragino Sans GB', 'Helvetica Neue', Helvetica, Segoe UI, Arial, Roboto,
+    'Microsoft Yahei', sans-serif;
+
+  /* 开启字体抗锯齿，让文字在 iOS 上更清晰 */
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  color: #2c1e1a;
+  line-height: 1.6;
+  letter-spacing: 0.5px;
 }
+
 page, view, text, scroll-view, swiper, button, input, textarea, label, navigator, image {
   box-sizing: border-box;
 }
-/* 自定义tabbar图标大小 */
-.tab-bar .uni-tabbar__icon image {
-  width: 10rpx;
-    /* 调整为你想要的宽度 */
-    height: 10rpx;
-    /* 调整为你想要的高度 */
-}
 
-/* ========== iPhone 灵动岛适配工具类 ========== */
+/* 使用系统原生 tabBar（pages.json），样式受微信客户端限制 */
 /* 
  * 注意：微信小程序中 env(safe-area-inset-top) 可能不生效
  * 推荐使用 SafeAreaTop 组件或通过 JS 动态设置高度

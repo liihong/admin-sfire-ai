@@ -1,6 +1,7 @@
 <template>
   <view class="persona-bar">
     <view class="persona-bar__info" @tap="onInfoTap">
+      <view class="persona-bar__dot" />
       <text class="persona-bar__prefix">IP 实时关联：</text>
       <text v-if="label" class="persona-bar__label">{{ label }}</text>
       <text v-else class="persona-bar__empty">暂未绑定人设，点击完善</text>
@@ -29,51 +30,72 @@ function onInfoTap() {
 </script>
 
 <style lang="scss" scoped>
+@import '@/styles/_variables.scss';
+
 .persona-bar {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 16rpx;
-  padding: 12rpx 24rpx 16rpx;
-  border-top: 1rpx solid rgba(0, 0, 0, 0.04);
+  padding: 24rpx 40rpx;
+  background: $bg-card;
+  border-top: none;
+  border-bottom: 1rpx solid rgba(51, 37, 30, 0.02);
 
   &__info {
     flex: 1;
     min-width: 0;
     display: flex;
     align-items: center;
-    flex-wrap: wrap;
-    gap: 4rpx;
+    flex-wrap: nowrap;
+    gap: 8rpx;
+  }
+
+  &__dot {
+    width: 10rpx;
+    height: 10rpx;
+    border-radius: 50%;
+    background: $accent-gold;
+    flex-shrink: 0;
+    box-shadow: 0 0 10rpx rgba(217, 75, 54, 0.35);
   }
 
   &__prefix {
-    font-size: 22rpx;
-    color: #9a6b3f;
+    font-size: 21rpx;
+    color: $text-muted;
     flex-shrink: 0;
-  }
-
-  &__label {
-    font-size: 22rpx;
-    color: #8b5a24;
-    font-weight: 600;
-    overflow: hidden;
-    text-overflow: ellipsis;
     white-space: nowrap;
   }
 
+  &__label {
+    flex: 1;
+    font-size: 21rpx;
+    color: $text-main;
+    font-weight: 800;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    min-width: 0;
+  }
+
   &__empty {
-    font-size: 22rpx;
-    color: #c4a882;
+    flex: 1;
+    font-size: 21rpx;
+    color: $text-muted;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    min-width: 0;
   }
 
   &__action {
     display: flex;
     align-items: center;
-    gap: 6rpx;
+    gap: 8rpx;
     flex-shrink: 0;
-    padding: 8rpx 16rpx;
-    border-radius: 999rpx;
-    background: rgba(154, 107, 63, 0.08);
+    padding: 0;
+    border-radius: 0;
+    background: transparent;
 
     &:active {
       opacity: 0.75;
@@ -81,14 +103,15 @@ function onInfoTap() {
   }
 
   &__action-icon {
-    font-size: 24rpx;
-    color: #9a6b3f;
+    font-size: 22rpx;
+    color: $accent-gold;
     line-height: 1;
   }
 
   &__action-text {
-    font-size: 22rpx;
-    color: #9a6b3f;
+    font-size: 21rpx;
+    color: $accent-gold;
+    font-weight: 700;
     white-space: nowrap;
   }
 }

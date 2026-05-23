@@ -44,7 +44,7 @@
             <view class="bubble-actions">
               <view class="action-item" @tap="copyMessage(msg.content)">
                 <SvgIcon name="edit" size="24" color="#999" />
-                <text class="action-label">复制</text>
+                <text class="action-label">复制文案话术</text>
               </view>
             </view>
           </view>
@@ -301,7 +301,7 @@ async function sendMessage() {
     })
     chatHistory.push({
       role: 'membership_hint',
-      content: '您还没有开通会员，没有办法和智能体对话',
+      content: '您还不是会员，无法与智能体对话。请点击下方按钮进入会员权益页查看说明并开通。',
       timestamp: Date.now()
     })
     scrollToBottom()
@@ -629,22 +629,13 @@ watch(
 </script>
 
 <style lang="scss" scoped>
-$primary-orange: #FF6B35;
-$primary-orange-light: #FF8C5A;
-$accent-blue: #4FACFE;
-$accent-cyan: #00F2FE;
-$bg-dark: #1A1A2E;
-$bg-card: rgba(255, 255, 255, 0.95);
-$text-primary: #1A1A2E;
-$text-secondary: #666;
-$text-muted: #999;
-$border-light: rgba(0, 0, 0, 0.06);
+@import '@/styles/_variables.scss';
 
 .chat-page {
   display: flex;
   flex-direction: column;
   height: 100vh;
-  background: linear-gradient(165deg, #F8FAFF 0%, #EEF2FF 50%, #FFF5F0 100%);
+  background: $bg-base;
 }
 
 .nav-header {
@@ -778,15 +769,15 @@ $border-light: rgba(0, 0, 0, 0.06);
   &.assistant-row {
     .ai-avatar {
       width: 60rpx;
-        height: 60rpx;
+      height: 60rpx;
       border-radius: 50%;
-      background: linear-gradient(135deg, #667EEA, #764BA2);
+      background: linear-gradient(135deg, $accent-gold 0%, $accent-gold-midshade 100%);
       display: flex;
       align-items: center;
       justify-content: center;
       margin-right: 16rpx;
       flex-shrink: 0;
-      box-shadow: 0 4rpx 12rpx rgba(102, 126, 234, 0.3);
+      box-shadow: 0 4rpx 12rpx rgba(217, 75, 54, 0.15);
 
       .ai-avatar-icon {
         font-size: 36rpx;
@@ -809,18 +800,20 @@ $border-light: rgba(0, 0, 0, 0.06);
 }
 
 .user-bubble {
-  background: linear-gradient(135deg, $primary-orange, $primary-orange-light);
-  color: #fff;
+  background-color: $bubble-user-bg;
+  color: $bubble-user-text;
+  border: 1rpx solid rgba(217, 75, 54, 0.15);
   border-bottom-right-radius: 8rpx;
   max-width: 85%;
-  box-shadow: 0 4rpx 16rpx rgba(255, 107, 53, 0.25);
+  box-shadow: $shadow-premium;
 }
 
 .assistant-bubble {
   background: $bg-card;
   color: $text-primary;
+  border: 1rpx solid rgba(44, 30, 26, 0.04);
   border-bottom-left-radius: 8rpx;
-  box-shadow: 0 4rpx 16rpx rgba(0, 0, 0, 0.06);
+  box-shadow: $shadow-premium;
 
   .bubble-actions {
     display: flex;
@@ -833,17 +826,19 @@ $border-light: rgba(0, 0, 0, 0.06);
       display: flex;
       align-items: center;
       gap: 6rpx;
-      padding: 8rpx 16rpx;
-      background: #F5F7FA;
-      border-radius: 16rpx;
+      padding: 8rpx 24rpx;
+      background: $white;
+      border: 1rpx solid rgba(217, 75, 54, 0.2);
+      border-radius: 28rpx;
 
       .action-label {
         font-size: 22rpx;
-        color: $text-muted;
+        color: $accent-gold;
+        font-weight: 700;
       }
 
       &:active {
-        background: #E8ECEF;
+        background: $accent-gold-light;
       }
     }
   }
@@ -883,7 +878,7 @@ $border-light: rgba(0, 0, 0, 0.06);
 
   .membership-btn {
     padding: 12rpx 32rpx;
-    background: linear-gradient(135deg, $primary-orange, $primary-orange-light);
+    background: linear-gradient(135deg, $accent-gold 0%, $accent-gold-deep 100%);
     border-radius: 32rpx;
     box-shadow: 0 4rpx 12rpx rgba(255, 107, 53, 0.3);
 
@@ -912,7 +907,7 @@ $border-light: rgba(0, 0, 0, 0.06);
       width: 16rpx;
       height: 16rpx;
       border-radius: 50%;
-      background: $accent-blue;
+      background: $accent-gold;
       animation: typingBounce 1.4s infinite both;
 
       &:nth-child(1) {
@@ -965,7 +960,7 @@ $border-light: rgba(0, 0, 0, 0.06);
   right: 0;
   width: 100%;
   z-index: 99;
-  background: linear-gradient(165deg, #F8FAFF 0%, #EEF2FF 50%, #FFF5F0 100%);
+  background: $bg-base;
   padding-bottom: constant(safe-area-inset-bottom);
   padding-bottom: env(safe-area-inset-bottom);
 }
@@ -1020,7 +1015,7 @@ $border-light: rgba(0, 0, 0, 0.06);
 
     &:focus-within {
       background: #fff;
-      border-color: $accent-blue;
+      border-color: $accent-gold;
       box-shadow: 0 0 0 4rpx rgba(79, 172, 254, 0.1);
     }
 
@@ -1046,7 +1041,7 @@ $border-light: rgba(0, 0, 0, 0.06);
     transition: all 0.3s ease;
 
     &.active {
-      background: linear-gradient(135deg, $primary-orange, $primary-orange-light);
+      background: linear-gradient(135deg, $accent-gold 0%, $accent-gold-deep 100%);
       box-shadow: 0 4rpx 16rpx rgba(255, 107, 53, 0.35);
     }
 

@@ -33,7 +33,7 @@ const props = defineProps<{
   banners?: BannerItem[]
 }>()
 
-const indicatorActive = '#F37021'
+const indicatorActive = '#D94B36'
 const fallbackUrl = DINGMA_HOME_BANNER_URL
 
 const displayList = computed(() => {
@@ -80,23 +80,23 @@ function handleTap(item: BannerItem) {
 @import '@/styles/_variables.scss';
 
 .banner-swiper-wrap {
-  margin: 0 28rpx;
-  border-radius: 24rpx;
+  margin: 0;
+  border-radius: 0;
   overflow: hidden;
-  box-shadow: 0 8rpx 32rpx rgba(33, 37, 41, 0.08);
+  box-shadow: $shadow-banner-3d;
 }
 
 .banner-swiper {
-  height: 320rpx;
+  height: 370rpx;
 }
 
 .banner-slide {
   width: 100%;
-  height: 320rpx;
+  height: 370rpx;
   overflow: hidden;
 
   &--placeholder {
-    border-radius: 24rpx;
+    border-radius: 0;
   }
 }
 
@@ -117,6 +117,6 @@ function handleTap(item: BannerItem) {
   width: 36rpx;
   height: 12rpx;
   border-radius: 6rpx;
-  background: #f37021 !important;
+  background: #d94b36 !important;
 }
 </style>

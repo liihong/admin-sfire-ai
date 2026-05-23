@@ -7,7 +7,7 @@ v-for="(item, index) in displayFeatureList"
       @tap="handleFeatureClick(item)"
     >
       <view class="feature-icon-wrapper">
-        <u-icon :name="item.icon" color="#FF8800" :size="item.iconSize || 48" />
+        <u-icon :name="item.icon" color="#D94B36" :size="item.iconSize || 48" />
       </view>
       <text class="feature-label">{{ item.label }}</text>
     </view>

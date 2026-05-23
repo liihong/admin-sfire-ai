@@ -271,15 +271,11 @@ const handleSkip = () => {
 </script>
 
 <style lang="scss" scoped>
-// CSS变量 - 品牌色（与 ProjectDashboard 保持一致）
-$brand-orange: #FF8800;
-$brand-orange-alt: #F37021;
-$brand-orange-light: rgba(255, 136, 0, 0.1);
-$bg-light: #F5F7FA;
+@import '@/styles/_variables.scss';
 
 .profile-container {
   min-height: 100vh;
-  background: $bg-light;
+  background: $bg-base;
   padding-bottom: 60rpx;
   position: relative;
   overflow: hidden;
@@ -292,7 +288,7 @@ $bg-light: #F5F7FA;
   left: 0;
   right: 0;
   height: 400rpx;
-  background: linear-gradient(135deg, $brand-orange 0%, $brand-orange-alt 100%);
+  background: linear-gradient(135deg, $accent-gold 0%, $accent-gold-deep 100%);
   overflow: hidden;
   
   .bg-circle {
@@ -437,7 +433,7 @@ $bg-light: #F5F7FA;
   transition: all 0.3s ease;
   
   &:focus-within {
-    border-color: $brand-orange;
+    border-color: $accent-gold;
     background: #ffffff;
   }
 }
@@ -474,7 +470,7 @@ $bg-light: #F5F7FA;
 .submit-btn {
   width: 100%;
   height: 100rpx;
-  background: linear-gradient(135deg, $brand-orange 0%, $brand-orange-alt 100%);
+  background: linear-gradient(135deg, $accent-gold 0%, $accent-gold-deep 100%);
   border-radius: 50rpx;
   display: flex;
   align-items: center;

@@ -8,8 +8,8 @@
 
 .drawer-overlay {
   @include fixed-fullscreen;
-  background: rgba(0, 0, 0, 0.4);
-  backdrop-filter: blur(4px);
+  background: rgba(44, 34, 30, 0.45);
+  backdrop-filter: blur(24rpx);
   z-index: $z-index-modal-backdrop;
   animation: fadeIn $transition-base ease;
 }
@@ -79,8 +79,8 @@
 
 .modal-overlay {
   @include fixed-fullscreen;
-  background: rgba(0, 0, 0, 0.5);
-  backdrop-filter: blur(4px);
+  background: rgba(44, 34, 30, 0.45);
+  backdrop-filter: blur(24rpx);
   z-index: $z-index-modal-backdrop;
   @include flex-center;
   padding: $spacing-lg;
@@ -176,18 +176,18 @@
   width: 100%;
   max-width: 600rpx;
   height: 96rpx;
-  background: #212B36; // 深蓝色/黑色背景
+  background: linear-gradient(135deg, $accent-gold 0%, $accent-gold-deep 100%);
   border-radius: 48rpx; // 大圆角，接近胶囊形
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 12rpx;
-  box-shadow: 0 4rpx 16rpx rgba(33, 43, 54, 0.2);
-  transition: all 0.3s ease;
+  box-shadow: 0 8rpx 32rpx rgba(197, 139, 73, 0.28);
+  transition: $transition-fluid;
 
   &:active {
     transform: scale(0.98);
-    box-shadow: 0 2rpx 8rpx rgba(33, 43, 54, 0.15);
+    box-shadow: 0 4rpx 16rpx rgba(197, 139, 73, 0.2);
   }
 
   // 按钮文字

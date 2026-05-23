@@ -1,7 +1,7 @@
 <template>
  <view class="notification-bar" v-if="announcements && announcements.length > 0" @click="handleClick">
     <view class="notification-left">
-     <SvgIcon name="notice" size="32" color="#FF8800" />
+     <SvgIcon name="notice" size="32" color="#D94B36" />
       <text class="notification-label">上新</text>
       <view class="divider"></view>
     </view>
