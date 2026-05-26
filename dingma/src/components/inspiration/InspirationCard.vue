@@ -44,12 +44,12 @@
           <u-icon name="mic" color="#86909C" size="20"></u-icon>
           <text class="voice-text">语音</text>
         </view> -->
-        <view 
-          class="save-btn" 
+        <view
+          class="save-btn"
           :class="{ disabled: !canSave }"
           @tap="handleSave"
         >
-          <u-icon name="file-text" color="#FFFFFF" size="20"></u-icon>
+          <text class="save-ico">📄</text>
           <text class="save-text">保存灵感</text>
         </view>
       </view>
@@ -231,6 +231,11 @@ function handleSave() {
     
     &:active:not(.disabled) {
       transform: scale(0.98);
+    }
+    
+    .save-ico {
+      font-size: 32rpx;
+      line-height: 1;
     }
     
     .save-text {

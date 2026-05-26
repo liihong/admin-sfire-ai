@@ -3,13 +3,28 @@
 """
 from typing import Optional
 
-# 后台「系统管理员」角色主键：与未绑定 role_id 一样，加载全部菜单
+# 后台「系统管理员」角色主键
 SYSTEM_ADMIN_ROLE_ID = 1
+
+# 仅平台超级管理员可见的菜单根节点 name（menus.name）
+PLATFORM_MENU_ROOT_NAME = "system"
 
 
 def is_full_menu_role(role_id: Optional[int]) -> bool:
-    """未绑定角色或系统管理员角色时返回全部菜单树"""
+    """未绑定角色或系统管理员角色（用于判断是否按「全量业务菜单」策略处理）"""
     return role_id is None or role_id == SYSTEM_ADMIN_ROLE_ID
+
+
+def admin_gets_unfiltered_menu_tree(*, tenant_id: Optional[int], role_id: Optional[int]) -> bool:
+    """
+    是否不经 menu_ids 过滤、直接加载全部启用菜单。
+
+    仅平台超级管理员（tenant_id 为空）且为系统管理员角色时为 True。
+    已绑定租户的管理员即使 role_id=1，也不得看到「系统管理」等平台级菜单模块。
+    """
+    return admin_has_platform_privilege(tenant_id=tenant_id, role_id=role_id) and is_full_menu_role(
+        role_id
+    )
 
 
 def admin_has_platform_privilege(*, tenant_id: Optional[int], role_id: Optional[int]) -> bool:

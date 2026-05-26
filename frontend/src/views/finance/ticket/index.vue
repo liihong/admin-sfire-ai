@@ -46,6 +46,9 @@
           <div v-if="scope.row.payment_method" class="text-secondary text-sm">
             {{ scope.row.payment_method }}
           </div>
+          <div v-if="scope.row.extra_data?.gift_compute" class="text-secondary text-sm">
+            赠送 +{{ scope.row.extra_data.gift_compute_amount }} 算力
+          </div>
         </template>
         <template v-else>
           <span v-if="scope.row.extra_data?.amount">
@@ -142,6 +145,27 @@
               <el-radio value="quarterly">季度会员</el-radio>
               <el-radio value="yearly">年度会员</el-radio>
             </el-radio-group>
+          </el-form-item>
+          <el-form-item label="赠送算力" prop="membership.gift_compute">
+            <el-radio-group v-model="createForm.membership!.gift_compute">
+              <el-radio :value="false">不赠送</el-radio>
+              <el-radio :value="true">赠送</el-radio>
+            </el-radio-group>
+          </el-form-item>
+          <el-form-item
+            v-if="createForm.membership!.gift_compute"
+            label="赠送数量"
+            prop="membership.gift_compute_amount"
+          >
+            <el-input-number
+              v-model="createForm.membership!.gift_compute_amount"
+              :min="1"
+              :max="1000000"
+              :step="100"
+              controls-position="right"
+              style="width: 100%"
+            />
+            <span class="ml-2 text-secondary">算力点</span>
           </el-form-item>
           <el-form-item label="凭证" prop="membership.voucher">
             <el-input
@@ -288,7 +312,9 @@ const createForm = reactive<TicketCreateParams & { membership?: any; recharge?: 
     is_paid: false,
     payment_method: "",
     voucher: "",
-    period_type: "monthly"
+    period_type: "monthly",
+    gift_compute: false,
+    gift_compute_amount: 100
   },
   recharge: { amount: 100 },
   remark: ""
@@ -304,7 +330,9 @@ watch(
         is_paid: false,
         payment_method: "",
         voucher: "",
-        period_type: "monthly"
+        period_type: "monthly",
+        gift_compute: false,
+        gift_compute_amount: 100
       };
     } else if (val === "recharge" && !createForm.recharge) {
       createForm.recharge = { amount: 100 };
@@ -319,6 +347,19 @@ const createRules: FormRules = {
   "membership.vip_expire_date": [{ required: true, message: "请选择VIP到期时间", trigger: "change" }],
   "membership.is_paid": [{ required: true, message: "请选择是否已收费", trigger: "change" }],
   "membership.period_type": [{ required: true, message: "请选择会员周期", trigger: "change" }],
+  "membership.gift_compute": [{ required: true, message: "请选择是否赠送算力", trigger: "change" }],
+  "membership.gift_compute_amount": [
+    {
+      validator: (_rule, value, callback) => {
+        if (createForm.membership?.gift_compute && (!value || value <= 0)) {
+          callback(new Error("请输入赠送算力数量"));
+        } else {
+          callback();
+        }
+      },
+      trigger: "blur"
+    }
+  ],
   "recharge.amount": [{ required: true, message: "请输入充值金额", trigger: "blur" }]
 };
 
@@ -359,7 +400,9 @@ const openCreateDialog = () => {
     is_paid: false,
     payment_method: "",
     voucher: "",
-    period_type: "monthly"
+    period_type: "monthly",
+    gift_compute: false,
+    gift_compute_amount: 100
   };
   createForm.recharge = { amount: 100 };
   createForm.remark = "";
@@ -388,7 +431,11 @@ const submitCreate = async () => {
         is_paid: createForm.membership.is_paid,
         payment_method: createForm.membership.payment_method || undefined,
         voucher: createForm.membership.voucher || undefined,
-        period_type: createForm.membership.period_type
+        period_type: createForm.membership.period_type,
+        gift_compute: createForm.membership.gift_compute,
+        gift_compute_amount: createForm.membership.gift_compute
+          ? createForm.membership.gift_compute_amount
+          : undefined
       };
     } else if (createForm.type === "recharge" && createForm.recharge) {
       params.recharge = { amount: createForm.recharge.amount };

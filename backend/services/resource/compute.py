@@ -20,6 +20,13 @@ from utils.pagination import paginate, build_order_by, PageResult
 from utils.exceptions import NotFoundException, BadRequestException
 
 
+def _scoped_user_ids_subquery(scoped_tenant_id: Optional[int]):
+    """租户范围内用户 ID 子查询（算力流水 tenant_id 可能未正确写入，按用户租户过滤）"""
+    if scoped_tenant_id is None:
+        return None
+    return select(User.id).where(User.tenant_id == scoped_tenant_id, User.is_deleted == False)
+
+
 # 算力变动类型中文映射
 COMPUTE_TYPE_NAMES = {
     ComputeType.RECHARGE: "充值",
@@ -179,6 +186,7 @@ class ComputeService:
         page_num: int = 1,
         page_size: int = 10,
         log_type: Optional[str] = None,
+        scoped_tenant_id: Optional[int] = None,
     ) -> PageResult:
         """
         获取指定用户的算力流水
@@ -188,10 +196,16 @@ class ComputeService:
             page_num: 页码
             page_size: 每页数量
             log_type: 流水类型
+            scoped_tenant_id: 租户数据范围（非空时仅允许本租户用户）
         
         Returns:
             分页结果
         """
+        from services.user import UserService
+
+        user_service = UserService(self.db)
+        user = await user_service.require_user_accessible(user_id, scoped_tenant_id)
+        
         conditions = [ComputeLog.user_id == user_id]
         
         if log_type:
@@ -222,12 +236,6 @@ class ComputeService:
                 )
             )
         )
-        
-        # 获取用户信息
-        user_result = await self.db.execute(
-            select(User).where(User.id == user_id)
-        )
-        user = user_result.scalar_one_or_none()
         
         result = await paginate(
             db=self.db,
@@ -535,7 +543,7 @@ class ComputeService:
             ComputeLog.payment_status == "paid",
         )
 
-    async def get_system_statistics(self) -> dict:
+    async def get_system_statistics(self, scoped_tenant_id: Optional[int] = None) -> dict:
         """
         获取系统级算力统计
         
@@ -543,10 +551,15 @@ class ComputeService:
             totalConsume: 系统总消耗（正数）
             totalRecharge: 系统总充值（正数，仅统计有效充值）
         """
+        scoped_users = _scoped_user_ids_subquery(scoped_tenant_id)
+
         # 总消耗：CONSUME 类型，取绝对值求和
+        consume_conditions = [ComputeLog.type == ComputeType.CONSUME]
+        if scoped_users is not None:
+            consume_conditions.append(ComputeLog.user_id.in_(scoped_users))
         consume_result = await self.db.execute(
             select(func.coalesce(func.sum(func.abs(ComputeLog.amount)), 0)).where(
-                ComputeLog.type == ComputeType.CONSUME
+                and_(*consume_conditions)
             )
         )
         total_consume = consume_result.scalar() or Decimal("0")
@@ -556,6 +569,8 @@ class ComputeService:
             ComputeLog.type == ComputeType.RECHARGE,
             self._recharge_valid_condition(),
         ]
+        if scoped_users is not None:
+            recharge_conditions.append(ComputeLog.user_id.in_(scoped_users))
         recharge_result = await self.db.execute(
             select(func.coalesce(func.sum(ComputeLog.amount), 0)).where(
                 and_(*recharge_conditions)
@@ -576,6 +591,7 @@ class ComputeService:
         username: Optional[str] = None,
         start_time: Optional[str] = None,
         end_time: Optional[str] = None,
+        scoped_tenant_id: Optional[int] = None,
     ) -> Tuple[List[dict], int]:
         """
         获取用户算力汇总列表（按用户分组统计消耗与充值）
@@ -590,6 +606,8 @@ class ComputeService:
         Returns:
             (列表数据, 总数)
         """
+        scoped_users = _scoped_user_ids_subquery(scoped_tenant_id)
+
         # 时间条件
         time_cond = []
         if start_time:
@@ -605,6 +623,8 @@ class ComputeService:
 
         # 消耗子查询
         consume_cond = [ComputeLog.type == ComputeType.CONSUME]
+        if scoped_users is not None:
+            consume_cond.append(ComputeLog.user_id.in_(scoped_users))
         if time_cond:
             consume_cond.extend(time_cond)
         consume_subq = (
@@ -621,6 +641,8 @@ class ComputeService:
             ComputeLog.type == ComputeType.RECHARGE,
             self._recharge_valid_condition(),
         ]
+        if scoped_users is not None:
+            recharge_cond.append(ComputeLog.user_id.in_(scoped_users))
         if time_cond:
             recharge_cond.extend(time_cond)
         recharge_subq = (
@@ -634,10 +656,16 @@ class ComputeService:
 
         # 主查询：从消耗或充值中有记录的用户出发，左连接两个子查询和 User
         from sqlalchemy import union
-        user_ids_consume = select(ComputeLog.user_id).where(ComputeLog.type == ComputeType.CONSUME).distinct()
+        user_ids_consume = select(ComputeLog.user_id).where(ComputeLog.type == ComputeType.CONSUME)
+        if scoped_users is not None:
+            user_ids_consume = user_ids_consume.where(ComputeLog.user_id.in_(scoped_users))
+        user_ids_consume = user_ids_consume.distinct()
         user_ids_recharge = select(ComputeLog.user_id).where(
             and_(ComputeLog.type == ComputeType.RECHARGE, self._recharge_valid_condition())
-        ).distinct()
+        )
+        if scoped_users is not None:
+            user_ids_recharge = user_ids_recharge.where(ComputeLog.user_id.in_(scoped_users))
+        user_ids_recharge = user_ids_recharge.distinct()
         if time_cond:
             user_ids_consume = user_ids_consume.where(and_(*time_cond))
             user_ids_recharge = user_ids_recharge.where(and_(*time_cond))
@@ -656,6 +684,8 @@ class ComputeService:
             .outerjoin(recharge_subq, user_ids_union.c.user_id == recharge_subq.c.user_id)
             .outerjoin(User, user_ids_union.c.user_id == User.id)
         )
+        if scoped_tenant_id is not None:
+            query = query.where(User.tenant_id == scoped_tenant_id)
         if username:
             query = query.where(User.username.like(f"%{username}%"))
 

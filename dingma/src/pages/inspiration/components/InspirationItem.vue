@@ -10,7 +10,7 @@
         <text v-if="inspiration.is_pinned" class="premium-pin">置顶</text>
         <text class="premium-title">{{ displayTitle }}</text>
       </view>
-      <text class="premium-cta" @tap.stop="handleChat">去AI沟通 ›</text>
+      <text class="premium-cta" @tap.stop="handleChat">去AI沟通 ></text>
     </view>
 
     <!-- 正文：多行、温润行距 -->
@@ -23,7 +23,7 @@
         <text v-if="inspiration.generated_content" class="premium-generated">已生成</text>
       </view>
       <view class="premium-del" @tap.stop="handleDelete">
-        <u-icon name="trash" color="#8A7E78" size="14"></u-icon>
+        <text class="premium-del-icon" aria-hidden="true">🗑</text>
         <text class="premium-del-txt">删除</text>
       </view>
     </view>
@@ -281,6 +281,12 @@ function handleLongPress() {
   &:active {
     opacity: 0.65;
   }
+}
+
+/** 原生展示：不使用 icon 字体组件，兼容各端渲染 */
+.premium-del-icon {
+  font-size: 26rpx;
+  line-height: 1;
 }
 
 .premium-del-txt {

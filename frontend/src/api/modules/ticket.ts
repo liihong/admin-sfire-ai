@@ -57,6 +57,8 @@ export interface TicketMembershipCreate {
   payment_method?: string;
   voucher?: string;
   period_type: PeriodType;
+  gift_compute?: boolean;
+  gift_compute_amount?: number;
 }
 
 /** 创建充值工单参数 */

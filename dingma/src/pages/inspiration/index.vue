@@ -1,14 +1,20 @@
 <template>
   <view class="inspiration-page">
-    <!-- 顶部导航 -->
+    <!-- 顶栏：纯白 + 返回 + 标题 + 仿小程序胶囊（纯 view/text，无第三方 icon） -->
     <view class="page-nav" :style="{ paddingTop: safeArea.top + 'px' }">
       <view class="nav-bar">
         <view class="nav-back" @tap="goBack">
-          <text class="nav-back-icon">‹</text>
+          <text class="nav-back-icon">&lt;</text>
         </view>
         <text class="nav-title">我的灵感夹</text>
-        <view class="nav-more" @tap="onMoreTap">
-          <text class="nav-more-dots">••</text>
+        <view class="nav-capsule">
+          <view class="nav-cap-btn" @tap="onMoreTap">
+            <text class="nav-cap-ico">⋯</text>
+          </view>
+          <view class="nav-cap-split" />
+          <view class="nav-cap-btn" @tap="goHomeTab">
+            <text class="nav-cap-target">◎</text>
+          </view>
         </view>
       </view>
     </view>
@@ -17,7 +23,7 @@
     <view v-if="inspirationList.length > 0" class="section-head-strip">
       <view class="section-head">
         <text class="section-icon">💡</text>
-        <text class="section-text">灵感备忘夹列表 (共 {{ total }} 条)</text>
+        <text class="section-text">灵感备忘录列表 (共 {{ total }} 条)</text>
       </view>
     </view>
 
@@ -55,7 +61,11 @@
 
       <!-- 加载中 -->
       <view v-if="loading && inspirationList.length === 0" class="loading-state">
-        <u-loading-icon mode="spinner" color="#b8864d"></u-loading-icon>
+        <view class="native-spinner" aria-hidden="true">
+          <view class="native-spinner-dot" />
+          <view class="native-spinner-dot native-spinner-dot--delay1" />
+          <view class="native-spinner-dot native-spinner-dot--delay2" />
+        </view>
         <text class="loading-text">加载中...</text>
       </view>
 
@@ -76,7 +86,7 @@
     <!-- 底部悬浮按钮 -->
     <view class="fab-wrapper">
       <view class="fab-btn" @tap="showInspirationCard = true">
-        <u-icon name="plus" color="#FFFFFF" size="24"></u-icon>
+        <text class="fab-plus">+</text>
       </view>
     </view>
     
@@ -94,7 +104,7 @@
         <view class="modal-header">
           <text class="modal-title">生成的口播文案</text>
           <view class="modal-close" @tap="closeGenerateModal">
-            <u-icon name="close" color="#86909C" size="20"></u-icon>
+            <text class="modal-close-x">×</text>
           </view>
         </view>
         <view class="modal-body">
@@ -237,6 +247,11 @@ function goBack() {
       uni.switchTab({ url: '/pages/home/index' })
     },
   })
+}
+
+/** 胶囊右侧：回到首页 Tab（与常见小程序「关闭」行为接近） */
+function goHomeTab() {
+  uni.switchTab({ url: '/pages/home/index' })
 }
 
 // 处理灵感发送
@@ -430,13 +445,13 @@ function copyGeneratedContent() {
   flex-direction: column;
   overflow: hidden;
   box-sizing: border-box;
-  /** 与设计稿一致的暖燕麦底 */
-  background: $quote-marquee-strip-bg;
+  /** 灵感夹页：与设计稿接近的奶白纸感底 */
+  background: #fdfcf8;
 }
 
 .page-nav {
   flex-shrink: 0;
-  background: $quote-marquee-strip-bg;
+  background: #ffffff;
 }
 
 .nav-bar {
@@ -475,38 +490,13 @@ function copyGeneratedContent() {
   color: $text-main;
 }
 
-.nav-more {
-  position: absolute;
-  right: 32rpx;
-  min-width: 72rpx;
-  height: 56rpx;
-  padding: 0 20rpx;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: rgba(255, 255, 255, 0.85);
-  border: 1rpx solid rgba(44, 30, 26, 0.08);
-  border-radius: 999rpx;
-
-  &:active {
-    opacity: 0.75;
-  }
-}
-
-.nav-more-dots {
-  font-size: 22rpx;
-  letter-spacing: 2rpx;
-  color: $text-muted;
-  line-height: 1;
-}
-
 .section-head-strip {
   flex-shrink: 0;
   box-sizing: border-box;
   width: 100%;
   padding: 20rpx 40rpx 24rpx;
-  background: $quote-marquee-strip-bg;
-  border-bottom: 1rpx solid rgba(44, 30, 26, 0.04);
+  background: #fdfcf8;
+  border-bottom: none;
 }
 
 .list-container {
@@ -530,9 +520,58 @@ function copyGeneratedContent() {
 }
 
 .section-text {
+  font-size: 26rpx;
+  font-weight: 500;
+  color: rgba(138, 126, 120, 0.95);
+}
+
+/** 仿小程序顶部胶囊：双钮 + 竖线 */
+.nav-capsule {
+  position: absolute;
+  right: 24rpx;
+  top: 50%;
+  transform: translateY(-50%);
+  height: 56rpx;
+  padding: 0 8rpx;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  background: rgba(255, 255, 255, 0.92);
+  border: 1rpx solid rgba(44, 30, 26, 0.12);
+  border-radius: 999rpx;
+  box-sizing: border-box;
+}
+
+.nav-cap-btn {
+  min-width: 56rpx;
+  height: 48rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 12rpx;
+
+  &:active {
+    opacity: 0.65;
+  }
+}
+
+.nav-cap-ico {
   font-size: 28rpx;
-  font-weight: 800;
-  color: $text-main;
+  line-height: 1;
+  color: rgba(44, 30, 26, 0.78);
+  letter-spacing: 2rpx;
+}
+
+.nav-cap-target {
+  font-size: 26rpx;
+  line-height: 1;
+  color: rgba(44, 30, 26, 0.78);
+}
+
+.nav-cap-split {
+  width: 1rpx;
+  height: 28rpx;
+  background: rgba(44, 30, 26, 0.12);
 }
 
 .inspiration-list {
@@ -581,6 +620,44 @@ function copyGeneratedContent() {
   }
 }
 
+/** 原生加载动画（不依赖 uView） */
+.native-spinner {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: center;
+  gap: 10rpx;
+}
+
+.native-spinner-dot {
+  width: 12rpx;
+  height: 12rpx;
+  border-radius: 50%;
+  background: $accent-gold;
+  animation: insp-spin-bounce 1.2s ease-in-out infinite;
+
+  &--delay1 {
+    animation-delay: 0.15s;
+  }
+
+  &--delay2 {
+    animation-delay: 0.3s;
+  }
+}
+
+@keyframes insp-spin-bounce {
+  0%,
+  80%,
+  100% {
+    transform: scale(0.65);
+    opacity: 0.45;
+  }
+  40% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
 .load-more-hint,
 .no-more-hint {
   text-align: center;
@@ -597,20 +674,30 @@ function copyGeneratedContent() {
   z-index: 99;
 
   .fab-btn {
-    width: 96rpx;
-    height: 96rpx;
-    background: linear-gradient(135deg, $accent-gold 0%, #b45309 100%);
+    width: 108rpx;
+    height: 108rpx;
+    background: linear-gradient(145deg, #ff8f3c 0%, #e63b2e 55%, #d94b36 100%);
     border-radius: 50%;
     display: flex;
     align-items: center;
     justify-content: center;
-    border: 1rpx solid rgba(255, 255, 255, 0.25);
-    box-shadow: 0 16rpx 42rpx rgba(217, 75, 54, 0.28);
+    border: none;
+    box-shadow:
+      0 14rpx 36rpx rgba(217, 75, 54, 0.38),
+      0 6rpx 14rpx rgba(245, 166, 35, 0.22);
 
     &:active {
       transform: scale(0.94);
       opacity: 0.94;
     }
+  }
+
+  .fab-plus {
+    font-size: 64rpx;
+    font-weight: 300;
+    color: #ffffff;
+    line-height: 1;
+    margin-top: -6rpx;
   }
 }
 
@@ -653,6 +740,17 @@ function copyGeneratedContent() {
         display: flex;
         align-items: center;
         justify-content: center;
+
+        &:active {
+          opacity: 0.6;
+        }
+      }
+
+      .modal-close-x {
+        font-size: 44rpx;
+        font-weight: 300;
+        color: #86909c;
+        line-height: 1;
       }
     }
 
