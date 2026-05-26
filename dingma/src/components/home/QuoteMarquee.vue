@@ -2,7 +2,7 @@
   <view class="qm" @tap="onTapAdvance">
     <!-- 固定左侧喇叭，不参与滚动 -->
     <view class="qm__speaker" aria-hidden="true">
-      <image class="qm__speaker-img" :src="speakerIconSvg" mode="aspectFit" />
+      <SvgIcon class="qm__speaker-glyph" name="notice" :size="36" color="#D94B36" />
     </view>
     <view class="qm__body">
       <view class="qm__track">
@@ -26,13 +26,7 @@
 
 <script setup lang="ts">
 import { ref, computed, watch, onMounted, onUnmounted, nextTick } from 'vue'
-
-/** 小号喇叭/扩音（矢量），固定在左侧不参与滚动 */
-const speakerIconSvg =
-  'data:image/svg+xml,' +
-  encodeURIComponent(
-    `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="#d94b36" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15.54 8.46a16 16 0 0 1 0 7.07"/><path d="M19.07 5.93a21 21 0 0 1 0 12.14"/></svg>`
-  )
+import SvgIcon from '@/components/base/SvgIcon.vue'
 
 const REF_QUOTES = [
   '粗糙的开始就是最好的开始，先去做，做出一坨狗屎也比一直等准备完美强！',
@@ -141,10 +135,12 @@ onUnmounted(() => {
   z-index: 3;
 }
 
-.qm__speaker-img {
+.qm__speaker-glyph {
+  display: inline-flex;
   width: 36rpx;
   height: 36rpx;
-  display: block;
+  align-items: center;
+  justify-content: center;
 }
 
 .qm__body {

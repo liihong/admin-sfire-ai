@@ -22,10 +22,12 @@ const defaultNickname = computed(() => authStore.userInfo?.nickname?.trim() || '
 .page-ip-info {
   min-height: 100vh;
   box-sizing: border-box;
-  padding: 24rpx 32rpx 32rpx;
-  padding-bottom: calc(24rpx + env(safe-area-inset-bottom));
-  padding-bottom: calc(24rpx + constant(safe-area-inset-bottom));
-  background: $bg-base;
+  padding: 24rpx 32rpx;
+  /** 底部与 Home 指示条留白：在安全区基础上再留一截呼吸间距 */
+  padding-bottom: calc(48rpx + constant(safe-area-inset-bottom));
+  padding-bottom: calc(48rpx + env(safe-area-inset-bottom));
+  /** 燕麦灰底，与 PersonaProfileEditor 白卡主体形成层次 */
+  background: $terracotta-bg;
   display: flex;
   flex-direction: column;
 

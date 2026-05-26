@@ -130,8 +130,7 @@
       >
         <view class="menu-left">
           <view class="menu-icon-wrap">
-            <SvgIcon :name="item.icon" :size="42" color="#D94B36" />
-            <view v-if="item.showDot" class="menu-icon-dot" />
+            <SvgIcon :name="item.icon" :size="42" :color="item.iconColor ?? '#D94B36'" />
           </view>
           <view class="menu-text-col">
             <text class="menu-name">{{ item.name }}</text>
@@ -149,8 +148,6 @@
 import { computed, ref, onMounted } from 'vue'
 import { onShow, onPullDownRefresh } from '@dcloudio/uni-app'
 import { getCoinStatistics, type CoinStatisticsData } from '@/api/coin'
-import { getConversationList } from '@/api/conversation'
-import { getInspirationList } from '@/api/inspiration'
 import { useAuthStore } from '@/stores/auth'
 import { DINGMA_DEFAULT_PROFILE_AVATAR_URL } from '@/constants/tenant'
 import SvgIcon from '@/components/base/SvgIcon.vue'
@@ -161,8 +158,6 @@ const authStore = useAuthStore()
 const projectStore = useProjectStore()
 
 const coinStats = ref<CoinStatisticsData | null>(null)
-const conversationTotal = ref(0)
-const inspirationTotal = ref(0)
 const personaIncomplete = ref(true)
 
 const userInfo = computed(() => {
@@ -307,9 +302,10 @@ interface MenuItem {
   name: string
   desc: string
   icon: string
+  /** 单色 iconfont 时生效；彩色字体会变体为 linggan2 / send2 */
+  iconColor?: string
   path: string
   requiresLogin: boolean
-  showDot?: boolean
 }
 
 const allMenuList = computed<MenuItem[]>(() => [
@@ -317,32 +313,33 @@ const allMenuList = computed<MenuItem[]>(() => [
     id: 'inspiration',
     name: '我的灵感夹',
     desc: authStore.isLoggedIn
-      ? `收录您随时随手捕捉的好点子脑洞（共 ${inspirationTotal.value} 条）`
+      ? `收录您随时随手捕捉的好点子脑洞`
       : '收录您随时随手捕捉的好点子脑洞（登录后查看）',
-    icon: 'linggan',
+    // linggan 为彩色字形，不显色；换 linggan2 可走 CSS color
+    icon: 'linggan2',
+    iconColor: '#D94B36',
     path: '/pages/inspiration/index',
-    requiresLogin: true,
-    showDot: inspirationTotal.value > 0
+    requiresLogin: true
   },
   {
     id: 'history',
     name: '历史对话记录箱',
     desc: authStore.isLoggedIn
-      ? `回顾您往期与AI沟通的手作爆单方案（共 ${conversationTotal.value} 个）`
+      ? `回顾您往期与AI沟通的手作爆单方案`
       : '回顾您往期与AI沟通的手作爆单方案（登录后查看）',
     icon: 'book',
+    iconColor: '#F5A623',
     path: '/pages/mine/creation-records/index',
-    requiresLogin: true,
-    showDot: conversationTotal.value > 0
+    requiresLogin: true
   },
   {
     id: 'referral',
     name: '我要推荐',
     desc: '邀请好友一起体验，获得算力奖励',
-    icon: 'send',
+    icon: 'send2',
+    iconColor: '#E65100',
     path: '/pages/mine/referral/index',
-    requiresLogin: false,
-    showDot: false
+    requiresLogin: false
   }
 ])
 
@@ -368,29 +365,6 @@ const refreshCoinStatistics = async () => {
     }
   } catch {
     coinStats.value = null
-  }
-}
-
-const refreshMenuCounts = async () => {
-  if (!authStore.isLoggedIn) {
-    conversationTotal.value = 0
-    inspirationTotal.value = 0
-    return
-  }
-  try {
-    const [convRes, inspRes] = await Promise.all([
-      getConversationList({ pageNum: 1, pageSize: 1 }),
-      getInspirationList({ pageNum: 1, pageSize: 1, status: 'active' })
-    ])
-    if (convRes.code === 200 && convRes.data) {
-      conversationTotal.value = convRes.data.total ?? 0
-    }
-    if (inspRes.code === 200 && inspRes.data) {
-      inspirationTotal.value = inspRes.data.total ?? 0
-    }
-  } catch {
-    conversationTotal.value = 0
-    inspirationTotal.value = 0
   }
 }
 
@@ -425,7 +399,7 @@ const refreshPersonaStatus = async () => {
 
 const refreshAll = async () => {
   await refreshUserInfo()
-  await Promise.all([refreshCoinStatistics(), refreshMenuCounts(), refreshPersonaStatus()])
+  await Promise.all([refreshCoinStatistics(), refreshPersonaStatus()])
 }
 
 const goToPowerCenter = () => {
@@ -772,9 +746,10 @@ onPullDownRefresh(async () => {
     position: relative;
     z-index: 2;
     display: block;
-    font-size: 26rpx;
-    font-weight: 500;
-    color: rgba(254, 243, 199, 0.86);
+    /** Slogan：略大字重，在长渐变卡上更易读 */
+    font-size: 31rpx;
+    font-weight: 600;
+    color: rgba(254, 243, 199, 0.9);
     line-height: 1.52;
     /* 单行短文案时与底栏留白略加大，层级更清晰 */
     margin-bottom: 20rpx;
@@ -1138,17 +1113,6 @@ onPullDownRefresh(async () => {
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
-}
-
-.menu-icon-dot {
-  position: absolute;
-  top: 8rpx;
-  right: 8rpx;
-  width: 14rpx;
-  height: 14rpx;
-  border-radius: 50%;
-  background: $accent-gold;
-  border: 2rpx solid $white;
 }
 
 .menu-text-col {

@@ -3,7 +3,7 @@
     <view v-for="(entry, idx) in quickEntryList" :key="entry.id" class="command-card" @tap="handleClick(entry)">
       <view class="command-icon-wrapper">
         <SvgIcon
-          :name="entry.icon_class"
+          :name="quickEntrySvgGlyph(entry.icon_class)"
           :size="40"
           :color="svgIconColorFromBg(entry.bg_color, idx)"
         />
@@ -20,6 +20,7 @@
 import { computed } from 'vue'
 import SvgIcon from '@/components/base/SvgIcon.vue'
 import { svgIconColorFromBg } from '@/utils/iconColor'
+import { quickEntrySvgGlyph } from '@/utils/quickEntrySvgIcon'
 import { type QuickEntry } from '@/api/quickEntry'
 import { useQuickEntryStore } from '@/stores/quickEntry'
 import { useAgentStore } from '@/stores/agent'

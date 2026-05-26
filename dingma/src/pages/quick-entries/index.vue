@@ -46,6 +46,7 @@ import { onShow } from '@dcloudio/uni-app'
 import { getQuickEntries, type QuickEntry } from '@/api/quickEntry'
 import SafeAreaTop from '@/components/common/SafeAreaTop.vue'
 import SvgIcon from '@/components/base/SvgIcon.vue'
+import { quickEntrySvgGlyph } from '@/utils/quickEntrySvgIcon'
 import { DINGMA_AGENT_DEFAULT_AVATAR_URL } from '@/constants/tenant'
 
 const entryListAvatarUrl = DINGMA_AGENT_DEFAULT_AVATAR_URL
@@ -64,9 +65,7 @@ function tagLabel(tag: QuickEntry['tag']) {
 }
 
 function iconName(item: QuickEntry) {
-  const raw = (item.icon_class || '').trim()
-  if (raw) return raw
-  return 'linggan'
+  return quickEntrySvgGlyph(item.icon_class)
 }
 
 function iconBg(item: QuickEntry, index: number) {

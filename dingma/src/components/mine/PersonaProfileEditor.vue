@@ -1,75 +1,77 @@
 <template>
-  <view class="persona-editor">
+  <view class="persona-editor" :class="{ 'persona-editor--compact': compactLayout }">
     <scroll-view scroll-y class="persona-editor__body" :show-scrollbar="false">
-      <view class="field">
-        <text class="field-label">A. 姓名</text>
-        <view class="field-input-box">
-          <input
-            v-model="form.name"
-            class="field-input"
-            placeholder="例如：小辛妈妈"
-            placeholder-class="persona-placeholder-input"
-            :maxlength="20"
-            :adjust-position="true"
-          />
+      <view class="persona-editor__surface" :class="{ 'persona-editor__surface--raised': !compactLayout }">
+        <view class="field">
+          <text class="field-label">姓名</text>
+          <view class="field-input-box">
+            <input
+              v-model="form.name"
+              class="field-input"
+              placeholder="例如：小辛妈妈"
+              placeholder-class="persona-placeholder-input"
+              :maxlength="20"
+              :adjust-position="true"
+            />
+          </view>
         </view>
-      </view>
 
-      <view class="field">
-        <text class="field-label">B. 所在地区</text>
-        <view class="field-input-box">
-          <input
-            v-model="form.ip_city"
-            class="field-input"
-            placeholder="例如：建业一号城邦 / 河南新乡"
-            placeholder-class="persona-placeholder-input"
-            :maxlength="50"
-            :adjust-position="true"
-          />
+        <view class="field">
+          <text class="field-label">所在地区</text>
+          <view class="field-input-box">
+            <input
+              v-model="form.ip_city"
+              class="field-input"
+              placeholder="例如：建业一号城邦 / 河南新乡"
+              placeholder-class="persona-placeholder-input"
+              :maxlength="50"
+              :adjust-position="true"
+            />
+          </view>
         </view>
-      </view>
 
-      <view class="field">
-        <text class="field-label">C. 身份标签</text>
-        <view class="field-input-box">
-          <input
-            v-model="form.ip_identityTag"
-            class="field-input"
-            placeholder="例如：宝妈，二胎妈妈，前HR"
-            placeholder-class="persona-placeholder-input"
-            :maxlength="100"
-            :adjust-position="true"
-          />
+        <view class="field">
+          <text class="field-label">身份标签</text>
+          <view class="field-input-box">
+            <input
+              v-model="form.ip_identityTag"
+              class="field-input"
+              placeholder="例如：宝妈，二胎妈妈，前HR"
+              placeholder-class="persona-placeholder-input"
+              :maxlength="100"
+              :adjust-position="true"
+            />
+          </view>
         </view>
-      </view>
 
-      <view class="field">
-        <text class="field-label">D. 经历介绍</text>
-        <view class="field-textarea-box">
-          <textarea
-            v-model="form.ip_experience"
-            class="field-textarea"
-            placeholder="请涵盖：过往职业、转折点、从业初衷、最大挑战..."
-            placeholder-class="persona-placeholder-textarea"
-            :maxlength="2000"
-            :auto-height="false"
-            :adjust-position="true"
-          />
+        <view class="field">
+          <text class="field-label">经历介绍</text>
+          <view class="field-textarea-box">
+            <textarea
+              v-model="form.ip_experience"
+              class="field-textarea"
+              placeholder="请涵盖：过往职业、转折点、从业初衷、最大挑战..."
+              placeholder-class="persona-placeholder-textarea"
+              :maxlength="2000"
+              :auto-height="false"
+              :adjust-position="true"
+            />
+          </view>
         </view>
-      </view>
 
-      <view class="field">
-        <text class="field-label">E. 产品介绍</text>
-        <view class="field-textarea-box">
-          <textarea
-            v-model="form.cl_mainProducts"
-            class="field-textarea field-textarea--sm"
-            placeholder="例如：芝士秋葵玉米拉丝馄饨和手炒藤椒米线"
-            placeholder-class="persona-placeholder-textarea"
-            :maxlength="500"
-            :auto-height="false"
-            :adjust-position="true"
-          />
+        <view class="field">
+          <text class="field-label">产品介绍</text>
+          <view class="field-textarea-box">
+            <textarea
+              v-model="form.cl_mainProducts"
+              class="field-textarea field-textarea--sm"
+              placeholder="例如：芝士秋葵玉米拉丝馄饨和手炒藤椒米线"
+              placeholder-class="persona-placeholder-textarea"
+              :maxlength="500"
+              :auto-height="false"
+              :adjust-position="true"
+            />
+          </view>
         </view>
       </view>
       <view class="persona-editor__body-pad-bottom" aria-hidden="true" />
@@ -93,10 +95,15 @@ import { useProjectStore } from '@/stores/project'
 import { modelToFormData, formDataToCreateRequest, formDataToUpdateRequest } from '@/utils/project'
 import type { ProjectFormData } from '@/types/project'
 
-const props = defineProps<{
-  /** 昵称兜底（创建项目且无档案时填入姓名框） */
-  defaultName?: string
-}>()
+const props = withDefaults(
+  defineProps<{
+    /** 昵称兜底（创建项目且无档案时填入姓名框） */
+    defaultName?: string
+    /** 弹窗内为 true：不套外层白卡片，避免与弹窗底色重复嵌套 */
+    compactLayout?: boolean
+  }>(),
+  { compactLayout: false }
+)
 
 const emit = defineEmits<{
   saved: []
@@ -237,9 +244,30 @@ onMounted(() => {
 .persona-editor {
   display: flex;
   flex-direction: column;
+  gap: 28rpx;
   min-height: 0;
   flex: 1;
   width: 100%;
+  box-sizing: border-box;
+
+  /** 独立页：保存条与组件底边留白；弹窗 compact 不占高度 */
+  &:not(.persona-editor--compact) .persona-editor__save {
+    margin-bottom: 24rpx;
+  }
+}
+
+.persona-editor__surface {
+  box-sizing: border-box;
+  width: 100%;
+
+  /** 独立页：白底主体卡，与外层灰底区分开 */
+  &--raised {
+    background: $white;
+    border-radius: 28rpx;
+    padding: 36rpx 30rpx 40rpx;
+    border: 1rpx solid rgba(44, 30, 26, 0.08);
+    box-shadow: $shadow-sm;
+  }
 }
 
 .persona-editor__body {
@@ -251,7 +279,7 @@ onMounted(() => {
 .persona-editor__body-pad-bottom {
   height: env(safe-area-inset-bottom);
   height: constant(safe-area-inset-bottom);
-  min-height: 24rpx;
+  min-height: 16rpx;
 }
 
 .persona-editor__save {
@@ -259,9 +287,9 @@ onMounted(() => {
   align-items: center;
   justify-content: center;
   gap: 12rpx;
-  margin-top: auto;
-  padding: 24rpx;
-  border-radius: 20rpx;
+  margin-top: 0;
+  padding: 26rpx;
+  border-radius: 24rpx;
   background: linear-gradient(135deg, #a66b2e 0%, #8b5a24 100%);
   box-shadow: 0 8rpx 24rpx rgba(139, 90, 36, 0.35);
   flex-shrink: 0;
@@ -286,7 +314,7 @@ onMounted(() => {
 }
 
 .field {
-  margin-bottom: 22rpx;
+  margin-bottom: 44rpx;
 
   &:last-child {
     margin-bottom: 0;
@@ -294,9 +322,11 @@ onMounted(() => {
 
   &-label {
     display: block;
-    font-size: 24rpx;
-    color: #8b7355;
-    margin-bottom: 12rpx;
+    font-size: 32rpx;
+    font-weight: 700;
+    color: $text-main;
+    letter-spacing: 0.02em;
+    margin-bottom: 18rpx;
   }
 
   &-input-box {
@@ -304,9 +334,18 @@ onMounted(() => {
     align-items: center;
     min-height: 88rpx;
     padding: 0 24rpx;
-    background: #fdfbf7;
-    border-radius: 16rpx;
+    background: #faf7f2;
+    border-radius: 18rpx;
     box-sizing: border-box;
+    border: 1rpx solid rgba(44, 30, 26, 0.08);
+  }
+
+  &-textarea-box {
+    padding: 20rpx 24rpx;
+    background: #faf7f2;
+    border-radius: 18rpx;
+    box-sizing: border-box;
+    border: 1rpx solid rgba(44, 30, 26, 0.08);
   }
 
   &-input {
@@ -320,13 +359,6 @@ onMounted(() => {
     font-size: 28rpx;
     color: $text-main;
     background: transparent;
-    box-sizing: border-box;
-  }
-
-  &-textarea-box {
-    padding: 20rpx 24rpx;
-    background: #fdfbf7;
-    border-radius: 16rpx;
     box-sizing: border-box;
   }
 

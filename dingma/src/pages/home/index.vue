@@ -74,6 +74,7 @@ import HomeBannerSwiper from '@/components/home/HomeBannerSwiper.vue'
 import QuoteMarquee from '@/components/home/QuoteMarquee.vue'
 import FloatingInspireFab from '@/components/home/FloatingInspireFab.vue'
 import InspirationRecordModal from '@/components/home/InspirationRecordModal.vue'
+import { quickEntrySvgGlyph } from '@/utils/quickEntrySvgIcon'
 
 const agentStore = useAgentStore()
 
@@ -122,10 +123,8 @@ function hexToRgb(hex: string): { r: number; g: number; b: number } | null {
 }
 
 function iconName(item: QuickEntry): string {
-  let raw = (item.icon_class || '').trim()
-  if (raw.startsWith('icon-')) raw = raw.slice(5)
-  if (!raw) return 'linggan'
-  return raw
+  /** 仅用字形映射，不写死业务标题；对齐「我的」页同款 iconfont（含 Remix→小程序键） */
+  return quickEntrySvgGlyph(item.icon_class)
 }
 
 function defaultSubtitle(item: QuickEntry): string {

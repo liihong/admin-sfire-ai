@@ -424,22 +424,19 @@ function copyGeneratedContent() {
 <style lang="scss" scoped>
 @import '@/styles/_variables.scss';
 
-$text-primary: #332d2b;
-$text-muted: #998b82;
-$accent: #b8864d;
-
 .inspiration-page {
   height: 100vh;
   display: flex;
   flex-direction: column;
   overflow: hidden;
   box-sizing: border-box;
-  background: $white;
+  /** 与设计稿一致的暖燕麦底 */
+  background: $quote-marquee-strip-bg;
 }
 
 .page-nav {
   flex-shrink: 0;
-  background: $white;
+  background: $quote-marquee-strip-bg;
 }
 
 .nav-bar {
@@ -468,14 +465,14 @@ $accent: #b8864d;
 .nav-back-icon {
   font-size: 48rpx;
   font-weight: 300;
-  color: $text-primary;
+  color: $text-main;
   line-height: 1;
 }
 
 .nav-title {
   font-size: 34rpx;
-  font-weight: 700;
-  color: $text-primary;
+  font-weight: 800;
+  color: $text-main;
 }
 
 .nav-more {
@@ -507,9 +504,9 @@ $accent: #b8864d;
   flex-shrink: 0;
   box-sizing: border-box;
   width: 100%;
-  padding: 16rpx 32rpx 16rpx;
-  background: $white;
-  border-bottom: 1rpx solid rgba(44, 30, 26, 0.06);
+  padding: 20rpx 40rpx 24rpx;
+  background: $quote-marquee-strip-bg;
+  border-bottom: 1rpx solid rgba(44, 30, 26, 0.04);
 }
 
 .list-container {
@@ -517,7 +514,7 @@ $accent: #b8864d;
   height: 0;
   min-height: 0;
   box-sizing: border-box;
-  padding: 12rpx 32rpx 0;
+  padding: 8rpx 40rpx 0;
 }
 
 .section-head {
@@ -534,14 +531,14 @@ $accent: #b8864d;
 
 .section-text {
   font-size: 28rpx;
-  font-weight: 600;
-  color: $text-primary;
+  font-weight: 800;
+  color: $text-main;
 }
 
 .inspiration-list {
   display: flex;
   flex-direction: column;
-  gap: 28rpx;
+  gap: 24rpx;
 }
 
 .empty-state {
@@ -558,13 +555,13 @@ $accent: #b8864d;
 
   .empty-text {
     font-size: 28rpx;
-    color: $text-muted;
+    color: $text-muted-warm;
     margin-bottom: 12rpx;
   }
 
   .empty-hint {
     font-size: 24rpx;
-    color: $text-muted;
+    color: $text-muted-warm;
     opacity: 0.85;
     text-align: center;
     line-height: 1.6;
@@ -580,7 +577,7 @@ $accent: #b8864d;
   .loading-text {
     margin-top: 16rpx;
     font-size: 24rpx;
-    color: $text-muted;
+    color: $text-muted-warm;
   }
 }
 
@@ -595,22 +592,24 @@ $accent: #b8864d;
 
 .fab-wrapper {
   position: fixed;
-  bottom: 120rpx;
-  right: 32rpx;
+  right: 40rpx;
+  bottom: calc(48rpx + env(safe-area-inset-bottom));
   z-index: 99;
 
   .fab-btn {
-    width: 112rpx;
-    height: 112rpx;
-    background: linear-gradient(135deg, #d4a574 0%, #b8864d 100%);
+    width: 96rpx;
+    height: 96rpx;
+    background: linear-gradient(135deg, $accent-gold 0%, #b45309 100%);
     border-radius: 50%;
     display: flex;
     align-items: center;
     justify-content: center;
-    box-shadow: 0 8rpx 24rpx rgba(184, 134, 77, 0.35);
+    border: 1rpx solid rgba(255, 255, 255, 0.25);
+    box-shadow: 0 16rpx 42rpx rgba(217, 75, 54, 0.28);
 
     &:active {
-      transform: scale(0.95);
+      transform: scale(0.94);
+      opacity: 0.94;
     }
   }
 }
@@ -645,7 +644,7 @@ $accent: #b8864d;
       .modal-title {
         font-size: 32rpx;
         font-weight: 600;
-        color: $text-primary;
+        color: $text-main;
       }
 
       .modal-close {
@@ -667,7 +666,7 @@ $accent: #b8864d;
 
         .content-text {
           font-size: 28rpx;
-          color: $text-primary;
+          color: $text-main;
           line-height: 1.8;
           white-space: pre-wrap;
         }
@@ -689,7 +688,7 @@ $accent: #b8864d;
 
         &.secondary {
           background: #f5f0ea;
-          color: $text-primary;
+          color: $text-main;
         }
 
         &.primary {
@@ -702,7 +701,8 @@ $accent: #b8864d;
 }
 
 .bottom-safe-area {
-  height: calc(32rpx + env(safe-area-inset-bottom));
+  /** 留白：列表末条与 FAB、Home 指示条不挤 */
+  height: calc(200rpx + env(safe-area-inset-bottom));
 }
 </style>
 

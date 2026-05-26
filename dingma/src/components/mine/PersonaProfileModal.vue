@@ -12,7 +12,12 @@
         </view>
       </view>
 
-      <PersonaProfileEditor class="persona-modal__editor" :default-name="defaultName" @saved="onEditorSaved" />
+      <PersonaProfileEditor
+        class="persona-modal__editor"
+        compact-layout
+        :default-name="defaultName"
+        @saved="onEditorSaved"
+      />
     </view>
   </view>
 </template>

@@ -1,38 +1,30 @@
 <template>
   <view
-    class="inspiration-card"
-    :class="{ pinned: inspiration.is_pinned }"
+    class="inspiration-card-premium"
+    :class="{ 'inspiration-card-premium--pinned': inspiration.is_pinned }"
     @longpress="handleLongPress"
   >
-    <view class="card-accent" />
-
-    <view class="card-body">
-      <view class="card-top">
-        <view class="card-title-row">
-          <text v-if="inspiration.is_pinned" class="pin-tag">置顶</text>
-          <text class="card-title">{{ displayTitle }}</text>
-        </view>
-        <text class="card-action" @tap.stop="handleChat">去AI沟通 ›</text>
+    <!-- 首行：标题 + 去AI沟通（对齐参考稿 inspiration-card-premium） -->
+    <view class="premium-head">
+      <view class="premium-title-wrap">
+        <text v-if="inspiration.is_pinned" class="premium-pin">置顶</text>
+        <text class="premium-title">{{ displayTitle }}</text>
       </view>
+      <text class="premium-cta" @tap.stop="handleChat">去AI沟通 ›</text>
+    </view>
 
-      <text v-if="displayDescription" class="card-desc">{{ displayDescription }}</text>
+    <!-- 正文：多行、温润行距 -->
+    <text v-if="bodyText" class="premium-body">{{ bodyText }}</text>
 
-      <view class="card-footer">
-        <view v-if="inspiration.tags?.length || inspiration.generated_content" class="card-meta">
-          <view v-if="inspiration.tags?.length" class="tags-row">
-            <text
-              v-for="tag in inspiration.tags.slice(0, 3)"
-              :key="tag"
-              class="tag-chip"
-            >{{ tag }}</text>
-          </view>
-          <text v-if="inspiration.generated_content" class="generated-tag">已生成文案</text>
-        </view>
-
-        <view class="delete-btn" @tap.stop="handleDelete">
-          <u-icon name="trash" color="#c47a6a" size="16"></u-icon>
-          <text class="delete-text">删除</text>
-        </view>
+    <!-- 底栏：标签胶囊 + 删除 -->
+    <view class="premium-foot">
+      <view class="premium-foot-left">
+        <text class="premium-tag">{{ displayTag }}</text>
+        <text v-if="inspiration.generated_content" class="premium-generated">已生成</text>
+      </view>
+      <view class="premium-del" @tap.stop="handleDelete">
+        <u-icon name="trash" color="#8A7E78" size="14"></u-icon>
+        <text class="premium-del-txt">删除</text>
       </view>
     </view>
   </view>
@@ -62,11 +54,21 @@ const parsedContent = computed(() => parseContent(props.inspiration.content))
 
 const displayTitle = computed(() => parsedContent.value.title)
 
-const displayDescription = computed(() => {
-  const desc = parsedContent.value.description
-  if (!desc) return ''
-  if (desc.length <= 120) return desc
-  return `${desc.slice(0, 120)}...`
+/** 卡片正文：完整展示解析后的说明（与参考稿一致，支持多段） */
+const bodyText = computed(() => {
+  const desc = parsedContent.value.description?.trim()
+  if (desc) return desc
+  const raw = props.inspiration.content?.trim() || ''
+  if (!raw) return ''
+  if (raw === displayTitle.value) return ''
+  return raw
+})
+
+/** 底栏标签：优先接口 tags，否则默认「故事碎片」 */
+const displayTag = computed(() => {
+  const t = props.inspiration.tags?.find((x) => x?.trim())
+  if (!t) return '故事碎片'
+  return t.replace(/^#+/, '').trim() || '故事碎片'
 })
 
 function parseContent(content: string) {
@@ -136,159 +138,154 @@ function handleLongPress() {
 <style lang="scss" scoped>
 @import '@/styles/_variables.scss';
 
-$text-primary: #332d2b;
-$text-muted: #998b82;
-$accent: #b8864d;
-
-.inspiration-card {
-  position: relative;
-  display: flex;
-  background: $white;
-  border: 1rpx solid rgba(44, 30, 26, 0.08);
-  border-radius: 36rpx;
-  overflow: hidden;
+/**
+ * 灵感备忘卡：对齐设计稿 .inspiration-card-premium
+ * 白卡 + 微米边框 + 左侧朱红粗条 + 空气感阴影
+ */
+.inspiration-card-premium {
+  width: 100%;
   box-sizing: border-box;
-  box-shadow: $shadow-card-elevated-list;
+  background: $white;
+  border: 1rpx solid rgba(44, 30, 26, 0.04);
+  border-left: 10rpx solid $accent-gold;
+  border-radius: 32rpx;
+  padding: 32rpx;
+  box-shadow: $shadow-premium;
   transition:
     opacity 0.2s ease,
     transform 0.22s cubic-bezier(0.33, 0.86, 0.42, 1),
     box-shadow 0.22s cubic-bezier(0.33, 0.86, 0.42, 1);
 
-  &.pinned {
-    border-color: rgba($accent, 0.45);
+  &--pinned {
+    border-color: rgba(217, 75, 54, 0.12);
+    border-left-color: $accent-gold;
   }
 
   &:active {
     opacity: 0.98;
     transform: translateY(2rpx) scale(0.992);
-    box-shadow: $shadow-card-elevated-list-active;
+    box-shadow: $shadow-active;
   }
 }
 
-.card-accent {
-  flex-shrink: 0;
-  width: 10rpx;
-  margin: 24rpx 0 24rpx 0;
-  background: linear-gradient(180deg, #d4a574 0%, #b8864d 100%);
-  border-radius: 0 8rpx 8rpx 0;
-}
-
-.card-body {
-  flex: 1;
-  min-width: 0;
-  padding: 28rpx 28rpx 28rpx 20rpx;
-}
-
-.card-top {
+.premium-head {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
-  gap: 20rpx;
-  margin-bottom: 12rpx;
+  gap: 24rpx;
+  width: 100%;
+  margin-bottom: 20rpx;
 }
 
-.card-title-row {
+.premium-title-wrap {
   flex: 1;
   min-width: 0;
   display: flex;
-  align-items: center;
-  gap: 10rpx;
+  flex-direction: row;
+  align-items: flex-start;
+  gap: 12rpx;
 }
 
-.pin-tag {
+.premium-pin {
   flex-shrink: 0;
-  padding: 2rpx 10rpx;
+  margin-top: 4rpx;
+  padding: 2rpx 12rpx;
   font-size: 20rpx;
-  color: $accent;
-  background: rgba($accent, 0.12);
+  font-weight: 800;
+  color: $accent-gold;
+  background: $accent-gold-light;
   border-radius: 999rpx;
 }
 
-.card-title {
+.premium-title {
   flex: 1;
   min-width: 0;
-  font-size: 30rpx;
-  font-weight: 700;
-  color: $text-primary;
-  line-height: 1.4;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.card-action {
-  flex-shrink: 0;
-  padding-top: 4rpx;
-  font-size: 24rpx;
-  color: $accent;
-  white-space: nowrap;
-
-  &:active {
-    opacity: 0.7;
-  }
-}
-
-.card-desc {
-  display: block;
-  font-size: 26rpx;
-  color: $text-muted;
-  line-height: 1.65;
+  font-size: 28rpx;
+  font-weight: 900;
+  color: $text-main;
+  line-height: 1.42;
   word-break: break-all;
 }
 
-.card-meta {
-  flex: 1;
-  min-width: 0;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16rpx;
-}
-
-.card-footer {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16rpx;
-  margin-top: 20rpx;
-}
-
-.delete-btn {
+.premium-cta {
   flex-shrink: 0;
-  display: flex;
-  align-items: center;
-  gap: 6rpx;
-  margin-left: auto;
-  padding: 8rpx 12rpx;
-  border-radius: 999rpx;
+  font-size: 22rpx;
+  font-weight: 800;
+  color: $accent-gold;
+  white-space: nowrap;
+  padding-top: 4rpx;
 
   &:active {
-    background: rgba(196, 122, 106, 0.12);
+    opacity: 0.72;
   }
 }
 
-.delete-text {
-  font-size: 22rpx;
-  color: #c47a6a;
+.premium-body {
+  display: block;
+  width: 100%;
+  font-size: 24rpx;
+  font-weight: 500;
+  color: $text-muted-warm;
+  line-height: 1.65;
+  white-space: pre-wrap;
+  word-break: break-all;
+  text-align: justify;
+  margin-bottom: 24rpx;
 }
 
-.tags-row {
+.premium-foot {
   display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding-top: 20rpx;
+  border-top: 1rpx dashed rgba(44, 30, 26, 0.08);
+}
+
+.premium-foot-left {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
   flex-wrap: wrap;
-  gap: 8rpx;
+  gap: 12rpx;
 }
 
-.tag-chip {
-  padding: 4rpx 12rpx;
+.premium-tag {
   font-size: 20rpx;
-  color: $accent;
-  background: rgba($accent, 0.1);
+  font-weight: 800;
+  color: $accent-gold;
+  background: #fff5f2;
+  padding: 8rpx 20rpx;
   border-radius: 999rpx;
+  border: 1rpx solid rgba(217, 75, 54, 0.08);
 }
 
-.generated-tag {
-  flex-shrink: 0;
+.premium-generated {
   font-size: 20rpx;
-  color: #7a9b6e;
+  font-weight: 700;
+  color: rgba(44, 30, 26, 0.45);
+}
+
+.premium-del {
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 8rpx;
+  padding: 8rpx 12rpx;
+  margin-left: 12rpx;
+
+  &:active {
+    opacity: 0.65;
+  }
+}
+
+.premium-del-txt {
+  font-size: 22rpx;
+  font-weight: 800;
+  color: $text-muted-warm;
 }
 </style>
