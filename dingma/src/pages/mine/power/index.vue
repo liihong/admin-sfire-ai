@@ -31,13 +31,13 @@
     <view class="quick-actions">
       <view class="action-item" @tap="goToRecharge">
         <view class="action-icon-wrapper recharge-icon">
-          <text class="action-icon">💰</text>
+          <SvgIcon name="badge-plus" :size="48" color="#D97706" />
         </view>
         <text class="action-text">充值算力</text>
       </view>
       <view class="action-item" @tap="goToDetail">
         <view class="action-icon-wrapper detail-icon">
-          <text class="action-icon">📊</text>
+          <SvgIcon name="history" :size="48" color="#2563EB" />
         </view>
         <text class="action-text">算力明细</text>
       </view>
@@ -55,7 +55,11 @@
         >
           <view class="item-left">
             <view class="item-icon-wrapper" :class="getTypeClass(item.type)">
-              <text class="item-icon">{{ getTypeIcon(item.type) }}</text>
+              <SvgIcon
+                :name="getTypeIconName(item.type)"
+                :size="36"
+                :color="getTypeIconColor(item.type)"
+              />
             </view>
             <view class="item-info">
               <text class="item-title">{{ item.typeName || '算力变动' }}</text>
@@ -77,6 +81,7 @@
 import { ref, onMounted } from 'vue'
 import { getBalance, getCoinTransactions } from '@/api/coin'
 import SafeAreaTop from '@/components/common/SafeAreaTop.vue'
+import SvgIcon from '@/components/base/SvgIcon.vue'
 
 // 余额
 const balance = ref<string>('0')
@@ -171,17 +176,30 @@ function getTypeClass(type?: string): string {
   return 'type-default'
 }
 
-// 获取类型图标
-function getTypeIcon(type?: string): string {
-  if (!type) return '💎'
+// 获取交易类型图标名
+function getTypeIconName(type?: string): string {
+  if (!type) return 'sparkles'
   const typeLower = type.toLowerCase()
   if (typeLower.includes('consume') || typeLower.includes('消耗') || typeLower.includes('deduct')) {
-    return '📉'
+    return 'trending-down'
   }
   if (typeLower.includes('recharge') || typeLower.includes('充值') || typeLower.includes('add')) {
-    return '📈'
+    return 'trending-up'
   }
-  return '💎'
+  return 'sparkles'
+}
+
+// 获取交易类型图标色
+function getTypeIconColor(type?: string): string {
+  if (!type) return '#6366F1'
+  const typeLower = type.toLowerCase()
+  if (typeLower.includes('consume') || typeLower.includes('消耗') || typeLower.includes('deduct')) {
+    return '#DC2626'
+  }
+  if (typeLower.includes('recharge') || typeLower.includes('充值') || typeLower.includes('add')) {
+    return '#2563EB'
+  }
+  return '#6366F1'
 }
 
 // 获取金额样式类
@@ -396,10 +414,6 @@ function formatTime(timeStr?: string): string {
   }
 }
 
-.action-icon {
-  font-size: 48rpx;
-}
-
 .action-text {
   font-size: 28rpx;
   font-weight: 500;
@@ -463,10 +477,6 @@ function formatTime(timeStr?: string): string {
   &.type-default {
     background: linear-gradient(135deg, #e0e7ff 0%, #c7d2fe 100%);
   }
-}
-
-.item-icon {
-  font-size: 32rpx;
 }
 
 .item-info {

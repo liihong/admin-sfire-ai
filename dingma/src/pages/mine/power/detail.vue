@@ -15,7 +15,9 @@
     >
       <!-- 空状态 -->
       <view class="empty-state" v-if="!isLoading && transactionList.length === 0">
-        <view class="empty-icon">📊</view>
+        <view class="empty-icon-wrap">
+          <SvgIcon name="history" :size="80" color="#93C5FD" />
+        </view>
         <text class="empty-title">暂无算力消耗记录</text>
         <text class="empty-desc">您的算力消耗记录将显示在这里</text>
       </view>
@@ -30,7 +32,11 @@
         <view class="item-content">
           <view class="item-left">
             <view class="item-icon-wrapper" :class="getTypeClass(item.type)">
-              <text class="item-icon">{{ getTypeIcon(item.type) }}</text>
+              <SvgIcon
+                :name="getTypeIconName(item.type)"
+                :size="36"
+                :color="getTypeIconColor(item.type)"
+              />
             </view>
             <view class="item-info">
               <text class="item-title">{{  item.typeName || '算力消耗' }}</text>
@@ -71,6 +77,7 @@
 import { ref, onMounted } from 'vue'
 import { getCoinTransactions } from '@/api/coin'
 import BaseHeader from '@/components/base/BaseHeader.vue'
+import SvgIcon from '@/components/base/SvgIcon.vue'
 
 // 交易记录类型
 interface Transaction {
@@ -178,17 +185,30 @@ function getTypeClass(type?: string): string {
   return 'type-default'
 }
 
-// 获取类型图标
-function getTypeIcon(type?: string): string {
-  if (!type) return '💎'
+// 获取交易类型图标名
+function getTypeIconName(type?: string): string {
+  if (!type) return 'sparkles'
   const typeLower = type.toLowerCase()
   if (typeLower.includes('consume') || typeLower.includes('消耗') || typeLower.includes('deduct')) {
-    return '📉'
+    return 'trending-down'
   }
   if (typeLower.includes('recharge') || typeLower.includes('充值') || typeLower.includes('add')) {
-    return '📈'
+    return 'trending-up'
   }
-  return '💎'
+  return 'sparkles'
+}
+
+// 获取交易类型图标色
+function getTypeIconColor(type?: string): string {
+  if (!type) return '#6366F1'
+  const typeLower = type.toLowerCase()
+  if (typeLower.includes('consume') || typeLower.includes('消耗') || typeLower.includes('deduct')) {
+    return '#DC2626'
+  }
+  if (typeLower.includes('recharge') || typeLower.includes('充值') || typeLower.includes('add')) {
+    return '#2563EB'
+  }
+  return '#6366F1'
 }
 
 // 获取金额样式类
@@ -268,10 +288,15 @@ function formatTime(timeStr?: string): string {
   text-align: center;
 }
 
-.empty-icon {
-  font-size: 120rpx;
+.empty-icon-wrap {
+  width: 160rpx;
+  height: 160rpx;
+  border-radius: 40rpx;
+  background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
   margin-bottom: 32rpx;
-  opacity: 0.6;
 }
 
 .empty-title {
@@ -331,10 +356,6 @@ function formatTime(timeStr?: string): string {
   &.type-default {
     background: linear-gradient(135deg, #e0e7ff 0%, #c7d2fe 100%);
   }
-}
-
-.item-icon {
-  font-size: 40rpx;
 }
 
 .item-info {

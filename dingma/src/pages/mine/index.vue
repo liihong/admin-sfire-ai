@@ -1,53 +1,61 @@
 <template>
   <view class="page-mine">
-    <!-- 已登录：第一排 头像 + 昵称 + 剩余算力（非 VIP）；ip信息 固定在行末 -->
+   <!-- 已登录：头像金圈 + 昵称认证 + 会员徽章 + IP 毛玻璃卡 -->
     <view v-if="authStore.isLoggedIn" class="mine-user-strip-wrap">
       <view class="mine-user-strip">
         <view class="mine-user-strip__left" @tap="onUserStripCoreTap">
-          <view class="mine-user-strip__avatar-wrap">
-            <image class="mine-user-strip__avatar" :src="avatarUrl" mode="aspectFill" />
-            <view v-if="isVipMember" class="mine-user-strip__crown">👑</view>
+         <view class="mine-user-strip__avatar-ring">
+            <view class="mine-user-strip__avatar-shell">
+              <image class="mine-user-strip__avatar" :src="avatarUrl" mode="aspectFill" />
+             <view class="mine-user-strip__online-dot" />
+            </view>
           </view>
           <view class="mine-user-strip__texts">
-            <!-- VIP：昵称在上，等级胶囊在下（钻石档左侧 💎） -->
-            <template v-if="isVipMember">
+           <view class="mine-user-strip__name-row">
               <text class="mine-user-strip__name">{{ displayNickname }}</text>
+             <SvgIcon name="badge-check" :size="32" color="#F97316" />
+            </view>
+            <template v-if="isVipMember">
               <view
                 class="mine-user-strip__vip-badge"
-                :class="{ 'mine-user-strip__vip-badge--diamond': vipBadgeShowDiamondIcon }"
-                :style="{ backgroundColor: memberLevelBadgeStyle.backgroundColor }"
+:class="{
+                'mine-user-strip__vip-badge--gold': !vipBadgeShowDiamondIcon,
+                'mine-user-strip__vip-badge--diamond': vipBadgeShowDiamondIcon
+              }" :style="vipBadgeShowDiamondIcon
+                ? { backgroundColor: memberLevelBadgeStyle.backgroundColor }
+                : undefined
+                "
               >
-                <text v-if="vipBadgeShowDiamondIcon" class="mine-user-strip__vip-badge-emoji">💎</text>
+               <SvgIcon v-if="!vipBadgeShowDiamondIcon" name="crown" :size="22" color="#B45309" />
+                <text v-else class="mine-user-strip__vip-badge-emoji">💎</text>
                 <text
                   class="mine-user-strip__vip-badge-text"
-                  :style="{ color: memberLevelBadgeStyle.color }"
+                 :style="vipBadgeShowDiamondIcon ? { color: memberLevelBadgeStyle.color } : undefined"
                 >
                   {{ memberBadgeText }}
                 </text>
               </view>
             </template>
-            <template v-else>
-              <text class="mine-user-strip__name">{{ displayNickname }}</text>
+           <template v-else>
               <text class="mine-user-strip__hint">开通会员解锁更多权益</text>
             </template>
           </view>
-        </view>
-        <!-- 非会员：顶部仅展示剩余算力；会员算力在下方尊享卡 -->
+       </view>
         <view
           v-if="!isVipMember"
           class="mine-user-strip__stats mine-user-strip__stats--solo-power"
         >
           <view class="mine-user-strip__stat mine-user-strip__stat--tap" @tap.stop="goToPowerCenter">
             <text class="mine-user-strip__stat-num mine-user-strip__stat-num--accent">{{ powerDisplay }}</text>
-            <text class="mine-user-strip__stat-lab">剩余算力(tokens)</text>
+           <text class="mine-user-strip__stat-lab">剩余积分 (Tokens)</text>
           </view>
         </view>
-        <view class="mine-user-strip__doc" @tap.stop="goToIpInfoPage">
-          <view class="mine-user-strip__doc-inner">
-            <SvgIcon name="works" :size="34" color="#D94B36" />
-            <text class="mine-user-strip__doc-label">ip信息</text>
+       <view class="mine-user-strip__ip-card" @tap.stop="goToIpInfoPage">
+          <view class="mine-user-strip__ip-icon-wrap">
+            <SvgIcon name="contact-2" :size="32" color="#FFFFFF" />
           </view>
-          <view v-if="showPersonaDot" class="mine-user-strip__doc-dot" />
+         <text class="mine-user-strip__ip-label">IP信息</text>
+          <view v-if="showPersonaDot" class="mine-user-strip__ip-dot" />
         </view>
       </view>
     </view>
@@ -74,17 +82,15 @@
         </view>
       </view>
 
-      <!-- 第二排 · 已购会员：按等级换肤的尊享卡（仅展示权益氛围，不含头像与数据） -->
+    <!-- 第二排 · 已购会员：黑金尊享卡 + 算力能量条 -->
       <view v-if="authStore.isLoggedIn && isVipMember" class="member-tier-shell">
-        <view
-          class="member-tier-card"
-          :class="memberTierSkinClass"
-        >
+       <view class="member-tier-card" :class="memberTierSkinClass">
           <view class="member-tier-card__gloss" aria-hidden="true" />
+         <view class="member-tier-card__mesh" aria-hidden="true" />
           <view class="member-tier-card__top">
             <view class="member-tier-card__title-row">
-              <view class="vip-crown-box">
-                <text class="vip-crown">👑</text>
+             <view class="vip-crown-box vip-crown-box--dark">
+                <SvgIcon name="crown" :size="32" color="#FBBF24" />
               </view>
               <text class="member-tier-card__title">{{ memberTierTitle }}</text>
             </view>
@@ -92,23 +98,37 @@
               <text class="vip-pass-text">VIP PASS</text>
             </view>
           </view>
-          <text class="member-tier-card__desc">{{ memberTierDesc }}</text>
+         <text class="member-tier-card__desc">「{{ memberTierDesc }}」</text>
           <view class="member-tier-card__footer">
             <view class="member-tier-card__power" @tap.stop="goToPowerCenter">
               <text class="member-tier-card__power-num">{{ powerDisplay }}</text>
-              <text class="member-tier-card__power-lab">剩余算力(tokens)</text>
+             <text class="member-tier-card__power-lab">剩余算力 (Tokens)</text>
             </view>
-            <text class="member-tier-card__cta" @tap.stop="goToMembership">查看会员权益 ›</text>
+           <view class="member-tier-card__cta-btn" @tap.stop="goToMembership">
+              <text class="member-tier-card__cta-text">查看会员权益</text>
+              <SvgIcon name="chevron-right" :size="22" color="#FCD34D" />
+            </view>
+          </view>
+          <view v-if="powerTotalTokens > 0" class="member-tier-card__energy">
+            <view class="member-tier-card__energy-track">
+              <view class="member-tier-card__energy-fill" :style="{ width: powerRemainPercent + '%' }" />
+            </view>
+            <view class="member-tier-card__energy-labels">
+              <text>已用 {{ powerUsedPercent }}%</text>
+              <text>总量 {{ powerTotalDisplay }} Tokens</text>
+            </view>
           </view>
         </view>
       </view>
 
-      <!-- 第二排 · 未开通：深色调推广卡（与稿图一致） -->
+    <!-- 第二排 · 未开通：黑金推广卡 -->
       <view v-if="authStore.isLoggedIn && !isVipMember" class="vip-annual-card" @tap="goToMembership">
+       <view class="vip-annual-card__gloss" aria-hidden="true" />
+        <view class="vip-annual-card__mesh" aria-hidden="true" />
         <view class="vip-card-top">
           <view class="vip-title-row">
-            <view class="vip-crown-box">
-              <text class="vip-crown">👑</text>
+           <view class="vip-crown-box vip-crown-box--dark">
+              <SvgIcon name="crown" :size="32" color="#FBBF24" />
             </view>
             <text class="vip-title">{{ vipCardTitle }}</text>
           </view>
@@ -117,27 +137,40 @@
           </view>
         </view>
         <text class="vip-desc">{{ vipCardDesc }}</text>
-        <text class="vip-cta">{{ vipCardCta }} ›</text>
+       <view class="vip-cta-row">
+          <text class="vip-cta">{{ vipCardCta }}</text>
+          <SvgIcon name="chevron-right" :size="28" color="#FBBF24" />
+        </view>
       </view>
 
-      <!-- 操作菜单（独立卡片） -->
-      <view
-        v-for="item in menuList"
-        :key="item.id"
-        class="menu-card"
-        :class="{ 'menu-card--spotlight': item.id === 'referral' }"
-        @tap="handleMenuClick(item)"
-      >
-        <view class="menu-left">
-          <view class="menu-icon-wrap">
-            <SvgIcon :name="item.icon" :size="42" :color="item.iconColor ?? '#D94B36'" />
+    <view v-if="authStore.isLoggedIn" class="assets-section-title">
+        <text>我的个人资产与记录</text>
+      </view>
+
+      <!-- 功能列表 -->
+      <view class="menu-list">
+        <view v-for="item in menuList" :key="item.id" class="menu-card" @tap="handleMenuClick(item)">
+          <view class="menu-left">
+           <view class="menu-icon-wrap" :class="item.iconBgClass">
+              <SvgIcon :name="item.icon" :size="44" :color="item.iconColor ?? '#D94B36'" />
+            </view>
+            <view class="menu-text-col">
+              <text class="menu-name">{{ item.name }}</text>
+              <text class="menu-desc">{{ item.desc }}</text>
+            </view>
           </view>
-          <view class="menu-text-col">
-            <text class="menu-name">{{ item.name }}</text>
-            <text class="menu-desc">{{ item.desc }}</text>
+         <view class="menu-right">
+            <view v-if="item.badge" class="menu-badge" :class="{ 'menu-badge--pulse': item.badgeHighlight }">
+              <SvgIcon v-if="item.badgeHighlight" name="badge-plus" :size="22" color="#B45309" />
+              <text>{{ item.badge }}</text>
+            </view>
+            <SvgIcon name="chevron-right" :size="32" color="#D6D3D1" />
           </view>
         </view>
-        <text class="menu-chevron">›</text>
+      </view>
+
+      <view class="mine-version-footer">
+        <text>顶顶妈 AI 系统 v1.1.0 • 火源文化技术支持</text>
       </view>
     </view>
 
@@ -148,6 +181,8 @@
 import { computed, ref, onMounted } from 'vue'
 import { onShow, onPullDownRefresh } from '@dcloudio/uni-app'
 import { getCoinStatistics, type CoinStatisticsData } from '@/api/coin'
+import { getInspirationList } from '@/api/inspiration'
+import { getConversationList } from '@/api/conversation'
 import { useAuthStore } from '@/stores/auth'
 import { DINGMA_DEFAULT_PROFILE_AVATAR_URL } from '@/constants/tenant'
 import SvgIcon from '@/components/base/SvgIcon.vue'
@@ -159,6 +194,8 @@ const projectStore = useProjectStore()
 
 const coinStats = ref<CoinStatisticsData | null>(null)
 const personaIncomplete = ref(true)
+const inspirationCount = ref<number | null>(null)
+const conversationCount = ref<number | null>(null)
 
 const userInfo = computed(() => {
   const u = authStore.userInfo
@@ -297,13 +334,38 @@ const powerDisplay = computed(() => {
   return formatNumberInt(userInfo.value.power || '0')
 })
 
+const powerTotalTokens = computed(() => {
+  const s = coinStats.value
+  if (!s) return 0
+  const avail = Number(s.availableBalance) || 0
+  const consumed = Number(s.totalConsume) || 0
+  if (avail + consumed > 0) return avail + consumed
+  return Number(s.balance) || avail
+})
+
+const powerUsedPercent = computed(() => {
+  const total = powerTotalTokens.value
+  if (total <= 0) return 0
+  const avail = Number(coinStats.value?.availableBalance ?? 0)
+  const used = Math.max(0, total - avail)
+  return Math.min(100, Math.max(0, Math.round((used / total) * 100)))
+})
+
+const powerRemainPercent = computed(() =>
+  Math.min(100, Math.max(0, 100 - powerUsedPercent.value))
+)
+
+const powerTotalDisplay = computed(() => formatNumberInt(powerTotalTokens.value))
+
 interface MenuItem {
   id: string
   name: string
   desc: string
   icon: string
-  /** 单色 iconfont 时生效；彩色字体会变体为 linggan2 / send2 */
   iconColor?: string
+  iconBgClass?: string
+  badge?: string
+  badgeHighlight?: boolean
   path: string
   requiresLogin: boolean
 }
@@ -313,11 +375,15 @@ const allMenuList = computed<MenuItem[]>(() => [
     id: 'inspiration',
     name: '我的灵感夹',
     desc: authStore.isLoggedIn
-      ? `收录您随时随手捕捉的好点子脑洞`
+      ? '收录您随时随手捕捉的好点子脑洞'
       : '收录您随时随手捕捉的好点子脑洞（登录后查看）',
-    // linggan 为彩色字形，不显色；换 linggan2 可走 CSS color
-    icon: 'linggan2',
-    iconColor: '#D94B36',
+    icon: 'lightbulb',
+    iconColor: '#F43F5E',
+    iconBgClass: 'menu-icon-wrap--rose',
+    badge:
+      authStore.isLoggedIn && inspirationCount.value != null
+        ? `${inspirationCount.value} 个想法`
+        : undefined,
     path: '/pages/inspiration/index',
     requiresLogin: true
   },
@@ -325,10 +391,15 @@ const allMenuList = computed<MenuItem[]>(() => [
     id: 'history',
     name: '历史对话记录箱',
     desc: authStore.isLoggedIn
-      ? `回顾您往期与AI沟通的手作爆单方案`
+      ? '回顾您往期与AI沟通的手作爆单方案'
       : '回顾您往期与AI沟通的手作爆单方案（登录后查看）',
-    icon: 'book',
-    iconColor: '#F5A623',
+    icon: 'history',
+    iconColor: '#D97706',
+    iconBgClass: 'menu-icon-wrap--amber',
+    badge:
+      authStore.isLoggedIn && conversationCount.value != null
+        ? `${conversationCount.value} 组记录`
+        : undefined,
     path: '/pages/mine/creation-records/index',
     requiresLogin: true
   },
@@ -336,8 +407,11 @@ const allMenuList = computed<MenuItem[]>(() => [
     id: 'referral',
     name: '我要推荐',
     desc: '邀请好友一起体验，获得算力奖励',
-    icon: 'send2',
-    iconColor: '#E65100',
+    icon: 'send',
+    iconColor: '#EC4899',
+    iconBgClass: 'menu-icon-wrap--pink',
+    badge: '送积分',
+    badgeHighlight: true,
     path: '/pages/mine/referral/index',
     requiresLogin: false
   }
@@ -397,9 +471,35 @@ const refreshPersonaStatus = async () => {
   }
 }
 
+const refreshMenuCounts = async () => {
+  if (!authStore.isLoggedIn) {
+    inspirationCount.value = null
+    conversationCount.value = null
+    return
+  }
+  try {
+    const [inspRes, convRes] = await Promise.all([
+      getInspirationList({ pageNum: 1, pageSize: 1 }),
+      getConversationList({ pageNum: 1, pageSize: 1, status: 'active' })
+    ])
+    if (inspRes.code === 200 && inspRes.data) {
+      inspirationCount.value = inspRes.data.total ?? 0
+    }
+    if (convRes.code === 200 && convRes.data) {
+      conversationCount.value = convRes.data.total ?? 0
+    }
+  } catch {
+    // 计数失败时保留上次值或隐藏角标
+  }
+}
+
 const refreshAll = async () => {
   await refreshUserInfo()
-  await Promise.all([refreshCoinStatistics(), refreshPersonaStatus()])
+  await Promise.all([
+    refreshCoinStatistics(),
+    refreshPersonaStatus(),
+    refreshMenuCounts()
+  ])
 }
 
 const goToPowerCenter = () => {
@@ -467,10 +567,9 @@ onPullDownRefresh(async () => {
 /* ---------- 第一排：头像 + 昵称 + 数据统计 + 档案 ---------- */
 
 .mine-user-strip-wrap {
-  padding: 32rpx 40rpx 28rpx;
+  padding: 24rpx 32rpx 28rpx;
   box-sizing: border-box;
   background: $bg-base;
-  border-bottom: 1rpx solid rgba(44, 30, 26, 0.06);
 }
 
 .mine-user-strip {
@@ -489,31 +588,53 @@ onPullDownRefresh(async () => {
   min-width: 0;
 }
 
-.mine-user-strip__avatar-wrap {
-  position: relative;
-  width: 100rpx;
-  height: 100rpx;
-  border-radius: 50%;
+.mine-user-strip__avatar-ring {
   flex-shrink: 0;
-  overflow: hidden;
-  border: 3rpx solid rgba(217, 75, 54, 0.12);
+  width: 128rpx;
+  height: 128rpx;
+  border-radius: 50%;
+  padding: 4rpx;
+  background: linear-gradient(135deg, #fbbf24 0%, #f97316 48%, #f43f5e 100%);
+  box-shadow: 0 8rpx 20rpx rgba(249, 115, 22, 0.22);
+}
+
+.mine-user-strip__avatar-shell {
+  position: relative;
+  width: 100%;
+    height: 100%;
+  border-radius: 50%;
+  padding: 3rpx;
   background: $white;
-  box-shadow: 0 6rpx 18rpx rgba(44, 30, 26, 0.07);
+  box-sizing: border-box;
+    overflow: hidden;
 }
 
 .mine-user-strip__avatar {
   width: 100%;
   height: 100%;
   display: block;
+  border-radius: 50%;
+    background: #f5f5f4;
 }
 
-.mine-user-strip__crown {
+.mine-user-strip__online-dot {
   position: absolute;
-  right: 2rpx;
-  bottom: 2rpx;
-  font-size: 28rpx;
-  line-height: 1;
-  filter: drop-shadow(0 2rpx 4rpx rgba(0, 0, 0, 0.2));
+  right: 4rpx;
+    bottom: 4rpx;
+    width: 24rpx;
+    height: 24rpx;
+    border-radius: 50%;
+    background: #10b981;
+    border: 4rpx solid $white;
+    box-sizing: border-box;
+  }
+  
+  .mine-user-strip__name-row {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 10rpx;
+    min-width: 0;
 }
 
 .mine-user-strip__texts {
@@ -526,27 +647,38 @@ onPullDownRefresh(async () => {
 
 .mine-user-strip__name {
   font-size: 36rpx;
-  font-weight: 900;
-  color: $text-main;
+  font-weight: 800;
+    color: #292524;
   line-height: 1.25;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  flex: 1;
+    min-width: 0;
 }
 
-/* VIP：等级名胶囊（横排 💎 | 文案，宽度随文案撑开、「钻石会员」不截断） */
 .mine-user-strip__vip-badge {
   align-self: flex-start;
   display: inline-flex;
   flex-direction: row;
   align-items: center;
   gap: 8rpx;
-  padding: 10rpx 22rpx;
+  padding: 8rpx 20rpx;
   border-radius: 999rpx;
   box-sizing: border-box;
   max-width: 100%;
 
-  /** 钻石档：浅色底上再加描边与小阴影，层次更明显 */
+  &--gold {
+      background: linear-gradient(90deg, rgba(245, 158, 11, 0.12) 0%, rgba(217, 119, 6, 0.2) 100%);
+      border: 1rpx solid rgba(245, 158, 11, 0.28);
+      box-shadow: 0 4rpx 12rpx rgba(180, 83, 9, 0.08);
+  
+      .mine-user-strip__vip-badge-text {
+        color: #b45309;
+        font-size: 20rpx;
+        font-weight: 700;
+      }
+    }
   &--diamond {
     border: 1rpx solid rgba(146, 64, 14, 0.35);
     box-shadow: 0 4rpx 12rpx rgba(180, 83, 9, 0.16);
@@ -639,51 +771,57 @@ onPullDownRefresh(async () => {
   line-height: 1.32;
 }
 
-.mine-user-strip__doc {
+.mine-user-strip__ip-card {
   position: relative;
   flex-shrink: 0;
   margin-left: auto;
-  min-width: 100rpx;
-  padding: 10rpx 12rpx 12rpx;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 20rpx;
-  background: rgba(217, 75, 54, 0.06);
-  border: 1rpx solid rgba(217, 75, 54, 0.12);
-  box-sizing: border-box;
-
-  &:active {
-    opacity: 0.78;
-  }
-}
-
-.mine-user-strip__doc-inner {
+  width: 152rpx;
+    height: 152rpx;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   gap: 8rpx;
+    border-radius: 32rpx;
+    background: linear-gradient(145deg, #fffbeb 0%, rgba(255, 237, 213, 0.65) 100%);
+    border: 1rpx solid rgba(251, 146, 60, 0.35);
+    box-shadow: 0 8rpx 20rpx rgba(251, 146, 60, 0.12);
+  box-sizing: border-box;
+
+  &:active {
+    transform: scale(0.96);
+      opacity: 0.92;
+  }
 }
 
-.mine-user-strip__doc-label {
-  font-size: 21rpx;
-  font-weight: 800;
-  color: rgba(44, 30, 26, 0.62);
-  line-height: 1.15;
-  letter-spacing: 0.2rpx;
-}
-
-.mine-user-strip__doc-dot {
-  position: absolute;
-  top: 6rpx;
-  right: 8rpx;
-  width: 14rpx;
-  height: 14rpx;
+.mine-user-strip__ip-icon-wrap {
+  width: 64rpx;
+  height: 64rpx;
   border-radius: 50%;
-  background: $accent-gold;
-  border: 2rpx solid $white;
-  box-shadow: 0 4rpx 12rpx rgba(217, 75, 54, 0.25);
+  background: linear-gradient(135deg, #f97316 0%, #fbbf24 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 6rpx 14rpx rgba(249, 115, 22, 0.28);
+}
+
+.mine-user-strip__ip-label {
+  font-size: 20rpx;
+  font-weight: 800;
+  color: #44403c;
+    letter-spacing: 2rpx;
+}
+
+.mine-user-strip__ip-dot {
+  position: absolute;
+  top: -4rpx;
+    right: -4rpx;
+    width: 20rpx;
+    height: 20rpx;
+  border-radius: 50%;
+  background: #f43f5e;
+    border: 4rpx solid $white;
+    box-sizing: border-box;
 }
 
 /* ---------- 第二排：已开通会员 · 尊享卡（仅皮肤与权益氛围） ---------- */
@@ -695,24 +833,35 @@ onPullDownRefresh(async () => {
 .member-tier-card {
   position: relative;
   overflow: hidden;
-  border-radius: 24rpx;
-  padding: 32rpx 28rpx 28rpx;
+  border-radius: 32rpx;
+    padding: 36rpx 32rpx 30rpx;
   box-sizing: border-box;
-  box-shadow: 0 14rpx 40rpx rgba(26, 20, 14, 0.22);
+  box-shadow: 0 16rpx 44rpx rgba(18, 17, 16, 0.28);
 
   &__gloss {
     pointer-events: none;
     position: absolute;
-    top: -42%;
-    right: -32%;
-    width: 70%;
-    height: 150%;
+    top: -30%;
+      right: -20%;
+      width: 72%;
+      height: 120%;
     background: radial-gradient(
-      circle at 32% 32%,
-      rgba(255, 255, 255, 0.2) 0%,
-      transparent 56%
+      circle at 70% 20%,
+        rgba(245, 158, 11, 0.22) 0%,
+        transparent 58%
     );
-    opacity: 0.92;
+    opacity: 0.75;
+    }
+    
+    &__mesh {
+      pointer-events: none;
+      position: absolute;
+      inset: 0;
+      opacity: 0.35;
+      background-image:
+        linear-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
+      background-size: 32rpx 32rpx;
   }
 
   &__top {
@@ -746,14 +895,12 @@ onPullDownRefresh(async () => {
     position: relative;
     z-index: 2;
     display: block;
-    /** Slogan：略大字重，在长渐变卡上更易读 */
-    font-size: 31rpx;
-    font-weight: 600;
-    color: rgba(254, 243, 199, 0.9);
-    line-height: 1.52;
-    /* 单行短文案时与底栏留白略加大，层级更清晰 */
-    margin-bottom: 20rpx;
-    letter-spacing: 0.02em;
+    font-size: 24rpx;
+      font-weight: 400;
+      color: rgba(214, 211, 209, 0.92);
+      line-height: 1.55;
+      margin-bottom: 24rpx;
+      letter-spacing: 0.04em;
   }
 
   &__footer {
@@ -763,8 +910,67 @@ onPullDownRefresh(async () => {
     flex-direction: row;
     align-items: flex-end;
     justify-content: space-between;
-    gap: 20rpx;
-    padding-top: 8rpx;
+    gap: 16rpx;
+      padding-top: 4rpx;
+    }
+    
+    &__energy {
+      position: relative;
+      z-index: 2;
+      margin-top: 20rpx;
+      display: flex;
+      flex-direction: column;
+      gap: 8rpx;
+    }
+    
+    &__energy-track {
+      width: 100%;
+      height: 6rpx;
+      border-radius: 999rpx;
+      background: #292524;
+      overflow: hidden;
+    }
+    
+    &__energy-fill {
+      height: 100%;
+      border-radius: 999rpx;
+      background: linear-gradient(90deg, #f97316 0%, #fbbf24 48%, #fde047 100%);
+      box-shadow: 0 0 16rpx rgba(245, 158, 11, 0.45);
+      transition: width 0.35s ease;
+    }
+    
+    &__energy-labels {
+      display: flex;
+      flex-direction: row;
+      justify-content: space-between;
+      font-size: 16rpx;
+      font-weight: 600;
+      color: rgba(168, 162, 158, 0.95);
+      letter-spacing: 0.02em;
+    }
+    
+    &__cta-btn {
+      flex-shrink: 0;
+      display: flex;
+      flex-direction: row;
+      align-items: center;
+      gap: 6rpx;
+      padding: 12rpx 22rpx;
+      border-radius: 999rpx;
+      background: rgba(255, 255, 255, 0.06);
+      border: 1rpx solid rgba(255, 255, 255, 0.12);
+    
+      &:active {
+        opacity: 0.78;
+      }
+    }
+    
+    &__cta-text {
+      font-size: 22rpx;
+      font-weight: 800;
+      color: #fcd34d;
+      line-height: 1.2;
+      white-space: nowrap;
   }
 
   &__power {
@@ -783,33 +989,24 @@ onPullDownRefresh(async () => {
   }
 
   &__power-num {
-    font-size: 38rpx;
+    font-size: 56rpx;
     font-weight: 900;
     font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, monospace;
-    color: rgba(255, 255, 255, 0.96);
-    line-height: 1.12;
+    line-height: 1.05;
+      color: #fde68a;
+      background: linear-gradient(90deg, #fde68a 0%, #fcd34d 42%, #fb923c 100%);
+      -webkit-background-clip: text;
+      background-clip: text;
+      -webkit-text-fill-color: transparent;
   }
 
   &__power-lab {
-    font-size: 22rpx;
-    font-weight: 700;
-    color: rgba(255, 250, 235, 0.82);
+    font-size: 20rpx;
+      font-weight: 600;
+      color: rgba(168, 162, 158, 0.95);
     line-height: 1.3;
-  }
-
-  &__cta {
-    flex-shrink: 0;
-    align-self: flex-end;
-    font-size: 28rpx;
-    font-weight: 800;
-    color: #fbbf24;
-    line-height: 1.35;
-    padding: 8rpx 0 10rpx 12rpx;
-    white-space: nowrap;
-
-    &:active {
-      opacity: 0.78;
-    }
+    letter-spacing: 0.06em;
+      text-transform: uppercase;
   }
 
   &--skin-diamond {
@@ -818,8 +1015,8 @@ onPullDownRefresh(async () => {
   }
 
   &--skin-vip {
-    background: linear-gradient(145deg, #3d3228 0%, #2a221c 46%, #1a1512 100%);
-    border: 1rpx solid rgba(251, 191, 36, 0.18);
+    background: linear-gradient(145deg, #2d2926 0%, #1e1c1a 52%, #121110 100%);
+      border: 1rpx solid #44403c;
   }
 
   &--skin-svip {
@@ -962,15 +1159,40 @@ onPullDownRefresh(async () => {
 }
 
 .vip-annual-card {
-  padding: 32rpx 28rpx 28rpx;
-  border-radius: 24rpx;
+  position: relative;
+    overflow: hidden;
+    padding: 36rpx 32rpx 30rpx;
+    border-radius: 32rpx;
   margin-bottom: 20rpx;
-  background: linear-gradient(145deg, #3d3228 0%, #2a221c 42%, #1a1a1a 100%);
-  box-shadow: 0 12rpx 36rpx rgba(26, 20, 14, 0.22);
+  background: linear-gradient(145deg, #2d2926 0%, #1e1c1a 52%, #121110 100%);
+    border: 1rpx solid #44403c;
+    box-shadow: 0 16rpx 44rpx rgba(18, 17, 16, 0.28);
 
   &:active {
     opacity: 0.94;
   }
+&__gloss {
+  pointer-events: none;
+  position: absolute;
+  top: -30%;
+  right: -20%;
+  width: 72%;
+  height: 120%;
+  background: radial-gradient(circle at 70% 20%,
+      rgba(245, 158, 11, 0.2) 0%,
+      transparent 58%);
+}
+
+&__mesh {
+  pointer-events: none;
+  position: absolute;
+  inset: 0;
+  opacity: 0.35;
+  background-image:
+    linear-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
+  background-size: 32rpx 32rpx;
+}
 }
 
 .vip-card-top {
@@ -998,11 +1220,10 @@ onPullDownRefresh(async () => {
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
-}
-
-.vip-crown {
-  font-size: 28rpx;
-  line-height: 1;
+  &--dark {
+    background: rgba(245, 158, 11, 0.12);
+    border: 1rpx solid rgba(251, 191, 36, 0.28);
+  }
 }
 
 .vip-title {
@@ -1036,61 +1257,54 @@ onPullDownRefresh(async () => {
   margin-bottom: 24rpx;
 }
 
+.vip-cta-row {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 8rpx;
+}
 .vip-cta {
   font-size: 32rpx;
   font-weight: 700;
   color: #fbbf24;
 }
 
-/* 菜单行：对齐首页 `.task-card` 白卡 + $shadow-card-elevated； referral 再做一点暖色渐变凸显 */
+.assets-section-title {
+  padding: 8rpx 0 20rpx;
+
+  text {
+    font-size: 24rpx;
+    font-weight: 800;
+    color: rgba(120, 113, 108, 0.95);
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+  }
+}
+
+.menu-list {
+  display: flex;
+  flex-direction: column;
+  gap: 22rpx;
+  padding-bottom: 12rpx;
+}
 .menu-card {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 32rpx 36rpx;
-  margin-bottom: 24rpx;
+  padding: 32rpx 28rpx;
+    margin-bottom: 0;
   background: $white;
-  border: 1rpx solid rgba(44, 30, 26, 0.08);
-  border-radius: 40rpx;
+  border: 1rpx solid rgba(44, 30, 26, 0.06);
+    border-radius: 32rpx;
   box-sizing: border-box;
   overflow: hidden;
   box-shadow: $shadow-card-elevated;
-  transition:
-    opacity 0.2s ease,
-    transform 0.22s cubic-bezier(0.33, 0.86, 0.42, 1),
-    box-shadow 0.22s cubic-bezier(0.33, 0.86, 0.42, 1);
 
   &:active {
-    opacity: 0.98;
-    transform: translateY(2rpx) scale(0.992);
-    box-shadow:
-      inset 0 2rpx 0 rgba(255, 255, 255, 0.92),
-      0 14rpx 32rpx -14rpx rgba(44, 30, 26, 0.1),
-      0 6rpx 14rpx -6rpx rgba(44, 30, 26, 0.06);
-  }
-
-  &:last-child {
-    margin-bottom: 0;
-  }
-
-  /** 「我要推荐」：与同级列表区分开，仍能看出是同系列任务卡 */
-  &--spotlight {
-    border-color: rgba(217, 75, 54, 0.22);
-    background: linear-gradient(180deg, rgba(217, 75, 54, 0.06) 0%, #ffffff 44%, #ffffff 100%);
-    box-shadow:
-      inset 0 2rpx 0 rgba(255, 255, 255, 0.98),
-      0 28rpx 58rpx -18rpx rgba(217, 75, 54, 0.16),
-      0 26rpx 56rpx -18rpx rgba(44, 30, 26, 0.12),
-      0 12rpx 28rpx -12rpx rgba(44, 30, 26, 0.09),
-      0 4rpx 10rpx -2rpx rgba(44, 30, 26, 0.05);
-
-    &:active {
-      box-shadow:
-        inset 0 2rpx 0 rgba(255, 255, 255, 0.9),
-        0 16rpx 36rpx -14rpx rgba(217, 75, 54, 0.1),
-        0 14rpx 32rpx -14rpx rgba(44, 30, 26, 0.08),
-        0 6rpx 14rpx -6rpx rgba(44, 30, 26, 0.05);
-    }
+    opacity: 0.96;
+      transform: translateX(2rpx);
   }
 }
 
@@ -1102,17 +1316,70 @@ onPullDownRefresh(async () => {
   min-width: 0;
 }
 
+.menu-right {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 12rpx;
+  flex-shrink: 0;
+}
+
+.menu-badge {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 4rpx;
+  padding: 6rpx 14rpx;
+  border-radius: 999rpx;
+  background: #f5f5f4;
+  font-size: 20rpx;
+  font-weight: 600;
+  color: #78716c;
+
+  &--pulse {
+    background: #fef3c7;
+    border: 1rpx solid #fde68a;
+    color: #b45309;
+    font-weight: 800;
+    animation: mine-badge-pulse 2s ease-in-out infinite;
+  }
+}
+
+@keyframes mine-badge-pulse {
+
+  0%,
+  100% {
+    opacity: 1;
+  }
+
+  50% {
+    opacity: 0.72;
+  }
+}
 .menu-icon-wrap {
   position: relative;
   width: 88rpx;
   height: 88rpx;
-  border-radius: 28rpx;
-  background: $accent-gold-light;
-  border: 1rpx solid rgba(217, 75, 54, 0.08);
+  border-radius: 24rpx;
   display: flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
+
+  &--rose {
+    background: #fff1f2;
+    border: 1rpx solid #fecdd3;
+  }
+
+  &--amber {
+    background: #fffbeb;
+    border: 1rpx solid #fde68a;
+  }
+
+  &--pink {
+    background: #fdf2f8;
+    border: 1rpx solid #fbcfe8;
+  }
 }
 
 .menu-text-col {
@@ -1137,11 +1404,15 @@ onPullDownRefresh(async () => {
   line-height: 1.46;
 }
 
-.menu-chevron {
-  font-size: 44rpx;
-  color: rgba(44, 30, 26, 0.28);
-  font-weight: 300;
-  flex-shrink: 0;
-  margin-left: 12rpx;
+.mine-version-footer {
+  width: 100%;
+  padding: 16rpx 0 24rpx;
+  text-align: center;
+
+  text {
+    font-size: 20rpx;
+    color: rgba(120, 113, 108, 0.72);
+    letter-spacing: 0.04em;
+  }
 }
 </style>

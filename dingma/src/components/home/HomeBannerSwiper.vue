@@ -14,6 +14,18 @@
       <swiper-item v-for="(item, index) in displayList" :key="item.id ?? index">
         <view class="banner-slide" @tap="handleTap(item)">
           <image class="banner-image" :src="item.image_url" mode="aspectFill" />
+          <navigator
+            v-if="getBannerCaption(item) && hasBannerLink(item)"
+            class="banner-caption banner-caption--link"
+            :url="normalizeBannerLink(item)"
+            hover-class="banner-caption--active"
+            @tap.stop
+          >
+            <text class="banner-caption__text">{{ getBannerCaption(item) }}</text>
+          </navigator>
+          <view v-else-if="getBannerCaption(item)" class="banner-caption">
+            <text class="banner-caption__text">{{ getBannerCaption(item) }}</text>
+          </view>
         </view>
       </swiper-item>
     </swiper>
@@ -28,6 +40,7 @@ import { computed } from 'vue'
 import type { BannerItem } from '@/api/home'
 import { DINGMA_HOME_BANNER_URL, DINGMA_PROJECT_PDF_URL } from '@/constants/tenant'
 import { isPdfUrl, openRemotePdf } from '@/utils/document'
+import { safeNavigateTo } from '@/utils/navigation'
 
 const props = defineProps<{
   banners?: BannerItem[]
@@ -55,6 +68,24 @@ function openDefaultPdf() {
   openRemotePdf(DINGMA_PROJECT_PDF_URL, { loadingTitle: '正在打开文档…' })
 }
 
+function getBannerCaption(item: BannerItem) {
+  return item.title?.trim() ?? ''
+}
+
+function hasBannerLink(item: BannerItem) {
+  const linkUrl = item.link_url?.trim() ?? ''
+  return linkUrl !== '' && item.link_type !== 'none'
+}
+
+function normalizeBannerLink(item: BannerItem) {
+  const linkUrl = item.link_url?.trim() ?? ''
+  if (!linkUrl) return ''
+  if (item.link_type === 'external') {
+    return `/pages/common/webview?title=${encodeURIComponent(item.title || '详情')}&url=${encodeURIComponent(linkUrl)}`
+  }
+  return linkUrl.startsWith('/') ? linkUrl : `/${linkUrl}`
+}
+
 function handleTap(item: BannerItem) {
   const linkUrl = item.link_url?.trim() ?? ''
 
@@ -63,13 +94,11 @@ function handleTap(item: BannerItem) {
     return
   }
   if (item.link_type === 'internal' && linkUrl) {
-    uni.navigateTo({ url: linkUrl })
+    safeNavigateTo({ url: normalizeBannerLink(item) })
     return
   }
   if (item.link_type === 'external' && linkUrl) {
-    uni.navigateTo({
-      url: `/pages/common/webview?title=${encodeURIComponent(item.title || '详情')}&url=${encodeURIComponent(linkUrl)}`
-    })
+    safeNavigateTo({ url: normalizeBannerLink(item) })
     return
   }
   openDefaultPdf()
@@ -91,6 +120,7 @@ function handleTap(item: BannerItem) {
 }
 
 .banner-slide {
+  position: relative;
   width: 100%;
   height: 370rpx;
   overflow: hidden;
@@ -104,6 +134,36 @@ function handleTap(item: BannerItem) {
   width: 100%;
   height: 100%;
   display: block;
+}
+
+.banner-caption {
+  position: absolute;
+  left: 24rpx;
+  bottom: 24rpx;
+  z-index: 2;
+  max-width: calc(100% - 48rpx);
+  padding: 10rpx 24rpx;
+  border-radius: 999rpx;
+  background: rgba(0, 0, 0, 0.42);
+  box-sizing: border-box;
+
+  &--link {
+    background: rgba(0, 0, 0, 0.52);
+  }
+
+  &--active {
+    opacity: 0.82;
+  }
+
+  &__text {
+    display: block;
+    color: #fff;
+    font-size: 22rpx;
+    line-height: 1.4;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
 }
 </style>
 

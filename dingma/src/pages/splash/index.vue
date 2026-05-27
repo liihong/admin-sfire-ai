@@ -8,7 +8,7 @@
           'splash-img--hold': phase === 'hold'
         }"
         :src="imageUrl"
-        mode="aspectFill"
+        mode="aspectFit"
         @animationend="onZoomAnimationEnd"
       />
     </view>
@@ -114,6 +114,9 @@ onUnmounted(() => {
 .splash-frame {
   position: absolute;
   inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   overflow: hidden;
 }
 
@@ -122,7 +125,7 @@ onUnmounted(() => {
   height: 100%;
   display: block;
   transform: scale(1);
-  transform-origin: 45% 35%;
+  transform-origin: center center;
 }
 
 .splash-img--animate {
@@ -130,7 +133,16 @@ onUnmounted(() => {
 }
 
 .splash-img--hold {
-  transform: scale(1.0);
+  transform: scale(1);
+}
+
+@keyframes dingmaSplashZoom {
+  from {
+    transform: scale(0.94);
+  }
+  to {
+    transform: scale(1);
+  }
 }
 
 .skip-wrap {

@@ -4,7 +4,7 @@
     <view class="page-nav" :style="{ paddingTop: safeArea.top + 'px' }">
       <view class="nav-bar">
         <view class="nav-back" @tap="goBack">
-          <text class="nav-back-icon">&lt;</text>
+         <text class="nav-back-icon">‹</text>
         </view>
         <text class="nav-title">历史对话</text>
         <view class="nav-capsule">
@@ -21,7 +21,7 @@
 
     <view v-if="list.length > 0" class="section-head-strip">
       <view class="section-head">
-        <text class="section-icon">🕒</text>
+        <SvgIcon name="history" :size="26" color="#8e8e8e" />
         <text class="section-text">往期爆单对话归档 (共 {{ total }} 个)</text>
       </view>
     </view>
@@ -51,20 +51,32 @@
             class="record-card"
             @tap="openConversation(item)"
           >
+            <view class="record-icon-wrap" :class="recordIconVariant(index).bg">
+              <SvgIcon
+                :name="recordIconVariant(index).icon"
+                :size="36"
+                :color="recordIconVariant(index).color"
+              />
+            </view>
             <view class="record-left">
-              <text class="record-title">{{ displayTitle(item, index) }}</text>
+              <text class="record-title">{{ displayTitle(item) }}</text>
               <text v-if="conversationPreview(item)" class="record-preview">{{
                 conversationPreview(item)
               }}</text>
               <text class="record-time">{{ formatCreateTime(item.created_at) }}</text>
             </view>
-            <text class="record-action">载入查看 ></text>
+            <view class="record-action-wrap">
+              <text class="record-action">载入查看</text>
+              <SvgIcon name="chevron-right" :size="28" color="#c9a227" />
+            </view>
           </view>
         </view>
       </template>
 
       <view v-else class="state-wrap">
-        <text class="state-emoji">💬</text>
+        <view class="state-icon-wrap">
+          <SvgIcon name="history" :size="72" color="#D6D3D1" />
+        </view>
         <text class="state-text">暂无历史对话</text>
         <text class="state-hint">在爆款助手与 AI 对话后，历史会保存在这里</text>
       </view>
@@ -87,12 +99,20 @@ import { onShow } from '@dcloudio/uni-app'
 import { getConversationList, type Conversation } from '@/api/conversation'
 import { useAuthStore } from '@/stores/auth'
 import { useSafeArea } from '@/composables/useSafeArea'
+import SvgIcon from '@/components/base/SvgIcon.vue'
 
 const authStore = useAuthStore()
 const { safeArea, updateSafeArea } = useSafeArea()
 const PAGE_SIZE = 20
 
-const TITLE_EMOJIS = ['🔥', '💡', '🎬', '✨', '📣', '🛒']
+const RECORD_ICON_VARIANTS = [
+  { icon: 'trending-up', color: '#EA580C', bg: 'record-icon-wrap--orange' },
+  { icon: 'lightbulb', color: '#D97706', bg: 'record-icon-wrap--amber' },
+  { icon: 'clapperboard', color: '#7C3AED', bg: 'record-icon-wrap--violet' },
+  { icon: 'sparkles', color: '#CA8A04', bg: 'record-icon-wrap--gold' },
+  { icon: 'megaphone', color: '#DB2777', bg: 'record-icon-wrap--pink' },
+  { icon: 'send', color: '#2563EB', bg: 'record-icon-wrap--blue' },
+] as const
 
 const list = ref<Conversation[]>([])
 const loading = ref(false)
@@ -122,15 +142,14 @@ function onMoreTap() {
   })
 }
 
-function displayTitle(item: Conversation, index: number): string {
+function recordIconVariant(index: number) {
+  return RECORD_ICON_VARIANTS[index % RECORD_ICON_VARIANTS.length]
+}
+
+function displayTitle(item: Conversation): string {
   const rawFull = (item.title || '未命名对话').trim()
   const firstLine = rawFull.split(/\r?\n/).map((l) => l.trim()).find(Boolean) || '未命名对话'
-
-  /** 首行已带 emoji 则整行作为标题（不再重复加） */
-  if (/^[\u{1F300}-\u{1FAFF}\u2600-\u27BF]/u.test(firstLine)) return firstLine
-
-  const withoutEmoji = stripLeadingEmoji(firstLine)
-  return `${TITLE_EMOJIS[index % TITLE_EMOJIS.length]} ${withoutEmoji}`
+  return stripLeadingEmoji(firstLine)
 }
 
 /** 去掉首行 emoji 后用于从标题中取「纯文案」前缀 */
@@ -389,12 +408,6 @@ $accent-load: #c9a227;
   padding: 0;
 }
 
-.section-icon {
-  font-size: 26rpx;
-  line-height: 1;
-  opacity: 0.72;
-}
-
 .section-text {
   font-size: 26rpx;
   font-weight: 500;
@@ -407,11 +420,11 @@ $accent-load: #c9a227;
   gap: 28rpx;
 }
 
-/** 左文右链：与设计稿一致的卡片排版 */
+/** 左图标 + 正文 + 载入查看 */
 .record-card {
   display: flex;
   flex-direction: row;
-  align-items: stretch;
+  align-items: center;
   justify-content: space-between;
   gap: 20rpx;
   padding: 28rpx 30rpx;
@@ -427,14 +440,52 @@ $accent-load: #c9a227;
   }
 }
 
+.record-icon-wrap {
+  flex-shrink: 0;
+  width: 72rpx;
+  height: 72rpx;
+  border-radius: 18rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  &--orange {
+    background: #fff7ed;
+    border: 1rpx solid #fed7aa;
+  }
+
+  &--amber {
+    background: #fffbeb;
+    border: 1rpx solid #fde68a;
+  }
+
+  &--violet {
+    background: #f5f3ff;
+    border: 1rpx solid #ddd6fe;
+  }
+
+  &--gold {
+    background: #fefce8;
+    border: 1rpx solid #fef08a;
+  }
+
+  &--pink {
+    background: #fdf2f8;
+    border: 1rpx solid #fbcfe8;
+  }
+
+  &--blue {
+    background: #eff6ff;
+    border: 1rpx solid #bfdbfe;
+  }
+}
+
 .record-left {
   flex: 1;
   min-width: 0;
   display: flex;
   flex-direction: column;
   gap: 10rpx;
-  padding-top: 2rpx;
-  padding-bottom: 2rpx;
 }
 
 .record-title {
@@ -460,9 +511,15 @@ $accent-load: #c9a227;
   color: $text-muted;
 }
 
-.record-action {
+.record-action-wrap {
   flex-shrink: 0;
-  align-self: center;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 4rpx;
+}
+
+.record-action {
   font-size: 24rpx;
   color: $accent-load;
   white-space: nowrap;
@@ -513,8 +570,7 @@ $accent-load: #c9a227;
   gap: 16rpx;
 }
 
-.state-emoji {
-  font-size: 64rpx;
+.state-icon-wrap {
   margin-bottom: 8rpx;
 }
 

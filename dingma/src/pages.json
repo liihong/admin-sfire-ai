@@ -247,12 +247,34 @@
           }
         }
       ]
+    },
+    {
+      "root": "pages/article",
+      "name": "article",
+      "pages": [
+        {
+          "path": "detail",
+          "style": {
+            "navigationBarTitleText": "文章详情",
+            "navigationStyle": "custom",
+            "disableScroll": false
+          }
+        },
+        {
+          "path": "list",
+          "style": {
+            "navigationBarTitleText": "文章列表",
+            "navigationStyle": "custom",
+            "disableScroll": false
+          }
+        }
+      ]
     }
   ],
   "preloadRule": {
     "pages/home/index": {
       "network": "all",
-      "packages": ["aichat"]
+      "packages": ["aichat", "article"]
     },
     "pages/mine/index": {
       "network": "all",

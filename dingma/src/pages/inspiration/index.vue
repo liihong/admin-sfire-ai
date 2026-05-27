@@ -4,7 +4,7 @@
     <view class="page-nav" :style="{ paddingTop: safeArea.top + 'px' }">
       <view class="nav-bar">
         <view class="nav-back" @tap="goBack">
-          <text class="nav-back-icon">&lt;</text>
+          <text class="nav-back-icon">‹</text>
         </view>
         <text class="nav-title">我的灵感夹</text>
         <view class="nav-capsule">
@@ -22,7 +22,7 @@
     <!-- 有列表时固定在顶栏下方，仅下列表滚动 -->
     <view v-if="inspirationList.length > 0" class="section-head-strip">
       <view class="section-head">
-        <text class="section-icon">💡</text>
+        <SvgIcon name="lightbulb" :size="26" color="#998b82" />
         <text class="section-text">灵感备忘录列表 (共 {{ total }} 条)</text>
       </view>
     </view>
@@ -54,7 +54,9 @@
 
       <!-- 空状态 -->
       <view v-else-if="!loading" class="empty-state">
-        <view class="empty-icon">💡</view>
+        <view class="state-icon-wrap">
+          <SvgIcon name="lightbulb" :size="72" color="#D6D3D1" />
+        </view>
         <text class="empty-text">还没有灵感记录</text>
         <text class="empty-hint">点击右下角按钮添加灵感</text>
       </view>
@@ -140,6 +142,7 @@ import { getBalance } from '@/api/coin'
 import { useProjectStore } from '@/stores/project'
 import InspirationItem from './components/InspirationItem.vue'
 import InspirationCard from '@/components/inspiration/InspirationCard.vue'
+import SvgIcon from '@/components/base/SvgIcon.vue'
 import { useSafeArea } from '@/composables/useSafeArea'
 
 const { safeArea, updateSafeArea } = useSafeArea()
@@ -514,11 +517,6 @@ function copyGeneratedContent() {
   padding: 0;
 }
 
-.section-icon {
-  font-size: 28rpx;
-  line-height: 1;
-}
-
 .section-text {
   font-size: 26rpx;
   font-weight: 500;
@@ -587,8 +585,7 @@ function copyGeneratedContent() {
   justify-content: center;
   padding: 160rpx 32rpx;
 
-  .empty-icon {
-    font-size: 80rpx;
+  .state-icon-wrap {
     margin-bottom: 24rpx;
   }
 

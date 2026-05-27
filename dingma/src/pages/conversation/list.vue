@@ -27,7 +27,7 @@
 
       <template v-else-if="conversationList.length > 0">
         <view class="section-head">
-          <text class="section-icon">🕒</text>
+          <SvgIcon name="history" :size="26" color="#998b82" />
           <text class="section-text">往期爆单对话归档 (共 {{ total }} 个)</text>
         </view>
 
@@ -38,17 +38,27 @@
             class="conversation-item"
             @tap="handleClick(conversation)"
           >
+            <view class="conversation-icon-wrap" :class="recordIconVariant(index).bg">
+              <SvgIcon
+                :name="recordIconVariant(index).icon"
+                :size="36"
+                :color="recordIconVariant(index).color"
+              />
+            </view>
             <view class="conversation-content">
-              <text class="conversation-title">{{ displayTitle(conversation, index) }}</text>
+              <text class="conversation-title">{{ displayTitle(conversation) }}</text>
               <text class="time-text">{{ formatCreateTime(conversation.created_at) }}</text>
             </view>
-            <text class="conversation-action">载入查看 ›</text>
+            <view class="conversation-action-wrap">
+              <text class="conversation-action">载入查看</text>
+              <SvgIcon name="chevron-right" :size="28" color="#b8864d" />
+            </view>
           </view>
         </view>
       </template>
 
       <view v-else-if="!loading" class="empty-wrapper">
-        <text class="empty-emoji">💬</text>
+        <SvgIcon name="history" :size="72" color="#d6d3d1" />
         <text class="empty-text">暂无历史对话</text>
       </view>
 
@@ -70,11 +80,19 @@ import { onLoad } from '@dcloudio/uni-app'
 import { getConversationList, type Conversation } from '@/api/conversation'
 import { useProjectStore } from '@/stores/project'
 import { useSafeArea } from '@/composables/useSafeArea'
+import SvgIcon from '@/components/base/SvgIcon.vue'
 
 const projectStore = useProjectStore()
 const { safeArea, updateSafeArea } = useSafeArea()
 const PAGE_SIZE = 20
-const TITLE_EMOJIS = ['🔥', '💡', '🎬', '✨', '📣', '🛒']
+const RECORD_ICON_VARIANTS = [
+  { icon: 'trending-up', color: '#EA580C', bg: 'conversation-icon-wrap--orange' },
+  { icon: 'lightbulb', color: '#D97706', bg: 'conversation-icon-wrap--amber' },
+  { icon: 'clapperboard', color: '#7C3AED', bg: 'conversation-icon-wrap--violet' },
+  { icon: 'sparkles', color: '#CA8A04', bg: 'conversation-icon-wrap--gold' },
+  { icon: 'megaphone', color: '#DB2777', bg: 'conversation-icon-wrap--pink' },
+  { icon: 'send', color: '#2563EB', bg: 'conversation-icon-wrap--blue' },
+] as const
 
 const conversationList = ref<Conversation[]>([])
 const loading = ref(false)
@@ -108,10 +126,17 @@ function onMoreTap() {
   })
 }
 
-function displayTitle(item: Conversation, index: number): string {
+function recordIconVariant(index: number) {
+  return RECORD_ICON_VARIANTS[index % RECORD_ICON_VARIANTS.length]
+}
+
+function stripLeadingEmoji(s: string): string {
+  return s.replace(/^[\uFE0F\s]*(?:[\u{1F300}-\u{1FAFF}\u2600-\u27BF]\uFE0F?\s*)+/u, '').trim() || s
+}
+
+function displayTitle(item: Conversation): string {
   const title = (item.title || '未命名对话').trim()
-  if (/^[\u{1F300}-\u{1FAFF}\u2600-\u27BF]/u.test(title)) return title
-  return `${TITLE_EMOJIS[index % TITLE_EMOJIS.length]} ${title}`
+  return stripLeadingEmoji(title)
 }
 
 function formatCreateTime(timeStr: string): string {
@@ -312,11 +337,6 @@ $card-border: #f2e6d8;
   padding: 24rpx 0 28rpx;
 }
 
-.section-icon {
-  font-size: 28rpx;
-  line-height: 1;
-}
-
 .section-text {
   font-size: 28rpx;
   font-weight: 600;
@@ -352,6 +372,46 @@ $card-border: #f2e6d8;
       background: #fffaf5;
     }
 
+    .conversation-icon-wrap {
+      flex-shrink: 0;
+      width: 72rpx;
+      height: 72rpx;
+      border-radius: 18rpx;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+
+      &--orange {
+        background: #fff7ed;
+        border: 1rpx solid #fed7aa;
+      }
+
+      &--amber {
+        background: #fffbeb;
+        border: 1rpx solid #fde68a;
+      }
+
+      &--violet {
+        background: #f5f3ff;
+        border: 1rpx solid #ddd6fe;
+      }
+
+      &--gold {
+        background: #fefce8;
+        border: 1rpx solid #fef08a;
+      }
+
+      &--pink {
+        background: #fdf2f8;
+        border: 1rpx solid #fbcfe8;
+      }
+
+      &--blue {
+        background: #eff6ff;
+        border: 1rpx solid #bfdbfe;
+      }
+    }
+
     .conversation-content {
       flex: 1;
       min-width: 0;
@@ -374,8 +434,15 @@ $card-border: #f2e6d8;
       }
     }
 
-    .conversation-action {
+    .conversation-action-wrap {
       flex-shrink: 0;
+      display: flex;
+      flex-direction: row;
+      align-items: center;
+      gap: 4rpx;
+    }
+
+    .conversation-action {
       font-size: 24rpx;
       color: $accent;
       white-space: nowrap;
@@ -389,10 +456,6 @@ $card-border: #f2e6d8;
   flex-direction: column;
   align-items: center;
   gap: 16rpx;
-
-  .empty-emoji {
-    font-size: 64rpx;
-  }
 
   .empty-text {
     font-size: 28rpx;

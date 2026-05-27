@@ -54,8 +54,6 @@
           </view>
         </template>
       </view>
-
-      <view class="page-bottom-space" />
     </scroll-view>
 
     <FloatingInspireFab @click="showInspireModal = true" />
@@ -264,18 +262,20 @@ onShow(() => {
 @import '@/styles/_variables.scss';
 
 .page-root {
-  min-height: 100vh;
+  height: 100vh;
   background: $bg-base;
 }
 
 .page {
-  min-height: 100vh;
+  height: 100%;
   box-sizing: border-box;
 }
 
 /* 主轴网格：1 张 span2 + 2×2 */
 .task-grid {
-  padding: 24rpx 36rpx 32rpx;
+  padding: 24rpx 36rpx 48rpx;
+  padding-bottom: calc(48rpx + constant(safe-area-inset-bottom));
+  padding-bottom: calc(48rpx + env(safe-area-inset-bottom));
   display: grid;
   grid-template-columns: repeat(2, 1fr);
   gap: 22rpx;
@@ -455,8 +455,4 @@ onShow(() => {
   }
 }
 
-.page-bottom-space {
-  height: calc(180rpx + env(safe-area-inset-bottom));
-  height: calc(180rpx + constant(safe-area-inset-bottom));
-}
 </style>

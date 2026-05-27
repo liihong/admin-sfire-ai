@@ -43,11 +43,13 @@
         </view>
       </view>
 
-      <!-- 分享按钮 -->
+      <!-- 分享按钮：plain + 图标定宽，避免 button 内 image 被撑满 -->
       <view class="share-section">
-        <button class="share-btn" @tap="handleShare" open-type="share">
+        <button class="share-btn" plain @tap="handleShare" open-type="share">
           <view class="share-btn-content">
-            <SvgIcon name="send" size="36" color="#FFFFFF" />
+            <view class="share-icon-wrap">
+              <SvgIcon name="send" :size="36" color="#FFFFFF" />
+            </view>
             <text class="share-btn-text">立即分享</text>
           </view>
         </button>
@@ -174,12 +176,16 @@ onShareTimeline(() => {
 @import '@/styles/_variables.scss';
 
 .page-wrapper {
+  display: flex;
+  flex-direction: column;
   min-height: 100vh;
   background: $bg-color;
 }
 
 .page-container {
-  height: calc(100vh - 88rpx);
+  flex: 1;
+  height: 0;
+  min-height: 0;
   padding: 24rpx;
   box-sizing: border-box;
 }
@@ -358,14 +364,18 @@ onShareTimeline(() => {
 .share-btn {
   width: 100%;
   height: 96rpx;
-  background: linear-gradient(135deg, #F37021 0%, #FF8800 100%);
+  padding: 0;
+  margin: 0 0 16rpx;
+  line-height: 1;
+  overflow: hidden;
+  box-sizing: border-box;
+  background: linear-gradient(135deg, #F37021 0%, #FF8800 100%) !important;
   border-radius: 48rpx;
+  border: none !important;
   display: flex;
   align-items: center;
   justify-content: center;
   box-shadow: 0 8rpx 24rpx rgba(243, 112, 33, 0.3);
-  border: none;
-  margin-bottom: 16rpx;
 }
 
 .share-btn::after {
@@ -374,8 +384,31 @@ onShareTimeline(() => {
 
 .share-btn-content {
   display: flex;
+  flex-direction: row;
   align-items: center;
+  justify-content: center;
   gap: 12rpx;
+  width: 100%;
+  height: 100%;
+}
+
+/** 微信 button 内 image 会默认撑满，必须外层定宽高 */
+.share-icon-wrap {
+  width: 36rpx;
+  height: 36rpx;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+
+  :deep(.svg-icon--lucide),
+  :deep(image) {
+    width: 36rpx !important;
+    height: 36rpx !important;
+    max-width: 36rpx;
+    max-height: 36rpx;
+  }
 }
 
 .share-btn-text {
@@ -448,7 +481,7 @@ onShareTimeline(() => {
 }
 
 .bottom-gap {
-  height: 48rpx;
+  height: calc(48rpx + env(safe-area-inset-bottom));
 }
 </style>
 
