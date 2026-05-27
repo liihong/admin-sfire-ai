@@ -24,10 +24,16 @@ class ProjectBenchmarkService:
         self.project_service = ProjectService(db)
 
     async def _ensure_project(
-        self, user_id: int, project_id: int
+        self,
+        user_id: int,
+        project_id: int,
+        tenant_id: Optional[int] = None,
     ):
         p = await self.project_service.get_project_by_id(
-            project_id, user_id=user_id, include_deleted=False
+            project_id,
+            user_id=user_id,
+            tenant_id=tenant_id,
+            include_deleted=False,
         )
         if not p:
             raise NotFoundException("项目不存在或无权访问")
@@ -50,8 +56,9 @@ class ProjectBenchmarkService:
         user_id: int,
         project_id: int,
         account_id: int,
+        tenant_id: Optional[int] = None,
     ) -> ProjectBenchmarkAccount:
-        await self._ensure_project(user_id, project_id)
+        await self._ensure_project(user_id, project_id, tenant_id=tenant_id)
         try:
             r = await self.db.execute(
                 select(ProjectBenchmarkAccount).where(
@@ -74,8 +81,9 @@ class ProjectBenchmarkService:
         project_id: int,
         url: str,
         remark: Optional[str] = None,
+        tenant_id: Optional[int] = None,
     ) -> ProjectBenchmarkAccount:
-        await self._ensure_project(user_id, project_id)
+        await self._ensure_project(user_id, project_id, tenant_id=tenant_id)
         sec_uid = await resolve_sec_uid_from_profile_url(url.strip())
         profile = await self.get_account_profile(sec_uid)
         row = ProjectBenchmarkAccount(
@@ -103,13 +111,18 @@ class ProjectBenchmarkService:
             await self.db.rollback()
             self._raise_schema_hint_if_needed(e)
             raise
-        await self.refresh_videos_cache(user_id, project_id, row.id, limit=40)
+        await self.refresh_videos_cache(
+            user_id, project_id, row.id, limit=40, tenant_id=tenant_id
+        )
         return row
 
     async def list_by_project(
-        self, user_id: int, project_id: int
+        self,
+        user_id: int,
+        project_id: int,
+        tenant_id: Optional[int] = None,
     ) -> List[ProjectBenchmarkAccount]:
-        await self._ensure_project(user_id, project_id)
+        await self._ensure_project(user_id, project_id, tenant_id=tenant_id)
         try:
             r = await self.db.execute(
                 select(ProjectBenchmarkAccount)
@@ -125,9 +138,15 @@ class ProjectBenchmarkService:
         return list(r.scalars().all())
 
     async def delete(
-        self, user_id: int, project_id: int, account_id: int
+        self,
+        user_id: int,
+        project_id: int,
+        account_id: int,
+        tenant_id: Optional[int] = None,
     ) -> None:
-        row = await self._get_account(user_id, project_id, account_id)
+        row = await self._get_account(
+            user_id, project_id, account_id, tenant_id=tenant_id
+        )
         # 先删除该账号下视频缓存，避免依赖数据库外键级联
         try:
             await self.db.execute(
@@ -150,8 +169,11 @@ class ProjectBenchmarkService:
         account_id: int,
         max_cursor: int = 0,
         count: int = 20,
+        tenant_id: Optional[int] = None,
     ):
-        await self._get_account(user_id, project_id, account_id)
+        await self._get_account(
+            user_id, project_id, account_id, tenant_id=tenant_id
+        )
         offset = max(0, int(max_cursor))
         size = max(1, min(int(count), 40))
         try:
@@ -200,9 +222,15 @@ class ProjectBenchmarkService:
         return items, next_cursor, has_more
 
     async def get_account(
-        self, user_id: int, project_id: int, account_id: int
+        self,
+        user_id: int,
+        project_id: int,
+        account_id: int,
+        tenant_id: Optional[int] = None,
     ) -> ProjectBenchmarkAccount:
-        return await self._get_account(user_id, project_id, account_id)
+        return await self._get_account(
+            user_id, project_id, account_id, tenant_id=tenant_id
+        )
 
     async def get_account_profile(self, sec_uid: str) -> dict:
         profile = await fetch_douyin_user_profile(sec_uid)
@@ -229,9 +257,15 @@ class ProjectBenchmarkService:
         return profile
 
     async def refresh_account_profile(
-        self, user_id: int, project_id: int, account_id: int
+        self,
+        user_id: int,
+        project_id: int,
+        account_id: int,
+        tenant_id: Optional[int] = None,
     ) -> ProjectBenchmarkAccount:
-        row = await self._get_account(user_id, project_id, account_id)
+        row = await self._get_account(
+            user_id, project_id, account_id, tenant_id=tenant_id
+        )
         profile = await self.get_account_profile(row.sec_uid)
         row.nickname = str(profile.get("nickname") or row.nickname or "")[:200]
         row.avatar_url = str(profile.get("avatar_url") or row.avatar_url or "")[:1024]
@@ -250,8 +284,11 @@ class ProjectBenchmarkService:
         project_id: int,
         account_id: int,
         limit: int = 40,
+        tenant_id: Optional[int] = None,
     ) -> int:
-        acc = await self._get_account(user_id, project_id, account_id)
+        acc = await self._get_account(
+            user_id, project_id, account_id, tenant_id=tenant_id
+        )
         fetch_count = max(40, int(limit) * 2)
         items, _, _ = await fetch_user_post_videos(acc.sec_uid, max_cursor=0, count=fetch_count)
         # 固化缓存顺序：置顶优先，其次发布时间倒序
@@ -317,12 +354,16 @@ class ProjectBenchmarkService:
         project_id: int,
         account_id: int,
         limit: int = 40,
+        tenant_id: Optional[int] = None,
     ) -> tuple[ProjectBenchmarkAccount, int]:
-        row = await self.refresh_account_profile(user_id, project_id, account_id)
+        row = await self.refresh_account_profile(
+            user_id, project_id, account_id, tenant_id=tenant_id
+        )
         refreshed_count = await self.refresh_videos_cache(
             user_id=user_id,
             project_id=project_id,
             account_id=account_id,
             limit=limit,
+            tenant_id=tenant_id,
         )
         return row, refreshed_count

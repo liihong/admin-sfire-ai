@@ -12,6 +12,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from db import get_db
 from models.user import User
 from core.deps import get_current_miniprogram_user, get_current_miniprogram_user_optional
+from core.client_public_scope import (
+    resolve_client_effective_tenant_id,
+    resolve_optional_public_tenant_id,
+)
 from core.config import settings
 from services.resource import ProjectService
 from services.system import DictionaryService
@@ -39,6 +43,13 @@ from sqlalchemy import select
 from loguru import logger
 
 router = APIRouter()
+
+
+def _client_project_tenant_id(
+    current_user: Optional[User],
+    scoped_public_tenant_id: Optional[int],
+) -> int:
+    return resolve_client_effective_tenant_id(current_user, scoped_public_tenant_id)
 
 
 def _build_frontend_project(project_dict: dict) -> dict:
@@ -69,6 +80,7 @@ def _build_frontend_project(project_dict: dict) -> dict:
 @router.get("")
 async def list_projects(
     current_user: Optional[User] = Depends(get_current_miniprogram_user_optional),
+    scoped_public_tenant_id: Optional[int] = Depends(resolve_optional_public_tenant_id),
     db: AsyncSession = Depends(get_db)
 ):
     """获取当前用户的所有项目列表，按最后修改时间倒序排列（支持游客模式）"""
@@ -86,9 +98,17 @@ async def list_projects(
             msg="获取成功（游客模式）"
         )
 
-    # 已登录用户：获取项目列表
-    projects = await project_service.get_projects_by_user(current_user.id)
-    active_project_id = await project_service.get_active_project(current_user.id)
+    effective_tenant_id = _client_project_tenant_id(
+        current_user, scoped_public_tenant_id
+    )
+
+    # 已登录用户：获取项目列表（按租户隔离）
+    projects = await project_service.get_projects_by_user(
+        current_user.id, tenant_id=effective_tenant_id
+    )
+    active_project_id = await project_service.get_active_project(
+        current_user.id, tenant_id=effective_tenant_id
+    )
 
     # 转换为响应格式（扁平化人设字段）
     project_list = []
@@ -114,12 +134,18 @@ async def list_projects(
 async def create_project(
     data: ProjectCreate,
     current_user: User = Depends(get_current_miniprogram_user),
+    scoped_public_tenant_id: Optional[int] = Depends(resolve_optional_public_tenant_id),
     db: AsyncSession = Depends(get_db)
 ):
     """创建新项目"""
     project_service = ProjectService(db)
-    
-    project = await project_service.create_project(current_user.id, data)
+    effective_tenant_id = _client_project_tenant_id(
+        current_user, scoped_public_tenant_id
+    )
+
+    project = await project_service.create_project(
+        current_user.id, data, tenant_id=effective_tenant_id
+    )
     project_response = ProjectResponse.from_orm_with_active(project, is_active=False)
     project_dict = project_response.model_dump()
     frontend_project = _build_frontend_project(project_dict)
@@ -130,16 +156,24 @@ async def create_project(
 @router.get("/active")
 async def get_active_project_info(
     current_user: User = Depends(get_current_miniprogram_user),
+    scoped_public_tenant_id: Optional[int] = Depends(resolve_optional_public_tenant_id),
     db: AsyncSession = Depends(get_db)
 ):
     """获取当前激活的项目详情"""
     project_service = ProjectService(db)
-    
-    active_id = await project_service.get_active_project(current_user.id)
+    effective_tenant_id = _client_project_tenant_id(
+        current_user, scoped_public_tenant_id
+    )
+
+    active_id = await project_service.get_active_project(
+        current_user.id, tenant_id=effective_tenant_id
+    )
     if not active_id:
         raise NotFoundException("没有激活的项目")
     
-    project = await project_service.get_project_by_id(active_id, user_id=current_user.id)
+    project = await project_service.get_project_by_id(
+        active_id, user_id=current_user.id, tenant_id=effective_tenant_id
+    )
     if not project:
         raise NotFoundException("激活的项目不存在")
     
@@ -154,18 +188,24 @@ async def get_active_project_info(
 async def switch_project(
     data: ProjectSwitchRequest,
     current_user: User = Depends(get_current_miniprogram_user),
+    scoped_public_tenant_id: Optional[int] = Depends(resolve_optional_public_tenant_id),
     db: AsyncSession = Depends(get_db)
 ):
     """切换当前激活的项目"""
     project_service = ProjectService(db)
+    effective_tenant_id = _client_project_tenant_id(
+        current_user, scoped_public_tenant_id
+    )
     
     try:
         project_id = int(data.project_id)
     except (ValueError, TypeError):
         raise NotFoundException("无效的项目ID格式")
     
-    # 验证项目是否存在且属于当前用户
-    project = await project_service.get_project_by_id(project_id, user_id=current_user.id)
+    # 验证项目是否存在且属于当前用户及租户
+    project = await project_service.get_project_by_id(
+        project_id, user_id=current_user.id, tenant_id=effective_tenant_id
+    )
     if not project:
         raise NotFoundException("项目不存在或无权访问")
     
@@ -174,7 +214,9 @@ async def switch_project(
     if project.status == ProjectStatus.FROZEN.value:
         raise BadRequestException("该项目已冻结，无法切换。请续费会员以解锁。")
     
-    await project_service.set_active_project(current_user.id, project_id)
+    await project_service.set_active_project(
+        current_user.id, project_id, tenant_id=effective_tenant_id
+    )
     
     return success(
         data={
@@ -227,16 +269,24 @@ async def get_project_options(
 async def get_project(
     project_id: int,
     current_user: User = Depends(get_current_miniprogram_user),
+    scoped_public_tenant_id: Optional[int] = Depends(resolve_optional_public_tenant_id),
     db: AsyncSession = Depends(get_db)
 ):
     """获取指定项目详情"""
     project_service = ProjectService(db)
-    
-    project = await project_service.get_project_by_id(project_id, user_id=current_user.id)
+    effective_tenant_id = _client_project_tenant_id(
+        current_user, scoped_public_tenant_id
+    )
+
+    project = await project_service.get_project_by_id(
+        project_id, user_id=current_user.id, tenant_id=effective_tenant_id
+    )
     if not project:
         raise NotFoundException("项目不存在或无权访问")
     
-    active_id = await project_service.get_active_project(current_user.id)
+    active_id = await project_service.get_active_project(
+        current_user.id, tenant_id=effective_tenant_id
+    )
     is_active = (active_id == project_id)
     
     project_response = ProjectResponse.from_orm_with_active(project, is_active=is_active)
@@ -252,15 +302,23 @@ async def update_project_info(
     project_id: int,
     data: ProjectUpdate,
     current_user: User = Depends(get_current_miniprogram_user),
+    scoped_public_tenant_id: Optional[int] = Depends(resolve_optional_public_tenant_id),
     db: AsyncSession = Depends(get_db)
 ):
     """更新项目信息"""
     project_service = ProjectService(db)
-    
-    project = await project_service.update_project(project_id, current_user.id, data)
+    effective_tenant_id = _client_project_tenant_id(
+        current_user, scoped_public_tenant_id
+    )
+
+    project = await project_service.update_project(
+        project_id, current_user.id, data, tenant_id=effective_tenant_id
+    )
     
     # 获取当前激活的项目ID，确保返回正确的 is_active 状态
-    active_id = await project_service.get_active_project(current_user.id)
+    active_id = await project_service.get_active_project(
+        current_user.id, tenant_id=effective_tenant_id
+    )
     is_active = (active_id == project_id)
     
     project_response = ProjectResponse.from_orm_with_active(project, is_active=is_active)
@@ -274,12 +332,18 @@ async def update_project_info(
 async def delete_project_by_id(
     project_id: int,
     current_user: User = Depends(get_current_miniprogram_user),
+    scoped_public_tenant_id: Optional[int] = Depends(resolve_optional_public_tenant_id),
     db: AsyncSession = Depends(get_db)
 ):
     """删除项目"""
     project_service = ProjectService(db)
-    
-    await project_service.delete_project(project_id, current_user.id)
+    effective_tenant_id = _client_project_tenant_id(
+        current_user, scoped_public_tenant_id
+    )
+
+    await project_service.delete_project(
+        project_id, current_user.id, tenant_id=effective_tenant_id
+    )
     
     return success(data={"success": True, "message": "项目已删除"}, msg="删除成功")
 

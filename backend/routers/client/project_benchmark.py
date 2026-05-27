@@ -2,6 +2,7 @@
 C 端：项目对标抖音账号（列表、拉取作品）
 """
 import uuid
+from typing import Optional
 
 from fastapi import APIRouter, Depends, Query
 from loguru import logger
@@ -11,6 +12,10 @@ from constants.coin_config import CoinConfig
 from db import get_db
 from models.user import User
 from core.deps import get_current_miniprogram_user
+from core.client_public_scope import (
+    resolve_client_effective_tenant_id,
+    resolve_optional_public_tenant_id,
+)
 from schemas.project_benchmark import (
     BenchmarkAccountCreate,
     BenchmarkAccountResponse,
@@ -48,14 +53,19 @@ async def add_benchmark_account(
     project_id: int,
     body: BenchmarkAccountCreate,
     current_user: User = Depends(get_current_miniprogram_user),
+    scoped_public_tenant_id: Optional[int] = Depends(resolve_optional_public_tenant_id),
     db: AsyncSession = Depends(get_db),
 ):
+    tenant_id = resolve_client_effective_tenant_id(
+        current_user, scoped_public_tenant_id
+    )
     svc = ProjectBenchmarkService(db)
     row = await svc.create(
         current_user.id,
         project_id,
         body.url,
         remark=body.remark,
+        tenant_id=tenant_id,
     )
     data = _account_to_response(row).model_dump()
     return success(data=data, msg="添加成功")
@@ -65,10 +75,16 @@ async def add_benchmark_account(
 async def list_benchmark_accounts(
     project_id: int,
     current_user: User = Depends(get_current_miniprogram_user),
+    scoped_public_tenant_id: Optional[int] = Depends(resolve_optional_public_tenant_id),
     db: AsyncSession = Depends(get_db),
 ):
+    tenant_id = resolve_client_effective_tenant_id(
+        current_user, scoped_public_tenant_id
+    )
     svc = ProjectBenchmarkService(db)
-    rows = await svc.list_by_project(current_user.id, project_id)
+    rows = await svc.list_by_project(
+        current_user.id, project_id, tenant_id=tenant_id
+    )
     items = [_account_to_response(r).model_dump() for r in rows]
     return success(data={"items": items}, msg="获取成功")
 
@@ -81,10 +97,16 @@ async def delete_benchmark_account(
     project_id: int,
     account_id: int,
     current_user: User = Depends(get_current_miniprogram_user),
+    scoped_public_tenant_id: Optional[int] = Depends(resolve_optional_public_tenant_id),
     db: AsyncSession = Depends(get_db),
 ):
+    tenant_id = resolve_client_effective_tenant_id(
+        current_user, scoped_public_tenant_id
+    )
     svc = ProjectBenchmarkService(db)
-    await svc.delete(current_user.id, project_id, account_id)
+    await svc.delete(
+        current_user.id, project_id, account_id, tenant_id=tenant_id
+    )
     return success(data=None, msg="删除成功")
 
 
@@ -97,8 +119,12 @@ async def refresh_benchmark_account_profile(
     account_id: int,
     count: int = Query(40, ge=1, le=40, description="刷新视频数量（固定上限 40）"),
     current_user: User = Depends(get_current_miniprogram_user),
+    scoped_public_tenant_id: Optional[int] = Depends(resolve_optional_public_tenant_id),
     db: AsyncSession = Depends(get_db),
 ):
+    tenant_id = resolve_client_effective_tenant_id(
+        current_user, scoped_public_tenant_id
+    )
     cost = CoinConfig.BENCHMARK_MONITOR_REFRESH_COST
     task_id = f"benchmark_refresh_{uuid.uuid4().hex}"
     coin = CoinServiceFactory(db)
@@ -118,6 +144,7 @@ async def refresh_benchmark_account_profile(
             project_id,
             account_id,
             limit=count,
+            tenant_id=tenant_id,
         )
     except Exception:
         try:
@@ -157,16 +184,23 @@ async def list_benchmark_videos(
     max_cursor: int = Query(0, ge=0, description="分页游标，首次传 0"),
     count: int = Query(20, ge=1, le=40, description="每页条数"),
     current_user: User = Depends(get_current_miniprogram_user),
+    scoped_public_tenant_id: Optional[int] = Depends(resolve_optional_public_tenant_id),
     db: AsyncSession = Depends(get_db),
 ):
+    tenant_id = resolve_client_effective_tenant_id(
+        current_user, scoped_public_tenant_id
+    )
     svc = ProjectBenchmarkService(db)
-    account = await svc.get_account(current_user.id, project_id, account_id)
+    account = await svc.get_account(
+        current_user.id, project_id, account_id, tenant_id=tenant_id
+    )
     raw_items, next_cursor, has_more = await svc.fetch_videos(
         current_user.id,
         project_id,
         account_id,
         max_cursor=max_cursor,
         count=count,
+        tenant_id=tenant_id,
     )
     items = [BenchmarkVideoItem(**x) for x in raw_items]
     payload = BenchmarkVideoListResponse(

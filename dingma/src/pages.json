@@ -283,7 +283,7 @@
     "list": [
       {
         "pagePath": "pages/home/index",
-        "text": "AI爆款",
+        "text": "顶妈AI分身",
         "iconPath": "static/tab/sfire.png",
         "selectedIconPath": "static/tab/sfire-active.png"
       },

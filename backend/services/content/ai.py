@@ -41,6 +41,19 @@ class AIService:
             "trust_env": False,   # ⬅️ 关键：禁用读取系统代理环境变量
         }
 
+    @staticmethod
+    def _upstream_error_user_message(status_code: int) -> str:
+        """将上游 LLM API HTTP 状态码映射为用户友好提示（原始响应仅写日志）。"""
+        if status_code == 402:
+            return "系统故障，请联系管理员"
+        if status_code in (401, 403):
+            return "系统故障，请联系管理员"
+        if status_code == 429:
+            return "请求过于频繁，请稍后重试"
+        if status_code >= 500:
+            return "服务暂时不可用，请稍后重试"
+        return "生成失败，请稍后重试"
+
     def _update_token_usage_async(self, model_id: str, total_tokens: int) -> None:
         """
         异步更新 token 使用统计（后台任务）
@@ -365,7 +378,7 @@ class AIService:
                     logger.error(f"    4. 外部API服务暂时不可用")
                     logger.error(f"    💡 建议: 检查数据库中的base_url和api_key配置")
 
-                raise Exception(f"API 请求失败 (HTTP {response.status_code}): {error_text[:200]}")
+                raise Exception(self._upstream_error_user_message(response.status_code))
             
             data = response.json()
 
@@ -593,7 +606,7 @@ class AIService:
 
                         error_chunk = {
                             "error": {
-                                "message": f"API 请求失败 (HTTP {response.status_code}): {error_text_str[:200]}",
+                                "message": self._upstream_error_user_message(response.status_code),
                                 "type": "APIError",
                                 "status_code": response.status_code,
                                 "api_url": api_url,

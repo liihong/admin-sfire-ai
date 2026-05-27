@@ -18,7 +18,7 @@ from models.base import BaseModel
 
 class UserLevel(BaseModel):
     """
-    用户等级配置表
+    用户等级配置表（系统级，全租户共用；tenant_id 固定为 SYSTEM_USER_LEVEL_TENANT_ID）
     
     用于定义用户等级及其权限配置：
         - normal: 观望者

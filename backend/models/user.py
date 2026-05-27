@@ -15,10 +15,10 @@ from sqlalchemy import (
     Index,
     Text,
     DateTime,
-    ForeignKeyConstraint,
     and_,
+    literal,
 )
-from sqlalchemy.orm import Mapped, mapped_column, relationship, declared_attr
+from sqlalchemy.orm import Mapped, mapped_column, relationship, declared_attr, foreign
 
 from models.base import BaseModel
 
@@ -59,11 +59,6 @@ class User(BaseModel):
         Index("ix_users_is_deleted", "is_deleted"),   # is_deleted 索引（查询优化）
         Index("ix_users_created_at", "created_at"),    # created_at 索引（排序优化）
         Index("ix_users_is_active", "is_active"),      # is_active 索引（筛选优化）
-        ForeignKeyConstraint(
-            ["tenant_id", "level_code"],
-            ["user_levels.tenant_id", "user_levels.code"],
-            name="fk_users_tenant_level_code",
-        ),
         {"comment": "用户表"},
     )
     
@@ -95,7 +90,7 @@ class User(BaseModel):
         default="normal",
         server_default="normal",
         nullable=False,
-        comment="用户等级代码（与 tenant_id 联合关联 user_levels）",
+        comment="用户等级代码（关联系统级 user_levels，全租户共用）",
     )
     
     balance: Mapped[Decimal] = mapped_column(
@@ -238,15 +233,21 @@ class User(BaseModel):
         lazy="dynamic",
     )
     
-    # 用户等级关系（与租户 + code 联合；用 declared_attr 避免类体内前向引用）
+    # 用户等级关系（全租户共用系统等级配置，固定关联 tenant_id=1 的 user_levels）
     @declared_attr
     def user_level(cls):
         from models.user_level import UserLevel as UL
+        from core.tenant_constants import SYSTEM_USER_LEVEL_TENANT_ID
 
         return relationship(
             UL,
-            primaryjoin=and_(cls.level_code == UL.code, cls.tenant_id == UL.tenant_id),
+            primaryjoin=and_(
+                cls.level_code == foreign(UL.code),
+                UL.tenant_id == literal(SYSTEM_USER_LEVEL_TENANT_ID),
+            ),
+            uselist=False,
             lazy="selectin",
+            viewonly=True,
         )
     
     def __repr__(self) -> str:

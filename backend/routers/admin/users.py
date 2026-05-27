@@ -10,7 +10,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from db import get_db
 from core.deps import get_current_admin_user
 from core.tenant_helpers import resolve_admin_agent_scope_tenant_id
-from core.tenant_constants import effective_tenant_id
 from models.admin_user import AdminUser
 from schemas.user import (
     UserCreate,
@@ -81,17 +80,9 @@ async def get_user_options(
     """获取用户相关的所有选项（状态和等级）"""
     from services.system.user_level import UserLevelService
 
-    scope_tid = await resolve_admin_agent_scope_tenant_id(
-        db,
-        admin_tenant_id=current_admin.tenant_id,
-        admin_username=current_admin.username,
-    )
-
-    # 获取用户等级选项（从数据库查询）
+    # 获取用户等级选项（全租户共用系统等级）
     user_level_service = UserLevelService(db)
-    levels = await user_level_service.get_all_enabled_levels(
-        tenant_id=effective_tenant_id(scope_tid)
-    )
+    levels = await user_level_service.get_all_enabled_levels()
     
     # 转换为前端需要的格式
     level_options = [

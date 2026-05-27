@@ -12,6 +12,7 @@ from loguru import logger
 from models.user import User
 from models.user_level import UserLevel as UserLevelModel
 from models.project import Project, ProjectStatus
+from core.tenant_constants import SYSTEM_USER_LEVEL_TENANT_ID
 
 
 class PermissionService:
@@ -96,7 +97,8 @@ class PermissionService:
         """
         query = select(UserLevelModel).where(
             UserLevelModel.code == level_code,
-            UserLevelModel.is_enabled == True
+            UserLevelModel.is_enabled == True,
+            UserLevelModel.tenant_id == SYSTEM_USER_LEVEL_TENANT_ID,
         )
         
         result = await self.db.execute(query)

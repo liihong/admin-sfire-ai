@@ -6,12 +6,13 @@ Project Service - 项目数据持久化服务
 import json
 import random
 from typing import Optional, List
-from sqlalchemy import select, desc
+from sqlalchemy import select, desc, or_
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 from sqlalchemy.orm.attributes import flag_modified
 from loguru import logger
 
+from core.tenant_constants import DEFAULT_TENANT_ID, effective_tenant_id
 from models.project import Project, ProjectStatus
 from models.user import User
 from schemas.project import (
@@ -32,10 +33,63 @@ class ProjectService:
     
     def __init__(self, db: AsyncSession):
         self.db = db
+
+    @staticmethod
+    def _active_project_key(user_id: int, tenant_id: int) -> str:
+        return f"user:{user_id}:tenant:{tenant_id}:active_project"
+
+    @staticmethod
+    def _apply_tenant_scope(
+        query,
+        tenant_id: Optional[int],
+        user_tenant_id: Optional[int] = None,
+    ):
+        """按租户过滤；子租户用户可兼容迁移前落在主租户(DEFAULT=1)的存量项目。"""
+        if tenant_id is None:
+            return query
+        tid = effective_tenant_id(tenant_id)
+        user_tid = effective_tenant_id(user_tenant_id) if user_tenant_id is not None else None
+        if user_tid is not None and tid == user_tid and tid != DEFAULT_TENANT_ID:
+            return query.where(
+                or_(
+                    Project.tenant_id == tid,
+                    Project.tenant_id == DEFAULT_TENANT_ID,
+                )
+            )
+        return query.where(Project.tenant_id == tid)
+
+    async def _resolve_user_tenant_id(self, user_id: Optional[int]) -> Optional[int]:
+        if user_id is None:
+            return None
+        row = (
+            await self.db.execute(select(User.tenant_id).where(User.id == user_id))
+        ).scalar_one_or_none()
+        return int(row) if row is not None else None
+
+    async def _repair_legacy_project_tenant(
+        self,
+        project: Project,
+        user_tenant_id: Optional[int],
+        tenant_id: Optional[int],
+    ) -> None:
+        if (
+            user_tenant_id is None
+            or tenant_id is None
+            or project.tenant_id != DEFAULT_TENANT_ID
+        ):
+            return
+        user_tid = effective_tenant_id(user_tenant_id)
+        tid = effective_tenant_id(tenant_id)
+        if user_tid != tid or tid == DEFAULT_TENANT_ID:
+            return
+        project.tenant_id = user_tid
+        await self.db.flush()
     
     async def get_projects_by_user(
         self,
         user_id: int,
+        tenant_id: Optional[int] = None,
+        user_tenant_id: Optional[int] = None,
         include_deleted: bool = False
     ) -> List[Project]:
         """
@@ -43,12 +97,17 @@ class ProjectService:
         
         Args:
             user_id: 用户ID
+            tenant_id: 租户ID（非空时仅返回该租户下的项目）
             include_deleted: 是否包含已删除的项目
         
         Returns:
             项目列表
         """
         query = select(Project).where(Project.user_id == user_id)
+        resolved_user_tid = user_tenant_id
+        if resolved_user_tid is None:
+            resolved_user_tid = await self._resolve_user_tenant_id(user_id)
+        query = self._apply_tenant_scope(query, tenant_id, resolved_user_tid)
         
         if not include_deleted:
             query = query.where(Project.is_deleted == False)
@@ -57,6 +116,20 @@ class ProjectService:
         
         result = await self.db.execute(query)
         projects = result.scalars().all()
+
+        if (
+            resolved_user_tid is not None
+            and tenant_id is not None
+            and effective_tenant_id(tenant_id) != DEFAULT_TENANT_ID
+        ):
+            user_tid = effective_tenant_id(resolved_user_tid)
+            repaired = False
+            for project in projects:
+                if project.tenant_id == DEFAULT_TENANT_ID and user_tid != DEFAULT_TENANT_ID:
+                    project.tenant_id = user_tid
+                    repaired = True
+            if repaired:
+                await self.db.flush()
         
         return list(projects)
     
@@ -85,6 +158,8 @@ class ProjectService:
         self,
         project_id: int,
         user_id: Optional[int] = None,
+        tenant_id: Optional[int] = None,
+        user_tenant_id: Optional[int] = None,
         include_deleted: bool = False
     ) -> Optional[Project]:
         """
@@ -93,6 +168,7 @@ class ProjectService:
         Args:
             project_id: 项目ID
             user_id: 可选的用户ID（用于权限验证）
+            tenant_id: 可选的租户ID（用于租户隔离）
             include_deleted: 是否包含已删除的项目
         
         Returns:
@@ -102,19 +178,30 @@ class ProjectService:
         
         if user_id is not None:
             query = query.where(Project.user_id == user_id)
+
+        resolved_user_tid = user_tenant_id
+        if resolved_user_tid is None:
+            resolved_user_tid = await self._resolve_user_tenant_id(user_id)
+        query = self._apply_tenant_scope(query, tenant_id, resolved_user_tid)
         
         if not include_deleted:
             query = query.where(Project.is_deleted == False)
         
         result = await self.db.execute(query)
         project = result.scalar_one_or_none()
+
+        if project is not None:
+            await self._repair_legacy_project_tenant(
+                project, resolved_user_tid, tenant_id
+            )
         
         return project
     
     async def create_project(
         self,
         user_id: int,
-        data: ProjectCreate
+        data: ProjectCreate,
+        tenant_id: Optional[int] = None,
     ) -> Project:
         """
         创建新项目（带权限检查和并发控制）
@@ -177,6 +264,7 @@ class ProjectService:
 
         project = Project(
             user_id=user_id,
+            tenant_id=effective_tenant_id(tenant_id),
             name=data.name,
             industry=data.industry or "通用",
             avatar_letter=avatar_letter,
@@ -223,7 +311,8 @@ class ProjectService:
         self,
         project_id: int,
         user_id: int,
-        data: ProjectUpdate
+        data: ProjectUpdate,
+        tenant_id: Optional[int] = None,
     ) -> Project:
         """
         更新项目
@@ -241,7 +330,9 @@ class ProjectService:
         Raises:
             NotFoundException: 项目不存在或无权访问
         """
-        project = await self.get_project_by_id(project_id, user_id=user_id)
+        project = await self.get_project_by_id(
+            project_id, user_id=user_id, tenant_id=tenant_id
+        )
         if not project:
             raise NotFoundException("项目不存在或无权访问")
         
@@ -306,7 +397,8 @@ class ProjectService:
     async def delete_project(
         self,
         project_id: int,
-        user_id: int
+        user_id: int,
+        tenant_id: Optional[int] = None,
     ) -> bool:
         """
         删除项目（软删除）
@@ -321,7 +413,9 @@ class ProjectService:
         Raises:
             NotFoundException: 项目不存在或无权访问
         """
-        project = await self.get_project_by_id(project_id, user_id=user_id)
+        project = await self.get_project_by_id(
+            project_id, user_id=user_id, tenant_id=tenant_id
+        )
         if not project:
             raise NotFoundException("项目不存在或无权访问")
         
@@ -329,25 +423,33 @@ class ProjectService:
         await self.db.flush()
         
         # 如果删除的是活跃项目，清除活跃项目缓存
-        active_id = await self.get_active_project(user_id)
+        active_id = await self.get_active_project(user_id, tenant_id=tenant_id)
         if active_id == project_id:
-            await self.set_active_project(user_id, None)
+            await self.set_active_project(user_id, None, tenant_id=tenant_id)
         
         logger.info(f"Deleted project {project_id} for user {user_id}")
         
         return True
     
-    async def get_active_project(self, user_id: int) -> Optional[int]:
+    async def get_active_project(
+        self,
+        user_id: int,
+        tenant_id: Optional[int] = None,
+    ) -> Optional[int]:
         """
         获取用户当前激活的项目ID
         
         Args:
             user_id: 用户ID
+            tenant_id: 租户ID（非空时按租户隔离活跃项目）
         
         Returns:
             项目ID，如果没有激活的项目则返回 None
         """
-        key = f"user:{user_id}:active_project"
+        if tenant_id is None:
+            return None
+
+        key = self._active_project_key(user_id, tenant_id)
         project_id_str = await RedisCache.get(key)
         
         if project_id_str:
@@ -361,7 +463,8 @@ class ProjectService:
     async def set_active_project(
         self,
         user_id: int,
-        project_id: Optional[int]
+        project_id: Optional[int],
+        tenant_id: Optional[int] = None,
     ) -> bool:
         """
         设置用户当前激活的项目
@@ -369,6 +472,7 @@ class ProjectService:
         Args:
             user_id: 用户ID
             project_id: 项目ID，如果为 None 则清除活跃项目
+            tenant_id: 租户ID（非空时按租户隔离活跃项目）
         
         Returns:
             是否设置成功
@@ -376,7 +480,10 @@ class ProjectService:
         Raises:
             NotFoundException: 项目不存在或无权访问（当 project_id 不为 None 时）
         """
-        key = f"user:{user_id}:active_project"
+        if tenant_id is None:
+            raise BadRequestException("设置活跃项目时必须指定租户")
+
+        key = self._active_project_key(user_id, tenant_id)
         
         if project_id is None:
             # 清除活跃项目
@@ -385,7 +492,9 @@ class ProjectService:
             return True
         
         # 验证项目是否存在且属于该用户
-        project = await self.get_project_by_id(project_id, user_id=user_id)
+        project = await self.get_project_by_id(
+            project_id, user_id=user_id, tenant_id=tenant_id
+        )
         if not project:
             raise NotFoundException("项目不存在或无权访问")
         

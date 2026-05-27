@@ -8,6 +8,9 @@ from typing import Optional
 
 DEFAULT_TENANT_ID: int = 1
 
+# 全租户共用的系统用户等级均存储在该 tenant_id 下
+SYSTEM_USER_LEVEL_TENANT_ID: int = DEFAULT_TENANT_ID
+
 
 def effective_tenant_id(value: Optional[int]) -> int:
     """

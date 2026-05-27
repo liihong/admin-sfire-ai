@@ -254,7 +254,7 @@ const displayNickname = computed(() => {
 })
 
 /** 已开通：第二排尊享卡主标题（等级已在顶部胶囊展示，此处不再重复「· 钻石会员」等后缀） */
-const memberTierTitle = computed(() => '顶妈脑爆年卡')
+const memberTierTitle = computed(() => '顶妈AI分身年卡')
 
 /** 已开通：第二排尊享卡中段文案（与底部「查看会员权益」错位：情绪价值 + 使用提示，不单列权益） */
 const memberTierDesc = computed(() => '顶妈陪着你，把好生意想明白、说清楚。')
@@ -277,7 +277,7 @@ const memberTierSkinClass = computed(() => {
 
 const showPersonaDot = computed(() => authStore.isLoggedIn && personaIncomplete.value)
 
-const vipCardTitle = '顶妈脑爆年卡 · 开通尊享特权'
+const vipCardTitle = '顶妈AI分身年卡 · 开通尊享特权'
 const vipCardDesc = '每天只需1元钱，全自动解锁爆单文案与创业导师帮你思考'
 const vipCardCta = '立即去开通'
 
