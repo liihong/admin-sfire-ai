@@ -17,7 +17,7 @@
     {
       "path": "pages/home/index",
       "style": {
-        "navigationBarTitleText": "AI爆款",
+        "navigationBarTitleText": "顶妈AI营销大师",
         "navigationBarBackgroundColor": "#FFFFFF",
         "navigationBarTextStyle": "black",
         "enablePullDownRefresh": false,

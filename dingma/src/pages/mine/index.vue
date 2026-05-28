@@ -107,7 +107,11 @@
               <text class="member-tier-card__power-num">{{ powerDisplay }}</text>
              <text class="member-tier-card__power-lab">剩余积分 (Tokens)</text>
             </view>
-           <view class="member-tier-card__cta-btn" @tap.stop="goToMembership">
+           <view
+             v-if="!releaseReviewEnabled"
+             class="member-tier-card__cta-btn"
+             @tap.stop="goToMembership"
+           >
               <text class="member-tier-card__cta-text">查看会员权益</text>
               <SvgIcon name="chevron-right" :size="22" color="#FCD34D" />
             </view>
@@ -191,6 +195,7 @@ import { DINGMA_DEFAULT_PROFILE_AVATAR_URL } from '@/constants/tenant'
 import SvgIcon from '@/components/base/SvgIcon.vue'
 import { useProjectStore } from '@/stores/project'
 import { fetchProjects } from '@/api/project'
+import { getTenantPublicConfig } from '@/api/tenant'
 
 /** 会员到期日展示（YYYY-MM-DD），避免独立 utils 模块在小程序 lazyCodeLoading 下未注册 */
 function formatVipExpireDate(raw: string): string {
@@ -209,6 +214,8 @@ const coinStats = ref<CoinStatisticsData | null>(null)
 const personaIncomplete = ref(true)
 const inspirationCount = ref<number | null>(null)
 const conversationCount = ref<number | null>(null)
+/** 上线审查开启时隐藏「查看会员权益」 */
+const releaseReviewEnabled = ref(false)
 
 const userInfo = computed(() => {
   const u = authStore.userInfo
@@ -514,8 +521,19 @@ const refreshMenuCounts = async () => {
   }
 }
 
+const refreshTenantConfig = async () => {
+  try {
+    const res = await getTenantPublicConfig()
+    if (res.code === 200 && res.data) {
+      releaseReviewEnabled.value = !!res.data.release_review_enabled
+    }
+  } catch {
+    releaseReviewEnabled.value = false
+  }
+}
+
 const refreshAll = async () => {
-  await refreshUserInfo()
+  await Promise.all([refreshUserInfo(), refreshTenantConfig()])
   await Promise.all([
     refreshCoinStatistics(),
     refreshPersonaStatus(),
