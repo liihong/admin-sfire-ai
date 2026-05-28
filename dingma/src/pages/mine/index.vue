@@ -35,6 +35,9 @@
                   {{ memberBadgeText }}
                 </text>
               </view>
+              <text v-if="memberExpireDisplay" class="mine-user-strip__expire">
+                {{ memberExpireDisplay }}
+              </text>
             </template>
            <template v-else>
               <text class="mine-user-strip__hint">开通会员解锁更多权益</text>
@@ -73,7 +76,7 @@
           <view class="stats-body stats-body--single">
             <view class="stat-col tap" @tap.stop="goToPowerCenter">
               <text class="stat-value stat-value--accent">{{ powerDisplay }}</text>
-              <text class="stat-label">剩余算力(tokens)</text>
+              <text class="stat-label">剩余积分(tokens)</text>
             </view>
           </view>
         </view>
@@ -82,7 +85,7 @@
         </view>
       </view>
 
-    <!-- 第二排 · 已购会员：黑金尊享卡 + 算力能量条 -->
+    <!-- 第二排 · 已购会员：黑金尊享卡 + 积分能量条 -->
       <view v-if="authStore.isLoggedIn && isVipMember" class="member-tier-shell">
        <view class="member-tier-card" :class="memberTierSkinClass">
           <view class="member-tier-card__gloss" aria-hidden="true" />
@@ -102,7 +105,7 @@
           <view class="member-tier-card__footer">
             <view class="member-tier-card__power" @tap.stop="goToPowerCenter">
               <text class="member-tier-card__power-num">{{ powerDisplay }}</text>
-             <text class="member-tier-card__power-lab">剩余算力 (Tokens)</text>
+             <text class="member-tier-card__power-lab">剩余积分 (Tokens)</text>
             </view>
            <view class="member-tier-card__cta-btn" @tap.stop="goToMembership">
               <text class="member-tier-card__cta-text">查看会员权益</text>
@@ -189,6 +192,16 @@ import SvgIcon from '@/components/base/SvgIcon.vue'
 import { useProjectStore } from '@/stores/project'
 import { fetchProjects } from '@/api/project'
 
+/** 会员到期日展示（YYYY-MM-DD），避免独立 utils 模块在小程序 lazyCodeLoading 下未注册 */
+function formatVipExpireDate(raw: string): string {
+  const date = new Date(raw)
+  if (Number.isNaN(date.getTime())) return ''
+  const y = date.getFullYear()
+  const m = String(date.getMonth() + 1).padStart(2, '0')
+  const d = String(date.getDate()).padStart(2, '0')
+  return `${y}-${m}-${d}`
+}
+
 const authStore = useAuthStore()
 const projectStore = useProjectStore()
 
@@ -226,6 +239,14 @@ const avatarUrl = computed(() => {
 })
 
 const memberBadgeText = computed(() => userInfo.value.level_name || '尊贵会员')
+
+const memberExpireDisplay = computed(() => {
+  const u = authStore.userInfo
+  const raw = u?.vip_expire_date || u?.expireDate
+  if (!raw) return ''
+  const formatted = formatVipExpireDate(String(raw))
+  return formatted ? `${formatted} 到期` : ''
+})
 
 function isDiamondMemberTier(): boolean {
   const code = String(userInfo.value.level_code || 'normal').toLowerCase().trim()
@@ -406,7 +427,7 @@ const allMenuList = computed<MenuItem[]>(() => [
   {
     id: 'referral',
     name: '我要推荐',
-    desc: '邀请好友一起体验，获得算力奖励',
+    desc: '邀请好友一起体验，获得积分奖励',
     icon: 'send',
     iconColor: '#EC4899',
     iconBgClass: 'menu-icon-wrap--pink',
@@ -699,6 +720,13 @@ onPullDownRefresh(async () => {
   white-space: nowrap;
 }
 
+.mine-user-strip__expire {
+  font-size: 22rpx;
+  font-weight: 500;
+  color: rgba(44, 30, 26, 0.45);
+  line-height: 1.35;
+}
+
 .mine-user-strip__hint {
   font-size: 24rpx;
   font-weight: 600;
@@ -715,7 +743,7 @@ onPullDownRefresh(async () => {
   justify-content: flex-end;
   gap: 0;
 
-  /* 非会员：仅剩余算力靠右 */
+  /* 非会员：仅剩余积分靠右 */
   &--solo-power {
     flex: 1;
     justify-content: flex-end;

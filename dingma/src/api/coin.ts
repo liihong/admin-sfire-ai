@@ -1,10 +1,10 @@
 /**
- * Coin API - 算力/币种相关接口
+ * Coin API - 积分/币种相关接口
  */
 import { request } from '@/utils/request'
 
 /**
- * 算力余额响应类型
+ * 积分余额响应类型
  */
 export interface CoinBalanceResponse {
   balance: number
@@ -13,7 +13,7 @@ export interface CoinBalanceResponse {
 }
 
 /**
- * 获取算力交易记录请求参数类型
+ * 获取积分交易记录请求参数类型
  */
 export interface CoinTransactionsRequest {
   pageNum: number
@@ -21,7 +21,7 @@ export interface CoinTransactionsRequest {
 }
 
 /**
- * 获取算力余额
+ * 获取积分余额
  */
 export function getBalance(): Promise<{ code: number; data: CoinBalanceResponse; msg: string }> {
   return request<{ code: number; data: CoinBalanceResponse; msg: string }>({
@@ -32,7 +32,7 @@ export function getBalance(): Promise<{ code: number; data: CoinBalanceResponse;
 }
 
 /**
- * 算力交易记录项
+ * 积分交易记录项
  */
 export interface CoinTransactionItem {
   id: number
@@ -44,7 +44,7 @@ export interface CoinTransactionItem {
 }
 
 /**
- * 算力交易记录响应
+ * 积分交易记录响应
  */
 export interface CoinTransactionsResponse {
   list: CoinTransactionItem[]
@@ -54,7 +54,7 @@ export interface CoinTransactionsResponse {
 }
 
 /**
- * 算力/使用统计（与 /coin/statistics 一致）
+ * 积分/使用统计（与 /coin/statistics 一致）
  */
 export interface CoinStatisticsData {
   balance: number
@@ -73,7 +73,7 @@ export interface CoinStatisticsData {
 }
 
 /**
- * 用户算力与使用汇总统计
+ * 用户积分与使用汇总统计
  */
 export function getCoinStatistics() {
   return request<{ code: number; data: CoinStatisticsData; msg: string }>({
@@ -84,7 +84,7 @@ export function getCoinStatistics() {
 }
 
 /**
- * 获取算力交易记录
+ * 获取积分交易记录
  */
 export function getCoinTransactions(params: CoinTransactionsRequest) {
   const queryString = `pageNum=${params.pageNum}&pageSize=${params.pageSize}`

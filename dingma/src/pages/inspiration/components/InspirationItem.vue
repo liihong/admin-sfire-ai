@@ -10,7 +10,10 @@
         <text v-if="inspiration.is_pinned" class="premium-pin">置顶</text>
         <text class="premium-title">{{ displayTitle }}</text>
       </view>
-      <text class="premium-cta" @tap.stop="handleChat">去AI沟通 ></text>
+      <view class="premium-cta" @tap.stop="handleChat">
+        <text class="premium-cta-text">去AI沟通</text>
+        <SvgIcon name="chevron-right" :size="22" color="#d94b36" />
+      </view>
     </view>
 
     <!-- 正文：多行、温润行距 -->
@@ -33,6 +36,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import type { Inspiration } from '@/api/inspiration'
+import SvgIcon from '@/components/base/SvgIcon.vue'
 
 interface Props {
   inspiration: Inspiration
@@ -209,15 +213,22 @@ function handleLongPress() {
 
 .premium-cta {
   flex-shrink: 0;
-  font-size: 22rpx;
-  font-weight: 800;
-  color: $accent-gold;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 2rpx;
   white-space: nowrap;
   padding-top: 4rpx;
 
   &:active {
     opacity: 0.72;
   }
+}
+
+.premium-cta-text {
+  font-size: 22rpx;
+  font-weight: 800;
+  color: $accent-gold;
 }
 
 .premium-body {

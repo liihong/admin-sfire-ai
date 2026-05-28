@@ -13,31 +13,26 @@
       </view>
 
       <view class="inspire-modal__body">
-        <view class="field">
-          <text class="field-label">灵感主题（方便查找）</text>
-          <view class="field-input-box">
-            <input
-              v-model="theme"
-              class="field-input"
-              placeholder="例如：香菇大肉包活动想法..."
-              placeholder-class="field-placeholder-input"
-              :maxlength="80"
-              :adjust-position="true"
-            />
-          </view>
+        <view class="field-textarea-box">
+          <textarea
+            v-model="content"
+            class="field-textarea"
+            placeholder="此刻在想什么?..."
+            placeholder-class="field-placeholder-textarea"
+            :maxlength="500"
+            :auto-height="false"
+            :adjust-position="true"
+          />
         </view>
-        <view class="field">
-          <text class="field-label">灵感文案/爆点细节</text>
-          <view class="field-textarea-box">
-            <textarea
-              v-model="detail"
-              class="field-textarea"
-              placeholder="写下你此时脑子里闪现的新点子、好词好句、或者是想向AI咨询的灵感草稿..."
-              placeholder-class="field-placeholder-textarea"
-              :maxlength="2000"
-              :auto-height="false"
-              :adjust-position="true"
-            />
+        <view class="tag-suggestions">
+          <view
+            v-for="tag in suggestedTags"
+            :key="tag"
+            class="tag-item"
+            :class="{ active: selectedTags.includes(tag) }"
+            @tap="handleTagClick(tag)"
+          >
+            <text class="tag-text">{{ tag }}</text>
           </view>
         </view>
       </view>
@@ -59,6 +54,8 @@ import { ref, computed, watch } from 'vue'
 import { createInspiration } from '@/api/inspiration'
 import { useProjectStore } from '@/stores/project'
 
+const suggestedTags = ['#视频脚本', '#文案想法', '#每日一记', '#工作']
+
 const props = defineProps<{
   visible: boolean
 }>()
@@ -68,18 +65,18 @@ const emit = defineEmits<{
   saved: []
 }>()
 
-const theme = ref('')
-const detail = ref('')
+const content = ref('')
+const selectedTags = ref<string[]>([])
 const saving = ref(false)
 
-const canSave = computed(() => theme.value.trim().length > 0 || detail.value.trim().length > 0)
+const canSave = computed(() => content.value.trim().length > 0)
 
 watch(
   () => props.visible,
   (v) => {
     if (!v) {
-      theme.value = ''
-      detail.value = ''
+      content.value = ''
+      selectedTags.value = []
     }
   }
 )
@@ -88,11 +85,13 @@ function close() {
   emit('update:visible', false)
 }
 
-function buildContent(): string {
-  const t = theme.value.trim()
-  const d = detail.value.trim()
-  if (t && d) return `【${t}】\n${d}`
-  return t || d
+function handleTagClick(tag: string) {
+  const index = selectedTags.value.indexOf(tag)
+  if (index > -1) {
+    selectedTags.value.splice(index, 1)
+  } else {
+    selectedTags.value.push(tag)
+  }
 }
 
 async function handleSave() {
@@ -103,15 +102,14 @@ async function handleSave() {
     const projectId = projectStore.activeProject?.id
       ? Number(projectStore.activeProject.id)
       : undefined
-    const t = theme.value.trim()
     await createInspiration({
-      content: buildContent(),
-      tags: t ? [t] : [],
+      content: content.value.trim(),
+      tags: [...selectedTags.value],
       project_id: projectId
     })
     uni.showToast({ title: '已收录到灵感夹', icon: 'success' })
-    theme.value = ''
-    detail.value = ''
+    content.value = ''
+    selectedTags.value = []
     emit('saved')
     close()
   } catch (e: unknown) {
@@ -229,74 +227,54 @@ async function handleSave() {
   }
 }
 
-.field {
+.field-textarea-box {
+  padding: 20rpx 24rpx;
+  background: #fdfbf7;
+  border-radius: 16rpx;
+  box-sizing: border-box;
   margin-bottom: 24rpx;
+}
 
-  &:last-child {
-    margin-bottom: 0;
-  }
+.field-textarea {
+  display: block;
+  width: 100%;
+  min-height: 200rpx;
+  padding: 0;
+  margin: 0;
+  font-size: 28rpx;
+  line-height: 1.6;
+  color: $text-main;
+  background: transparent;
+  box-sizing: border-box;
+}
 
-  &-label {
-    display: block;
-    font-size: 24rpx;
+.tag-suggestions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16rpx;
+
+  .tag-item {
+    padding: 12rpx 24rpx;
+    background: $bg-light;
+    border-radius: $radius-md;
+    font-size: $font-size-sm;
     color: $text-second;
-    margin-bottom: 12rpx;
-  }
+    transition: all $transition-base;
 
-  &-input-box {
-    display: flex;
-    align-items: center;
-    min-height: 88rpx;
-    padding: 0 24rpx;
-    background: #fdfbf7;
-    border-radius: 16rpx;
-    box-sizing: border-box;
-  }
+    &.active {
+      background: rgba($primary-orange, 0.1);
+      color: $primary-orange;
+    }
 
-  &-input {
-    flex: 1;
-    width: 100%;
-    height: 88rpx;
-    min-height: 88rpx;
-    line-height: 88rpx;
-    padding: 0;
-    margin: 0;
-    font-size: 28rpx;
-    color: $text-main;
-    background: transparent;
-    box-sizing: border-box;
-  }
-
-  &-textarea-box {
-    padding: 20rpx 24rpx;
-    background: #fdfbf7;
-    border-radius: 16rpx;
-    box-sizing: border-box;
-  }
-
-  &-textarea {
-    display: block;
-    width: 100%;
-    min-height: 200rpx;
-    padding: 0;
-    margin: 0;
-    font-size: 28rpx;
-    line-height: 1.6;
-    color: $text-main;
-    background: transparent;
-    box-sizing: border-box;
+    .tag-text {
+      font-size: $font-size-sm;
+    }
   }
 }
 </style>
 
 <!-- placeholder-class 在微信小程序需非 scoped -->
 <style lang="scss">
-.field-placeholder-input {
-  color: #c9cdd4;
-  font-size: 28rpx;
-  line-height: 88rpx;
-}
-
 .field-placeholder-textarea {
   color: #c9cdd4;
   font-size: 28rpx;

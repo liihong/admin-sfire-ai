@@ -1,19 +1,19 @@
 <template>
   <view class="recharge-page">
     <!-- 页面头部 -->
-    <BaseHeader title="充值算力" subtitle="选择套餐充值" :show-decoration="true" />
+    <BaseHeader title="充值积分" subtitle="选择套餐充值" :show-decoration="true" />
 
-    <!-- 当前算力余额 -->
+    <!-- 当前积分余额 -->
     <view class="balance-section">
       <view class="balance-glow"></view>
       <view class="balance-content">
         <view class="balance-label-row">
-          <text class="balance-label">当前算力</text>
+          <text class="balance-label">当前积分</text>
           <view class="balance-badge">余额</view>
         </view>
         <view class="balance-value-row">
           <text class="balance-value">{{ balance }}</text>
-          <text class="balance-unit">算力</text>
+          <text class="balance-unit">积分</text>
         </view>
       </view>
     </view>
@@ -244,7 +244,7 @@ async function processPayment(pkg: Package) {
             setTimeout(() => uni.navigateBack(), 1500)
           } else {
             uni.showToast({
-              title: '支付成功，算力到账可能有延迟，请稍后刷新',
+              title: '支付成功，积分到账可能有延迟，请稍后刷新',
               icon: 'none',
               duration: 3000
             })
@@ -285,7 +285,7 @@ const POLL_MAX_COUNT = 30
 
 /**
  * 轮询订单状态直到已支付或超时
- * 微信支付回调是异步的，用户支付成功后需等待微信服务器回调后端才能完成算力充值
+ * 微信支付回调是异步的，用户支付成功后需等待微信服务器回调后端才能完成积分充值
  */
 async function pollOrderUntilPaid(orderId: string): Promise<boolean> {
   for (let i = 0; i < POLL_MAX_COUNT; i++) {

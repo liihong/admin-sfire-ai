@@ -8,13 +8,13 @@ from sqlalchemy import (
     String,
     BigInteger,
     Boolean,
-    Text,
     DateTime,
     Integer,
     JSON,
     Index,
     ForeignKey,
 )
+from sqlalchemy.dialects.mysql import LONGTEXT
 from sqlalchemy.orm import Mapped, mapped_column
 
 from models.base import BaseModel
@@ -83,7 +83,7 @@ class Article(BaseModel):
     )
     
     content: Mapped[str] = mapped_column(
-        Text,
+        LONGTEXT,
         nullable=False,
         comment="文章内容（富文本）",
     )

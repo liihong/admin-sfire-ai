@@ -29,7 +29,7 @@
         </view>
       </swiper-item>
     </swiper>
-    <view v-else class="banner-slide banner-slide--placeholder" @tap="openDefaultPdf">
+    <view v-else class="banner-slide banner-slide--placeholder">
       <image class="banner-image" :src="fallbackUrl" mode="aspectFill" />
     </view>
   </view>
@@ -38,8 +38,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import type { BannerItem } from '@/api/home'
-import { DINGMA_HOME_BANNER_URL, DINGMA_PROJECT_PDF_URL } from '@/constants/tenant'
-import { isPdfUrl, openRemotePdf } from '@/utils/document'
+import { DINGMA_HOME_BANNER_URL } from '@/constants/tenant'
 import { safeNavigateTo } from '@/utils/navigation'
 
 const props = defineProps<{
@@ -64,10 +63,6 @@ const displayList = computed(() => {
   ]
 })
 
-function openDefaultPdf() {
-  openRemotePdf(DINGMA_PROJECT_PDF_URL, { loadingTitle: '正在打开文档…' })
-}
-
 function getBannerCaption(item: BannerItem) {
   return item.title?.trim() ?? ''
 }
@@ -88,20 +83,8 @@ function normalizeBannerLink(item: BannerItem) {
 
 function handleTap(item: BannerItem) {
   const linkUrl = item.link_url?.trim() ?? ''
-
-  if (linkUrl && isPdfUrl(linkUrl)) {
-    openRemotePdf(linkUrl, { loadingTitle: '正在打开文档…' })
-    return
-  }
-  if (item.link_type === 'internal' && linkUrl) {
-    safeNavigateTo({ url: normalizeBannerLink(item) })
-    return
-  }
-  if (item.link_type === 'external' && linkUrl) {
-    safeNavigateTo({ url: normalizeBannerLink(item) })
-    return
-  }
-  openDefaultPdf()
+  if (!linkUrl || item.link_type === 'none') return
+  safeNavigateTo({ url: normalizeBannerLink(item) })
 }
 </script>
 

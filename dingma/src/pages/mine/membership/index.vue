@@ -114,8 +114,8 @@ const benefitsList = ref([
     icon: 'suanli',
     iconColor: '#3B82F6',
     iconBg: 'icon-bg-blue',
-    title: '超值算力狂送 · 灵感不设限',
-    desc: '赠送大额高优先级 VIP 专属算力，AI 创作秒速响应。多场景一键无阻生文，彻底告别额度焦虑。'
+    title: '超值积分狂送 · 灵感不设限',
+    desc: '赠送大额高优先级 VIP 专属积分，AI 创作秒速响应。多场景一键无阻生文，彻底告别额度焦虑。'
   },
   {
     icon: 'hotspot',

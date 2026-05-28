@@ -32,7 +32,7 @@
         </view>
        <view class="package-power-row">
           <text class="power-value">{{ formatPower(package.power_amount) }}</text>
-          <text class="power-unit">算力</text>
+          <text class="power-unit">积分</text>
         </view>
       </view>
       
@@ -55,7 +55,7 @@ const emit = defineEmits<{
   click: [pkg: Package]
 }>()
 
-// 格式化算力数量（添加千分位）
+// 格式化积分数量（添加千分位）
 function formatPower(power: number): string {
   return power.toLocaleString('zh-CN')
 }

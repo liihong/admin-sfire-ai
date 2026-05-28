@@ -29,7 +29,17 @@ const props = defineProps({
   color: { type: String, default: DEFAULT_ICON_BRAND_HEX }
 })
 
-const iconSize = computed(() => (typeof props.size === 'number' ? `${props.size}rpx` : props.size))
+/** 纯数字或数字字符串统一补 rpx，避免小程序 image 无尺寸约束被放大 */
+function normalizeIconSize(size: number | string | undefined): string {
+  const fallback = '32rpx'
+  if (size == null || size === '') return fallback
+  if (typeof size === 'number' && Number.isFinite(size)) return `${size}rpx`
+  const s = String(size).trim()
+  if (/^\d+(\.\d+)?$/.test(s)) return `${s}rpx`
+  return s
+}
+
+const iconSize = computed(() => normalizeIconSize(props.size))
 const iconColor = computed(() => props.color)
 
 const lucideSrc = computed(() => {

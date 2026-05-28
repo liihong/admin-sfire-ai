@@ -19,11 +19,25 @@
       </view>
     </view>
 
-    <!-- 有列表时固定在顶栏下方，仅下列表滚动 -->
-    <view v-if="inspirationList.length > 0" class="section-head-strip">
-      <view class="section-head">
+    <!-- 搜索 + 列表信息：固定在顶栏下方，仅下列表滚动 -->
+    <view class="section-head-strip">
+      <view class="search-box">
+        <text class="search-icon" aria-hidden="true">⌕</text>
+        <input
+          class="search-input"
+          v-model="searchKeyword"
+          placeholder="搜索灵感内容..."
+          confirm-type="search"
+          @input="handleSearchInput"
+          @confirm="handleSearchConfirm"
+        />
+        <view v-if="searchKeyword" class="search-clear" @tap="clearSearch">
+          <text class="search-clear-x">×</text>
+        </view>
+      </view>
+      <view v-if="showSectionHead" class="section-head">
         <SvgIcon name="lightbulb" :size="26" color="#998b82" />
-        <text class="section-text">灵感备忘录列表 (共 {{ total }} 条)</text>
+        <text class="section-text">{{ sectionCountText }}</text>
       </view>
     </view>
 
@@ -57,8 +71,8 @@
         <view class="state-icon-wrap">
           <SvgIcon name="lightbulb" :size="72" color="#D6D3D1" />
         </view>
-        <text class="empty-text">还没有灵感记录</text>
-        <text class="empty-hint">点击右下角按钮添加灵感</text>
+        <text class="empty-text">{{ isSearching ? '未找到匹配的灵感' : '还没有灵感记录' }}</text>
+        <text class="empty-hint">{{ isSearching ? '试试其他关键词' : '点击右下角按钮添加灵感' }}</text>
       </view>
 
       <!-- 加载中 -->
@@ -152,6 +166,8 @@ const inspirationList = ref<Inspiration[]>([])
 const loading = ref(false)
 const refreshing = ref(false)
 const filterStatus = ref<'all' | 'active' | 'archived'>('active')
+const searchKeyword = ref('')
+let searchTimer: ReturnType<typeof setTimeout> | null = null
 const showInspirationCard = ref(false)
 const inspirationText = ref('')
 const showGenerateModal = ref(false)
@@ -164,6 +180,19 @@ const pageSize = ref(10)
 const total = ref(0)
 const hasMore = computed(() => {
   return inspirationList.value.length < total.value
+})
+
+const isSearching = computed(() => !!searchKeyword.value.trim())
+
+const showSectionHead = computed(() => {
+  return inspirationList.value.length > 0 || isSearching.value || total.value > 0
+})
+
+const sectionCountText = computed(() => {
+  if (isSearching.value) {
+    return `搜索到 ${total.value} 条`
+  }
+  return `灵感备忘录列表 (共 ${total.value} 条)`
 })
 
 // 初始化
@@ -197,10 +226,12 @@ async function loadInspirationList(reset = false) {
       pageNum.value = 1
     }
     
+    const keyword = searchKeyword.value.trim()
     const params = {
       pageNum: pageNum.value,
       pageSize: pageSize.value,
       status: filterStatus.value === 'all' ? undefined : filterStatus.value,
+      keyword: keyword || undefined,
     }
     
     const response = await getInspirationList(params)
@@ -227,6 +258,22 @@ async function loadInspirationList(reset = false) {
 // 设置筛选状态
 function setFilterStatus(status: 'all' | 'active' | 'archived') {
   filterStatus.value = status
+  loadInspirationList(true)
+}
+
+function handleSearchInput() {
+  if (searchTimer) clearTimeout(searchTimer)
+  searchTimer = setTimeout(() => loadInspirationList(true), 300)
+}
+
+function handleSearchConfirm() {
+  if (searchTimer) clearTimeout(searchTimer)
+  loadInspirationList(true)
+}
+
+function clearSearch() {
+  searchKeyword.value = ''
+  if (searchTimer) clearTimeout(searchTimer)
   loadInspirationList(true)
 }
 
@@ -497,9 +544,59 @@ function copyGeneratedContent() {
   flex-shrink: 0;
   box-sizing: border-box;
   width: 100%;
-  padding: 20rpx 40rpx 24rpx;
+  padding: 16rpx 40rpx 20rpx;
   background: #fdfcf8;
   border-bottom: none;
+}
+
+.search-box {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 12rpx;
+  padding: 0 24rpx;
+  height: 72rpx;
+  background: #ffffff;
+  border: 1rpx solid rgba(44, 30, 26, 0.08);
+  border-radius: 999rpx;
+  box-shadow: 0 4rpx 16rpx rgba(44, 30, 26, 0.04);
+  margin-bottom: 16rpx;
+}
+
+.search-icon {
+  flex-shrink: 0;
+  font-size: 32rpx;
+  font-weight: 400;
+  color: rgba(138, 126, 120, 0.75);
+  line-height: 1;
+}
+
+.search-input {
+  flex: 1;
+  min-width: 0;
+  height: 100%;
+  font-size: 28rpx;
+  color: $text-main;
+}
+
+.search-clear {
+  flex-shrink: 0;
+  width: 40rpx;
+  height: 40rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  &:active {
+    opacity: 0.65;
+  }
+}
+
+.search-clear-x {
+  font-size: 36rpx;
+  font-weight: 300;
+  color: rgba(138, 126, 120, 0.85);
+  line-height: 1;
 }
 
 .list-container {
@@ -514,7 +611,7 @@ function copyGeneratedContent() {
   display: flex;
   align-items: center;
   gap: 10rpx;
-  padding: 0;
+  padding: 4rpx 0 0;
 }
 
 .section-text {

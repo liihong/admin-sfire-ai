@@ -63,7 +63,8 @@
 
 <script setup lang="ts">
 import { ref, computed } from 'vue'
-import { onShow } from '@dcloudio/uni-app'
+import { onShow, onShareAppMessage, onShareTimeline } from '@dcloudio/uni-app'
+import { DINGMA_HOME_BANNER_URL } from '@/constants/tenant'
 import { getQuickEntries, type QuickEntry } from '@/api/quickEntry'
 import { getHomeContent, type BannerItem } from '@/api/home'
 import { useAgentStore } from '@/stores/agent'
@@ -251,7 +252,28 @@ function onToolTap(item: QuickEntry) {
   })
 }
 
+const SHARE_TITLE = '顶妈AI分身 - AI爆款智能创作'
+const SHARE_IMAGE = DINGMA_HOME_BANNER_URL
+
+onShareAppMessage(() => ({
+  title: SHARE_TITLE,
+  path: '/pages/home/index',
+  imageUrl: SHARE_IMAGE
+}))
+
+onShareTimeline(() => ({
+  title: SHARE_TITLE,
+  query: '',
+  imageUrl: SHARE_IMAGE
+}))
+
 onShow(() => {
+  // #ifdef MP-WEIXIN
+  uni.showShareMenu({
+    withShareTicket: true,
+    menus: ['shareAppMessage', 'shareTimeline']
+  })
+  // #endif
   loadCommandEntries()
   loadHomeExtras()
 })

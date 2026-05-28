@@ -20,7 +20,11 @@
         "navigationBarTitleText": "AI爆款",
         "navigationBarBackgroundColor": "#FFFFFF",
         "navigationBarTextStyle": "black",
-        "enablePullDownRefresh": false
+        "enablePullDownRefresh": false,
+        "mp-weixin": {
+          "enableShareAppMessage": true,
+          "enableShareTimeline": true
+        }
       }
     },
     {
@@ -112,7 +116,7 @@
         {
           "path": "index",
           "style": {
-            "navigationBarTitleText": "我的算力",
+            "navigationBarTitleText": "我的积分",
             "navigationStyle": "custom",
             "disableScroll": true
           }
@@ -120,7 +124,7 @@
         {
           "path": "detail",
           "style": {
-            "navigationBarTitleText": "算力明细",
+            "navigationBarTitleText": "积分明细",
             "navigationStyle": "custom",
             "disableScroll": true
           }
@@ -128,7 +132,7 @@
         {
           "path": "recharge",
           "style": {
-            "navigationBarTitleText": "充值算力",
+            "navigationBarTitleText": "充值积分",
             "navigationStyle": "custom",
             "disableScroll": true
           }
