@@ -751,6 +751,7 @@ export namespace Tenant {
     is_default: boolean;
     remark?: string;
     wechat_app_id?: string | null;
+    release_review_enabled?: boolean;
     created_at?: string;
     updated_at?: string;
   }
@@ -760,6 +761,7 @@ export namespace Tenant {
     is_default?: boolean;
     remark?: string;
     wechat_app_id?: string;
+    release_review_enabled?: boolean;
   }
   export interface ReqTenantUpdate {
     code?: string;
@@ -767,6 +769,7 @@ export namespace Tenant {
     is_default?: boolean;
     remark?: string;
     wechat_app_id?: string | null;
+    release_review_enabled?: boolean;
   }
 }
 

@@ -47,5 +47,13 @@ class Tenant(BaseModel):
         String(128), nullable=True, comment="微信小程序 AppSecret（可选，多租户独立小程序时填写）"
     )
 
+    release_review_enabled: Mapped[bool] = mapped_column(
+        Boolean,
+        default=False,
+        server_default="0",
+        nullable=False,
+        comment="是否开启上线审查（开启时小程序隐藏会员权益入口）",
+    )
+
     def __repr__(self) -> str:
         return f"<Tenant(id={self.id}, code={self.code})>"

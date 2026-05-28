@@ -17,6 +17,12 @@
         </el-tag>
       </template>
 
+      <template #release_review_enabled="scope">
+        <el-tag :type="scope.row.release_review_enabled ? 'danger' : 'success'" effect="plain">
+          {{ scope.row.release_review_enabled ? "审查中" : "正常" }}
+        </el-tag>
+      </template>
+
       <template #operation="scope">
         <el-button type="primary" link :icon="EditPen" @click="openDrawer('编辑租户', scope.row)">编辑</el-button>
       </template>
@@ -42,6 +48,10 @@
         </el-form-item>
         <el-form-item label="小程序 AppID" prop="wechat_app_id">
           <el-input v-model="formData.wechat_app_id" placeholder="可选，与小程序登录解析租户一致" maxlength="64" />
+        </el-form-item>
+        <el-form-item label="上线审查">
+          <el-switch v-model="formData.release_review_enabled" active-text="开启" inactive-text="关闭" />
+          <div class="form-tip">开启后 dingma 小程序「我的」页将隐藏「查看会员权益」按钮，用于提审等特殊场景</div>
         </el-form-item>
         <el-form-item label="备注" prop="remark">
           <el-input v-model="formData.remark" type="textarea" :rows="3" maxlength="500" show-word-limit />
@@ -89,6 +99,7 @@ const columns = reactive<ColumnProps<Tenant.ResTenant>[]>([
     search: { el: "input" }
   },
   { prop: "is_default", label: "类型", width: 100 },
+  { prop: "release_review_enabled", label: "上线审查", width: 100 },
   {
     prop: "wechat_app_id",
     label: "小程序 AppID",
@@ -116,7 +127,8 @@ const formData = reactive<Tenant.ReqTenantCreate & { id?: number }>({
   name: "",
   is_default: false,
   remark: "",
-  wechat_app_id: ""
+  wechat_app_id: "",
+  release_review_enabled: false
 });
 
 const formRules: FormRules = {
@@ -134,6 +146,7 @@ const openDrawer = (title: string, row?: Tenant.ResTenant) => {
     formData.is_default = row.is_default;
     formData.remark = row.remark || "";
     formData.wechat_app_id = row.wechat_app_id || "";
+    formData.release_review_enabled = !!row.release_review_enabled;
   } else {
     delete formData.id;
     formData.code = "";
@@ -141,6 +154,7 @@ const openDrawer = (title: string, row?: Tenant.ResTenant) => {
     formData.is_default = false;
     formData.remark = "";
     formData.wechat_app_id = "";
+    formData.release_review_enabled = false;
   }
   drawerVisible.value = true;
 };

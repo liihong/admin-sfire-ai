@@ -16,6 +16,10 @@ class TenantCreate(BaseModel):
         max_length=128,
         description="微信小程序 AppSecret（独立小程序时填写；与 WECHAT_APP_ID 相同时可省略，用 .env Secret）",
     )
+    release_review_enabled: bool = Field(
+        False,
+        description="是否开启上线审查（开启时小程序隐藏会员权益入口）",
+    )
 
 
 class TenantUpdate(BaseModel):
@@ -29,6 +33,19 @@ class TenantUpdate(BaseModel):
         max_length=128,
         description="更新时传入非空字符串则写入；不传则保持不变",
     )
+    release_review_enabled: Optional[bool] = Field(
+        None,
+        description="是否开启上线审查（开启时小程序隐藏会员权益入口）",
+    )
+
+
+class TenantPublicConfig(BaseModel):
+    """C 端公开租户配置（无需登录）"""
+
+    release_review_enabled: bool = Field(
+        False,
+        description="是否开启上线审查（开启时小程序隐藏会员权益入口）",
+    )
 
 
 class TenantResponse(BaseModel):
@@ -39,6 +56,10 @@ class TenantResponse(BaseModel):
     remark: Optional[str] = None
     wechat_app_id: Optional[str] = None
     wechat_secret_configured: bool = Field(False, description="是否已配置独立小程序 AppSecret（或由 .env 接管）")
+    release_review_enabled: bool = Field(
+        False,
+        description="是否开启上线审查（开启时小程序隐藏会员权益入口）",
+    )
     created_at: Optional[str] = None
     updated_at: Optional[str] = None
 

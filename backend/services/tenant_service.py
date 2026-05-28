@@ -5,6 +5,7 @@ from sqlalchemy import select, func, update, and_
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from core.config import settings
+from core.tenant_constants import DEFAULT_TENANT_ID
 from models.tenant import Tenant
 from schemas.tenant import TenantCreate, TenantUpdate, TenantQueryParams
 from utils.exceptions import NotFoundException, BadRequestException
@@ -27,6 +28,7 @@ class TenantService:
             "remark": t.remark,
             "wechat_app_id": t.wechat_app_id,
             "wechat_secret_configured": secret_ok,
+            "release_review_enabled": bool(t.release_review_enabled),
             "created_at": t.created_at.isoformat() if t.created_at else None,
             "updated_at": t.updated_at.isoformat() if t.updated_at else None,
         }
@@ -96,6 +98,7 @@ class TenantService:
             remark=data.remark,
             wechat_app_id=data.wechat_app_id,
             wechat_app_secret=data.wechat_app_secret,
+            release_review_enabled=data.release_review_enabled,
         )
         self.db.add(tenant)
         await self.db.commit()
@@ -125,3 +128,16 @@ class TenantService:
         await self.db.commit()
         await self.db.refresh(tenant)
         return self._to_dict(tenant)
+
+    async def get_public_config(self, tenant_id: int) -> dict:
+        """C 端公开租户配置（按租户 id 读取）。"""
+        result = await self.db.execute(select(Tenant).where(Tenant.id == tenant_id))
+        tenant = result.scalar_one_or_none()
+        if not tenant:
+            return {"release_review_enabled": False}
+        return {"release_review_enabled": bool(tenant.release_review_enabled)}
+
+    async def get_public_config_for_scope(self, scoped_tenant_id: Optional[int]) -> dict:
+        """C 端公开租户配置；未解析到租户时使用主租户。"""
+        tenant_id = scoped_tenant_id if scoped_tenant_id is not None else DEFAULT_TENANT_ID
+        return await self.get_public_config(tenant_id)
