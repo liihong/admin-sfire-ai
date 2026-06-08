@@ -86,7 +86,7 @@
             <view class="section-title">第六条 费用与支付</view>
             <view class="section-content">
               <text class="paragraph">6.1 本平台的部分服务可能需要付费使用，具体收费标准以平台公示为准。</text>
-              <text class="paragraph">6.2 您可以通过微信支付等方式购买积分包、会员服务等。支付成功后，费用不予退还，除非法律法规另有规定。</text>
+             <text class="paragraph">6.2 您可以通过微信支付等方式购买算力包、会员服务等。支付成功后，费用不予退还，除非法律法规另有规定。</text>
               <text class="paragraph">6.3 本平台有权根据业务需要调整收费标准，调整后的收费标准将在平台公示后生效。</text>
               <text class="paragraph">6.4 您应当确保支付账户有足够的余额或信用额度，因支付失败导致的损失由您自行承担。</text>
             </view>

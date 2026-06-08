@@ -39,9 +39,9 @@ export interface AuthUserInfo {
   level_name?: string
   levelInfo?: UserLevelInfo | null
   // 余额相关字段
-  power?: string  // 积分可用余额（总余额-冻结余额）
-  total_balance?: string  // 积分总余额
-  frozen_balance?: string  // 冻结积分余额
+  power?: string  // 算力可用余额（总余额-冻结余额）
+  total_balance?: string  // 算力总余额
+  frozen_balance?: string  // 冻结算力余额
   partner_balance?: string
   partnerBalance?: string  // 兼容字段，与 partner_balance 相同
   // 状态相关字段
@@ -155,7 +155,7 @@ export function refreshAccessToken(refreshToken: string) {
  * 返回完整的用户信息，包括：
  * - 基础信息：openid、nickname、avatarUrl、avatar、phone
  * - 等级信息：level_code、level_name、levelInfo
- * - 余额信息：power（积分可用余额）、total_balance（积分总余额）、frozen_balance（冻结积分）、partner_balance、partnerBalance
+ * - 余额信息：power（算力可用余额）、total_balance（算力总余额）、frozen_balance（冻结算力）、partner_balance、partnerBalance
  * - 状态信息：partner_status、partnerStatus、vip_expire_date、expireDate
  * 
  * 建议：前端应该从 store 读取用户信息，只在刷新页面时才调用此接口

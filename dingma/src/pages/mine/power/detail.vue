@@ -1,7 +1,7 @@
 <template>
  <view class="power-detail-page">
     <!-- 页面头部 -->
-   <BaseHeader title="积分明细" :show-decoration="true" />
+   <BaseHeader title="算力明细" :show-decoration="true" />
 
     <!-- 列表区域 -->
     <scroll-view 
@@ -18,8 +18,8 @@
         <view class="empty-icon-wrap">
           <SvgIcon name="history" :size="80" color="#93C5FD" />
         </view>
-        <text class="empty-title">暂无积分消耗记录</text>
-        <text class="empty-desc">您的积分消耗记录将显示在这里</text>
+       <text class="empty-title">暂无算力消耗记录</text>
+        <text class="empty-desc">您的算力消耗记录将显示在这里</text>
       </view>
 
       <!-- 明细列表 -->
@@ -39,7 +39,7 @@
               />
             </view>
             <view class="item-info">
-              <text class="item-title">{{  item.typeName || '积分消耗' }}</text>
+               <text class="item-title">{{ item.typeName || '算力消耗' }}</text>
                <text class="item-time">{{ formatTime(item.createTime) }}</text>
 
             </view>
@@ -51,7 +51,7 @@
           </view>
         </view>
           <view class="item-remark">
-            {{ item.remark }}
+           {{ formatRemark(item.remark) }}
             </view>
         </view>
       </view>
@@ -148,7 +148,7 @@ async function loadTransactions(pageNum: number, isRefresh: boolean = false) {
       })
     }
   } catch (error: any) {
-    console.error('加载积分明细失败:', error)
+    console.error('加载算力明细失败:', error)
     uni.showToast({
       title: error.message || '加载失败，请稍后重试',
       icon: 'none'
@@ -226,6 +226,12 @@ function formatAmount(amount?: number | string): string {
   const numAmount = typeof amount === 'string' ? parseFloat(amount) : amount
   if (numAmount > 0) return `+${numAmount}`
   return String(numAmount)
+}
+
+// 格式化备注，移除模型展示部分
+function formatRemark(remark?: string): string {
+  if (!remark) return ''
+  return remark.replace(/[,，]\s*模型\s*[:：].*$/, '')
 }
 
 // 格式化时间

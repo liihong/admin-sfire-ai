@@ -13,17 +13,17 @@
         <text class="back-icon">←</text>
       </view>
       <view class="header-content">
-        <text class="header-title">我的积分</text>
-        <text class="header-subtitle">查看积分余额和明细</text>
+       <text class="header-title">我的算力</text>
+        <text class="header-subtitle">查看算力余额和明细</text>
       </view>
     </view>
 
-    <!-- 积分余额卡片 -->
+  <!-- 算力余额卡片 -->
     <view class="balance-card">
-      <view class="balance-label">当前积分</view>
+     <view class="balance-label">当前算力</view>
       <view class="balance-value-row">
         <text class="balance-value">{{ balance }}</text>
-        <text class="balance-unit">积分</text>
+       <text class="balance-unit">算力</text>
       </view>
     </view>
 
@@ -33,13 +33,13 @@
         <view class="action-icon-wrapper recharge-icon">
           <SvgIcon name="badge-plus" :size="48" color="#D97706" />
         </view>
-        <text class="action-text">充值积分</text>
+       <text class="action-text">充值算力</text>
       </view>
       <view class="action-item" @tap="goToDetail">
         <view class="action-icon-wrapper detail-icon">
           <SvgIcon name="history" :size="48" color="#2563EB" />
         </view>
-        <text class="action-text">积分明细</text>
+       <text class="action-text">算力明细</text>
       </view>
     </view>
 
@@ -62,7 +62,7 @@
               />
             </view>
             <view class="item-info">
-              <text class="item-title">{{ item.typeName || '积分变动' }}</text>
+             <text class="item-title">{{ item.typeName || '算力变动' }}</text>
               <text class="item-time">{{ formatTime(item.create_time || item.created_at) }}</text>
             </view>
           </view>

@@ -4,7 +4,7 @@
 import { request } from '@/utils/request'
 
 export interface TenantPublicConfig {
-  /** 是否开启上线审查；开启时「我的」页隐藏「查看会员权益」 */
+  /** 是否开启上线审查；开启时「我的」页隐藏会员开通/权益相关入口 */
   release_review_enabled: boolean
 }
 

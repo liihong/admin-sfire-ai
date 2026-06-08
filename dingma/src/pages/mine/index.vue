@@ -38,21 +38,9 @@
               <text v-if="memberExpireDisplay" class="mine-user-strip__expire">
                 {{ memberExpireDisplay }}
               </text>
-            </template>
-           <template v-else>
-              <text class="mine-user-strip__hint">开通会员解锁更多权益</text>
-            </template>
+           </template>
           </view>
        </view>
-        <view
-          v-if="!isVipMember"
-          class="mine-user-strip__stats mine-user-strip__stats--solo-power"
-        >
-          <view class="mine-user-strip__stat mine-user-strip__stat--tap" @tap.stop="goToPowerCenter">
-            <text class="mine-user-strip__stat-num mine-user-strip__stat-num--accent">{{ powerDisplay }}</text>
-           <text class="mine-user-strip__stat-lab">剩余积分 (Tokens)</text>
-          </view>
-        </view>
        <view class="mine-user-strip__ip-card" @tap.stop="goToIpInfoPage">
           <view class="mine-user-strip__ip-icon-wrap">
             <SvgIcon name="contact-2" :size="32" color="#FFFFFF" />
@@ -76,7 +64,7 @@
           <view class="stats-body stats-body--single">
             <view class="stat-col tap" @tap.stop="goToPowerCenter">
               <text class="stat-value stat-value--accent">{{ powerDisplay }}</text>
-              <text class="stat-label">剩余积分(tokens)</text>
+             <text class="stat-label">剩余算力(tokens)</text>
             </view>
           </view>
         </view>
@@ -85,7 +73,7 @@
         </view>
       </view>
 
-    <!-- 第二排 · 已购会员：黑金尊享卡 + 积分能量条 -->
+    <!-- 第二排 · 已购会员：黑金尊享卡 + 算力能量条 -->
       <view v-if="authStore.isLoggedIn && isVipMember" class="member-tier-shell">
        <view class="member-tier-card" :class="memberTierSkinClass">
           <view class="member-tier-card__gloss" aria-hidden="true" />
@@ -105,7 +93,7 @@
           <view class="member-tier-card__footer">
             <view class="member-tier-card__power" @tap.stop="goToPowerCenter">
               <text class="member-tier-card__power-num">{{ powerDisplay }}</text>
-             <text class="member-tier-card__power-lab">剩余积分 (Tokens)</text>
+             <text class="member-tier-card__power-lab">剩余算力 (Tokens)</text>
             </view>
            <view
              v-if="!releaseReviewEnabled"
@@ -128,8 +116,9 @@
         </view>
       </view>
 
-    <!-- 第二排 · 未开通：黑金推广卡 -->
-      <view v-if="authStore.isLoggedIn && !isVipMember" class="vip-annual-card" @tap="goToMembership">
+    <!-- 第二排 · 未开通：黑金推广卡（上线审查开启时隐藏） -->
+      <view v-if="authStore.isLoggedIn && !isVipMember && !releaseReviewEnabled" class="vip-annual-card"
+        @tap="goToMembership">
        <view class="vip-annual-card__gloss" aria-hidden="true" />
         <view class="vip-annual-card__mesh" aria-hidden="true" />
         <view class="vip-card-top">
@@ -177,7 +166,7 @@
       </view>
 
       <view class="mine-version-footer">
-        <text>顶顶妈 AI 系统 v1.1.0 • 火源文化技术支持</text>
+       <text>顶顶妈 AI 系统 v1.0.0 • 火源文化技术支持</text>
       </view>
     </view>
 
@@ -430,18 +419,6 @@ const allMenuList = computed<MenuItem[]>(() => [
         : undefined,
     path: '/pages/mine/creation-records/index',
     requiresLogin: true
-  },
-  {
-    id: 'referral',
-    name: '我要推荐',
-    desc: '邀请好友一起体验，获得积分奖励',
-    icon: 'send',
-    iconColor: '#EC4899',
-    iconBgClass: 'menu-icon-wrap--pink',
-    badge: '送积分',
-    badgeHighlight: true,
-    path: '/pages/mine/referral/index',
-    requiresLogin: false
   }
 ])
 
@@ -623,8 +600,9 @@ onPullDownRefresh(async () => {
   flex-direction: row;
   align-items: center;
   gap: 18rpx;
-  flex-shrink: 0;
+  flex: 1;
   min-width: 0;
+  overflow: hidden;
 }
 
 .mine-user-strip__avatar-ring {
@@ -750,71 +728,9 @@ onPullDownRefresh(async () => {
   font-weight: 600;
   color: rgba(44, 30, 26, 0.55);
   line-height: 1.35;
-}
-
-.mine-user-strip__stats {
-  flex: 1;
-  min-width: 0;
-  display: flex;
-  flex-direction: row;
-  align-items: stretch;
-  justify-content: flex-end;
-  gap: 0;
-
-  /* 非会员：仅剩余积分靠右 */
-  &--solo-power {
-    flex: 1;
-    justify-content: flex-end;
-
-    .mine-user-strip__stat {
-      flex: 0 0 auto;
-      max-width: none;
-      min-width: 140rpx;
-    }
-  }
-}
-
-.mine-user-strip__stat {
-  flex: 1;
-  max-width: 200rpx;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 6rpx;
-  min-width: 0;
-
-  &--tap:active {
-    opacity: 0.72;
-  }
-}
-
-.mine-user-strip__stat-div {
-  width: 1rpx;
-  align-self: stretch;
-  margin: 6rpx 4rpx;
-  background: rgba(44, 30, 26, 0.08);
-  flex-shrink: 0;
-}
-
-.mine-user-strip__stat-num {
-  font-size: 34rpx;
-  font-weight: 900;
-  color: $text-main;
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, monospace;
-  line-height: 1.1;
-
-  &--accent {
-    color: $accent-gold;
-  }
-}
-
-.mine-user-strip__stat-lab {
-  font-size: 20rpx;
-  font-weight: 700;
-  color: rgba(44, 30, 26, 0.52);
-  text-align: center;
-  line-height: 1.32;
+  overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
 .mine-user-strip__ip-card {

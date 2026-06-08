@@ -34,11 +34,11 @@
             </view>
             <view class="reward-info">
               <text class="reward-label">成功邀请奖励</text>
-              <text class="reward-value">100 积分</text>
+             <text class="reward-value">100 算力</text>
             </view>
           </view>
           <view class="reward-desc">
-            <text class="desc-text">每成功邀请一名好友注册并完成首次登录，系统将自动奖励您 100 积分</text>
+           <text class="desc-text">每成功邀请一名好友注册并完成首次登录，系统将自动奖励您 100 算力</text>
           </view>
         </view>
       </view>
@@ -94,7 +94,7 @@ const inviteCode = computed(() => {
 const rules = ref([
   '好友通过您的邀请码注册并完成首次登录',
   '系统自动识别邀请关系并发放奖励',
-  '每成功邀请一人，您将获得 100 积分奖励',
+  '每成功邀请一人，您将获得 100 算力奖励',
   '奖励将在好友完成注册后立即到账',
   '邀请码为您的手机号，请妥善保管'
 ])
