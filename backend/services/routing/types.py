@@ -41,6 +41,8 @@ class PromptAssemblyResult(BaseModel):
     skills_applied: List[int] = Field(..., description="实际使用的技能ID列表")
     token_count: int = Field(default=0, description="Token数量统计")
     skills_detail: List[Dict] = Field(default_factory=list, description="技能详情列表")
+    agent_prompt: str = Field(default="", description="仅技能/智能体能力部分（不含 IP 人设）")
+    persona_prompt: str = Field(default="", description="实际注入的 IP 人设部分")
 
 
 

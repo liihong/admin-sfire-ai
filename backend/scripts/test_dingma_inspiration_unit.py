@@ -12,7 +12,7 @@ from services.dingma.inspiration_generate import DingmaInspirationGenerateServic
 
 
 async def test_build_system_prompt_injects_knowledge():
-    """system prompt 顶部应包含产品事实铁律"""
+    """system prompt 末尾 append 成分护栏，智能体技能在前"""
     db = AsyncMock()
     service = DingmaInspirationGenerateService(db)
 
@@ -21,14 +21,14 @@ async def test_build_system_prompt_injects_knowledge():
     mock_agent.system_prompt = "你是口播文案助手"
     mock_agent.is_routing_enabled = 0
 
-    knowledge_block = "【产品事实铁律 - 最高优先级】\n含：朝鲜面、泡菜"
+    knowledge_block = "【后台参考·成分护栏】\n含：朝鲜面、泡菜"
 
     with patch(
         "services.dingma.inspiration_generate.DingmaKnowledgeService.resolve_prompt_block",
         new_callable=AsyncMock,
         return_value=knowledge_block,
     ):
-        prompt = await service._build_system_prompt(
+        prompt, _kb = await service._build_system_prompt(
             db_agent=mock_agent,
             agent_config_fallback=None,
             project=None,
@@ -36,10 +36,10 @@ async def test_build_system_prompt_injects_knowledge():
             scoped_public_tenant_id=2,
         )
 
-    assert "产品事实铁律" in prompt
+    assert "产品事实铁律" in prompt or "后台参考" in prompt
     assert "口播文案助手" in prompt
-    assert prompt.index("产品事实铁律") < prompt.index("口播文案助手")
-    print("OK: knowledge block prepended to inspiration system prompt")
+    assert prompt.index("口播文案助手") < prompt.index("后台参考")
+    print("OK: knowledge block appended to inspiration system prompt")
 
 
 if __name__ == "__main__":

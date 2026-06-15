@@ -37,6 +37,7 @@ from services.content import AIService
 from services.conversation.business import ConversationBusinessService
 from services.dingma.constants import KnowledgeInjectMode
 from services.dingma.knowledge import DingmaKnowledgeService
+from services.dingma.prompt_debug import log_dingma_prompt
 from services.resource import ProjectService
 from services.shared.prompt_builder import PromptBuilder
 from services.system.permission import PermissionService
@@ -48,9 +49,9 @@ from utils.exceptions import (
 )
 
 
-# dingma 专用：知识块最大长度保护（与其余 prompt 分开计算）
-MAX_KNOWLEDGE_BLOCK_LENGTH = 4000
-MAX_REST_SYSTEM_PROMPT_LENGTH = 12000
+# dingma 专用：system prompt 总长度上限
+MAX_SYSTEM_PROMPT_LENGTH = 16000
+MAX_KNOWLEDGE_BLOCK_LENGTH = 2000
 
 
 async def generate_dingma_chat(
@@ -61,7 +62,7 @@ async def generate_dingma_chat(
     scoped_public_tenant_id: Optional[int] = None,
 ):
     """
-    dingma 专用对话接口：在 system prompt 顶部注入产品知识库（copywriting 模式）。
+    dingma 专用对话接口：在 system prompt 末尾 append 产品成分护栏（copywriting 模式）。
     """
     try:
         permission_service = PermissionService(db)
@@ -117,6 +118,7 @@ async def generate_dingma_chat(
 
         # IP 人设
         ip_persona_prompt = ""
+        project = None
         effective_project_id = request.project_id
         if effective_project_id is None and conversation_id:
             try:
@@ -133,7 +135,8 @@ async def generate_dingma_chat(
             project = await project_service.get_project_by_id(
                 effective_project_id, user_id=current_user.id
             )
-            if project and project.persona_settings:
+            if project:
+                # 即使 persona_settings 为空也尝试提取（会用 project.name 等兜底）
                 ip_persona_prompt = PromptBuilder.extract_persona_prompt(
                     project.persona_settings or {},
                     master_prompt="",
@@ -146,6 +149,9 @@ async def generate_dingma_chat(
             raise BadRequestException("消息列表不能为空")
 
         # 技能组装
+        routing_info: dict | None = None
+        skills_detail: list | None = None
+        skills_prompt: str = ""
         if getattr(db_agent, "agent_mode", 0) == 1:
             from services.routing import MasterRouter, PromptEngine
 
@@ -159,6 +165,13 @@ async def generate_dingma_chat(
                     user_input=user_prompt,
                     strict_routing=strict_routing,
                 )
+                routing_info = {
+                    "selected_skill_ids": routing_result.selected_skill_ids,
+                    "static_skill_ids": routing_result.static_skill_ids,
+                    "dynamic_skill_ids": routing_result.dynamic_skill_ids,
+                    "routing_method": routing_result.routing_method,
+                    "debug_info": routing_result.debug_info,
+                }
             except RoutingMatchFailedException as e:
                 routing_failed_msg = e.msg
                 if request.stream:
@@ -193,8 +206,11 @@ async def generate_dingma_chat(
                 user_input=user_prompt,
             )
             base_system_prompt = prompt_result.system_prompt
+            skills_detail = prompt_result.skills_detail or None
+            skills_prompt = prompt_result.agent_prompt or base_system_prompt
         else:
             base_system_prompt = agent_config["system_prompt"]
+            skills_prompt = base_system_prompt
 
         # ===== dingma 专属：注入产品知识库（copywriting 模式）=====
         knowledge_block = await DingmaKnowledgeService.resolve_prompt_block(
@@ -202,34 +218,76 @@ async def generate_dingma_chat(
             user_input=user_prompt,
             scoped_tenant_id=scoped_public_tenant_id,
             inject_mode=KnowledgeInjectMode.COPYWRITING,
+            ip_persona_prompt=ip_persona_prompt or None,
         )
         if len(knowledge_block) > MAX_KNOWLEDGE_BLOCK_LENGTH:
-            knowledge_block = knowledge_block[: MAX_KNOWLEDGE_BLOCK_LENGTH - 50] + "\n…（产品事实已截断）"
+            knowledge_block = knowledge_block[: MAX_KNOWLEDGE_BLOCK_LENGTH - 50] + "\n…（成分护栏已截断）"
 
-        base_system_prompt = DingmaKnowledgeService.prepend_knowledge(
-            base_system_prompt, knowledge_block
-        )
-
-        # 构建最终 system prompt
+        # ===== dingma 专属：append 成分护栏（智能体技能优先）=====
         if db_agent and getattr(db_agent, "agent_mode", 0) == 1:
-            final_system_prompt = base_system_prompt
+            # 技能模式：base_system_prompt 已含 IP 人设 + 技能
+            agent_core_prompt = skills_prompt
         else:
-            final_system_prompt = build_final_system_prompt(
+            agent_core_prompt = build_final_system_prompt(
                 agent_system_prompt=base_system_prompt,
                 ip_persona_prompt=ip_persona_prompt,
             )
+            skills_prompt = agent_core_prompt
 
-        # 截断时保护知识块（只截断后半段 agent 能力部分）
-        if len(final_system_prompt) > MAX_KNOWLEDGE_BLOCK_LENGTH + MAX_REST_SYSTEM_PROMPT_LENGTH:
-            k_len = min(len(knowledge_block), MAX_KNOWLEDGE_BLOCK_LENGTH)
-            knowledge_part = final_system_prompt[:k_len] if knowledge_block else ""
-            rest = final_system_prompt[k_len:].lstrip("=" * 40).lstrip()
-            if len(rest) > MAX_REST_SYSTEM_PROMPT_LENGTH:
-                rest = rest[: MAX_REST_SYSTEM_PROMPT_LENGTH - 100]
-            final_system_prompt = (
-                f"{knowledge_part}\n\n{'=' * 40}\n\n{rest}" if knowledge_part else rest
-            )
-            logger.warning("[DingmaChat] system prompt 过长，已保护知识块并截断后半段")
+        final_system_prompt = DingmaKnowledgeService.merge_with_knowledge_guard(
+            agent_system_prompt=(
+                base_system_prompt
+                if db_agent and getattr(db_agent, "agent_mode", 0) == 1
+                else agent_core_prompt
+            ),
+            knowledge_block=knowledge_block,
+            max_total_length=MAX_SYSTEM_PROMPT_LENGTH,
+        )
+        if len(final_system_prompt) > MAX_SYSTEM_PROMPT_LENGTH:
+            final_system_prompt = final_system_prompt[: MAX_SYSTEM_PROMPT_LENGTH - 100]
+            logger.warning("[DingmaChat] system prompt 过长，已截断")
+
+        messages_for_ai: List[dict] = []
+        if final_system_prompt:
+            messages_for_ai.append({"role": "system", "content": final_system_prompt})
+        for msg in request.messages:
+            messages_for_ai.append({"role": msg.role, "content": msg.content})
+
+        inject_meta = {
+            "request_project_id": request.project_id,
+            "effective_project_id": effective_project_id,
+            "project_name": getattr(project, "name", None) if project else None,
+            "ip_persona_chars": len(ip_persona_prompt),
+            "ip_persona_injected": bool(ip_persona_prompt.strip()),
+            "ip_persona_skip_reason": (
+                None
+                if ip_persona_prompt.strip()
+                else (
+                    "未关联 IP 项目（request 与会话均无 project_id）"
+                    if not effective_project_id
+                    else (
+                        "项目不存在或无权访问"
+                        if not project
+                        else "persona_settings 各字段均为空"
+                    )
+                )
+            ),
+        }
+
+        log_dingma_prompt(
+            "DingmaChat",
+            system_prompt=final_system_prompt,
+            user_input=user_prompt,
+            agent_id=agent_id,
+            agent_name=getattr(db_agent, "name", None),
+            knowledge_block=knowledge_block or None,
+            messages=messages_for_ai,
+            ip_persona_prompt=ip_persona_prompt or None,
+            agent_core_prompt=agent_core_prompt or None,
+            routing_info=routing_info,
+            skills_detail=skills_detail,
+            inject_meta=inject_meta,
+        )
 
         temperature = (
             request.temperature
@@ -296,12 +354,6 @@ async def generate_dingma_chat(
             logger.warning(f"[DingmaChat] 算力预冻结失败（降级）: {e}")
             task_id = None
             freeze_info = None
-
-        messages_for_ai: List[dict] = []
-        if final_system_prompt:
-            messages_for_ai.append({"role": "system", "content": final_system_prompt})
-        for msg in request.messages:
-            messages_for_ai.append({"role": msg.role, "content": msg.content})
 
         ai_service = AIService(db)
         model_id_for_ai = llm_model.model_id

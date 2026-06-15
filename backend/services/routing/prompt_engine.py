@@ -87,6 +87,8 @@ class PromptEngine:
             user_message=user_message,
             skills_applied=skills_applied,
             token_count=token_count,
-            skills_detail=skills_detail
+            skills_detail=skills_detail,
+            agent_prompt=agent_prompt,
+            persona_prompt=(persona_prompt or "").strip(),
         )
 

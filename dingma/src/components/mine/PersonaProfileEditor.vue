@@ -1,5 +1,8 @@
 <template>
-  <view class="persona-editor" :class="{ 'persona-editor--compact': compactLayout }">
+ <view class="persona-editor" :class="{
+    'persona-editor--compact': compactLayout,
+    'persona-editor--dense': denseLayout
+  }">
     <scroll-view scroll-y class="persona-editor__body" :show-scrollbar="false">
       <view class="persona-editor__surface" :class="{ 'persona-editor__surface--raised': !compactLayout }">
         <view class="field">
@@ -101,8 +104,10 @@ const props = withDefaults(
     defaultName?: string
     /** 弹窗内为 true：不套外层白卡片，避免与弹窗底色重复嵌套 */
     compactLayout?: boolean
+    /** 独立 IP 页为 true：缩小多行输入区与字段间距，尽量一屏展示 */
+    denseLayout?: boolean
   }>(),
-  { compactLayout: false }
+  { compactLayout: false, denseLayout: false }
 )
 
 const emit = defineEmits<{
@@ -256,6 +261,48 @@ onMounted(() => {
   }
 }
 
+/** 独立 IP 页：压缩表单高度，避免滚动 */
+.persona-editor--dense {
+  gap: 16rpx;
+
+  .persona-editor__surface--raised {
+    padding: 24rpx 28rpx 28rpx;
+  }
+
+  .field {
+    margin-bottom: 24rpx;
+  }
+
+  .field-label {
+    margin-bottom: 12rpx;
+    font-size: 28rpx;
+  }
+
+  .field-input-box {
+    min-height: 76rpx;
+  }
+
+  .field-input {
+    height: 76rpx;
+    min-height: 76rpx;
+    line-height: 76rpx;
+  }
+
+  .field-textarea-box {
+    padding: 12rpx 20rpx;
+    height: 250rpx;
+  }
+
+  .field-textarea {
+    min-height: 96rpx;
+    height: 96rpx;
+  }
+
+  .field-textarea--sm {
+    min-height: 72rpx;
+    height: 72rpx;
+  }
+}
 .persona-editor__surface {
   box-sizing: border-box;
   width: 100%;

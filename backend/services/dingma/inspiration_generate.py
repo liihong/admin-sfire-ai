@@ -21,6 +21,7 @@ from schemas.inspiration import InspirationGenerateRequest
 from services.coin import CoinServiceFactory
 from services.dingma.constants import KnowledgeInjectMode
 from services.dingma.knowledge import DingmaKnowledgeService
+from services.dingma.prompt_debug import log_dingma_prompt
 from services.inspiration.inspiration_service import InspirationService
 from services.resource import LLMModelService, ProjectService
 from services.shared.llm_service import LLMFactory
@@ -78,12 +79,22 @@ class DingmaInspirationGenerateService:
         if db_agent is None:
             agent_config_fallback = self._get_legacy_agent_config(request.agent_type)
 
-        system_prompt = await self._build_system_prompt(
+        system_prompt, knowledge_block = await self._build_system_prompt(
             db_agent=db_agent,
             agent_config_fallback=agent_config_fallback,
             project=project,
             user_input=inspiration.content,
             scoped_public_tenant_id=scoped_public_tenant_id,
+        )
+
+        log_dingma_prompt(
+            "DingmaInspiration",
+            system_prompt=system_prompt,
+            user_input=inspiration.content,
+            agent_id=getattr(db_agent, "id", None),
+            agent_name=getattr(db_agent, "name", None) if db_agent else None,
+            knowledge_block=knowledge_block or None,
+            extra_user_prompt=prompt,
         )
 
         model_id = await self._get_model_id(agent_model_type, request.model_type)
@@ -246,19 +257,21 @@ class DingmaInspirationGenerateService:
         project,
         user_input: str,
         scoped_public_tenant_id: Optional[int],
-    ) -> str:
-        """组装 system prompt：技能/普通模式 + IP 人设 + 产品知识库"""
+    ) -> tuple[str, str]:
+        """组装 system prompt，返回 (最终 system prompt, 知识护栏块)"""
+        ip_persona_prompt = ""
+        if project and project.persona_settings:
+            ip_persona_prompt = PromptBuilder.extract_persona_prompt(
+                project.persona_settings or {},
+                master_prompt="",
+                project_name=project.name or "",
+                project_industry=project.industry or "通用",
+            )
+        elif project:
+            ip_persona_prompt = PromptBuilder.get_ip_persona_prompt_from_project(project) or ""
+
         if db_agent and getattr(db_agent, "agent_mode", 0) == 1:
             from services.routing import MasterRouter, PromptEngine
-
-            ip_persona_prompt = ""
-            if project and project.persona_settings:
-                ip_persona_prompt = PromptBuilder.extract_persona_prompt(
-                    project.persona_settings or {},
-                    master_prompt="",
-                    project_name=project.name or "",
-                    project_industry=project.industry or "通用",
-                )
 
             master_router = MasterRouter()
             prompt_engine = PromptEngine()
@@ -285,24 +298,28 @@ class DingmaInspirationGenerateService:
                 if db_agent
                 else fallback.get("system_prompt", "")
             )
-            if project:
-                ip_persona_prompt = PromptBuilder.get_ip_persona_prompt_from_project(project)
-                if ip_persona_prompt:
-                    base_system_prompt += "\n\n" + "=" * 40
-                    base_system_prompt += "\n在创作时，请严格遵循以下IP人设设定：\n"
-                    base_system_prompt += ip_persona_prompt
-                    base_system_prompt += "\n" + "=" * 40
+            if ip_persona_prompt:
+                base_system_prompt += "\n\n" + "=" * 40
+                base_system_prompt += "\n在创作时，请严格遵循以下IP人设设定：\n"
+                base_system_prompt += ip_persona_prompt
+                base_system_prompt += "\n" + "=" * 40
 
         knowledge_block = await DingmaKnowledgeService.resolve_prompt_block(
             db=self.db,
             user_input=user_input,
             scoped_tenant_id=scoped_public_tenant_id,
             inject_mode=KnowledgeInjectMode.COPYWRITING,
+            ip_persona_prompt=ip_persona_prompt or None,
         )
         if len(knowledge_block) > MAX_KNOWLEDGE_BLOCK_LENGTH:
-            knowledge_block = knowledge_block[: MAX_KNOWLEDGE_BLOCK_LENGTH - 50] + "\n…（产品事实已截断）"
+            knowledge_block = knowledge_block[: MAX_KNOWLEDGE_BLOCK_LENGTH - 50] + "\n…（成分护栏已截断）"
 
-        return DingmaKnowledgeService.prepend_knowledge(base_system_prompt, knowledge_block)
+        final_prompt = DingmaKnowledgeService.merge_with_knowledge_guard(
+            agent_system_prompt=base_system_prompt,
+            knowledge_block=knowledge_block,
+            max_total_length=16000,
+        )
+        return final_prompt, knowledge_block
 
     async def _get_model_id(self, agent_model_type: str, request_model_type: Optional[str]) -> int:
         model_type = request_model_type or agent_model_type
