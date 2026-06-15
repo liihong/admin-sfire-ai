@@ -2,7 +2,9 @@
 技能库管理路由（v2版本）
 后台管理接口
 """
-from fastapi import APIRouter, Depends, BackgroundTasks
+import asyncio
+
+from fastapi import APIRouter, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 from loguru import logger
 
@@ -11,6 +13,7 @@ from schemas.v2.skill import (
     SkillCreate,
     SkillUpdate,
     SkillResponse,
+    SkillListItemResponse,
     SkillCategoryResponse,
 )
 from services.skill import SkillService
@@ -51,14 +54,20 @@ async def _delete_skill_embedding(skill_id: int):
         logger.warning(f"技能 {skill_id} 向量库删除失败: {e}")
 
 
-def _add_sync_embedding_task(background_tasks: BackgroundTasks, skill_id: int):
-    """添加向量库同步后台任务"""
-    background_tasks.add_task(_sync_skill_embedding, skill_id)
+def _schedule_sync_embedding(skill_id: int) -> None:
+    """调度向量库同步，与 HTTP 请求生命周期解耦"""
+    try:
+        asyncio.get_running_loop().create_task(_sync_skill_embedding(skill_id))
+    except RuntimeError:
+        logger.warning(f"技能 {skill_id} 向量同步调度失败：无运行中的事件循环")
 
 
-def _add_delete_embedding_task(background_tasks: BackgroundTasks, skill_id: int):
-    """添加向量库删除后台任务"""
-    background_tasks.add_task(_delete_skill_embedding, skill_id)
+def _schedule_delete_embedding(skill_id: int) -> None:
+    """调度向量库删除，与 HTTP 请求生命周期解耦"""
+    try:
+        asyncio.get_running_loop().create_task(_delete_skill_embedding(skill_id))
+    except RuntimeError:
+        logger.warning(f"技能 {skill_id} 向量删除调度失败：无运行中的事件循环")
 
 
 @router.get("/list")
@@ -83,7 +92,7 @@ async def get_skill_list(
             status=status,
         )
 
-        items = [SkillResponse.model_validate(s).model_dump() for s in skills]
+        items = [SkillListItemResponse.model_validate(s).model_dump() for s in skills]
         return page_response(
             items=items,
             total=total,
@@ -127,7 +136,6 @@ async def get_skill(skill_id: int, db: AsyncSession = Depends(_get_db)):
 @router.post("/")
 async def create_skill(
     skill_data: SkillCreate,
-    background_tasks: BackgroundTasks,
     db: AsyncSession = Depends(_get_db),
 ):
     """
@@ -136,9 +144,9 @@ async def create_skill(
     try:
         skill = await SkillService.create(db, skill_data.model_dump())
         logger.info(f"创建技能成功: {skill.name} (ID={skill.id})")
-        # 后台同步到向量库（仅启用技能需同步）
+        # 异步同步到向量库（仅启用技能需同步）
         if skill.status == 1:
-            _add_sync_embedding_task(background_tasks, skill.id)
+            _schedule_sync_embedding(skill.id)
         return success(data=SkillResponse.model_validate(skill).model_dump(), msg="创建成功")
     except Exception as e:
         logger.error(f"创建技能失败: {e}")
@@ -149,7 +157,6 @@ async def create_skill(
 async def update_skill(
     skill_id: int,
     skill_data: SkillUpdate,
-    background_tasks: BackgroundTasks,
     db: AsyncSession = Depends(_get_db),
 ):
     """
@@ -159,15 +166,14 @@ async def update_skill(
     if not skill:
         raise NotFoundException(msg="技能不存在")
     logger.info(f"更新技能成功: {skill.name} (ID={skill_id})")
-    # 后台同步到向量库（启用则更新，禁用则删除）
-    _add_sync_embedding_task(background_tasks, skill.id)
+    # 异步同步到向量库（启用则更新，禁用则删除）
+    _schedule_sync_embedding(skill.id)
     return success(data=SkillResponse.model_validate(skill).model_dump(), msg="更新成功")
 
 
 @router.delete("/{skill_id}")
 async def delete_skill(
     skill_id: int,
-    background_tasks: BackgroundTasks,
     db: AsyncSession = Depends(_get_db),
 ):
     """
@@ -182,7 +188,7 @@ async def delete_skill(
         raise NotFoundException(msg="技能不存在")
     logger.info(f"删除技能成功: ID={skill_id}")
     # 从向量库移除
-    _add_delete_embedding_task(background_tasks, skill_id)
+    _schedule_delete_embedding(skill_id)
     return success(msg="删除成功")
 
 

@@ -163,11 +163,9 @@ class DashboardService:
         today_start = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
         today_end = today_start + timedelta(days=1)
         
-        # 1. 外部 API 余额（OpenRouter/OpenAI 可并行，不占用 DB session）
-        openrouter_balance, openai_balance = await asyncio.gather(
-            self._get_openrouter_balance(),
-            self._get_openai_balance(),
-        )
+        # 1. 外部 API 余额（已停用 OpenRouter 余额查询，仅保留 OpenAI）
+        openrouter_balance = None
+        openai_balance = await self._get_openai_balance()
         
         # 2. 今日消耗算力总和
         today_consume_result = await self.db.execute(

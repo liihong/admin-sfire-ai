@@ -88,7 +88,7 @@
 import { ref, reactive, onMounted } from "vue";
 import { ElMessage, ElMessageBox } from "element-plus";
 import { Plus, Search, Refresh, Edit, Delete } from "@element-plus/icons-vue";
-import { getSkillList, deleteSkill } from "@/api/modules/skillAssembly";
+import { getSkillList, getSkillDetail, deleteSkill } from "@/api/modules/skillAssembly";
 import { Skill } from "@/api/interface";
 import SkillEditor from "./components/SkillEditor.vue";
 
@@ -143,10 +143,16 @@ const handleCreate = () => {
   editorVisible.value = true;
 };
 
-// 编辑技能
-const handleEdit = (skill: Skill.ResSkillItem) => {
-  currentSkill.value = { ...skill };
-  editorVisible.value = true;
+// 编辑技能（列表仅含预览字段，需拉取完整详情）
+const handleEdit = async (skill: Skill.ResSkillItem) => {
+  try {
+    const response = await getSkillDetail(skill.id);
+    currentSkill.value = response.data;
+    editorVisible.value = true;
+  } catch (error) {
+    console.error("获取技能详情失败:", error);
+    ElMessage.error("获取技能详情失败");
+  }
 };
 
 // 删除技能

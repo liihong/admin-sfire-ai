@@ -10,6 +10,7 @@ from . import (
     tenants,
 )
 from . import tools as admin_tools
+from .dingma import dingma_admin_router
 
 # 尝试导入可选的路由
 try:
@@ -47,6 +48,7 @@ admin_router.include_router(tickets.router, prefix="/tickets", tags=["工单管�
 admin_router.include_router(compute.router, prefix="/compute-logs", tags=["算力明细"])
 admin_router.include_router(upload.router, prefix="", tags=["文件上传"])
 admin_router.include_router(admin_tools.router, prefix="/tools", tags=["B端-便捷工具包"])
+admin_router.include_router(dingma_admin_router, prefix="/dingma", tags=["顶妈管理"])
 
 if roles_available and hasattr(roles, "router"):
     admin_router.include_router(roles.router, prefix="/roles", tags=["角色"])

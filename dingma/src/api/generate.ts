@@ -166,7 +166,7 @@ export function chatStream(
   return new Promise((resolve, reject) => {
     const authStore = useAuthStore()
     const token = authStore.getToken()
-    const url = BASE_URL + '/api/v1/client/chat'
+    const url = BASE_URL + '/api/v1/client/dingma/chat'
 
     const header: Record<string, string> = {
       'Content-Type': 'application/json',
@@ -641,7 +641,7 @@ function processSSEBuffer(
 
 export function chat(params: ChatRequest) {
   return request<ChatResponseData>({
-    url: '/api/v1/client/chat',
+    url: '/api/v1/client/dingma/chat',
     method: 'POST',
     data: {
       agent_type: params.agent_type,

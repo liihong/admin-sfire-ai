@@ -1,0 +1,2620 @@
+[
+  {
+    "product_code": "sub_paocai",
+    "category_code": "sub_recipe",
+    "category_name": "子配方",
+    "product_name": "泡菜",
+    "aliases": [
+      "包菜泡菜",
+      "朝鲜面泡菜"
+    ],
+    "pack_formula": "每包出货约50g（泡菜朝鲜面/辣白菜荞麦面用）",
+    "recipe_detail": {
+      "ingredients": [
+        {
+          "name": "包菜",
+          "amount": "1500g"
+        },
+        {
+          "name": "盐",
+          "amount": "30g"
+        },
+        {
+          "name": "白醋",
+          "amount": "500g"
+        },
+        {
+          "name": "白糖",
+          "amount": "170g"
+        },
+        {
+          "name": "苹果醋",
+          "amount": "15g"
+        }
+      ],
+      "steps": [
+        "包菜去皮切丝（不洗，有生水易坏）",
+        "盆里一层包菜一层盐（薄薄一层）",
+        "腌出水分，把水倒出（不可大力揉挤包菜，会不脆）",
+        "加入醋和糖，盖住包菜既可",
+        "放入冷藏盖好，隔夜装包后冷藏"
+      ],
+      "notes": [
+        "有生水易坏",
+        "不可大力揉挤"
+      ]
+    },
+    "copywriting_facts": "【泡菜】\n含：包菜、盐、白醋、白糖、苹果醋\n不含：肉类、海鲜\n可写：酸辣开胃、私房腌制、冷藏隔夜装包\n不可写：治疗、药用、未列出的食材或功效、100%无添加",
+    "source_version": "2026-01",
+    "sort_order": 1
+  },
+  {
+    "product_code": "sub_layou",
+    "category_code": "sub_recipe",
+    "category_name": "子配方",
+    "product_name": "辣油",
+    "aliases": [
+      "辣椒油",
+      "红油"
+    ],
+    "pack_formula": "米线出货辣油20g/包；干拌馄饨辣油20g",
+    "recipe_detail": {
+      "ingredients": [
+        {
+          "name": "大豆油",
+          "amount": "10斤"
+        },
+        {
+          "name": "辣椒粉",
+          "amount": "500g（二荆条150g，线椒250g，魔鬼辣100g）"
+        },
+        {
+          "name": "秘制大料粉",
+          "amount": "100g"
+        },
+        {
+          "name": "洋葱",
+          "amount": "1颗或500g左右"
+        },
+        {
+          "name": "姜片",
+          "amount": "50g"
+        },
+        {
+          "name": "香菜",
+          "amount": "2颗（选加）"
+        },
+        {
+          "name": "芝麻",
+          "amount": "适量"
+        },
+        {
+          "name": "陈醋",
+          "amount": "适量"
+        }
+      ],
+      "steps": [
+        "油加热至270℃关火，加入洋葱、姜片、香菜（此时油温大约降至220℃左右）再开小火，慢慢炸干，关火捞出菜渣",
+        "油温降至170~180℃下芝麻",
+        "油温降至140~150℃倒入辣椒粉和大料粉",
+        "最后倒一点陈醋，闷凉放置一晚备用"
+      ],
+      "notes": [
+        "油温控制关键",
+        "闷凉放置一晚"
+      ]
+    },
+    "copywriting_facts": "【辣油】\n含：大豆油、辣椒粉、秘制大料粉、洋葱、姜片、芝麻、陈醋\n不含：肉类\n可写：香辣红油、私房秘制、拌面拌馄饨\n不可写：治疗、药用、未列出的食材或功效、100%无添加",
+    "source_version": "2026-01",
+    "sort_order": 2
+  },
+  {
+    "product_code": "sub_chuantong_jiding",
+    "category_code": "sub_recipe",
+    "category_name": "子配方",
+    "product_name": "传统鸡丁肉",
+    "aliases": [
+      "鸡丁肉",
+      "传统鸡丁肉包"
+    ],
+    "pack_formula": "传统鸡丁米线出货：传统鸡丁肉包30g",
+    "recipe_detail": {
+      "ingredients": [
+        {
+          "name": "鸡胸肉",
+          "amount": "500g"
+        },
+        {
+          "name": "香菇丁",
+          "amount": "250g（泡发后）"
+        },
+        {
+          "name": "油",
+          "amount": "250g"
+        },
+        {
+          "name": "豆瓣酱（丹丹）",
+          "amount": "25g"
+        },
+        {
+          "name": "盐",
+          "amount": "7.5g"
+        },
+        {
+          "name": "鸡精",
+          "amount": "7.5g"
+        },
+        {
+          "name": "味精",
+          "amount": "7.5g"
+        },
+        {
+          "name": "十三香",
+          "amount": "2.5g"
+        },
+        {
+          "name": "白酒",
+          "amount": "几滴"
+        }
+      ],
+      "steps": [
+        "250g油倒入锅中，加大料炒香（香叶炸焦）",
+        "加丹丹豆瓣酱",
+        "加入鸡丁，翻匀",
+        "加盐、鸡精、味精",
+        "加入老抽调色",
+        "加入十三香",
+        "加入香菇丁",
+        "炒好放适量白酒"
+      ],
+      "notes": [
+        "香料含八角、桂皮、香叶、白芷、白蔻、小茴香、姜"
+      ]
+    },
+    "copywriting_facts": "【传统鸡丁肉】\n含：鸡胸肉、香菇丁、豆瓣酱、香料、十三香\n不含：海鲜、泡菜\n可写：传统口味、鸡丁香菇、私房炒制\n不可写：治疗、药用、未列出的食材或功效、100%无添加",
+    "source_version": "2026-01",
+    "sort_order": 3
+  },
+  {
+    "product_code": "sub_douchi_jiang",
+    "category_code": "sub_recipe",
+    "category_name": "子配方",
+    "product_name": "豆豉酱",
+    "aliases": [
+      "豆豉米线酱"
+    ],
+    "pack_formula": "豆豉米线出货：豆豉酱包100g",
+    "recipe_detail": {
+      "ingredients": [
+        {
+          "name": "鸡胸",
+          "amount": "300g"
+        },
+        {
+          "name": "五香粉",
+          "amount": "0.3g"
+        },
+        {
+          "name": "蚝油",
+          "amount": "5g"
+        },
+        {
+          "name": "料酒",
+          "amount": "8g"
+        },
+        {
+          "name": "生抽",
+          "amount": "20g"
+        },
+        {
+          "name": "糖",
+          "amount": "3g"
+        },
+        {
+          "name": "油",
+          "amount": "48g"
+        },
+        {
+          "name": "豆豉",
+          "amount": "150g"
+        }
+      ],
+      "steps": [
+        "起锅烧油温热",
+        "油微热放入腌好的鸡胸肉",
+        "鸡肉炒变色，加入豆豉，翻炒均匀"
+      ],
+      "notes": [
+        "小苏打2g选加"
+      ]
+    },
+    "copywriting_facts": "【豆豉酱】\n含：鸡胸肉、豆豉\n不含：海鲜、泡菜、辣油\n可写：豉香浓郁、鸡肉豆豉炒制\n不可写：治疗、药用、未列出的食材或功效、100%无添加",
+    "source_version": "2026-01",
+    "sort_order": 4
+  },
+  {
+    "product_code": "sub_fanqie_niurou_jiang",
+    "category_code": "sub_recipe",
+    "category_name": "子配方",
+    "product_name": "番茄牛肉酱",
+    "aliases": [
+      "番茄肉酱",
+      "番茄牛肉酱包"
+    ],
+    "pack_formula": "番茄牛肉米线出货：番茄肉酱包60g",
+    "recipe_detail": {
+      "ingredients": [
+        {
+          "name": "牛肉",
+          "amount": "450g"
+        },
+        {
+          "name": "西红柿",
+          "amount": "350g"
+        },
+        {
+          "name": "糖",
+          "amount": "75g"
+        },
+        {
+          "name": "洋葱碎",
+          "amount": "300g"
+        },
+        {
+          "name": "大蒜末",
+          "amount": "100g"
+        },
+        {
+          "name": "番茄膏",
+          "amount": "550g（慕意番茄膏200g+水350g）"
+        },
+        {
+          "name": "盐",
+          "amount": "30g"
+        },
+        {
+          "name": "油",
+          "amount": "300g"
+        }
+      ],
+      "steps": [
+        "番茄去皮切小块，加入白糖备用",
+        "起锅烧油，蒜炸至发黄捞出，洋葱炸至透明，放入牛肉炸至变色捞出",
+        "放入新鲜番茄熬煮细腻，加入番茄膏",
+        "加入所有材料，熬浓稠"
+      ],
+      "notes": []
+    },
+    "copywriting_facts": "【番茄牛肉酱】\n含：牛肉、西红柿、洋葱、大蒜、番茄膏、糖\n不含：海鲜、泡菜\n可写：番茄浓汤、牛肉粒、酸甜开胃\n不可写：治疗、药用、未列出的食材或功效、100%无添加",
+    "source_version": "2026-01",
+    "sort_order": 5
+  },
+  {
+    "product_code": "sub_jisongrong_jiang",
+    "category_code": "sub_recipe",
+    "category_name": "子配方",
+    "product_name": "姬松茸酱料",
+    "aliases": [
+      "松茸酱",
+      "姬松茸酱包"
+    ],
+    "pack_formula": "姬松茸米线出货：松茸酱包60g",
+    "recipe_detail": {
+      "ingredients": [
+        {
+          "name": "姬松茸",
+          "amount": "100g"
+        },
+        {
+          "name": "干香菇",
+          "amount": "150g"
+        },
+        {
+          "name": "笋干",
+          "amount": "150g"
+        },
+        {
+          "name": "洋葱",
+          "amount": "500g"
+        },
+        {
+          "name": "姜",
+          "amount": "150g"
+        },
+        {
+          "name": "蒜",
+          "amount": "250g"
+        },
+        {
+          "name": "梅干菜",
+          "amount": "75g"
+        },
+        {
+          "name": "菜籽油",
+          "amount": "1250ml"
+        }
+      ],
+      "steps": [
+        "松茸+香菇一起浸泡清洗干净，笋干单独泡",
+        "菌菇和笋干攥干水份，切成小拇指甲盖大小",
+        "菜籽油入锅脱水菌菇和笋干，中火约20分钟至表面微黄",
+        "脱葱姜蒜+梅干菜，中火约15分钟",
+        "倒入菌菇翻炒，倒入调料翻炒"
+      ],
+      "notes": [
+        "会用到菌菇水",
+        "料汁含黑胡椒、蚝油、生抽、糖、盐、菌菇水"
+      ]
+    },
+    "copywriting_facts": "【姬松茸酱料】\n含：姬松茸、干香菇、笋干、洋葱、姜、蒜、梅干菜、菜籽油\n不含：海鲜、辣油\n可写：菌菇鲜香、笋干梅干菜、脱水炒制\n不可写：治疗、药用、未列出的食材或功效、100%无添加",
+    "source_version": "2026-01",
+    "sort_order": 6
+  },
+  {
+    "product_code": "sub_gali_jiang",
+    "category_code": "sub_recipe",
+    "category_name": "子配方",
+    "product_name": "咖喱酱",
+    "aliases": [
+      "咖喱酱包",
+      "咖喱米线酱"
+    ],
+    "pack_formula": "咖喱米线出货：咖喱酱包100g",
+    "recipe_detail": {
+      "ingredients": [
+        {
+          "name": "鸡胸",
+          "amount": "150g"
+        },
+        {
+          "name": "土豆",
+          "amount": "150g"
+        },
+        {
+          "name": "杂蔬粒",
+          "amount": "100g"
+        },
+        {
+          "name": "咖喱",
+          "amount": "100g（咖喱块+咖喱火锅底料各50g）"
+        },
+        {
+          "name": "水",
+          "amount": "250g"
+        },
+        {
+          "name": "油",
+          "amount": "20g"
+        }
+      ],
+      "steps": [
+        "油微热放入腌好的鸡胸肉",
+        "鸡肉炒变色，加入蔬菜、土豆、咖喱翻炒均匀",
+        "土豆煮软后最后加咖喱"
+      ],
+      "notes": []
+    },
+    "copywriting_facts": "【咖喱酱】\n含：鸡胸肉、土豆、杂蔬粒、咖喱块、咖喱火锅底料\n不含：海鲜、泡菜、辣油\n可写：咖喱浓香、土豆软糯、杂蔬丰富\n不可写：治疗、药用、未列出的食材或功效、100%无添加",
+    "source_version": "2026-01",
+    "sort_order": 7
+  },
+  {
+    "product_code": "sub_la_niurou_jiang",
+    "category_code": "sub_recipe",
+    "category_name": "子配方",
+    "product_name": "辣牛肉酱",
+    "aliases": [
+      "辣牛肉酱包",
+      "辣牛四方酱"
+    ],
+    "pack_formula": "辣牛四方牛肉米线出货：辣牛肉酱包60g",
+    "recipe_detail": {
+      "ingredients": [
+        {
+          "name": "牛肉",
+          "amount": "1000g"
+        },
+        {
+          "name": "小米椒",
+          "amount": "200g"
+        },
+        {
+          "name": "大蒜",
+          "amount": "100g"
+        },
+        {
+          "name": "生姜",
+          "amount": "50g"
+        },
+        {
+          "name": "海天黄豆酱",
+          "amount": "300g"
+        },
+        {
+          "name": "油",
+          "amount": "630g"
+        }
+      ],
+      "steps": [
+        "牛肉切小丁",
+        "小米椒、姜、蒜分别打碎",
+        "锅中倒入630g油，蒜姜碎炸香，倒入牛肉炒至变色",
+        "放入200g小米椒",
+        "再放入300g黄豆酱",
+        "小火炒熟，倒入电饭煲焖煮约一个半小时"
+      ],
+      "notes": [
+        "黄豆酱最好打碎"
+      ]
+    },
+    "copywriting_facts": "【辣牛肉酱】\n含：牛肉、小米椒、大蒜、生姜、海天黄豆酱\n不含：海鲜、泡菜\n可写：辣香牛肉、黄豆酱焖煮、四方牛肉风味\n不可写：治疗、药用、未列出的食材或功效、100%无添加",
+    "source_version": "2026-01",
+    "sort_order": 8
+  },
+  {
+    "product_code": "sub_tengjiao_jiang",
+    "category_code": "sub_recipe",
+    "category_name": "子配方",
+    "product_name": "藤椒酱",
+    "aliases": [
+      "藤椒酱包",
+      "藤椒汤底"
+    ],
+    "pack_formula": "藤椒米线出货：藤椒酱包60g",
+    "recipe_detail": {
+      "ingredients": [
+        {
+          "name": "青线椒",
+          "amount": "200g"
+        },
+        {
+          "name": "鲜藤椒",
+          "amount": "50g"
+        },
+        {
+          "name": "泡椒",
+          "amount": "60g"
+        },
+        {
+          "name": "泡姜",
+          "amount": "25g"
+        },
+        {
+          "name": "蒜",
+          "amount": "15g"
+        },
+        {
+          "name": "香芹",
+          "amount": "10g"
+        },
+        {
+          "name": "菜籽油",
+          "amount": "150g"
+        },
+        {
+          "name": "鸡油",
+          "amount": "50g"
+        },
+        {
+          "name": "藤椒油",
+          "amount": "40g"
+        },
+        {
+          "name": "花椒油",
+          "amount": "20g"
+        }
+      ],
+      "steps": [
+        "菜籽油烧至240℃关火，放凉至200℃加入鸡油",
+        "加入葱姜炸半干倒入菠菜，炸干菠菜，捞出菜渣",
+        "下蔬菜泥，小火3分钟",
+        "加入藤椒油、花椒油，小火1分钟",
+        "关火，加入鸡精、味精、搅匀"
+      ],
+      "notes": []
+    },
+    "copywriting_facts": "【藤椒酱】\n含：青线椒、鲜藤椒、泡椒、泡姜、蒜、香芹、菜籽油、鸡油、藤椒油、花椒油\n不含：海鲜、泡菜\n可写：麻香藤椒、清爽开胃、私房炸制\n不可写：治疗、药用、未列出的食材或功效、100%无添加",
+    "source_version": "2026-01",
+    "sort_order": 9
+  },
+  {
+    "product_code": "sub_jintang_jiang",
+    "category_code": "sub_recipe",
+    "category_name": "子配方",
+    "product_name": "金汤酱",
+    "aliases": [
+      "金汤酱包"
+    ],
+    "pack_formula": "金汤米线出货：金汤酱包60g",
+    "recipe_detail": {
+      "ingredients": [],
+      "steps": [],
+      "notes": [
+        "课件总配比表列出金汤酱包60g，制作细节见成品酱包标准"
+      ]
+    },
+    "copywriting_facts": "【金汤酱】\n含：金汤调味酱料（成品酱包）\n不含：海鲜、泡菜、辣油\n可写：金汤酸辣、汤色金黄、米线搭配\n不可写：治疗、药用、未列出的食材或功效、100%无添加",
+    "source_version": "2026-01",
+    "sort_order": 10
+  },
+  {
+    "product_code": "sub_longxia_jiang",
+    "category_code": "sub_recipe",
+    "category_name": "子配方",
+    "product_name": "龙虾酱",
+    "aliases": [
+      "龙虾酱包",
+      "小龙虾酱"
+    ],
+    "pack_formula": "小龙虾米线出货：龙虾酱包60g",
+    "recipe_detail": {
+      "ingredients": [
+        {
+          "name": "去皮虾尾",
+          "amount": "500g"
+        },
+        {
+          "name": "火锅料",
+          "amount": "25g"
+        },
+        {
+          "name": "豆瓣酱",
+          "amount": "25g"
+        },
+        {
+          "name": "油",
+          "amount": "80g"
+        }
+      ],
+      "steps": [
+        "起锅烧油",
+        "小火炒火锅料和豆瓣酱、炒出红油",
+        "加入香料、葱姜炒香",
+        "加入虾尾翻炒均匀",
+        "加入料汁调味",
+        "加入80克水，煮开关火"
+      ],
+      "notes": [
+        "料汁含蚝油、生抽、味精、鸡精、白糖",
+        "香料含青麻椒、花椒、香叶等"
+      ]
+    },
+    "copywriting_facts": "【龙虾酱】\n含：去皮虾尾、火锅料、豆瓣酱、蚝油、生抽、香料\n不含：泡菜、朝鲜面\n可写：小龙虾风味、红油炒制、虾尾鲜香\n不可写：治疗、药用、未列出的食材或功效、100%无添加",
+    "source_version": "2026-01",
+    "sort_order": 11
+  },
+  {
+    "product_code": "sub_niuyou_huoguo_suanla_fen",
+    "category_code": "sub_recipe",
+    "category_name": "子配方",
+    "product_name": "牛油火锅酸辣粉底料",
+    "aliases": [
+      "牛油火锅酱",
+      "酸辣粉底料"
+    ],
+    "pack_formula": "火锅牛油酸辣粉出货：牛油火锅酱40g",
+    "recipe_detail": {
+      "ingredients": [
+        {
+          "name": "鸡油",
+          "amount": "250g"
+        },
+        {
+          "name": "牛油",
+          "amount": "250g"
+        },
+        {
+          "name": "菜籽油",
+          "amount": "250g"
+        },
+        {
+          "name": "姜末",
+          "amount": "50g"
+        },
+        {
+          "name": "蒜末",
+          "amount": "75g"
+        },
+        {
+          "name": "丹丹豆瓣酱",
+          "amount": "900g"
+        }
+      ],
+      "steps": [
+        "油热下大葱香菜炸黄捞出",
+        "下入姜末蒜末炸干（注意不要炸糊）",
+        "下入豆瓣酱，全程改小火，一直搅拌不糊底",
+        "豆瓣酱从一大块搅成散开的样子，熬至没什么水分即可"
+      ],
+      "notes": []
+    },
+    "copywriting_facts": "【牛油火锅酸辣粉底料】\n含：鸡油、牛油、菜籽油、姜末、蒜末、丹丹豆瓣酱\n不含：海鲜、朝鲜面\n可写：牛油火锅、酸辣粉底料、红油熬制\n不可写：治疗、药用、未列出的食材或功效、100%无添加",
+    "source_version": "2026-01",
+    "sort_order": 12
+  },
+  {
+    "product_code": "mixian_paocai_chaoxian",
+    "category_code": "mixian",
+    "category_name": "米线",
+    "product_name": "泡菜朝鲜面",
+    "aliases": [
+      "朝鲜面",
+      "泡菜面"
+    ],
+    "pack_formula": "面块1包（朝鲜面） 泡菜1包50g 粉料1包（盐5g，鸡粉5g，糖10g） 虾皮紫菜1包 辣油20g 小酥豆15g",
+    "recipe_detail": {
+      "ingredients": [],
+      "steps": [],
+      "notes": []
+    },
+    "copywriting_facts": "【泡菜朝鲜面】\n含：朝鲜面、泡菜、粉料调味、虾皮紫菜、辣油、小酥豆\n不含：肉类、海鲜\n可写：酸辣开胃、配料丰富、私房早餐\n不可写：治疗、药用、未列出的食材或功效、100%无添加",
+    "source_version": "2026-01",
+    "sort_order": 101
+  },
+  {
+    "product_code": "mixian_labaicai_qiaomai",
+    "category_code": "mixian",
+    "category_name": "米线",
+    "product_name": "辣白菜荞麦面",
+    "aliases": [
+      "荞麦面",
+      "辣白菜面"
+    ],
+    "pack_formula": "面块1包（荞麦面） 辣泡菜1包50g 粉料1包（盐5g，鸡粉5g，糖10g） 虾皮紫菜1包 辣油20g 小酥豆15g",
+    "recipe_detail": {
+      "ingredients": [],
+      "steps": [],
+      "notes": []
+    },
+    "copywriting_facts": "【辣白菜荞麦面】\n含：荞麦面、辣泡菜、粉料调味、虾皮紫菜、辣油、小酥豆\n不含：肉类、海鲜\n可写：荞麦粗粮、辣白菜风味、酸辣开胃\n不可写：治疗、药用、未列出的食材或功效、100%无添加",
+    "source_version": "2026-01",
+    "sort_order": 102
+  },
+  {
+    "product_code": "mixian_chuantong_jiding",
+    "category_code": "mixian",
+    "category_name": "米线",
+    "product_name": "传统鸡丁米线",
+    "aliases": [
+      "鸡丁米线"
+    ],
+    "pack_formula": "面块1包（米线） 豆皮1包 粉料1包（盐5g，麻椒1.5g，鸡粉5g，味精1g） 菜包1包 传统鸡丁肉包30g 辣油20g 小酥豆20g",
+    "recipe_detail": {
+      "ingredients": [],
+      "steps": [],
+      "notes": []
+    },
+    "copywriting_facts": "【传统鸡丁米线】\n含：米线、豆皮、粉料调味、菜包、传统鸡丁肉、辣油、小酥豆\n不含：海鲜、泡菜\n可写：传统鸡丁、香菇鸡肉、香辣小酥豆\n不可写：治疗、药用、未列出的食材或功效、100%无添加",
+    "source_version": "2026-01",
+    "sort_order": 103
+  },
+  {
+    "product_code": "mixian_douchi",
+    "category_code": "mixian",
+    "category_name": "米线",
+    "product_name": "豆豉米线",
+    "aliases": [
+      "豆豉面"
+    ],
+    "pack_formula": "面块1包（米线） 豆皮1包 粉包（鸡粉5g，盐5g，味精1g） 菜包1包 豆豉酱包100g 小酥豆15g",
+    "recipe_detail": {
+      "ingredients": [],
+      "steps": [],
+      "notes": []
+    },
+    "copywriting_facts": "【豆豉米线】\n含：米线、豆皮、粉料调味、菜包、豆豉酱、小酥豆\n不含：海鲜、泡菜、辣油\n可写：豉香鸡肉、豆豉风味\n不可写：治疗、药用、未列出的食材或功效、100%无添加",
+    "source_version": "2026-01",
+    "sort_order": 104
+  },
+  {
+    "product_code": "mixian_fanqie_niurou",
+    "category_code": "mixian",
+    "category_name": "米线",
+    "product_name": "番茄牛肉米线",
+    "aliases": [
+      "番茄米线",
+      "番茄牛肉面"
+    ],
+    "pack_formula": "面块1包（米线） 豆皮1包 粉包（鸡粉5g，盐5g，味精1g） 菜包1包 番茄肉酱包60g 小酥豆15g",
+    "recipe_detail": {
+      "ingredients": [],
+      "steps": [],
+      "notes": []
+    },
+    "copywriting_facts": "【番茄牛肉米线】\n含：米线、豆皮、粉料调味、菜包、番茄牛肉酱、小酥豆\n不含：海鲜、泡菜、辣油\n可写：番茄浓汤、牛肉粒、酸甜开胃\n不可写：治疗、药用、未列出的食材或功效、100%无添加",
+    "source_version": "2026-01",
+    "sort_order": 105
+  },
+  {
+    "product_code": "mixian_jisongrong",
+    "category_code": "mixian",
+    "category_name": "米线",
+    "product_name": "姬松茸米线",
+    "aliases": [
+      "松茸米线",
+      "菌菇米线"
+    ],
+    "pack_formula": "面块1包（米线） 豆皮1包 粉包（鸡粉5g，盐5g，味精1g） 菜包1包 松茸酱包60g 小酥豆15g",
+    "recipe_detail": {
+      "ingredients": [],
+      "steps": [],
+      "notes": []
+    },
+    "copywriting_facts": "【姬松茸米线】\n含：米线、豆皮、粉料调味、菜包、姬松茸酱料、小酥豆\n不含：海鲜、泡菜、辣油\n可写：菌菇鲜香、笋干梅干菜\n不可写：治疗、药用、未列出的食材或功效、100%无添加",
+    "source_version": "2026-01",
+    "sort_order": 106
+  },
+  {
+    "product_code": "mixian_gali",
+    "category_code": "mixian",
+    "category_name": "米线",
+    "product_name": "咖喱米线",
+    "aliases": [
+      "咖喱面"
+    ],
+    "pack_formula": "面块1包（米线） 豆皮1包 粉包（鸡粉5g，盐5g，味精1g） 菜包1包 咖喱酱包100g 小酥豆15g",
+    "recipe_detail": {
+      "ingredients": [],
+      "steps": [],
+      "notes": []
+    },
+    "copywriting_facts": "【咖喱米线】\n含：米线、豆皮、粉料调味、菜包、咖喱酱、小酥豆\n不含：海鲜、泡菜、辣油\n可写：咖喱浓香、土豆杂蔬\n不可写：治疗、药用、未列出的食材或功效、100%无添加",
+    "source_version": "2026-01",
+    "sort_order": 107
+  },
+  {
+    "product_code": "mixian_la_niu_sifang",
+    "category_code": "mixian",
+    "category_name": "米线",
+    "product_name": "辣牛四方牛肉米线",
+    "aliases": [
+      "辣牛米线",
+      "四方牛肉米线"
+    ],
+    "pack_formula": "面块1包（米线） 豆皮1包 粉包（鸡粉5g，盐5g，味精1g） 菜包1包 辣牛肉酱包60g 小酥豆15g",
+    "recipe_detail": {
+      "ingredients": [],
+      "steps": [],
+      "notes": []
+    },
+    "copywriting_facts": "【辣牛四方牛肉米线】\n含：米线、豆皮、粉料调味、菜包、辣牛肉酱、小酥豆\n不含：海鲜、泡菜\n可写：辣香牛肉、黄豆酱风味\n不可写：治疗、药用、未列出的食材或功效、100%无添加",
+    "source_version": "2026-01",
+    "sort_order": 108
+  },
+  {
+    "product_code": "mixian_tengjiao",
+    "category_code": "mixian",
+    "category_name": "米线",
+    "product_name": "藤椒米线",
+    "aliases": [
+      "藤椒面"
+    ],
+    "pack_formula": "面块1包（米线） 豆皮1包 粉包（鸡粉5g，盐5g，味精1g） 菜包1包 藤椒酱包60g 小酥豆15g",
+    "recipe_detail": {
+      "ingredients": [],
+      "steps": [],
+      "notes": []
+    },
+    "copywriting_facts": "【藤椒米线】\n含：米线、豆皮、粉料调味、菜包、藤椒酱、小酥豆\n不含：海鲜、泡菜\n可写：麻香藤椒、清爽开胃\n不可写：治疗、药用、未列出的食材或功效、100%无添加",
+    "source_version": "2026-01",
+    "sort_order": 109
+  },
+  {
+    "product_code": "mixian_jintang",
+    "category_code": "mixian",
+    "category_name": "米线",
+    "product_name": "金汤米线",
+    "aliases": [
+      "金汤面"
+    ],
+    "pack_formula": "面块1包（米线） 豆皮1包 粉包（鸡粉5g，盐5g，味精1g） 菜包1包 金汤酱包60g 小酥豆15g",
+    "recipe_detail": {
+      "ingredients": [],
+      "steps": [],
+      "notes": []
+    },
+    "copywriting_facts": "【金汤米线】\n含：米线、豆皮、粉料调味、菜包、金汤酱、小酥豆\n不含：海鲜、泡菜\n可写：金汤酸辣、汤色金黄\n不可写：治疗、药用、未列出的食材或功效、100%无添加",
+    "source_version": "2026-01",
+    "sort_order": 110
+  },
+  {
+    "product_code": "mixian_longxia",
+    "category_code": "mixian",
+    "category_name": "米线",
+    "product_name": "小龙虾米线",
+    "aliases": [
+      "龙虾米线",
+      "虾尾米线"
+    ],
+    "pack_formula": "面块1包（米线） 豆皮1包 粉包（鸡粉5g，盐5g，味精1g） 菜包1包 龙虾酱包60g 小酥豆15g",
+    "recipe_detail": {
+      "ingredients": [],
+      "steps": [],
+      "notes": []
+    },
+    "copywriting_facts": "【小龙虾米线】\n含：米线、豆皮、粉料调味、菜包、龙虾酱、小酥豆\n不含：泡菜、朝鲜面\n可写：小龙虾风味、虾尾鲜香\n不可写：治疗、药用、未列出的食材或功效、100%无添加",
+    "source_version": "2026-01",
+    "sort_order": 111
+  },
+  {
+    "product_code": "mixian_huoguo_niuyou_suanla_fen",
+    "category_code": "mixian",
+    "category_name": "米线",
+    "product_name": "火锅牛油酸辣粉",
+    "aliases": [
+      "酸辣粉",
+      "牛油酸辣粉"
+    ],
+    "pack_formula": "粉条1包 豆皮1包 粉包（白糖15g，麻椒3g，盐5g，鸡粉5g） 陈醋包10g 辣泡菜80g 牛油火锅酱40g 小酥豆15g",
+    "recipe_detail": {
+      "ingredients": [],
+      "steps": [],
+      "notes": []
+    },
+    "copywriting_facts": "【火锅牛油酸辣粉】\n含：粉条、豆皮、粉料调味、陈醋、辣泡菜、牛油火锅酱、小酥豆\n不含：海鲜、朝鲜面\n可写：牛油火锅、酸辣粉、重口味\n不可写：治疗、药用、未列出的食材或功效、100%无添加",
+    "source_version": "2026-01",
+    "sort_order": 112
+  },
+  {
+    "product_code": "wonton_muxian",
+    "category_code": "wonton",
+    "category_name": "馄饨",
+    "product_name": "馄饨馅（母馅）",
+    "aliases": [
+      "馄饨母馅",
+      "猪肉馄饨母馅"
+    ],
+    "pack_formula": "各口味馄饨基础馅：母馅100g+口味配料",
+    "recipe_detail": {
+      "ingredients": [
+        {
+          "name": "梅花肉",
+          "amount": "500g"
+        },
+        {
+          "name": "碱",
+          "amount": "1g"
+        },
+        {
+          "name": "鸡精",
+          "amount": "2g"
+        },
+        {
+          "name": "菌粉",
+          "amount": "1.5g"
+        },
+        {
+          "name": "味精",
+          "amount": "4g"
+        },
+        {
+          "name": "糖",
+          "amount": "10g"
+        },
+        {
+          "name": "生抽",
+          "amount": "30g"
+        },
+        {
+          "name": "蚝油",
+          "amount": "30g"
+        },
+        {
+          "name": "水",
+          "amount": "100g"
+        },
+        {
+          "name": "盐",
+          "amount": "5g"
+        }
+      ],
+      "steps": [
+        "把碱抹在肉上，绞肉机过三遍",
+        "料汁全部放在一起搅匀，用打蛋器打匀",
+        "加入肉馅，打5~6分钟上劲"
+      ],
+      "notes": [
+        "全程低温",
+        "母馅为基础，各口味在此基础上加料"
+      ]
+    },
+    "copywriting_facts": "【馄饨馅（母馅）】\n含：梅花肉、鸡精、菌粉、味精、糖、生抽、蚝油、葱姜蒜粉、水、盐\n不含：海鲜（母馅本身）\n可写：私房馄饨、肉馅上劲、多口味延伸\n不可写：治疗、药用、未列出的食材或功效、100%无添加",
+    "source_version": "2026-01",
+    "sort_order": 201
+  },
+  {
+    "product_code": "wonton_xiangcai",
+    "category_code": "wonton",
+    "category_name": "馄饨",
+    "product_name": "香菜馄饨",
+    "aliases": [
+      "香菜鲜肉馄饨"
+    ],
+    "pack_formula": "母馅100g+香菜40g",
+    "recipe_detail": {
+      "ingredients": [],
+      "steps": [],
+      "notes": []
+    },
+    "copywriting_facts": "【香菜馄饨】\n含：母馅、香菜\n不含：海鲜、泡菜\n可写：香菜清香、鲜肉馄饨\n不可写：治疗、药用、未列出的食材或功效、100%无添加",
+    "source_version": "2026-01",
+    "sort_order": 202
+  },
+  {
+    "product_code": "wonton_xianggu",
+    "category_code": "wonton",
+    "category_name": "馄饨",
+    "product_name": "香菇馄饨",
+    "aliases": [
+      "香菇鲜肉馄饨"
+    ],
+    "pack_formula": "母馅100g+香菇50g（切碎焯水攥干）",
+    "recipe_detail": {
+      "ingredients": [],
+      "steps": [],
+      "notes": []
+    },
+    "copywriting_facts": "【香菇馄饨】\n含：母馅、香菇\n不含：海鲜、泡菜\n可写：香菇鲜香、经典口味\n不可写：治疗、药用、未列出的食材或功效、100%无添加",
+    "source_version": "2026-01",
+    "sort_order": 203
+  },
+  {
+    "product_code": "wonton_jicai",
+    "category_code": "wonton",
+    "category_name": "馄饨",
+    "product_name": "荠菜馄饨",
+    "aliases": [
+      "荠菜鲜肉馄饨"
+    ],
+    "pack_formula": "母馅100g+荠菜50g（焯水攥干切碎）",
+    "recipe_detail": {
+      "ingredients": [],
+      "steps": [],
+      "notes": []
+    },
+    "copywriting_facts": "【荠菜馄饨】\n含：母馅、荠菜\n不含：海鲜、泡菜\n可写：荠菜清香、时令风味\n不可写：治疗、药用、未列出的食材或功效、100%无添加",
+    "source_version": "2026-01",
+    "sort_order": 204
+  },
+  {
+    "product_code": "wonton_suancai",
+    "category_code": "wonton",
+    "category_name": "馄饨",
+    "product_name": "酸菜馄饨",
+    "aliases": [
+      "酸菜鲜肉馄饨"
+    ],
+    "pack_formula": "母馅100g+酸菜50g（淘洗攥干切碎）",
+    "recipe_detail": {
+      "ingredients": [],
+      "steps": [],
+      "notes": []
+    },
+    "copywriting_facts": "【酸菜馄饨】\n含：母馅、酸菜\n不含：海鲜\n可写：酸菜开胃、酸爽鲜香\n不可写：治疗、药用、未列出的食材或功效、100%无添加",
+    "source_version": "2026-01",
+    "sort_order": 205
+  },
+  {
+    "product_code": "wonton_mati_haitai",
+    "category_code": "wonton",
+    "category_name": "馄饨",
+    "product_name": "马蹄海苔馄饨",
+    "aliases": [
+      "海苔马蹄馄饨"
+    ],
+    "pack_formula": "母馅100g+马蹄50g+海苔碎少许",
+    "recipe_detail": {
+      "ingredients": [],
+      "steps": [],
+      "notes": []
+    },
+    "copywriting_facts": "【马蹄海苔馄饨】\n含：母馅、马蹄、海苔\n不含：海鲜、泡菜\n可写：马蹄爽脆、海苔增香\n不可写：治疗、药用、未列出的食材或功效、100%无添加",
+    "source_version": "2026-01",
+    "sort_order": 206
+  },
+  {
+    "product_code": "wonton_zhishi_yumi",
+    "category_code": "wonton",
+    "category_name": "馄饨",
+    "product_name": "芝士玉米鲜肉馄饨",
+    "aliases": [
+      "芝士玉米馄饨"
+    ],
+    "pack_formula": "母馅100g+玉米粒50g（包时可加虾仁块、芝士2粒）",
+    "recipe_detail": {
+      "ingredients": [],
+      "steps": [],
+      "notes": []
+    },
+    "copywriting_facts": "【芝士玉米鲜肉馄饨】\n含：母馅、玉米粒、芝士、虾仁（可选）\n不含：泡菜\n可写：芝士拉丝、玉米甜脆\n不可写：治疗、药用、未列出的食材或功效、100%无添加",
+    "source_version": "2026-01",
+    "sort_order": 207
+  },
+  {
+    "product_code": "wonton_bayu",
+    "category_code": "wonton",
+    "category_name": "馄饨",
+    "product_name": "鲅鱼馄饨",
+    "aliases": [
+      "鲅鱼鲜肉馄饨"
+    ],
+    "pack_formula": "成品鲅鱼馅250g+母馅100g+韭菜碎40g",
+    "recipe_detail": {
+      "ingredients": [],
+      "steps": [],
+      "notes": []
+    },
+    "copywriting_facts": "【鲅鱼馄饨】\n含：鲅鱼馅、母馅、韭菜\n不含：泡菜\n可写：鲅鱼鲜香、韭菜提味\n不可写：治疗、药用、未列出的食材或功效、100%无添加",
+    "source_version": "2026-01",
+    "sort_order": 208
+  },
+  {
+    "product_code": "wonton_shaojiao_pidan",
+    "category_code": "wonton",
+    "category_name": "馄饨",
+    "product_name": "烧椒皮蛋馄饨",
+    "aliases": [
+      "烧椒皮蛋馄饨"
+    ],
+    "pack_formula": "母馅100g+烧椒皮蛋40g（螺丝椒120g干煸+皮蛋60g）",
+    "recipe_detail": {
+      "ingredients": [],
+      "steps": [],
+      "notes": []
+    },
+    "copywriting_facts": "【烧椒皮蛋馄饨】\n含：母馅、螺丝椒、皮蛋\n不含：海鲜、泡菜\n可写：烧椒虎皮、皮蛋特色\n不可写：治疗、药用、未列出的食材或功效、100%无添加",
+    "source_version": "2026-01",
+    "sort_order": 209
+  },
+  {
+    "product_code": "wonton_zhangyu_haixian",
+    "category_code": "wonton",
+    "category_name": "馄饨",
+    "product_name": "章鱼海鲜小馄饨",
+    "aliases": [
+      "章鱼馄饨",
+      "海鲜小馄饨"
+    ],
+    "pack_formula": "母馅与章鱼海鲜肠1:1",
+    "recipe_detail": {
+      "ingredients": [],
+      "steps": [],
+      "notes": []
+    },
+    "copywriting_facts": "【章鱼海鲜小馄饨】\n含：母馅、章鱼海鲜肠\n不含：泡菜\n可写：章鱼海鲜、Q弹口感\n不可写：治疗、药用、未列出的食材或功效、100%无添加",
+    "source_version": "2026-01",
+    "sort_order": 210
+  },
+  {
+    "product_code": "wonton_longxia",
+    "category_code": "wonton",
+    "category_name": "馄饨",
+    "product_name": "炒虾尾小龙虾馄饨",
+    "aliases": [
+      "小龙虾馄饨",
+      "虾尾馄饨"
+    ],
+    "pack_formula": "炒虾尾馅料（去皮虾尾500g+火锅料25g+豆瓣酱25g等）",
+    "recipe_detail": {
+      "ingredients": [],
+      "steps": [],
+      "notes": []
+    },
+    "copywriting_facts": "【炒虾尾小龙虾馄饨】\n含：虾尾、火锅料、豆瓣酱、香料\n不含：泡菜、朝鲜面\n可写：小龙虾风味、虾尾鲜香\n不可写：治疗、药用、未列出的食材或功效、100%无添加",
+    "source_version": "2026-01",
+    "sort_order": 211
+  },
+  {
+    "product_code": "wonton_niurou",
+    "category_code": "wonton",
+    "category_name": "馄饨",
+    "product_name": "牛肉馄饨",
+    "aliases": [
+      "牛肉芝士馄饨"
+    ],
+    "pack_formula": "牛瘦肉375g+藜麦30g+木耳40g+芝士50g+猪肥肉125g+猪肉母馅20g",
+    "recipe_detail": {
+      "ingredients": [],
+      "steps": [],
+      "notes": []
+    },
+    "copywriting_facts": "【牛肉馄饨】\n含：牛肉、藜麦、木耳、芝士、猪肉母馅\n不含：海鲜、泡菜\n可写：牛肉鲜香、芝士颗粒、口感丰富\n不可写：治疗、药用、未列出的食材或功效、100%无添加",
+    "source_version": "2026-01",
+    "sort_order": 212
+  },
+  {
+    "product_code": "jiaozi_muxian",
+    "category_code": "jiaozi",
+    "category_name": "饺子",
+    "product_name": "饺子馅（母馅）",
+    "aliases": [
+      "饺子母馅",
+      "猪肉饺子母馅"
+    ],
+    "pack_formula": "各口味饺子基础：母馅+口味蔬菜配料",
+    "recipe_detail": {
+      "ingredients": [
+        {
+          "name": "梅花肉（肥瘦2:8）",
+          "amount": "500g"
+        },
+        {
+          "name": "盐",
+          "amount": "6g"
+        },
+        {
+          "name": "味精",
+          "amount": "5g"
+        },
+        {
+          "name": "菌粉",
+          "amount": "5g"
+        },
+        {
+          "name": "鸡精",
+          "amount": "5g"
+        },
+        {
+          "name": "生抽",
+          "amount": "16g"
+        },
+        {
+          "name": "老抽",
+          "amount": "9g"
+        },
+        {
+          "name": "蚝油",
+          "amount": "10g"
+        },
+        {
+          "name": "香油",
+          "amount": "10g"
+        },
+        {
+          "name": "料油",
+          "amount": "40g"
+        },
+        {
+          "name": "花椒水",
+          "amount": "100g"
+        },
+        {
+          "name": "姜汁",
+          "amount": "15g"
+        }
+      ],
+      "steps": [
+        "肉进绞肉机绞一遍",
+        "加入料汁抓匀（轻抓即可，避免上劲儿）",
+        "加入姜汁和花椒水抓拌均匀",
+        "最后加入料油抓拌均匀"
+      ],
+      "notes": [
+        "料油：大豆油250g炸葱姜洋葱花椒八角"
+      ]
+    },
+    "copywriting_facts": "【饺子馅（母馅）】\n含：梅花肉、盐、味精、菌粉、鸡精、生抽、老抽、蚝油、香油、料油、花椒水、姜汁\n不含：海鲜（母馅本身）\n可写：私房饺子、多口味延伸\n不可写：治疗、药用、未列出的食材或功效、100%无添加",
+    "source_version": "2026-01",
+    "sort_order": 301
+  },
+  {
+    "product_code": "jiaozi_zhurou_baicai",
+    "category_code": "jiaozi",
+    "category_name": "饺子",
+    "product_name": "猪肉白菜饺子",
+    "aliases": [
+      "白菜饺子"
+    ],
+    "pack_formula": "母馅500g+白菜250g+大葱10g（白菜用10g料油拌锁水）",
+    "recipe_detail": {
+      "ingredients": [],
+      "steps": [],
+      "notes": []
+    },
+    "copywriting_facts": "【猪肉白菜饺子】\n含：母馅、白菜、大葱\n不含：海鲜、泡菜\n可写：白菜清甜、经典家常\n不可写：治疗、药用、未列出的食材或功效、100%无添加",
+    "source_version": "2026-01",
+    "sort_order": 302
+  },
+  {
+    "product_code": "jiaozi_zhurou_jiucai",
+    "category_code": "jiaozi",
+    "category_name": "饺子",
+    "product_name": "猪肉韭菜饺子",
+    "aliases": [
+      "韭菜饺子"
+    ],
+    "pack_formula": "母馅500g+韭菜250g（韭菜用10g料油拌锁水）",
+    "recipe_detail": {
+      "ingredients": [],
+      "steps": [],
+      "notes": []
+    },
+    "copywriting_facts": "【猪肉韭菜饺子】\n含：母馅、韭菜\n不含：海鲜、泡菜\n可写：韭菜鲜香、经典口味\n不可写：治疗、药用、未列出的食材或功效、100%无添加",
+    "source_version": "2026-01",
+    "sort_order": 303
+  },
+  {
+    "product_code": "jiaozi_zhurou_xiangcai",
+    "category_code": "jiaozi",
+    "category_name": "饺子",
+    "product_name": "猪肉香菜饺子",
+    "aliases": [
+      "香菜饺子"
+    ],
+    "pack_formula": "母馅100g+香菜50g",
+    "recipe_detail": {
+      "ingredients": [],
+      "steps": [],
+      "notes": []
+    },
+    "copywriting_facts": "【猪肉香菜饺子】\n含：母馅、香菜\n不含：海鲜、泡菜\n可写：香菜清香\n不可写：治疗、药用、未列出的食材或功效、100%无添加",
+    "source_version": "2026-01",
+    "sort_order": 304
+  },
+  {
+    "product_code": "jiaozi_zhurou_qincai",
+    "category_code": "jiaozi",
+    "category_name": "饺子",
+    "product_name": "猪肉芹菜饺子",
+    "aliases": [
+      "芹菜饺子"
+    ],
+    "pack_formula": "母馅500g+芹菜250g（芹菜用10g料油拌锁水）",
+    "recipe_detail": {
+      "ingredients": [],
+      "steps": [],
+      "notes": []
+    },
+    "copywriting_facts": "【猪肉芹菜饺子】\n含：母馅、芹菜\n不含：海鲜、泡菜\n可写：芹菜爽脆\n不可写：治疗、药用、未列出的食材或功效、100%无添加",
+    "source_version": "2026-01",
+    "sort_order": 305
+  },
+  {
+    "product_code": "jiaozi_haitai_ouding",
+    "category_code": "jiaozi",
+    "category_name": "饺子",
+    "product_name": "海苔藕丁饺子",
+    "aliases": [
+      "藕丁饺子",
+      "海苔藕丁"
+    ],
+    "pack_formula": "母馅500g+莲菜（或马蹄）250g+紫菜碎5g",
+    "recipe_detail": {
+      "ingredients": [],
+      "steps": [],
+      "notes": []
+    },
+    "copywriting_facts": "【海苔藕丁饺子】\n含：母馅、莲菜（或马蹄）、紫菜\n不含：海鲜、泡菜\n可写：藕丁爽脆、海苔增香\n不可写：治疗、药用、未列出的食材或功效、100%无添加",
+    "source_version": "2026-01",
+    "sort_order": 306
+  },
+  {
+    "product_code": "jiaozi_zhurou_jicai",
+    "category_code": "jiaozi",
+    "category_name": "饺子",
+    "product_name": "猪肉荠菜饺子",
+    "aliases": [
+      "荠菜饺子"
+    ],
+    "pack_formula": "母馅500g+荠菜250g+大葱50g",
+    "recipe_detail": {
+      "ingredients": [],
+      "steps": [],
+      "notes": []
+    },
+    "copywriting_facts": "【猪肉荠菜饺子】\n含：母馅、荠菜、大葱\n不含：海鲜、泡菜\n可写：荠菜清香、时令风味\n不可写：治疗、药用、未列出的食材或功效、100%无添加",
+    "source_version": "2026-01",
+    "sort_order": 307
+  },
+  {
+    "product_code": "jiaozi_zhurou_suancai",
+    "category_code": "jiaozi",
+    "category_name": "饺子",
+    "product_name": "猪肉酸菜饺子",
+    "aliases": [
+      "酸菜饺子"
+    ],
+    "pack_formula": "母馅500g+酸菜200g+大葱100g",
+    "recipe_detail": {
+      "ingredients": [],
+      "steps": [],
+      "notes": []
+    },
+    "copywriting_facts": "【猪肉酸菜饺子】\n含：母馅、酸菜、大葱\n不含：海鲜\n可写：酸菜开胃\n不可写：治疗、药用、未列出的食材或功效、100%无添加",
+    "source_version": "2026-01",
+    "sort_order": 308
+  },
+  {
+    "product_code": "jiaozi_zhurou_dacong",
+    "category_code": "jiaozi",
+    "category_name": "饺子",
+    "product_name": "猪肉大葱饺子",
+    "aliases": [
+      "大葱饺子"
+    ],
+    "pack_formula": "母馅500g+大葱250g（葱白剁碎）+料油10g",
+    "recipe_detail": {
+      "ingredients": [],
+      "steps": [],
+      "notes": []
+    },
+    "copywriting_facts": "【猪肉大葱饺子】\n含：母馅、大葱、料油\n不含：海鲜、泡菜\n可写：大葱浓香\n不可写：治疗、药用、未列出的食材或功效、100%无添加",
+    "source_version": "2026-01",
+    "sort_order": 309
+  },
+  {
+    "product_code": "jiaozi_bayu",
+    "category_code": "jiaozi",
+    "category_name": "饺子",
+    "product_name": "鲅鱼饺子",
+    "aliases": [
+      "鲅鱼馅饺子"
+    ],
+    "pack_formula": "成品鲅鱼馅250g+母馅100g+韭菜40g",
+    "recipe_detail": {
+      "ingredients": [],
+      "steps": [],
+      "notes": []
+    },
+    "copywriting_facts": "【鲅鱼饺子】\n含：鲅鱼馅、母馅、韭菜\n不含：泡菜\n可写：鲅鱼鲜香\n不可写：治疗、药用、未列出的食材或功效、100%无添加",
+    "source_version": "2026-01",
+    "sort_order": 310
+  },
+  {
+    "product_code": "jiaozi_shaojiao_pidan",
+    "category_code": "jiaozi",
+    "category_name": "饺子",
+    "product_name": "烧椒皮蛋饺子",
+    "aliases": [
+      "烧椒皮蛋饺子"
+    ],
+    "pack_formula": "母馅100g+烧椒皮蛋60g",
+    "recipe_detail": {
+      "ingredients": [],
+      "steps": [],
+      "notes": []
+    },
+    "copywriting_facts": "【烧椒皮蛋饺子】\n含：母馅、螺丝椒、皮蛋\n不含：海鲜、泡菜\n可写：烧椒虎皮、皮蛋特色\n不可写：治疗、药用、未列出的食材或功效、100%无添加",
+    "source_version": "2026-01",
+    "sort_order": 311
+  },
+  {
+    "product_code": "baozi_pi",
+    "category_code": "baozi",
+    "category_name": "包子",
+    "product_name": "包子皮",
+    "aliases": [
+      "发面面皮",
+      "包子面皮"
+    ],
+    "pack_formula": "每个包子皮45g（中筋面粉500g配方，压面1cm，七号圈）",
+    "recipe_detail": {
+      "ingredients": [
+        {
+          "name": "中筋面粉",
+          "amount": "500g"
+        },
+        {
+          "name": "酵母",
+          "amount": "5g"
+        },
+        {
+          "name": "泡打粉",
+          "amount": "5g"
+        },
+        {
+          "name": "糖",
+          "amount": "20g"
+        },
+        {
+          "name": "盐",
+          "amount": "2g"
+        },
+        {
+          "name": "水",
+          "amount": "200g~220g"
+        },
+        {
+          "name": "猪油",
+          "amount": "20g"
+        }
+      ],
+      "steps": [
+        "酵母、糖、盐、水混合均匀",
+        "猪油和泡打粉放入面粉中",
+        "揉成光滑面团，发至2倍大",
+        "压面厚度1厘米，七号圈，45克一个皮",
+        "开水上锅蒸15~20分钟"
+      ],
+      "notes": [
+        "根据温度、湿度调节水量"
+      ]
+    },
+    "copywriting_facts": "【包子皮】\n含：中筋面粉、酵母、泡打粉、糖、盐、水、猪油\n不含：肉类、蔬菜馅料\n可写：发面松软、手工擀皮\n不可写：治疗、药用、未列出的食材或功效、100%无添加",
+    "source_version": "2026-01",
+    "sort_order": 401
+  },
+  {
+    "product_code": "baozi_furu_rou",
+    "category_code": "baozi",
+    "category_name": "包子",
+    "product_name": "腐乳肉包",
+    "aliases": [
+      "腐乳包子"
+    ],
+    "pack_formula": "煮好的五花肉180g+南乳汁+豆腐乳+干豆角（1:2）",
+    "recipe_detail": {
+      "ingredients": [],
+      "steps": [],
+      "notes": []
+    },
+    "copywriting_facts": "【腐乳肉包】\n含：五花肉、南乳汁、豆腐乳、干豆角\n不含：海鲜\n可写：腐乳浓香、干豆角搭配\n不可写：治疗、药用、未列出的食材或功效、100%无添加",
+    "source_version": "2026-01",
+    "sort_order": 402
+  },
+  {
+    "product_code": "baozi_yuxiang_rous",
+    "category_code": "baozi",
+    "category_name": "包子",
+    "product_name": "鱼香肉丝包",
+    "aliases": [
+      "鱼香包"
+    ],
+    "pack_formula": "肉丝150g+胡萝卜丝100g+木耳100g+葱丁100g+鱼香料汁",
+    "recipe_detail": {
+      "ingredients": [],
+      "steps": [],
+      "notes": []
+    },
+    "copywriting_facts": "【鱼香肉丝包】\n含：猪肉丝、胡萝卜、木耳、葱、泡椒、豆瓣酱\n不含：海鲜\n可写：鱼香口味、经典川菜馅\n不可写：治疗、药用、未列出的食材或功效、100%无添加",
+    "source_version": "2026-01",
+    "sort_order": 403
+  },
+  {
+    "product_code": "baozi_la_qiezi",
+    "category_code": "baozi",
+    "category_name": "包子",
+    "product_name": "辣茄子包",
+    "aliases": [
+      "茄子包"
+    ],
+    "pack_formula": "茄子220g+青辣椒50g+香葱10g+粉条50g+辣椒粉",
+    "recipe_detail": {
+      "ingredients": [],
+      "steps": [],
+      "notes": []
+    },
+    "copywriting_facts": "【辣茄子包】\n含：茄子、青辣椒、粉条、辣椒粉\n不含：海鲜、肉类\n可写：辣香茄子、粉条搭配\n不可写：治疗、药用、未列出的食材或功效、100%无添加",
+    "source_version": "2026-01",
+    "sort_order": 404
+  },
+  {
+    "product_code": "baozi_huluobo_muer_jidan",
+    "category_code": "baozi",
+    "category_name": "包子",
+    "product_name": "胡萝卜木耳鸡蛋包",
+    "aliases": [
+      "素包",
+      "三鲜素包"
+    ],
+    "pack_formula": "胡萝卜丝200g+木耳丝100g+鸡蛋3个",
+    "recipe_detail": {
+      "ingredients": [],
+      "steps": [],
+      "notes": []
+    },
+    "copywriting_facts": "【胡萝卜木耳鸡蛋包】\n含：胡萝卜、木耳、鸡蛋\n不含：肉类、海鲜\n可写：素馅营养、三色搭配\n不可写：治疗、药用、未列出的食材或功效、100%无添加",
+    "source_version": "2026-01",
+    "sort_order": 405
+  },
+  {
+    "product_code": "baozi_labaicai",
+    "category_code": "baozi",
+    "category_name": "包子",
+    "product_name": "辣白菜包",
+    "aliases": [
+      "辣白菜包子"
+    ],
+    "pack_formula": "五花肉丁260g+辣白菜200g+粉条150g",
+    "recipe_detail": {
+      "ingredients": [],
+      "steps": [],
+      "notes": []
+    },
+    "copywriting_facts": "【辣白菜包】\n含：五花肉、辣白菜、粉条\n不含：海鲜\n可写：辣白菜开胃、肉香浓郁\n不可写：治疗、药用、未列出的食材或功效、100%无添加",
+    "source_version": "2026-01",
+    "sort_order": 406
+  },
+  {
+    "product_code": "baozi_waipo_cai_rou",
+    "category_code": "baozi",
+    "category_name": "包子",
+    "product_name": "外婆菜肉包",
+    "aliases": [
+      "外婆菜肉包"
+    ],
+    "pack_formula": "五花肉馅100g+外婆菜80g+青红椒丁",
+    "recipe_detail": {
+      "ingredients": [],
+      "steps": [],
+      "notes": []
+    },
+    "copywriting_facts": "【外婆菜肉包】\n含：五花肉、外婆菜、青红椒\n不含：海鲜\n可写：外婆菜咸香、湘味特色\n不可写：治疗、药用、未列出的食材或功效、100%无添加",
+    "source_version": "2026-01",
+    "sort_order": 407
+  },
+  {
+    "product_code": "baozi_waipo_cai_su",
+    "category_code": "baozi",
+    "category_name": "包子",
+    "product_name": "外婆菜素包",
+    "aliases": [
+      "外婆菜素包"
+    ],
+    "pack_formula": "鸡蛋3个+外婆菜80g+青红椒丁",
+    "recipe_detail": {
+      "ingredients": [],
+      "steps": [],
+      "notes": []
+    },
+    "copywriting_facts": "【外婆菜素包】\n含：鸡蛋、外婆菜、青红椒\n不含：肉类、海鲜\n可写：外婆菜素馅、鸡蛋搭配\n不可写：治疗、药用、未列出的食材或功效、100%无添加",
+    "source_version": "2026-01",
+    "sort_order": 408
+  },
+  {
+    "product_code": "baozi_gali",
+    "category_code": "baozi",
+    "category_name": "包子",
+    "product_name": "咖喱包",
+    "aliases": [
+      "咖喱包子"
+    ],
+    "pack_formula": "鸡胸肉丁200g+土豆丁150g+洋葱丁220g+咖喱块90g",
+    "recipe_detail": {
+      "ingredients": [],
+      "steps": [],
+      "notes": []
+    },
+    "copywriting_facts": "【咖喱包】\n含：鸡胸肉、土豆、洋葱、咖喱块\n不含：海鲜\n可写：咖喱浓香、土豆软糯\n不可写：治疗、药用、未列出的食材或功效、100%无添加",
+    "source_version": "2026-01",
+    "sort_order": 409
+  },
+  {
+    "product_code": "baozi_jiangrou",
+    "category_code": "baozi",
+    "category_name": "包子",
+    "product_name": "酱肉包",
+    "aliases": [
+      "酱肉包子"
+    ],
+    "pack_formula": "五花肉500g+大葱+洋葱+黄豆酱+甜面酱",
+    "recipe_detail": {
+      "ingredients": [],
+      "steps": [],
+      "notes": []
+    },
+    "copywriting_facts": "【酱肉包】\n含：五花肉、大葱、洋葱、黄豆酱、甜面酱\n不含：海鲜\n可写：酱肉浓香、卤香入味\n不可写：治疗、药用、未列出的食材或功效、100%无添加",
+    "source_version": "2026-01",
+    "sort_order": 410
+  },
+  {
+    "product_code": "baozi_meicai_kourou",
+    "category_code": "baozi",
+    "category_name": "包子",
+    "product_name": "梅菜扣肉包",
+    "aliases": [
+      "梅菜扣肉包"
+    ],
+    "pack_formula": "煮好的五花肉180g+梅干菜25g+海鲜酱等料汁",
+    "recipe_detail": {
+      "ingredients": [],
+      "steps": [],
+      "notes": []
+    },
+    "copywriting_facts": "【梅菜扣肉包】\n含：五花肉、梅干菜、海鲜酱、柱候酱\n不含：海鲜\n可写：梅菜扣肉、咸香浓郁\n不可写：治疗、药用、未列出的食材或功效、100%无添加",
+    "source_version": "2026-01",
+    "sort_order": 411
+  },
+  {
+    "product_code": "baozi_dachang",
+    "category_code": "baozi",
+    "category_name": "包子",
+    "product_name": "大肠包",
+    "aliases": [
+      "肥肠包"
+    ],
+    "pack_formula": "卤好的大肠80g+青椒50g+笋50g",
+    "recipe_detail": {
+      "ingredients": [],
+      "steps": [],
+      "notes": []
+    },
+    "copywriting_facts": "【大肠包】\n含：大肠、青椒、笋\n不含：海鲜\n可写：卤香大肠、爽脆配菜\n不可写：治疗、药用、未列出的食材或功效、100%无添加",
+    "source_version": "2026-01",
+    "sort_order": 412
+  },
+  {
+    "product_code": "baozi_nangua",
+    "category_code": "baozi",
+    "category_name": "包子",
+    "product_name": "南瓜包",
+    "aliases": [
+      "南瓜素包"
+    ],
+    "pack_formula": "南瓜丝300g+香葱15g",
+    "recipe_detail": {
+      "ingredients": [],
+      "steps": [],
+      "notes": []
+    },
+    "copywriting_facts": "【南瓜包】\n含：南瓜、香葱\n不含：肉类、海鲜\n可写：南瓜清甜、素馅健康\n不可写：治疗、药用、未列出的食材或功效、100%无添加",
+    "source_version": "2026-01",
+    "sort_order": 413
+  },
+  {
+    "product_code": "baozi_mala_doufu",
+    "category_code": "baozi",
+    "category_name": "包子",
+    "product_name": "麻辣豆腐包",
+    "aliases": [
+      "麻辣豆腐包"
+    ],
+    "pack_formula": "老豆腐250g+粉条80g+青椒50g+胡萝卜100g+辣椒粉",
+    "recipe_detail": {
+      "ingredients": [],
+      "steps": [],
+      "notes": []
+    },
+    "copywriting_facts": "【麻辣豆腐包】\n含：老豆腐、粉条、青椒、胡萝卜、辣椒粉\n不含：海鲜\n可写：麻辣豆腐、素馅重口味\n不可写：治疗、药用、未列出的食材或功效、100%无添加",
+    "source_version": "2026-01",
+    "sort_order": 414
+  },
+  {
+    "product_code": "baozi_suancai",
+    "category_code": "baozi",
+    "category_name": "包子",
+    "product_name": "酸菜包",
+    "aliases": [
+      "酸菜包子"
+    ],
+    "pack_formula": "肉馅100g+酸菜150g+粉条50g",
+    "recipe_detail": {
+      "ingredients": [],
+      "steps": [],
+      "notes": []
+    },
+    "copywriting_facts": "【酸菜包】\n含：猪肉、酸菜、粉条\n不含：海鲜\n可写：酸菜开胃、经典搭配\n不可写：治疗、药用、未列出的食材或功效、100%无添加",
+    "source_version": "2026-01",
+    "sort_order": 415
+  },
+  {
+    "product_code": "baozi_chashao",
+    "category_code": "baozi",
+    "category_name": "包子",
+    "product_name": "叉烧包",
+    "aliases": [
+      "叉烧包子"
+    ],
+    "pack_formula": "梅花肉300g+叉烧酱+叉烧芡（100g叉烧肉+100g叉烧芡）",
+    "recipe_detail": {
+      "ingredients": [],
+      "steps": [],
+      "notes": []
+    },
+    "copywriting_facts": "【叉烧包】\n含：梅花肉、叉烧酱、叉烧芡\n不含：海鲜\n可写：广式叉烧、甜咸适口\n不可写：治疗、药用、未列出的食材或功效、100%无添加",
+    "source_version": "2026-01",
+    "sort_order": 416
+  },
+  {
+    "product_code": "pizza_bingpi",
+    "category_code": "pizza",
+    "category_name": "披萨",
+    "product_name": "披萨饼皮",
+    "aliases": [
+      "饼皮",
+      "披萨底"
+    ],
+    "pack_formula": "每个饼皮约60g（高筋粉500g配方可出12个），二次发酵后180℃烤5~7分钟",
+    "recipe_detail": {
+      "ingredients": [
+        {
+          "name": "高筋粉",
+          "amount": "500g"
+        },
+        {
+          "name": "水",
+          "amount": "270g左右"
+        },
+        {
+          "name": "酵母",
+          "amount": "6g"
+        },
+        {
+          "name": "盐",
+          "amount": "2g"
+        },
+        {
+          "name": "糖",
+          "amount": "5g"
+        },
+        {
+          "name": "黄油",
+          "amount": "20g"
+        }
+      ],
+      "steps": [
+        "糖、盐、酵母、水搅匀，倒入面粉和面",
+        "成团后加入黄油揉至光滑",
+        "发酵至2倍大，压6mm厚度",
+        "扎孔排气，二次发酵",
+        "180℃烤5~7分钟微微上色",
+        "撒馅料180℃复烤5分钟左右"
+      ],
+      "notes": [
+        "1斤面可出12个饼皮"
+      ]
+    },
+    "copywriting_facts": "【披萨饼皮】\n含：高筋粉、水、酵母、盐、糖、黄油\n不含：馅料（饼皮本身）\n可写：手工饼底、二次发酵、松软饼皮\n不可写：治疗、药用、未列出的食材或功效、100%无添加",
+    "source_version": "2026-01",
+    "sort_order": 501
+  },
+  {
+    "product_code": "pizza_aolian_ji",
+    "category_code": "pizza",
+    "category_name": "披萨",
+    "product_name": "奥尔良鸡肉馅料",
+    "aliases": [
+      "奥尔良鸡肉披萨"
+    ],
+    "pack_formula": "鸡胸肉100g+奥尔良料10g+葱姜各2g+生抽5g+油8g",
+    "recipe_detail": {
+      "ingredients": [],
+      "steps": [],
+      "notes": []
+    },
+    "copywriting_facts": "【奥尔良鸡肉馅料】\n含：鸡胸肉、奥尔良料、葱姜\n不含：海鲜\n可写：奥尔良风味、鸡肉鲜嫩\n不可写：治疗、药用、未列出的食材或功效、100%无添加",
+    "source_version": "2026-01",
+    "sort_order": 502
+  },
+  {
+    "product_code": "pizza_xiaren",
+    "category_code": "pizza",
+    "category_name": "披萨",
+    "product_name": "虾仁馅料",
+    "aliases": [
+      "鲜虾披萨"
+    ],
+    "pack_formula": "大虾6只+生抽2g+黑胡椒0.5g+料酒2g+油8g",
+    "recipe_detail": {
+      "ingredients": [],
+      "steps": [],
+      "notes": []
+    },
+    "copywriting_facts": "【虾仁馅料】\n含：大虾、黑胡椒\n不含：肉类（馅料本身）\n可写：鲜虾Q弹、清淡鲜香\n不可写：治疗、药用、未列出的食材或功效、100%无添加",
+    "source_version": "2026-01",
+    "sort_order": 503
+  },
+  {
+    "product_code": "pizza_heijiao_niurou",
+    "category_code": "pizza",
+    "category_name": "披萨",
+    "product_name": "黑椒牛肉馅料",
+    "aliases": [
+      "黑椒牛肉披萨"
+    ],
+    "pack_formula": "牛肉80g+料酒1.5g+生抽2.5g+盐1g+黑胡椒1.2g+嫩肉粉0.6g+油8g",
+    "recipe_detail": {
+      "ingredients": [],
+      "steps": [],
+      "notes": []
+    },
+    "copywriting_facts": "【黑椒牛肉馅料】\n含：牛肉、黑胡椒、嫩肉粉\n不含：海鲜\n可写：黑椒牛肉、西式风味\n不可写：治疗、药用、未列出的食材或功效、100%无添加",
+    "source_version": "2026-01",
+    "sort_order": 504
+  },
+  {
+    "product_code": "pizza_mala_xiangchang",
+    "category_code": "pizza",
+    "category_name": "披萨",
+    "product_name": "麻辣香肠馅料",
+    "aliases": [
+      "麻辣香肠披萨"
+    ],
+    "pack_formula": "香肠丁100g+油8g",
+    "recipe_detail": {
+      "ingredients": [],
+      "steps": [],
+      "notes": []
+    },
+    "copywriting_facts": "【麻辣香肠馅料】\n含：香肠丁\n不含：海鲜\n可写：麻辣香肠、重口味\n不可写：治疗、药用、未列出的食材或功效、100%无添加",
+    "source_version": "2026-01",
+    "sort_order": 505
+  },
+  {
+    "product_code": "pizza_yuni_zishu",
+    "category_code": "pizza",
+    "category_name": "披萨",
+    "product_name": "芋泥紫薯馅料",
+    "aliases": [
+      "芋泥紫薯披萨"
+    ],
+    "pack_formula": "荔浦芋头300g+紫薯100g+黄油20g+牛奶20g+白砂糖30g+炼乳40g",
+    "recipe_detail": {
+      "ingredients": [],
+      "steps": [],
+      "notes": []
+    },
+    "copywriting_facts": "【芋泥紫薯馅料】\n含：芋头、紫薯、黄油、炼乳\n不含：肉类、海鲜\n可写：芋泥紫薯、甜品风味\n不可写：治疗、药用、未列出的食材或功效、100%无添加",
+    "source_version": "2026-01",
+    "sort_order": 506
+  },
+  {
+    "product_code": "pizza_peigen",
+    "category_code": "pizza",
+    "category_name": "披萨",
+    "product_name": "培根馅料",
+    "aliases": [
+      "培根披萨"
+    ],
+    "pack_formula": "培根切段，每个披萨约5片",
+    "recipe_detail": {
+      "ingredients": [],
+      "steps": [],
+      "notes": []
+    },
+    "copywriting_facts": "【培根馅料】\n含：培根\n不含：海鲜\n可写：培根咸香、西式经典\n不可写：治疗、药用、未列出的食材或功效、100%无添加",
+    "source_version": "2026-01",
+    "sort_order": 507
+  },
+  {
+    "product_code": "pizza_xieliu_jidan",
+    "category_code": "pizza",
+    "category_name": "披萨",
+    "product_name": "蟹柳鸡蛋馅料",
+    "aliases": [
+      "蟹柳鸡蛋披萨"
+    ],
+    "pack_formula": "蟹柳120g+鸡蛋5个",
+    "recipe_detail": {
+      "ingredients": [],
+      "steps": [],
+      "notes": []
+    },
+    "copywriting_facts": "【蟹柳鸡蛋馅料】\n含：蟹柳、鸡蛋\n不含：肉类\n可写：蟹柳滑蛋、鲜香软嫩\n不可写：治疗、药用、未列出的食材或功效、100%无添加",
+    "source_version": "2026-01",
+    "sort_order": 508
+  },
+  {
+    "product_code": "fantuan_mi",
+    "category_code": "fantuan",
+    "category_name": "饭团",
+    "product_name": "饭团米",
+    "aliases": [
+      "糯米饭",
+      "紫糯米饭"
+    ],
+    "pack_formula": "圆糯米500g+紫米100g+水660g+糖3g+盐3g+玉米油6g蒸熟；每个饭团铺150g饭团米",
+    "recipe_detail": {
+      "ingredients": [
+        {
+          "name": "圆糯米",
+          "amount": "500g（未淘洗）"
+        },
+        {
+          "name": "紫米",
+          "amount": "100g（未淘洗）"
+        },
+        {
+          "name": "水",
+          "amount": "660g"
+        },
+        {
+          "name": "糖",
+          "amount": "3g"
+        },
+        {
+          "name": "盐",
+          "amount": "3g"
+        },
+        {
+          "name": "玉米油",
+          "amount": "6g"
+        }
+      ],
+      "steps": [
+        "米淘洗干净，水全部倒掉",
+        "加水糖盐油蒸熟（米饭模式）"
+      ],
+      "notes": [
+        "每个饭团铺150g饭团米"
+      ]
+    },
+    "copywriting_facts": "【饭团米】\n含：圆糯米、紫米、糖、盐、玉米油\n不含：馅料（饭团米本身）\n可写：糯紫双色、软糯香甜\n不可写：治疗、药用、未列出的食材或功效、100%无添加",
+    "source_version": "2026-01",
+    "sort_order": 601
+  },
+  {
+    "product_code": "fantuan_aolian_ji",
+    "category_code": "fantuan",
+    "category_name": "饭团",
+    "product_name": "奥尔良鸡肉馅料",
+    "aliases": [
+      "奥尔良鸡肉饭团"
+    ],
+    "pack_formula": "鸡胸肉100g+奥尔良料10g；饭团加馅料15~20g+肉菘15g+小鱼小虾料5g+芝士10g+玉米粒10g",
+    "recipe_detail": {
+      "ingredients": [],
+      "steps": [],
+      "notes": []
+    },
+    "copywriting_facts": "【奥尔良鸡肉馅料】\n含：鸡胸肉、奥尔良料、沙拉酱、肉菘、小鱼小虾料、芝士、玉米粒\n不含：海鲜\n可写：奥尔良风味、拉丝芝士\n不可写：治疗、药用、未列出的食材或功效、100%无添加",
+    "source_version": "2026-01",
+    "sort_order": 602
+  },
+  {
+    "product_code": "fantuan_xiaren",
+    "category_code": "fantuan",
+    "category_name": "饭团",
+    "product_name": "虾仁馅料",
+    "aliases": [
+      "鲜虾饭团"
+    ],
+    "pack_formula": "大虾6只；饭团配比同奥尔良",
+    "recipe_detail": {
+      "ingredients": [],
+      "steps": [],
+      "notes": []
+    },
+    "copywriting_facts": "【虾仁馅料】\n含：大虾、沙拉酱、肉菘、芝士、玉米粒\n不含：肉类\n可写：鲜虾饭团、营养丰富\n不可写：治疗、药用、未列出的食材或功效、100%无添加",
+    "source_version": "2026-01",
+    "sort_order": 603
+  },
+  {
+    "product_code": "fantuan_heijiao_niurou",
+    "category_code": "fantuan",
+    "category_name": "饭团",
+    "product_name": "黑椒牛肉馅料",
+    "aliases": [
+      "黑椒牛肉饭团"
+    ],
+    "pack_formula": "牛肉80g+黑胡椒等；饭团配比标准",
+    "recipe_detail": {
+      "ingredients": [],
+      "steps": [],
+      "notes": []
+    },
+    "copywriting_facts": "【黑椒牛肉馅料】\n含：牛肉、黑胡椒、沙拉酱、肉菘、芝士\n不含：海鲜\n可写：黑椒牛肉饭团\n不可写：治疗、药用、未列出的食材或功效、100%无添加",
+    "source_version": "2026-01",
+    "sort_order": 604
+  },
+  {
+    "product_code": "fantuan_mala_xiangchang",
+    "category_code": "fantuan",
+    "category_name": "饭团",
+    "product_name": "麻辣香肠馅料",
+    "aliases": [
+      "麻辣香肠饭团"
+    ],
+    "pack_formula": "香肠丁100g；饭团配比标准",
+    "recipe_detail": {
+      "ingredients": [],
+      "steps": [],
+      "notes": []
+    },
+    "copywriting_facts": "【麻辣香肠馅料】\n含：香肠丁、沙拉酱、肉菘、芝士\n不含：海鲜\n可写：麻辣香肠饭团\n不可写：治疗、药用、未列出的食材或功效、100%无添加",
+    "source_version": "2026-01",
+    "sort_order": 605
+  },
+  {
+    "product_code": "fantuan_xiaotiangan",
+    "category_code": "fantuan",
+    "category_name": "饭团",
+    "product_name": "小甜肠馅料",
+    "aliases": [
+      "甜肠饭团"
+    ],
+    "pack_formula": "小甜肠用油煎熟",
+    "recipe_detail": {
+      "ingredients": [],
+      "steps": [],
+      "notes": []
+    },
+    "copywriting_facts": "【小甜肠馅料】\n含：小甜肠、沙拉酱、肉菘、芝士\n不含：海鲜\n可写：甜肠风味、台式饭团\n不可写：治疗、药用、未列出的食材或功效、100%无添加",
+    "source_version": "2026-01",
+    "sort_order": 606
+  },
+  {
+    "product_code": "fantuan_peigen",
+    "category_code": "fantuan",
+    "category_name": "饭团",
+    "product_name": "培根馅料",
+    "aliases": [
+      "培根饭团"
+    ],
+    "pack_formula": "培根切段每个饭团约5片",
+    "recipe_detail": {
+      "ingredients": [],
+      "steps": [],
+      "notes": []
+    },
+    "copywriting_facts": "【培根馅料】\n含：培根、沙拉酱、肉菘、芝士\n不含：海鲜\n可写：培根咸香饭团\n不可写：治疗、药用、未列出的食材或功效、100%无添加",
+    "source_version": "2026-01",
+    "sort_order": 607
+  },
+  {
+    "product_code": "fantuan_xieliu_jidan",
+    "category_code": "fantuan",
+    "category_name": "饭团",
+    "product_name": "蟹柳鸡蛋馅料",
+    "aliases": [
+      "蟹柳鸡蛋饭团"
+    ],
+    "pack_formula": "蟹柳120g+鸡蛋5个",
+    "recipe_detail": {
+      "ingredients": [],
+      "steps": [],
+      "notes": []
+    },
+    "copywriting_facts": "【蟹柳鸡蛋馅料】\n含：蟹柳、鸡蛋、沙拉酱、肉菘、芝士\n不含：肉类\n可写：蟹柳滑蛋饭团\n不可写：治疗、药用、未列出的食材或功效、100%无添加",
+    "source_version": "2026-01",
+    "sort_order": 608
+  },
+  {
+    "product_code": "sausage_zhurou_muxian",
+    "category_code": "sausage",
+    "category_name": "香肠",
+    "product_name": "猪肉肠（母馅）",
+    "aliases": [
+      "香肠母馅",
+      "脆皮肠母馅"
+    ],
+    "pack_formula": "梅花肉1275g+肥肉225g+调料；各口味在此基础上加料",
+    "recipe_detail": {
+      "ingredients": [
+        {
+          "name": "梅花肉",
+          "amount": "1275g"
+        },
+        {
+          "name": "肥肉",
+          "amount": "225g"
+        },
+        {
+          "name": "盐",
+          "amount": "27g"
+        },
+        {
+          "name": "糖",
+          "amount": "80g"
+        },
+        {
+          "name": "木薯淀粉",
+          "amount": "90g"
+        },
+        {
+          "name": "葱姜花椒水",
+          "amount": "120g"
+        }
+      ],
+      "steps": [
+        "绞肉机最大孔出一遍，肥瘦分开搅，平铺速冻",
+        "瘦肉和调料加入厨师机搅拌至黏黏拉丝状",
+        "加入肥肉丁搅拌均匀",
+        "冷藏过夜后灌肠，开水下锅煮至漂浮",
+        "表皮全部干透后真空包装"
+      ],
+      "notes": [
+        "全程温度不超过5度",
+        "灌肠不要特别紧"
+      ]
+    },
+    "copywriting_facts": "【猪肉肠（母馅）】\n含：梅花肉、肥肉、盐、糖、洋葱粉、葱姜蒜粉、生抽、蜂蜜、红曲、木薯淀粉、葱姜花椒水\n不含：口味配料（母馅本身）\n可写：Q弹脆皮肠、低温搅拌、手工灌肠\n不可写：治疗、药用、未列出的食材或功效、100%无添加",
+    "source_version": "2026-01",
+    "sort_order": 701
+  },
+  {
+    "product_code": "sausage_yumi",
+    "category_code": "sausage",
+    "category_name": "香肠",
+    "product_name": "玉米香肠",
+    "aliases": [
+      "玉米脆皮肠"
+    ],
+    "pack_formula": "母馅+玉米475g",
+    "recipe_detail": {
+      "ingredients": [],
+      "steps": [],
+      "notes": []
+    },
+    "copywriting_facts": "【玉米香肠】\n含：猪肉、玉米\n不含：海鲜\n可写：玉米甜脆、经典口味\n不可写：治疗、药用、未列出的食材或功效、100%无添加",
+    "source_version": "2026-01",
+    "sort_order": 702
+  },
+  {
+    "product_code": "sausage_heijiao",
+    "category_code": "sausage",
+    "category_name": "香肠",
+    "product_name": "黑椒香肠",
+    "aliases": [
+      "黑椒脆皮肠"
+    ],
+    "pack_formula": "母馅+黑胡椒19g",
+    "recipe_detail": {
+      "ingredients": [],
+      "steps": [],
+      "notes": []
+    },
+    "copywriting_facts": "【黑椒香肠】\n含：猪肉、黑胡椒\n不含：海鲜\n可写：黑椒浓香\n不可写：治疗、药用、未列出的食材或功效、100%无添加",
+    "source_version": "2026-01",
+    "sort_order": 703
+  },
+  {
+    "product_code": "sausage_xiangla",
+    "category_code": "sausage",
+    "category_name": "香肠",
+    "product_name": "香辣香肠",
+    "aliases": [
+      "香辣脆皮肠"
+    ],
+    "pack_formula": "母馅+六婆辣椒面57g",
+    "recipe_detail": {
+      "ingredients": [],
+      "steps": [],
+      "notes": []
+    },
+    "copywriting_facts": "【香辣香肠】\n含：猪肉、辣椒面\n不含：海鲜\n可写：香辣重口味\n不可写：治疗、药用、未列出的食材或功效、100%无添加",
+    "source_version": "2026-01",
+    "sort_order": 704
+  },
+  {
+    "product_code": "sausage_ouding_haitai",
+    "category_code": "sausage",
+    "category_name": "香肠",
+    "product_name": "藕丁海苔香肠",
+    "aliases": [
+      "藕丁海苔肠"
+    ],
+    "pack_formula": "母馅+藕丁45g+海苔5g",
+    "recipe_detail": {
+      "ingredients": [],
+      "steps": [],
+      "notes": []
+    },
+    "copywriting_facts": "【藕丁海苔香肠】\n含：猪肉、藕丁、海苔\n不含：海鲜\n可写：藕丁爽脆、海苔增香\n不可写：治疗、药用、未列出的食材或功效、100%无添加",
+    "source_version": "2026-01",
+    "sort_order": 705
+  },
+  {
+    "product_code": "sausage_zhangyu_haixian",
+    "category_code": "sausage",
+    "category_name": "香肠",
+    "product_name": "章鱼海鲜肠",
+    "aliases": [
+      "章鱼肠",
+      "海鲜肠"
+    ],
+    "pack_formula": "章鱼足240g+干贝24颗+虾仁12个+鸡腿570g+鸡胸570g+鸡脆骨150g等",
+    "recipe_detail": {
+      "ingredients": [],
+      "steps": [],
+      "notes": []
+    },
+    "copywriting_facts": "【章鱼海鲜肠】\n含：章鱼足、干贝、虾仁、鸡腿肉、鸡胸肉、鸡脆骨\n不含：泡菜\n可写：章鱼海鲜、Q弹丰富\n不可写：治疗、药用、未列出的食材或功效、100%无添加",
+    "source_version": "2026-01",
+    "sort_order": 706
+  },
+  {
+    "product_code": "shaomai_aolian_ji",
+    "category_code": "shaomai",
+    "category_name": "烧麦",
+    "product_name": "奥尔良鸡肉烧麦",
+    "aliases": [
+      "鸡肉烧麦"
+    ],
+    "pack_formula": "鸡胸100g+奥尔良料+糯米180g（蒸好后）+杂菜各20g+洋葱30g；每个60g",
+    "recipe_detail": {
+      "ingredients": [],
+      "steps": [],
+      "notes": []
+    },
+    "copywriting_facts": "【奥尔良鸡肉烧麦】\n含：鸡胸肉、奥尔良料、糯米、青豆、胡萝卜、玉米、洋葱\n不含：海鲜\n可写：奥尔良鸡肉、糯米烧麦\n不可写：治疗、药用、未列出的食材或功效、100%无添加",
+    "source_version": "2026-01",
+    "sort_order": 801
+  },
+  {
+    "product_code": "shaomai_lachang_xiaren",
+    "category_code": "shaomai",
+    "category_name": "烧麦",
+    "product_name": "腊肠虾仁烧麦",
+    "aliases": [
+      "腊肠烧麦"
+    ],
+    "pack_formula": "糯米180g+腊肠丁50g+杂菜60g+虾仁6个；每个60g",
+    "recipe_detail": {
+      "ingredients": [],
+      "steps": [],
+      "notes": []
+    },
+    "copywriting_facts": "【腊肠虾仁烧麦】\n含：糯米、腊肠、虾仁、青豆、胡萝卜、玉米\n不含：泡菜\n可写：腊肠虾仁、鲜香糯米\n不可写：治疗、药用、未列出的食材或功效、100%无添加",
+    "source_version": "2026-01",
+    "sort_order": 802
+  },
+  {
+    "product_code": "shaomai_xianhuang_rousong_zhishi",
+    "category_code": "shaomai",
+    "category_name": "烧麦",
+    "product_name": "咸蛋黄肉松芝士烧麦",
+    "aliases": [
+      "蛋黄烧麦"
+    ],
+    "pack_formula": "糯米180g+芝士30g+肉松12g+蛋黄5个+香菇40g；每个60g",
+    "recipe_detail": {
+      "ingredients": [],
+      "steps": [],
+      "notes": []
+    },
+    "copywriting_facts": "【咸蛋黄肉松芝士烧麦】\n含：糯米、咸蛋黄、肉松、芝士、干香菇、杂菜\n不含：海鲜\n可写：咸蛋黄肉松、芝士拉丝\n不可写：治疗、药用、未列出的食材或功效、100%无添加",
+    "source_version": "2026-01",
+    "sort_order": 803
+  },
+  {
+    "product_code": "miandian_guoshu_mian",
+    "category_code": "miandian",
+    "category_name": "中式面点",
+    "product_name": "果蔬面",
+    "aliases": [
+      "彩色面条",
+      "果蔬面条"
+    ],
+    "pack_formula": "面粉500g+果蔬汁140g+盐5g+碱1.5g+淀粉糊80g；每包100g冷冻保存",
+    "recipe_detail": {
+      "ingredients": [
+        {
+          "name": "面粉",
+          "amount": "500g"
+        },
+        {
+          "name": "果蔬汁",
+          "amount": "140g"
+        },
+        {
+          "name": "盐",
+          "amount": "5g"
+        },
+        {
+          "name": "碱",
+          "amount": "1.5g"
+        },
+        {
+          "name": "淀粉糊",
+          "amount": "80g"
+        }
+      ],
+      "steps": [
+        "水盐碱融化加果蔬汁",
+        "面粉加淀粉糊油揉硬面团",
+        "醒发30分钟压面"
+      ],
+      "notes": [
+        "火龙果口味不加碱"
+      ]
+    },
+    "copywriting_facts": "【果蔬面】\n含：面粉、果蔬汁、盐、碱、淀粉糊\n不含：肉类馅料\n可写：彩色面条、营养果蔬、烫淀粉版\n不可写：治疗、药用、未列出的食材或功效、100%无添加",
+    "source_version": "2026-01",
+    "sort_order": 901
+  },
+  {
+    "product_code": "miandian_hanshi_zhajiang_mian",
+    "category_code": "miandian",
+    "category_name": "中式面点",
+    "product_name": "韩式炸酱面",
+    "aliases": [
+      "炸酱面"
+    ],
+    "pack_formula": "春酱150g+洋葱550g+猪肉丁75g+料汁；每包100g冷冻保存",
+    "recipe_detail": {
+      "ingredients": [
+        {
+          "name": "春酱",
+          "amount": "150g"
+        },
+        {
+          "name": "洋葱",
+          "amount": "550g"
+        },
+        {
+          "name": "猪肉丁",
+          "amount": "75g"
+        }
+      ],
+      "steps": [
+        "炸春酱",
+        "炒肉丁洋葱洋白菜",
+        "加春酱熬成一体",
+        "下芡汁熬至浓稠"
+      ],
+      "notes": []
+    },
+    "copywriting_facts": "【韩式炸酱面】\n含：春酱、洋葱、猪肉、生抽、白糖\n不含：海鲜\n可写：韩式炸酱、浓郁酱香\n不可写：治疗、药用、未列出的食材或功效、100%无添加",
+    "source_version": "2026-01",
+    "sort_order": 902
+  },
+  {
+    "product_code": "miandian_zimi_qixue_mantou_juan",
+    "category_code": "miandian",
+    "category_name": "中式面点",
+    "product_name": "紫米气血馒头卷",
+    "aliases": [
+      "紫米卷",
+      "气血馒头卷"
+    ],
+    "pack_formula": "面团500g面粉+椰浆等；紫米馅血糯米100g+白元糯米100g+炼乳奶粉白糖黄油",
+    "recipe_detail": {
+      "ingredients": [
+        {
+          "name": "面粉",
+          "amount": "500g"
+        },
+        {
+          "name": "血糯米",
+          "amount": "100g"
+        },
+        {
+          "name": "白元糯米",
+          "amount": "100g"
+        }
+      ],
+      "steps": [
+        "和面发酵",
+        "紫米蒸熟加炼乳奶粉黄油拌匀捶打",
+        "操作加红枣红糖红豆"
+      ],
+      "notes": [
+        "每斤面加4g抹茶粉"
+      ]
+    },
+    "copywriting_facts": "【紫米气血馒头卷】\n含：面粉、椰浆、紫米、炼乳、奶粉、黄油、红枣、红糖、红豆\n不含：海鲜\n可写：紫米气血、养生面点、多层卷制\n不可写：治疗、药用、未列出的食材或功效、100%无添加",
+    "source_version": "2026-01",
+    "sort_order": 903
+  },
+  {
+    "product_code": "miandian_hongtang_mashu_juan",
+    "category_code": "miandian",
+    "category_name": "中式面点",
+    "product_name": "红糖麻薯卷",
+    "aliases": [
+      "麻薯卷"
+    ],
+    "pack_formula": "面团500g面粉+红糖100g；配料红枣丁100g+蔓越莓60g+桂圆干100g；每个小卷约60g",
+    "recipe_detail": {
+      "ingredients": [
+        {
+          "name": "中筋面粉",
+          "amount": "500g"
+        },
+        {
+          "name": "红糖",
+          "amount": "100g"
+        },
+        {
+          "name": "红枣丁",
+          "amount": "100g"
+        }
+      ],
+      "steps": [
+        "红糖开水化开加酵母",
+        "揉面发酵至3倍大",
+        "加配料揉匀分剂子卷麻薯",
+        "二次醒发蒸15分钟"
+      ],
+      "notes": []
+    },
+    "copywriting_facts": "【红糖麻薯卷】\n含：面粉、红糖、红枣、蔓越莓、桂圆、麻薯\n不含：肉类、海鲜\n可写：红糖香甜、麻薯软糯、果干丰富\n不可写：治疗、药用、未列出的食材或功效、100%无添加",
+    "source_version": "2026-01",
+    "sort_order": 904
+  },
+  {
+    "product_code": "miandian_kaixin_guo_naisu_juan",
+    "category_code": "miandian",
+    "category_name": "中式面点",
+    "product_name": "开心果奶酥卷",
+    "aliases": [
+      "奶酥卷"
+    ],
+    "pack_formula": "奶粉80g+黄油50g+开心果酱30g；面团液体换南瓜泥，多层紫薯紫米肉松贝贝南瓜麻薯",
+    "recipe_detail": {
+      "ingredients": [],
+      "steps": [],
+      "notes": []
+    },
+    "copywriting_facts": "【开心果奶酥卷】\n含：面粉、南瓜泥、紫薯、紫米、肉松、贝贝南瓜、麻薯、开心果、奶粉、黄油\n不含：海鲜\n可写：开心果奶酥、多能量叠加\n不可写：治疗、药用、未列出的食材或功效、100%无添加",
+    "source_version": "2026-01",
+    "sort_order": 905
+  },
+  {
+    "product_code": "miandian_duonengliang_mashu_juan",
+    "category_code": "miandian",
+    "category_name": "中式面点",
+    "product_name": "多能量麻薯卷",
+    "aliases": [
+      "能量麻薯卷"
+    ],
+    "pack_formula": "中式面点面皮+蒸熟紫薯+紫米馅+肉松+贝贝南瓜+麻薯（成品）",
+    "recipe_detail": {
+      "ingredients": [],
+      "steps": [],
+      "notes": []
+    },
+    "copywriting_facts": "【多能量麻薯卷】\n含：面粉、紫薯、紫米、肉松、贝贝南瓜、麻薯\n不含：海鲜\n可写：多能量叠加、营养丰富\n不可写：治疗、药用、未列出的食材或功效、100%无添加",
+    "source_version": "2026-01",
+    "sort_order": 906
+  },
+  {
+    "product_code": "miandian_meigui_gongjue_juan",
+    "category_code": "miandian",
+    "category_name": "中式面点",
+    "product_name": "玫瑰公爵卷",
+    "aliases": [
+      "公爵卷"
+    ],
+    "pack_formula": "面团加仙人掌果粉3g+玫瑰花瓣1.5g；公爵馅黄油200g+奶粉330g+核桃碎200g等；面团120g+馅40g出2个卷",
+    "recipe_detail": {
+      "ingredients": [],
+      "steps": [],
+      "notes": []
+    },
+    "copywriting_facts": "【玫瑰公爵卷】\n含：面粉、仙人掌果粉、玫瑰花瓣、黄油、奶粉、核桃、黑芝麻\n不含：海鲜\n可写：玫瑰花香、公爵奶酥\n不可写：治疗、药用、未列出的食材或功效、100%无添加",
+    "source_version": "2026-01",
+    "sort_order": 907
+  },
+  {
+    "product_code": "miandian_la_rousong_zhishi_juan",
+    "category_code": "miandian",
+    "category_name": "中式面点",
+    "product_name": "辣肉松芝士卷",
+    "aliases": [
+      "辣肉松卷"
+    ],
+    "pack_formula": "中式面点面皮加苔条粉；铺辣肉松和芝士，卷紧切段",
+    "recipe_detail": {
+      "ingredients": [],
+      "steps": [],
+      "notes": []
+    },
+    "copywriting_facts": "【辣肉松芝士卷】\n含：面粉、苔条粉、辣肉松、芝士\n不含：海鲜\n可写：辣肉松、芝士拉丝\n不可写：治疗、药用、未列出的食材或功效、100%无添加",
+    "source_version": "2026-01",
+    "sort_order": 908
+  },
+  {
+    "product_code": "miandian_heizhima_qixue_juan",
+    "category_code": "miandian",
+    "category_name": "中式面点",
+    "product_name": "黑芝麻气血卷",
+    "aliases": [
+      "黑芝麻卷"
+    ],
+    "pack_formula": "面皮加黑芝麻粉10g+黑芝麻糊5g；馅黑芝麻粉300g+黑芝麻糊40g等；面团120g+馅60g出2个卷",
+    "recipe_detail": {
+      "ingredients": [],
+      "steps": [],
+      "notes": []
+    },
+    "copywriting_facts": "【黑芝麻气血卷】\n含：面粉、黑芝麻粉、黑芝麻糊、白糖、猪油、奶粉、炼乳\n不含：海鲜\n可写：黑芝麻气血、养生面点\n不可写：治疗、药用、未列出的食材或功效、100%无添加",
+    "source_version": "2026-01",
+    "sort_order": 909
+  },
+  {
+    "product_code": "miandian_majiao_xiaochang_bao",
+    "category_code": "miandian",
+    "category_name": "中式面点",
+    "product_name": "麻椒小肠包",
+    "aliases": [
+      "小肠包"
+    ],
+    "pack_formula": "每斤面加苔条10g；麻辣香肠馅香肠180g+六婆辣椒面40g；每个皮60g包馅20~25g",
+    "recipe_detail": {
+      "ingredients": [],
+      "steps": [],
+      "notes": []
+    },
+    "copywriting_facts": "【麻椒小肠包】\n含：面粉、苔条、麻辣香肠、辣椒面、白芝麻\n不含：海鲜\n可写：麻辣香肠、麻椒小肠\n不可写：治疗、药用、未列出的食材或功效、100%无添加",
+    "source_version": "2026-01",
+    "sort_order": 910
+  },
+  {
+    "product_code": "miandian_yanmai_naihuang_yumi_man",
+    "category_code": "miandian",
+    "category_name": "中式面点",
+    "product_name": "燕麦奶黄玉米馒",
+    "aliases": [
+      "奶黄玉米馒"
+    ],
+    "pack_formula": "发酵面加黑色燕麦碎15g；奶黄玉米馅黄油30g+鸡蛋100g+玉米粒350g等；皮60g馅30g",
+    "recipe_detail": {
+      "ingredients": [],
+      "steps": [],
+      "notes": []
+    },
+    "copywriting_facts": "【燕麦奶黄玉米馒】\n含：面粉、燕麦碎、黄油、鸡蛋、玉米粒、奶黄馅\n不含：海鲜\n可写：燕麦粗粮、奶黄玉米\n不可写：治疗、药用、未列出的食材或功效、100%无添加",
+    "source_version": "2026-01",
+    "sort_order": 911
+  },
+  {
+    "product_code": "miandian_douru_guihua_man",
+    "category_code": "miandian",
+    "category_name": "中式面点",
+    "product_name": "豆乳桂花馒",
+    "aliases": [
+      "桂花馒"
+    ],
+    "pack_formula": "每斤面加桂花10g；豆乳馅奶粉40g+黄豆粉50g；大黄米馅250g；皮60g豆乳15g黄米15g",
+    "recipe_detail": {
+      "ingredients": [],
+      "steps": [],
+      "notes": []
+    },
+    "copywriting_facts": "【豆乳桂花馒】\n含：面粉、桂花、奶粉、黄豆粉、大黄米、桂花蜜\n不含：海鲜\n可写：豆乳桂花、清香软糯\n不可写：治疗、药用、未列出的食材或功效、100%无添加",
+    "source_version": "2026-01",
+    "sort_order": 912
+  },
+  {
+    "product_code": "paocai_suanla_luobo",
+    "category_code": "paocai",
+    "category_name": "泡菜",
+    "product_name": "酸辣萝卜泡菜",
+    "aliases": [
+      "泡菜萝卜",
+      "酸辣萝卜"
+    ],
+    "pack_formula": "白萝卜500g+盐8g+野山椒9g+大蒜3g+洋葱8g+白糖50g+白醋40g；腌制7~8小时，冷藏3~7天风味更佳",
+    "recipe_detail": {
+      "ingredients": [
+        {
+          "name": "白萝卜",
+          "amount": "500g（洗净去皮）"
+        },
+        {
+          "name": "盐",
+          "amount": "8g"
+        },
+        {
+          "name": "白酒",
+          "amount": "0.2g"
+        },
+        {
+          "name": "野山椒",
+          "amount": "9g"
+        },
+        {
+          "name": "大蒜",
+          "amount": "3g"
+        },
+        {
+          "name": "洋葱",
+          "amount": "8g"
+        },
+        {
+          "name": "白糖",
+          "amount": "50g"
+        },
+        {
+          "name": "白醋",
+          "amount": "40g"
+        }
+      ],
+      "steps": [
+        "白萝卜切2cmx4cm长条，加盐白酒腌制1小时",
+        "清水淘洗2遍沥干水分",
+        "加入野山椒、大蒜、洋葱、白糖、白醋搅拌均匀",
+        "腌制7~8小时即可"
+      ],
+      "notes": [
+        "密封冷藏3~7天风味更佳",
+        "刚做出来可能偏苦辣"
+      ]
+    },
+    "copywriting_facts": "【酸辣萝卜泡菜】\n含：白萝卜、盐、白酒、野山椒、大蒜、洋葱、白糖、白醋\n不含：肉类、海鲜\n可写：酸辣爽脆、开胃小菜、冷藏腌制\n不可写：治疗、药用、未列出的食材或功效、100%无添加",
+    "source_version": "2026-01",
+    "sort_order": 1001
+  }
+]

@@ -58,6 +58,16 @@ class AgentBase(BaseModel):
         le=1,
         description="是否为系统自用智能体：0-否，1-是"
     )
+    routingDescription: Optional[str] = Field(
+        default=None,
+        description="路由特征描述（启用智能路由时使用）",
+    )
+    isRoutingEnabled: int = Field(
+        default=0,
+        ge=0,
+        le=1,
+        description="是否启用智能路由：0-否（静态加载全部技能） 1-是",
+    )
 
 
 class AgentCreate(AgentBase):
@@ -89,6 +99,8 @@ class AgentUpdate(BaseModel):
     skillIds: Optional[List[int]] = Field(None, description="技能ID数组（按顺序）")
     skillVariables: Optional[dict] = Field(None, description="技能变量配置 {skill_id: {var: value}}")
     isSystem: Optional[int] = Field(None, ge=0, le=1, description="是否为系统自用智能体：0-否，1-是")
+    routingDescription: Optional[str] = Field(None, description="路由特征描述")
+    isRoutingEnabled: Optional[int] = Field(None, ge=0, le=1, description="是否启用智能路由：0-否 1-是")
 
 
 class AgentResponse(BaseModel):
@@ -114,6 +126,8 @@ class AgentResponse(BaseModel):
     skillIds: Optional[List[int]] = Field(default=None, description="技能ID数组（按顺序）")
     skillVariables: Optional[dict] = Field(default=None, description="技能变量配置")
     isSystem: int = Field(default=0, description="是否为系统自用智能体：0-否，1-是")
+    routingDescription: Optional[str] = Field(default=None, description="路由特征描述")
+    isRoutingEnabled: int = Field(default=0, description="是否启用智能路由：0-否 1-是")
 
     class Config:
         from_attributes = True

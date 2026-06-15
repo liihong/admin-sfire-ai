@@ -1,25 +1,8 @@
 <template>
   <div class="dashboard-container">
-    <!-- OpenRouter 余额预警 -->
-    <Transition name="alert-slide">
-      <el-alert
-        v-if="showAlert"
-        :title="alertMessage"
-        type="warning"
-        show-icon
-        :closable="true"
-        class="balance-alert"
-        @close="showAlert = false"
-      >
-        <template #default>
-          <span>当前 OpenRouter 余额: <strong>{{ formatCurrency(statsData.apiBalance) }}</strong>，低于预警阈值 {{ formatCurrency(alertThreshold) }}，请及时充值！</span>
-        </template>
-      </el-alert>
-    </Transition>
-
     <!-- 顶部统计卡片 -->
     <el-row :gutter="20" class="stats-row">
-      <el-col :xs="24" :sm="12" :md="12" :lg="6" :xl="6">
+      <el-col :xs="24" :sm="12" :md="12" :lg="8" :xl="8">
         <div class="stat-card card-users">
           <div class="card-icon">
             <el-icon><UserFilled /></el-icon>
@@ -40,28 +23,7 @@
         </div>
       </el-col>
 
-      <el-col :xs="24" :sm="12" :md="12" :lg="6" :xl="6">
-        <div class="stat-card card-balance">
-          <div class="card-icon">
-            <el-icon><Wallet /></el-icon>
-          </div>
-          <div class="card-content">
-            <div class="card-value">
-              <span class="currency">$</span>
-              <CountUp :end-val="statsData.apiBalance" :decimals="2" :duration="1.5" />
-            </div>
-            <div class="card-label">OpenRouter 余额</div>
-            <div class="card-extra">
-              <el-tag :type="statsData.apiBalance > alertThreshold ? 'success' : 'danger'" size="small">
-                {{ statsData.apiBalance > alertThreshold ? "余额充足" : "余额不足" }}
-              </el-tag>
-            </div>
-          </div>
-          <div class="card-bg"></div>
-        </div>
-      </el-col>
-
-      <el-col :xs="24" :sm="12" :md="12" :lg="6" :xl="6">
+      <el-col :xs="24" :sm="12" :md="12" :lg="8" :xl="8">
         <div class="stat-card card-compute">
           <div class="card-icon">
             <el-icon><Lightning /></el-icon>
@@ -83,7 +45,7 @@
         </div>
       </el-col>
 
-      <el-col :xs="24" :sm="12" :md="12" :lg="6" :xl="6">
+      <el-col :xs="24" :sm="12" :md="12" :lg="8" :xl="8">
         <div class="stat-card card-order">
           <div class="card-icon">
             <el-icon><ShoppingCart /></el-icon>
@@ -170,7 +132,6 @@ import { ref, reactive, computed, onMounted, onUnmounted } from "vue";
 import { ElMessage } from "element-plus";
 import {
   UserFilled,
-  Wallet,
   ShoppingCart,
   CaretTop,
   CaretBottom,
@@ -191,7 +152,6 @@ import { getStatsData, getUserTrend, getAgentRank, Dashboard } from "@/api/modul
 // 核心统计数据
 const statsData = reactive<Dashboard.StatsData>({
   todayNewUsers: 0,
-  apiBalance: 0,
   todayComputeUsage: 0,
   todayOrderAmount: 0,
   userGrowthRate: 0,
@@ -205,11 +165,6 @@ const trendType = ref<"new" | "active">("new");
 
 // 智能体排行数据
 const agentRankData = ref<Dashboard.AgentRankItem[]>([]);
-
-// 预警相关（OpenRouter 余额低于此阈值时显示预警，单位：美元）
-const showAlert = ref(false);
-const alertThreshold = ref(5); // 默认预警阈值 $5
-const alertMessage = ref("OpenRouter API 余额不足预警");
 
 // 刷新相关
 const isRefreshing = ref(false);
@@ -409,11 +364,6 @@ const agentRankOption = computed<ECOption>(() => {
 
 // ==================== 方法定义 ====================
 
-// 格式化货币（OpenRouter 余额单位为美元）
-const formatCurrency = (value: number) => {
-  return "$" + value.toLocaleString("zh-CN", { minimumFractionDigits: 2 });
-};
-
 // 获取当前时间
 const getCurrentTime = () => {
   return new Date().toLocaleString("zh-CN", {
@@ -429,31 +379,19 @@ const fetchStatsData = async () => {
     const { data } = await getStatsData();
     const overview = data?.overview || {};
     const apiMonitoring = data?.api_monitoring || {};
-    // 优先使用 OpenRouter 余额，若无则用 OpenAI
-    const balance = apiMonitoring.openrouter_balance ?? apiMonitoring.openai_balance ?? 0;
-    const apiBalanceNum = typeof balance === "number" ? balance : parseFloat(balance) || 0;
 
     Object.assign(statsData, {
       todayNewUsers: overview.new_users_today ?? 0,
-      apiBalance: apiBalanceNum,
       todayComputeUsage: parseFloat(apiMonitoring.today_consume) || 0,
       todayOrderAmount: parseFloat(apiMonitoring.today_recharge_amount) || 0,
       userGrowthRate: 0,
       computeGrowthRate: 0,
       orderGrowthRate: 0
     });
-
-    // 余额不足时显示预警
-    if (apiBalanceNum < alertThreshold.value) {
-      showAlert.value = true;
-    } else {
-      showAlert.value = false;
-    }
   } catch (error) {
     // 使用模拟数据
     Object.assign(statsData, {
       todayNewUsers: 156,
-      apiBalance: 8520.5,
       todayComputeUsage: 356,
       todayOrderAmount: 12680.0,
       userGrowthRate: 12.5,
@@ -564,35 +502,6 @@ onUnmounted(() => {
   padding: 20px;
   min-height: 100%;
   background: var(--el-bg-color-page);
-}
-
-// 预警提示
-.balance-alert {
-  margin-bottom: 20px;
-  border-radius: 8px;
-  background: linear-gradient(135deg, #fff7ed 0%, #ffedd5 100%);
-  border: 1px solid #fdba74;
-
-  :deep(.el-alert__title) {
-    font-weight: 600;
-    color: #c2410c;
-  }
-
-  strong {
-    color: #ea580c;
-    font-family: "DIN", sans-serif;
-  }
-}
-
-.alert-slide-enter-active,
-.alert-slide-leave-active {
-  transition: all 0.3s ease;
-}
-
-.alert-slide-enter-from,
-.alert-slide-leave-to {
-  opacity: 0;
-  transform: translateY(-20px);
 }
 
 // 统计卡片
@@ -715,15 +624,6 @@ onUnmounted(() => {
     }
     .card-bg {
       background: #ff7700;
-    }
-  }
-
-  &.card-balance {
-    .card-icon {
-      background: linear-gradient(135deg, #10b981 0%, #34d399 100%);
-    }
-    .card-bg {
-      background: #10b981;
     }
   }
 

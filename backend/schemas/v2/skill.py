@@ -43,6 +43,17 @@ class SkillResponse(SkillBase):
         from_attributes = True
 
 
+class SkillListItemResponse(BaseModel):
+    """技能列表项（轻量，content 为预览片段）"""
+    id: int = Field(..., description="技能ID")
+    name: str = Field(..., description="技能名称")
+    category: str = Field(..., description="分类")
+    meta_description: Optional[str] = Field(None, description="特征简述")
+    content: str = Field(..., description="内容预览")
+    status: int = Field(..., description="状态")
+    created_at: datetime = Field(..., description="创建时间")
+
+
 class SkillListResponse(BaseModel):
     """技能列表响应"""
     list: List[SkillResponse] = Field(..., description="技能列表")

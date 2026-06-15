@@ -476,6 +476,8 @@ export namespace Agent {
     skillIds?: number[]; // 技能ID数组（按顺序）
     skillVariables?: Record<number, Record<string, string>>; // 技能变量配置
     isSystem?: number; // 是否为系统自用智能体：0-否，1-是
+    routingDescription?: string;
+    isRoutingEnabled?: number; // 0-静态加载全部技能 1-启用向量路由
     /** 归属租户；null 表示全租户公用（租户后台对该类条目只读） */
     tenantId?: number | null;
     /** 后端根据当前管理员数据范围设置：公用智能体在租户视角下为 true */
@@ -509,6 +511,8 @@ export namespace Agent {
     skillIds?: number[]; // 技能ID数组（按顺序）
     skillVariables?: Record<number, Record<string, string>>; // 技能变量配置
     isSystem?: number; // 是否为系统自用智能体：0-否，1-是
+    routingDescription?: string;
+    isRoutingEnabled?: number; // 0-静态加载全部技能 1-启用向量路由
   }
 
   // 预设模板

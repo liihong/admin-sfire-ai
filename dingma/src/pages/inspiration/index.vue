@@ -374,7 +374,7 @@ async function handleGenerate(inspiration: Inspiration) {
   try {
     const response = await generateScript({
       inspiration_id: inspiration.id,
-      agent_type: 'ip_collector',
+      // 省略 agent_type：后端按租户内「灵感碎片大师」自动匹配；也可传智能体 ID 字符串
     })
     
     generatedContent.value = response.content

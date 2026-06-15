@@ -157,6 +157,8 @@ class AgentService(BaseService):
             skill_ids=getattr(agent_data, "skillIds", None),
             skill_variables=getattr(agent_data, "skillVariables", None),
             is_system=getattr(agent_data, "isSystem", 0) or 0,  # 默认为非系统自用
+            routing_description=getattr(agent_data, "routingDescription", None),
+            is_routing_enabled=getattr(agent_data, "isRoutingEnabled", 0) or 0,
         )
         
         self.db.add(agent)
@@ -215,6 +217,10 @@ class AgentService(BaseService):
         # 系统自用标识
         if "isSystem" in update_data:
             agent.is_system = update_data["isSystem"]
+        if "routingDescription" in update_data:
+            agent.routing_description = update_data["routingDescription"]
+        if "isRoutingEnabled" in update_data:
+            agent.is_routing_enabled = update_data["isRoutingEnabled"]
         
         await self.db.flush()
         await self.db.refresh(agent)

@@ -81,6 +81,8 @@ def agent_to_response(
         # 技能组装模式字段（向后兼容）
         "skillIds": agent.skill_ids,
         "skillVariables": agent.skill_variables,
+        "routingDescription": agent.routing_description or "",
+        "isRoutingEnabled": agent.is_routing_enabled,
         # 系统自用标识
         "isSystem": agent.is_system,
         "tenantId": agent.tenant_id,

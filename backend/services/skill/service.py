@@ -1,16 +1,40 @@
 """
 技能库业务逻辑服务
 """
-from typing import List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
 from loguru import logger
 
 from models.skill_library import SkillLibrary
 
+# 列表接口仅返回内容预览，避免拉取大字段拖慢查询
+LIST_CONTENT_PREVIEW_LEN = 200
+
 
 class SkillService:
     """技能库业务逻辑"""
+
+    @staticmethod
+    def _build_list_filters(
+        category: Optional[str] = None,
+        status: Optional[int] = None,
+    ) -> list:
+        """构建列表筛选条件"""
+        conditions = []
+        if category:
+            conditions.append(SkillLibrary.category == category)
+        if status is not None:
+            conditions.append(SkillLibrary.status == status)
+        return conditions
+
+    @staticmethod
+    def _format_content_preview(content: Optional[str]) -> str:
+        """截断内容用于列表预览"""
+        text = (content or "").strip()
+        if len(text) <= LIST_CONTENT_PREVIEW_LEN:
+            return text
+        return f"{text[:LIST_CONTENT_PREVIEW_LEN]}..."
 
     @staticmethod
     async def get_list(
@@ -19,9 +43,9 @@ class SkillService:
         size: int = 20,
         category: Optional[str] = None,
         status: Optional[int] = None,
-    ) -> Tuple[List[SkillLibrary], int]:
+    ) -> Tuple[List[Dict[str, Any]], int]:
         """
-        获取技能列表
+        获取技能列表（轻量字段，content 仅返回预览）
 
         Args:
             db: 数据库会话
@@ -31,14 +55,9 @@ class SkillService:
             status: 状态筛选（1-启用, 0-禁用）
 
         Returns:
-            (技能列表, 总数)
+            (技能列表字典, 总数)
         """
-        # 筛选条件
-        conditions = []
-        if category:
-            conditions.append(SkillLibrary.category == category)
-        if status is not None:
-            conditions.append(SkillLibrary.status == status)
+        conditions = SkillService._build_list_filters(category, status)
 
         # 总数查询：count(id) 便于利用主键索引
         count_query = select(func.count(SkillLibrary.id)).select_from(SkillLibrary)
@@ -47,13 +66,36 @@ class SkillService:
         count_result = await db.execute(count_query)
         total = count_result.scalar() or 0
 
-        # 列表查询
-        list_query = select(SkillLibrary)
+        # 列表查询：仅选取必要列，content 在 SQL 层截断
+        list_query = select(
+            SkillLibrary.id,
+            SkillLibrary.name,
+            SkillLibrary.category,
+            SkillLibrary.meta_description,
+            func.left(SkillLibrary.content, LIST_CONTENT_PREVIEW_LEN).label("content"),
+            SkillLibrary.status,
+            SkillLibrary.created_at,
+        )
         if conditions:
             list_query = list_query.filter(*conditions)
-        list_query = list_query.order_by(SkillLibrary.id.desc()).offset((page - 1) * size).limit(size)
+        list_query = (
+            list_query.order_by(SkillLibrary.id.desc())
+            .offset((page - 1) * size)
+            .limit(size)
+        )
         list_result = await db.execute(list_query)
-        skills = list_result.scalars().all()
+        skills = [
+            {
+                "id": row.id,
+                "name": row.name,
+                "category": row.category,
+                "meta_description": row.meta_description,
+                "content": SkillService._format_content_preview(row.content),
+                "status": row.status,
+                "created_at": row.created_at,
+            }
+            for row in list_result.all()
+        ]
 
         return skills, total
 
@@ -66,17 +108,22 @@ class SkillService:
         return result.scalar_one_or_none()
 
     @staticmethod
+    async def _refresh_timestamps(db: AsyncSession, skill: SkillLibrary) -> None:
+        """回填数据库生成的时间戳，避免序列化时触发懒加载"""
+        await db.refresh(skill, attribute_names=["created_at", "updated_at"])
+
+    @staticmethod
     async def create(db: AsyncSession, skill_data: dict) -> SkillLibrary:
-        """创建技能"""
+        """创建技能（由 get_db 统一提交，仅回填时间戳字段）"""
         skill = SkillLibrary(**skill_data)
         db.add(skill)
-        await db.commit()
-        await db.refresh(skill)
+        await db.flush()
+        await SkillService._refresh_timestamps(db, skill)
         return skill
 
     @staticmethod
     async def update(db: AsyncSession, skill_id: int, skill_data: dict) -> Optional[SkillLibrary]:
-        """更新技能"""
+        """更新技能（由 get_db 统一提交）"""
         skill = await SkillService.get_by_id(db, skill_id)
         if not skill:
             return None
@@ -86,8 +133,8 @@ class SkillService:
             if hasattr(skill, key):
                 setattr(skill, key, value)
 
-        await db.commit()
-        await db.refresh(skill)
+        await db.flush()
+        await SkillService._refresh_timestamps(db, skill)
         return skill
 
     @staticmethod
@@ -103,9 +150,9 @@ class SkillService:
         if not skill:
             return False
 
-        # 物理删除记录
+        # 物理删除记录（由 get_db 统一提交）
         await db.delete(skill)
-        await db.commit()
+        await db.flush()
         return True
 
     @staticmethod
@@ -131,8 +178,8 @@ class SkillService:
 
         # 仅允许 0/1 两种状态，避免非法值
         skill.status = 1 if status == 1 else 0
-        await db.commit()
-        await db.refresh(skill)
+        await db.flush()
+        await SkillService._refresh_timestamps(db, skill)
         return skill
 
     @staticmethod

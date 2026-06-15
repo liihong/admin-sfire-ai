@@ -6,6 +6,8 @@ C端路由聚合（小程序 & PC官网）
 from fastapi import APIRouter
 
 from . import auth, creation, projects, project_benchmark, tikhub, coze, web_auth, conversations, coin, security, permission, quick_entries, inspirations, home, article, upload, dictionary, copywriting_library, tenant
+from .dingma import chat as dingma_chat
+from .dingma import inspirations as dingma_inspirations
 from . import tools as client_tools
 
 # 创建C端路由聚合器
@@ -25,6 +27,15 @@ client_router.include_router(project_benchmark.router, prefix="/projects", tags=
 # 内容生成模块：智能体列表、对话生成等
 # 注意：creation.router 中的路由（/agents, /chat, /chat/quick）直接暴露在根路径下
 client_router.include_router(creation.router, prefix="", tags=["C端-内容生成"])
+
+# 顶妈（dingma）专用对话：独立 /dingma/chat，注入产品知识库，不影响主程序 /chat
+client_router.include_router(dingma_chat.router, prefix="/dingma", tags=["C端-dingma"])
+# 顶妈专用灵感生成：独立 /dingma/inspirations/{id}/generate
+client_router.include_router(
+    dingma_inspirations.router,
+    prefix="/dingma/inspirations",
+    tags=["C端-dingma"],
+)
 
 # 抖音分析模块：小程序和PC官网共用
 client_router.include_router(tikhub.router, prefix="/tikhub", tags=["C端-抖音分析"])

@@ -2,6 +2,7 @@
 技能Embedding服务
 负责为技能生成向量并存储到向量数据库
 """
+import asyncio
 from typing import List, Optional, Tuple, Dict
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -63,7 +64,9 @@ class SkillEmbeddingService:
     async def add_skill_to_vector_db(
         self,
         skill: SkillLibrary,
-        embedding: np.ndarray
+        embedding: np.ndarray,
+        *,
+        persist: bool = True,
     ) -> bool:
         """
         将技能embedding添加到向量数据库
@@ -71,6 +74,7 @@ class SkillEmbeddingService:
         Args:
             skill: 技能对象
             embedding: 向量数组
+            persist: 是否立即落盘（批量导入时可设为 False）
 
         Returns:
             是否成功
@@ -92,12 +96,16 @@ class SkillEmbeddingService:
                 "status": skill.status,
             }
 
-            # 添加到向量库
+            # 添加到向量库（内存更新，落盘放到线程池避免阻塞事件循环）
             success = self.vector_db.add_embedding(
                 vector_id=vector_id,
                 embedding=embedding,
-                metadata=metadata
+                metadata=metadata,
+                persist=False,
             )
+
+            if success and persist:
+                await asyncio.to_thread(self.vector_db._save_index)
 
             if success:
                 logger.info(f"技能 {skill.name} (ID={skill.id}) 已添加到向量库")
@@ -185,7 +193,7 @@ class SkillEmbeddingService:
                         logger.warning(f"技能 {skill.name} (ID={skill.id}) embedding生成失败")
                         continue
 
-                    success = await self.add_skill_to_vector_db(skill, embedding)
+                    success = await self.add_skill_to_vector_db(skill, embedding, persist=False)
                     if success:
                         success_count += 1
                     else:
@@ -197,6 +205,9 @@ class SkillEmbeddingService:
                 except Exception as e:
                     failed_count += 1
                     logger.error(f"处理技能 {skill.name} (ID={skill.id}) 失败: {e}")
+
+            # 批量导入结束后统一落盘
+            await asyncio.to_thread(self.vector_db._save_index)
 
             stats = {"total": total, "success": success_count, "failed": failed_count}
             logger.info(f"批量生成完成: {stats}")
@@ -303,7 +314,10 @@ class SkillEmbeddingService:
         """
         try:
             vector_id = f"skill_{skill_id}"
-            success = self.vector_db.delete_embedding(vector_id)
+            success = self.vector_db.delete_embedding(vector_id, persist=False)
+
+            if success:
+                await asyncio.to_thread(self.vector_db._save_index)
 
             if success:
                 logger.info(f"技能 ID={skill_id} embedding已删除")

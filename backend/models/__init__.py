@@ -35,6 +35,7 @@ from .tool_package import ToolPackage
 from .project_benchmark import ProjectBenchmarkAccount
 from .project_benchmark_video import ProjectBenchmarkVideo
 from .copywriting_library import CopywritingLibraryEntry, CopywritingEntryStatus
+from .dingma_product_knowledge import DingmaProductKnowledge
 
 __all__ = [
     "BaseModel",
@@ -83,4 +84,5 @@ __all__ = [
     "ProjectBenchmarkVideo",
     "CopywritingLibraryEntry",
     "CopywritingEntryStatus",
+    "DingmaProductKnowledge",
 ]

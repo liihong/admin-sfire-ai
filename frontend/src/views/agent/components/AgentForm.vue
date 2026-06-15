@@ -69,6 +69,24 @@
             @update:variables="(val: Record<number, Record<string, string>>) => { formData.skillVariables = val; }"
             @change="handleSkillChange" />
         </el-form-item>
+
+        <el-form-item label="智能路由">
+          <el-switch v-model="isRoutingEnabled" />
+          <div class="form-tip">
+            关闭时静态加载全部已挂载技能（顶妈文案智能体建议关闭）；开启后按用户输入向量匹配子集技能
+          </div>
+        </el-form-item>
+
+        <el-form-item v-if="isRoutingEnabled" label="路由特征">
+          <el-input
+            v-model="formData.routingDescription"
+            type="textarea"
+            :rows="3"
+            placeholder="描述该智能体适用场景，供向量路由匹配（如：朋友圈文案、新品预热）"
+            maxlength="500"
+            show-word-limit
+          />
+        </el-form-item>
       </template>
 
       <!-- 普通模式专属 -->
@@ -263,6 +281,7 @@ const submitting = ref(false);
 const showTemplateDialog = ref(false);
 const templateList = ref<Agent.PromptTemplate[]>([]);
 const modelList = ref<Array<{ id: string; name: string; maxTokens: number }>>([]);
+const isRoutingEnabled = ref(false);
 
 // 表单数据
 const formData = reactive<Agent.ReqAgentForm>({
@@ -285,6 +304,8 @@ const formData = reactive<Agent.ReqAgentForm>({
   skillIds: [] as number[],
   skillVariables: {} as Record<number, Record<string, string>>,
   isSystem: 0, // 默认非系统自用
+  routingDescription: "",
+  isRoutingEnabled: 0,
 });
 
 // 表单验证规则
@@ -332,7 +353,10 @@ const initFormData = () => {
       skillIds: (props.formData.skillIds || []) as number[], // 编辑时加载已配置的技能
       skillVariables: (props.formData.skillVariables || {}) as Record<number, Record<string, string>>, // 编辑时加载已配置的技能变量
       isSystem: props.formData.isSystem ?? 0, // 编辑时保持原值，新增时默认非系统自用
+      routingDescription: props.formData.routingDescription || "",
+      isRoutingEnabled: props.formData.isRoutingEnabled ?? 0,
     });
+    isRoutingEnabled.value = (props.formData.isRoutingEnabled ?? 0) === 1;
   } else {
     // 新增时确保字段有默认值
     formData.skillIds = [];
@@ -397,6 +421,9 @@ const handleSubmit = async () => {
   submitting.value = true;
 
   try {
+    // 同步路由开关到表单字段
+    formData.isRoutingEnabled = isRoutingEnabled.value ? 1 : 0;
+
     // 准备提交数据
     const submitData: Agent.ReqAgentForm = {
       ...formData,

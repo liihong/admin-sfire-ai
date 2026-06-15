@@ -91,7 +91,9 @@ class VectorDBService:
         self,
         vector_id: str,
         embedding: np.ndarray,
-        metadata: Optional[dict] = None
+        metadata: Optional[dict] = None,
+        *,
+        persist: bool = True,
     ) -> bool:
         """
         添加向量到数据库
@@ -100,6 +102,7 @@ class VectorDBService:
             vector_id: 向量ID（唯一标识）
             embedding: 向量数组（numpy array）
             metadata: 元数据（包含文本内容等信息）
+            persist: 是否立即落盘，批量导入时可设为 False 后统一 persist
         
         Returns:
             bool: 是否成功
@@ -153,8 +156,9 @@ class VectorDBService:
             self.id_to_faiss_id[vector_id] = faiss_id
             self.id_to_text[vector_id] = metadata or {}
             
-            # 保存到磁盘
-            self._save_index()
+            # 保存到磁盘（可选，避免高频同步阻塞事件循环）
+            if persist:
+                self._save_index()
             
             logger.debug(f"成功添加向量: {vector_id}")
             return True
@@ -247,12 +251,13 @@ class VectorDBService:
             logger.error(f"搜索相似向量失败: {e}")
             return []
     
-    def delete_embedding(self, vector_id: str) -> bool:
+    def delete_embedding(self, vector_id: str, *, persist: bool = True) -> bool:
         """
         删除向量
         
         Args:
             vector_id: 向量ID
+            persist: 是否立即落盘
         
         Returns:
             bool: 是否成功
@@ -273,9 +278,10 @@ class VectorDBService:
             if vector_id in self.id_to_text:
                 del self.id_to_text[vector_id]
             
-            # 保存到磁盘
-            self._save_index()
-            
+            # 保存到磁盘（可选）
+            if persist:
+                self._save_index()
+
             logger.debug(f"已删除向量: {vector_id}")
             return True
             

@@ -233,7 +233,8 @@ export async function generateScript(
     data: GenerateScriptResponse
     msg: string
   }>({
-    url: `/api/v1/client/inspirations/${data.inspiration_id}/generate`,
+    // dingma 专用：注入产品知识库，主程序 /inspirations/.../generate 不变
+    url: `/api/v1/client/dingma/inspirations/${data.inspiration_id}/generate`,
     method: 'POST',
     data: {
       agent_type: data.agent_type,

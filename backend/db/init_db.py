@@ -163,6 +163,45 @@ async def init_menus(session: AsyncSession) -> None:
                 },
             ],
         },
+        # 技能组装 (父级) — 与线上一致 name=skill-assembly
+        {
+            "name": "skill-assembly",
+            "path": "/skill-assembly",
+            "redirect": "/skill-assembly/library",
+            "title": "技能组装",
+            "icon": "Setting",
+            "sort_order": 6,
+            "is_keep_alive": True,
+            "children": [
+                {
+                    "name": "library",
+                    "path": "/skill-assembly/library",
+                    "component": "/skill-assembly/SkillLibrary",
+                    "title": "技能库管理",
+                    "icon": "List",
+                    "sort_order": 1,
+                    "is_keep_alive": True,
+                },
+                {
+                    "name": "builder",
+                    "path": "/skill-assembly/builder",
+                    "component": "/skill-assembly/AgentBuilder",
+                    "title": "Agent构建器",
+                    "icon": "Plus",
+                    "sort_order": 2,
+                    "is_keep_alive": True,
+                },
+                {
+                    "name": "dingmaProductKnowledge",
+                    "path": "/skill-assembly/product-knowledge",
+                    "component": "/dingma/productKnowledge/index",
+                    "title": "产品配方",
+                    "icon": "Notebook",
+                    "sort_order": 3,
+                    "is_keep_alive": True,
+                },
+            ],
+        },
         # 便捷工具包 (父级)
         {
             "name": "toolKit",
@@ -170,7 +209,7 @@ async def init_menus(session: AsyncSession) -> None:
             "redirect": "/tool-kit/list",
             "title": "便捷工具包",
             "icon": "Box",
-            "sort_order": 6,
+            "sort_order": 7,
             "is_keep_alive": True,
             "children": [
                 {
