@@ -3,186 +3,134 @@
     <el-card>
       <template #header>
         <div class="card-header">
-          <span class="title">产品配方配置</span>
-          <el-button type="primary" :icon="CirclePlus" @click="openDrawer('新增')">新增产品</el-button>
+          <span class="title">产品知识库 v2</span>
         </div>
       </template>
 
-      <div class="filter-bar">
-        <el-select
-          v-model="filters.category_code"
-          placeholder="全部品类"
-          clearable
-          style="width: 160px"
-          @change="loadList"
-        >
-          <el-option
-            v-for="cat in categories"
-            :key="cat.category_code"
-            :label="`${cat.category_name}（${cat.count}）`"
-            :value="cat.category_code"
-          />
-        </el-select>
-        <el-select
-          v-model="filters.status"
-          placeholder="全部状态"
-          clearable
-          style="width: 120px; margin-left: 10px"
-          @change="loadList"
-        >
-          <el-option label="启用" :value="1" />
-          <el-option label="禁用" :value="0" />
-        </el-select>
-        <el-input
-          v-model="filters.keyword"
-          placeholder="搜索产品名/编码"
-          clearable
-          style="width: 220px; margin-left: 10px"
-          @keyup.enter="loadList"
-          @clear="loadList"
-        >
-          <template #prefix>
-            <el-icon><Search /></el-icon>
-          </template>
-        </el-input>
-        <el-button type="primary" :icon="Search" style="margin-left: 10px" @click="loadList">查询</el-button>
-      </div>
+      <el-tabs v-model="activeTab" @tab-change="onTabChange">
+        <el-tab-pane label="成品 SKU" name="sku">
+          <div class="toolbar">
+            <el-select v-model="skuFilters.category_code" placeholder="全部品类" clearable style="width: 160px" @change="loadSkuList">
+              <el-option v-for="cat in skuCategories" :key="cat.category_code" :label="`${cat.category_name}（${cat.count}）`" :value="cat.category_code" />
+            </el-select>
+            <el-input v-model="skuFilters.keyword" placeholder="搜索 SKU" clearable style="width: 220px; margin-left: 10px" @keyup.enter="loadSkuList" />
+            <el-button type="primary" style="margin-left: 10px" @click="loadSkuList">查询</el-button>
+            <el-button type="primary" :icon="CirclePlus" style="margin-left: auto" @click="openSkuDrawer('新增')">新增 SKU</el-button>
+          </div>
+          <el-table v-loading="skuLoading" :data="skuTable" style="margin-top: 12px">
+            <el-table-column prop="sku_name" label="名称" min-width="140" />
+            <el-table-column prop="sku_code" label="编码" min-width="160" />
+            <el-table-column prop="category_name" label="品类" width="90" />
+            <el-table-column label="组件数" width="80">
+              <template #default="{ row }">{{ (row.component_links || []).length }}</template>
+            </el-table-column>
+            <el-table-column prop="status" label="状态" width="80">
+              <template #default="{ row }">
+                <el-switch v-model="row.status" :active-value="1" :inactive-value="0" @change="handleSkuStatus(row)" />
+              </template>
+            </el-table-column>
+            <el-table-column label="操作" width="140" fixed="right">
+              <template #default="{ row }">
+                <el-button type="primary" link @click="openSkuDrawer('编辑', row)">编辑</el-button>
+                <el-button type="danger" link @click="handleSkuDelete(row)">删除</el-button>
+              </template>
+            </el-table-column>
+          </el-table>
+        </el-tab-pane>
 
-      <el-table v-loading="loading" :data="tableData" style="width: 100%; margin-top: 16px">
-        <el-table-column prop="product_name" label="产品名称" min-width="140" show-overflow-tooltip />
-        <el-table-column prop="product_code" label="产品编码" min-width="160" show-overflow-tooltip>
-          <template #default="{ row }">
-            <el-tag type="info" effect="plain">{{ row.product_code }}</el-tag>
-          </template>
-        </el-table-column>
-        <el-table-column prop="category_name" label="品类" width="100" />
-        <el-table-column prop="aliases" label="别名" min-width="120" show-overflow-tooltip>
-          <template #default="{ row }">
-            {{ (row.aliases || []).join("、") || "-" }}
-          </template>
-        </el-table-column>
-        <el-table-column prop="source_version" label="课件版本" width="100" />
-        <el-table-column prop="sort_order" label="排序" width="70" />
-        <el-table-column prop="status" label="状态" width="90">
-          <template #default="{ row }">
-            <el-switch
-              v-model="row.status"
-              :active-value="1"
-              :inactive-value="0"
-              :loading="statusLoading === row.id"
-              @change="handleStatusChange(row)"
-            />
-          </template>
-        </el-table-column>
-        <el-table-column label="操作" width="140" fixed="right">
-          <template #default="{ row }">
-            <el-button type="primary" link :icon="EditPen" @click="openDrawer('编辑', row)">编辑</el-button>
-            <el-button type="danger" link :icon="Delete" @click="handleDelete(row)">删除</el-button>
-          </template>
-        </el-table-column>
-      </el-table>
-
-      <el-pagination
-        v-model:current-page="page.pageNum"
-        v-model:page-size="page.pageSize"
-        :total="page.total"
-        :page-sizes="[10, 20, 50, 100]"
-        layout="total, sizes, prev, pager, next"
-        background
-        style="margin-top: 16px; justify-content: flex-end"
-        @size-change="loadList"
-        @current-change="loadList"
-      />
+        <el-tab-pane label="组件/子配方" name="component">
+          <div class="toolbar">
+            <el-select v-model="compFilters.component_type" placeholder="全部类型" clearable style="width: 140px" @change="loadCompList">
+              <el-option label="酱料 sauce" value="sauce" />
+              <el-option label="母馅 filling_base" value="filling_base" />
+              <el-option label="辣油 condiment" value="condiment" />
+              <el-option label="泡菜 pickle" value="pickle" />
+              <el-option label="面皮 dough" value="dough" />
+            </el-select>
+            <el-input v-model="compFilters.keyword" placeholder="搜索组件" clearable style="width: 220px; margin-left: 10px" @keyup.enter="loadCompList" />
+            <el-button type="primary" style="margin-left: 10px" @click="loadCompList">查询</el-button>
+            <el-button type="primary" :icon="CirclePlus" style="margin-left: auto" @click="openCompDrawer('新增')">新增组件</el-button>
+          </div>
+          <el-table v-loading="compLoading" :data="compTable" style="margin-top: 12px">
+            <el-table-column prop="component_name" label="名称" min-width="140" />
+            <el-table-column prop="component_code" label="编码" min-width="160" />
+            <el-table-column prop="component_type" label="类型" width="110" />
+            <el-table-column prop="status" label="状态" width="80">
+              <template #default="{ row }">
+                <el-switch v-model="row.status" :active-value="1" :inactive-value="0" @change="handleCompStatus(row)" />
+              </template>
+            </el-table-column>
+            <el-table-column label="操作" width="140" fixed="right">
+              <template #default="{ row }">
+                <el-button type="primary" link @click="openCompDrawer('编辑', row)">编辑</el-button>
+                <el-button type="danger" link @click="handleCompDelete(row)">删除</el-button>
+              </template>
+            </el-table-column>
+          </el-table>
+        </el-tab-pane>
+      </el-tabs>
     </el-card>
 
-    <el-drawer v-model="drawerVisible" :title="drawerTitle" size="720px" destroy-on-close>
-      <el-form ref="formRef" :model="formData" :rules="formRules" label-width="110px">
-        <el-divider content-position="left">基础信息</el-divider>
+    <!-- SKU Drawer -->
+    <el-drawer v-model="skuDrawerVisible" :title="skuDrawerTitle" size="760px" destroy-on-close>
+      <el-form ref="skuFormRef" :model="skuForm" label-width="110px">
         <el-row :gutter="16">
-          <el-col :span="12">
-            <el-form-item label="产品编码" prop="product_code">
-              <el-input
-                v-model="formData.product_code"
-                placeholder="如 mixian_paocai_chaoxian"
-                :disabled="isEdit"
-              />
-            </el-form-item>
-          </el-col>
-          <el-col :span="12">
-            <el-form-item label="产品名称" prop="product_name">
-              <el-input v-model="formData.product_name" placeholder="如 泡菜朝鲜面" />
-            </el-form-item>
-          </el-col>
+          <el-col :span="12"><el-form-item label="SKU编码" required><el-input v-model="skuForm.sku_code" :disabled="skuIsEdit" /></el-form-item></el-col>
+          <el-col :span="12"><el-form-item label="SKU名称" required><el-input v-model="skuForm.sku_name" /></el-form-item></el-col>
         </el-row>
         <el-row :gutter="16">
-          <el-col :span="12">
-            <el-form-item label="品类编码" prop="category_code">
-              <el-input v-model="formData.category_code" placeholder="如 mixian" />
-            </el-form-item>
-          </el-col>
-          <el-col :span="12">
-            <el-form-item label="品类名称" prop="category_name">
-              <el-input v-model="formData.category_name" placeholder="如 米线" />
-            </el-form-item>
-          </el-col>
+          <el-col :span="12"><el-form-item label="品类编码"><el-input v-model="skuForm.category_code" /></el-form-item></el-col>
+          <el-col :span="12"><el-form-item label="品类名称"><el-input v-model="skuForm.category_name" /></el-form-item></el-col>
         </el-row>
-        <el-form-item label="别名">
-          <el-select
-            v-model="formData.aliases"
-            multiple
-            filterable
-            allow-create
-            default-first-option
-            placeholder="输入别名后回车，如 朝鲜面"
-            style="width: 100%"
-          />
-        </el-form-item>
-        <el-row :gutter="16">
-          <el-col :span="12">
-            <el-form-item label="课件版本">
-              <el-input v-model="formData.source_version" placeholder="如 2026-01" />
-            </el-form-item>
-          </el-col>
-          <el-col :span="12">
-            <el-form-item label="排序">
-              <el-input-number v-model="formData.sort_order" :min="0" style="width: 100%" />
-            </el-form-item>
-          </el-col>
-        </el-row>
-
-        <el-divider content-position="left">文案事实（智能体注入）</el-divider>
-        <el-form-item label="文案事实">
-          <el-input
-            v-model="formData.copywriting_facts"
-            type="textarea"
-            :rows="6"
-            placeholder="含：...&#10;不含：...&#10;可写：...&#10;不可写：..."
-          />
-        </el-form-item>
-
-        <el-divider content-position="left">配方全量（售后预留）</el-divider>
-        <el-form-item label="出货配比">
-          <el-input
-            v-model="formData.pack_formula"
-            type="textarea"
-            :rows="4"
-            placeholder="含克重/包数的出货配比"
-          />
-        </el-form-item>
-        <el-form-item label="制作详情 JSON">
-          <el-input
-            v-model="recipeDetailText"
-            type="textarea"
-            :rows="8"
-            placeholder='{"ingredients":[{"name":"包菜","amount":"1500g"}],"steps":["..."],"notes":["..."]}'
-          />
-          <div class="form-tip">JSON 格式，含 ingredients / steps / notes 等字段</div>
-        </el-form-item>
+        <el-form-item label="别名"><el-select v-model="skuForm.aliases" multiple filterable allow-create default-first-option style="width:100%" /></el-form-item>
+        <el-form-item label="出货配比"><el-input v-model="skuForm.pack_formula" type="textarea" :rows="3" /></el-form-item>
+        <el-form-item label="护栏 JSON"><el-input v-model="skuGuardrailText" type="textarea" :rows="4" placeholder='{"contains":[],"excludes":[],"forbidden":[]}' /></el-form-item>
+        <el-form-item label="过程文案 JSON"><el-input v-model="skuProcessText" type="textarea" :rows="4" placeholder="无组件关联时可填 SKU 级过程文案" /></el-form-item>
+        <el-divider>组件关联</el-divider>
+        <div v-for="(link, idx) in skuForm.component_links" :key="idx" class="link-row">
+          <el-select v-model="link.component_code" placeholder="组件" style="width: 200px">
+            <el-option v-for="opt in componentOptions" :key="opt.component_code" :label="opt.component_name" :value="opt.component_code" />
+          </el-select>
+          <el-select v-model="link.role" style="width: 140px; margin-left: 8px">
+            <el-option label="主酱 primary_sauce" value="primary_sauce" />
+            <el-option label="母馅 filling_base" value="filling_base" />
+            <el-option label="辅料 condiment" value="condiment" />
+            <el-option label="其他 other" value="other" />
+          </el-select>
+          <el-checkbox v-model="link.process_focus" style="margin-left: 8px">过程焦点</el-checkbox>
+          <el-button type="danger" link @click="skuForm.component_links?.splice(idx, 1)">删除</el-button>
+        </div>
+        <el-button type="primary" link @click="addSkuLink">+ 添加关联</el-button>
       </el-form>
-
       <template #footer>
-        <el-button @click="drawerVisible = false">取消</el-button>
-        <el-button type="primary" :loading="submitting" @click="handleSubmit">保存</el-button>
+        <el-button @click="skuDrawerVisible = false">取消</el-button>
+        <el-button type="primary" :loading="submitting" @click="submitSku">保存</el-button>
+      </template>
+    </el-drawer>
+
+    <!-- Component Drawer -->
+    <el-drawer v-model="compDrawerVisible" :title="compDrawerTitle" size="760px" destroy-on-close>
+      <el-form :model="compForm" label-width="110px">
+        <el-row :gutter="16">
+          <el-col :span="12"><el-form-item label="组件编码" required><el-input v-model="compForm.component_code" :disabled="compIsEdit" /></el-form-item></el-col>
+          <el-col :span="12"><el-form-item label="组件名称" required><el-input v-model="compForm.component_name" /></el-form-item></el-col>
+        </el-row>
+        <el-form-item label="组件类型">
+          <el-select v-model="compForm.component_type" style="width: 200px">
+            <el-option label="sauce" value="sauce" /><el-option label="filling_base" value="filling_base" />
+            <el-option label="condiment" value="condiment" /><el-option label="pickle" value="pickle" />
+            <el-option label="dough" value="dough" /><el-option label="other" value="other" />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="别名"><el-select v-model="compForm.aliases" multiple filterable allow-create default-first-option style="width:100%" /></el-form-item>
+        <el-form-item label="用法说明"><el-input v-model="compForm.pack_formula" type="textarea" :rows="2" /></el-form-item>
+        <el-form-item label="护栏 JSON"><el-input v-model="compGuardrailText" type="textarea" :rows="4" /></el-form-item>
+        <el-form-item label="过程文案 JSON"><el-input v-model="compProcessText" type="textarea" :rows="6" /></el-form-item>
+        <el-form-item label="配方 JSON"><el-input v-model="compRecipeText" type="textarea" :rows="6" /></el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="compDrawerVisible = false">取消</el-button>
+        <el-button type="primary" :loading="submitting" @click="submitComp">保存</el-button>
       </template>
     </el-drawer>
   </div>
@@ -190,194 +138,224 @@
 
 <script setup lang="ts" name="dingmaProductKnowledge">
 import { onMounted, reactive, ref } from "vue";
-import { CirclePlus, Delete, EditPen, Search } from "@element-plus/icons-vue";
-import { ElMessage, ElMessageBox, FormInstance, FormRules } from "element-plus";
+import { CirclePlus } from "@element-plus/icons-vue";
+import { ElMessage, ElMessageBox } from "element-plus";
 import {
-  createProductKnowledgeApi,
-  deleteProductKnowledgeApi,
-  getProductKnowledgeCategoriesApi,
-  getProductKnowledgeListApi,
-  updateProductKnowledgeApi,
-  updateProductKnowledgeStatusApi,
-  type ProductKnowledgeCategory,
-  type ProductKnowledgeCreate,
-  type ProductKnowledgeItem
+  createKnowledgeComponentApi,
+  createKnowledgeSkuApi,
+  deleteKnowledgeComponentApi,
+  deleteKnowledgeSkuApi,
+  getKnowledgeComponentListApi,
+  getKnowledgeComponentOptionsApi,
+  getKnowledgeSkuCategoriesApi,
+  getKnowledgeSkuListApi,
+  updateKnowledgeComponentApi,
+  updateKnowledgeComponentStatusApi,
+  updateKnowledgeSkuApi,
+  updateKnowledgeSkuStatusApi,
+  type ComponentOption,
+  type KnowledgeComponentItem,
+  type KnowledgeSkuItem,
+  type SkuCategory,
+  type SkuComponentLink
 } from "@/api/modules/dingmaProductKnowledge";
 
-const loading = ref(false);
+const activeTab = ref("sku");
+const skuLoading = ref(false);
+const compLoading = ref(false);
 const submitting = ref(false);
-const statusLoading = ref<number | null>(null);
-const tableData = ref<ProductKnowledgeItem[]>([]);
-const categories = ref<ProductKnowledgeCategory[]>([]);
+const skuTable = ref<KnowledgeSkuItem[]>([]);
+const compTable = ref<KnowledgeComponentItem[]>([]);
+const skuCategories = ref<SkuCategory[]>([]);
+const componentOptions = ref<ComponentOption[]>([]);
 
-const page = reactive({ pageNum: 1, pageSize: 20, total: 0 });
-const filters = reactive({
-  category_code: "" as string | undefined,
-  status: undefined as number | undefined,
-  keyword: ""
+const skuFilters = reactive({ category_code: "", keyword: "" });
+const compFilters = reactive({ component_type: "", keyword: "" });
+
+const skuDrawerVisible = ref(false);
+const compDrawerVisible = ref(false);
+const skuDrawerTitle = ref("");
+const compDrawerTitle = ref("");
+const skuIsEdit = ref(false);
+const compIsEdit = ref(false);
+const editingSkuId = ref<number | null>(null);
+const editingCompId = ref<number | null>(null);
+
+const defaultSkuForm = (): Partial<KnowledgeSkuItem> => ({
+  sku_code: "", sku_name: "", category_code: "", category_name: "", aliases: [],
+  pack_formula: "", status: 1, sort_order: 0, source_version: "2026-01", component_links: []
 });
+const skuForm = ref<Partial<KnowledgeSkuItem>>(defaultSkuForm());
+const skuGuardrailText = ref("");
+const skuProcessText = ref("");
 
-const drawerVisible = ref(false);
-const drawerTitle = ref("新增产品");
-const isEdit = ref(false);
-const editingId = ref<number | null>(null);
-const formRef = ref<FormInstance>();
-const recipeDetailText = ref("");
-
-const defaultForm = (): ProductKnowledgeCreate => ({
-  category_code: "",
-  category_name: "",
-  product_code: "",
-  product_name: "",
-  aliases: [],
-  pack_formula: "",
-  copywriting_facts: "",
-  source_version: "2026-01",
-  status: 1,
-  sort_order: 0
+const defaultCompForm = (): Partial<KnowledgeComponentItem> => ({
+  component_code: "", component_name: "", component_type: "sauce", aliases: [],
+  pack_formula: "", status: 1, sort_order: 0, source_version: "2026-01"
 });
+const compForm = ref<Partial<KnowledgeComponentItem>>(defaultCompForm());
+const compGuardrailText = ref("");
+const compProcessText = ref("");
+const compRecipeText = ref("");
 
-const formData = ref<ProductKnowledgeCreate>(defaultForm());
-
-const formRules: FormRules = {
-  product_code: [{ required: true, message: "请输入产品编码", trigger: "blur" }],
-  product_name: [{ required: true, message: "请输入产品名称", trigger: "blur" }],
-  category_code: [{ required: true, message: "请输入品类编码", trigger: "blur" }],
-  category_name: [{ required: true, message: "请输入品类名称", trigger: "blur" }]
+const parseJson = (text: string, label: string) => {
+  const t = text.trim();
+  if (!t) return undefined;
+  try { return JSON.parse(t); } catch { ElMessage.error(`${label} JSON 格式错误`); throw new Error("json"); }
 };
 
-const loadCategories = async () => {
-  const { data } = await getProductKnowledgeCategoriesApi();
-  categories.value = data || [];
-};
-
-const loadList = async () => {
-  loading.value = true;
+const loadSkuList = async () => {
+  skuLoading.value = true;
   try {
-    const { data } = await getProductKnowledgeListApi({
-      pageNum: page.pageNum,
-      pageSize: page.pageSize,
-      category_code: filters.category_code || undefined,
-      status: filters.status,
-      keyword: filters.keyword || undefined
+    const { data } = await getKnowledgeSkuListApi({
+      pageNum: 1, pageSize: 100,
+      category_code: skuFilters.category_code || undefined,
+      keyword: skuFilters.keyword || undefined
     });
-    tableData.value = data?.list || [];
-    page.total = data?.total || 0;
-  } finally {
-    loading.value = false;
-  }
+    skuTable.value = data?.list || [];
+  } finally { skuLoading.value = false; }
 };
 
-const openDrawer = (mode: "新增" | "编辑", row?: ProductKnowledgeItem) => {
-  drawerTitle.value = mode === "新增" ? "新增产品" : "编辑产品";
-  isEdit.value = mode === "编辑";
-  editingId.value = row?.id ?? null;
+const loadCompList = async () => {
+  compLoading.value = true;
+  try {
+    const { data } = await getKnowledgeComponentListApi({
+      pageNum: 1, pageSize: 100,
+      component_type: compFilters.component_type || undefined,
+      keyword: compFilters.keyword || undefined
+    });
+    compTable.value = data?.list || [];
+  } finally { compLoading.value = false; }
+};
 
+const loadComponentOptions = async () => {
+  const { data } = await getKnowledgeComponentOptionsApi();
+  componentOptions.value = data || [];
+};
+
+const onTabChange = (name: string | number) => {
+  if (name === "sku") loadSkuList();
+  else loadCompList();
+};
+
+const openSkuDrawer = (mode: "新增" | "编辑", row?: KnowledgeSkuItem) => {
+  skuDrawerTitle.value = mode === "新增" ? "新增 SKU" : "编辑 SKU";
+  skuIsEdit.value = mode === "编辑";
+  editingSkuId.value = row?.id ?? null;
   if (row) {
-    formData.value = {
-      category_code: row.category_code,
-      category_name: row.category_name,
-      product_code: row.product_code,
-      product_name: row.product_name,
-      aliases: row.aliases || [],
-      pack_formula: row.pack_formula || "",
-      copywriting_facts: row.copywriting_facts || "",
-      source_version: row.source_version || "",
-      status: row.status,
-      sort_order: row.sort_order
-    };
-    recipeDetailText.value = row.recipe_detail ? JSON.stringify(row.recipe_detail, null, 2) : "";
+    skuForm.value = { ...row, component_links: [...(row.component_links || [])] };
+    skuGuardrailText.value = row.guardrail ? JSON.stringify(row.guardrail, null, 2) : "";
+    skuProcessText.value = row.process_copywriting ? JSON.stringify(row.process_copywriting, null, 2) : "";
   } else {
-    formData.value = defaultForm();
-    recipeDetailText.value = "";
+    skuForm.value = defaultSkuForm();
+    skuGuardrailText.value = "";
+    skuProcessText.value = "";
   }
-  drawerVisible.value = true;
+  skuDrawerVisible.value = true;
 };
 
-const parseRecipeDetail = () => {
-  const text = recipeDetailText.value.trim();
-  if (!text) return undefined;
-  try {
-    return JSON.parse(text);
-  } catch {
-    ElMessage.error("制作详情 JSON 格式不正确");
-    throw new Error("invalid json");
+const openCompDrawer = (mode: "新增" | "编辑", row?: KnowledgeComponentItem) => {
+  compDrawerTitle.value = mode === "新增" ? "新增组件" : "编辑组件";
+  compIsEdit.value = mode === "编辑";
+  editingCompId.value = row?.id ?? null;
+  if (row) {
+    compForm.value = { ...row };
+    compGuardrailText.value = row.guardrail ? JSON.stringify(row.guardrail, null, 2) : "";
+    compProcessText.value = row.process_copywriting ? JSON.stringify(row.process_copywriting, null, 2) : "";
+    compRecipeText.value = row.recipe_detail ? JSON.stringify(row.recipe_detail, null, 2) : "";
+  } else {
+    compForm.value = defaultCompForm();
+    compGuardrailText.value = "";
+    compProcessText.value = "";
+    compRecipeText.value = "";
   }
+  compDrawerVisible.value = true;
 };
 
-const handleSubmit = async () => {
-  await formRef.value?.validate();
-  let recipe_detail;
-  try {
-    recipe_detail = parseRecipeDetail();
-  } catch {
-    return;
-  }
+const addSkuLink = () => {
+  if (!skuForm.value.component_links) skuForm.value.component_links = [];
+  (skuForm.value.component_links as SkuComponentLink[]).push({
+    component_code: "", role: "primary_sauce", process_focus: false, sort_order: skuForm.value.component_links.length
+  });
+};
 
+const submitSku = async () => {
+  let guardrail, process_copywriting;
+  try {
+    guardrail = parseJson(skuGuardrailText.value, "护栏");
+    process_copywriting = parseJson(skuProcessText.value, "过程文案");
+  } catch { return; }
   submitting.value = true;
   try {
-    const payload = { ...formData.value, recipe_detail };
-    if (isEdit.value && editingId.value) {
-      const { product_code: _pc, ...updateData } = payload;
-      await updateProductKnowledgeApi(editingId.value, updateData);
-      ElMessage.success("更新成功");
+    const payload = { ...skuForm.value, guardrail, process_copywriting };
+    if (skuIsEdit.value && editingSkuId.value) {
+      await updateKnowledgeSkuApi(editingSkuId.value, payload);
     } else {
-      await createProductKnowledgeApi(payload);
-      ElMessage.success("创建成功");
+      await createKnowledgeSkuApi(payload);
     }
-    drawerVisible.value = false;
-    await loadList();
-    await loadCategories();
-  } finally {
-    submitting.value = false;
-  }
+    ElMessage.success("保存成功");
+    skuDrawerVisible.value = false;
+    await loadSkuList();
+  } finally { submitting.value = false; }
 };
 
-const handleStatusChange = async (row: ProductKnowledgeItem) => {
-  statusLoading.value = row.id;
+const submitComp = async () => {
+  let guardrail, process_copywriting, recipe_detail;
   try {
-    await updateProductKnowledgeStatusApi(row.id, row.status);
-    ElMessage.success("状态已更新");
-  } catch {
-    row.status = row.status === 1 ? 0 : 1;
-  } finally {
-    statusLoading.value = null;
-  }
+    guardrail = parseJson(compGuardrailText.value, "护栏");
+    process_copywriting = parseJson(compProcessText.value, "过程文案");
+    recipe_detail = parseJson(compRecipeText.value, "配方");
+  } catch { return; }
+  submitting.value = true;
+  try {
+    const payload = { ...compForm.value, guardrail, process_copywriting, recipe_detail };
+    if (compIsEdit.value && editingCompId.value) {
+      await updateKnowledgeComponentApi(editingCompId.value, payload);
+    } else {
+      await createKnowledgeComponentApi(payload);
+    }
+    ElMessage.success("保存成功");
+    compDrawerVisible.value = false;
+    await loadCompList();
+    await loadComponentOptions();
+  } finally { submitting.value = false; }
 };
 
-const handleDelete = async (row: ProductKnowledgeItem) => {
-  await ElMessageBox.confirm(`确定删除「${row.product_name}」吗？`, "提示", { type: "warning" });
-  await deleteProductKnowledgeApi(row.id);
-  ElMessage.success("删除成功");
-  await loadList();
-  await loadCategories();
+const handleSkuStatus = async (row: KnowledgeSkuItem) => {
+  try { await updateKnowledgeSkuStatusApi(row.id, row.status); }
+  catch { row.status = row.status === 1 ? 0 : 1; }
+};
+
+const handleCompStatus = async (row: KnowledgeComponentItem) => {
+  try { await updateKnowledgeComponentStatusApi(row.id, row.status); }
+  catch { row.status = row.status === 1 ? 0 : 1; }
+};
+
+const handleSkuDelete = async (row: KnowledgeSkuItem) => {
+  await ElMessageBox.confirm(`确定删除「${row.sku_name}」？`, "提示", { type: "warning" });
+  await deleteKnowledgeSkuApi(row.id);
+  ElMessage.success("已删除");
+  await loadSkuList();
+};
+
+const handleCompDelete = async (row: KnowledgeComponentItem) => {
+  await ElMessageBox.confirm(`确定删除「${row.component_name}」？`, "提示", { type: "warning" });
+  await deleteKnowledgeComponentApi(row.id);
+  ElMessage.success("已删除");
+  await loadCompList();
 };
 
 onMounted(async () => {
-  await Promise.all([loadCategories(), loadList()]);
+  const { data } = await getKnowledgeSkuCategoriesApi();
+  skuCategories.value = data || [];
+  await Promise.all([loadSkuList(), loadComponentOptions()]);
 });
 </script>
 
 <style scoped lang="scss">
 .product-knowledge-page {
-  .card-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    .title {
-      font-size: 16px;
-      font-weight: 600;
-    }
-  }
-  .filter-bar {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-  }
-  .form-tip {
-    margin-top: 4px;
-    font-size: 12px;
-    color: var(--el-text-color-secondary);
-  }
+  .card-header .title { font-size: 16px; font-weight: 600; }
+  .toolbar { display: flex; flex-wrap: wrap; align-items: center; margin-bottom: 8px; }
+  .link-row { display: flex; align-items: center; margin-bottom: 8px; flex-wrap: wrap; gap: 4px; }
 }
 </style>

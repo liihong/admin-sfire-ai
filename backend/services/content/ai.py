@@ -205,12 +205,34 @@ class AIService:
         return False
 
     @staticmethod
+    def _should_enable_deepseek_thinking(model_id: str) -> bool:
+        """
+        是否向 DeepSeek 请求体注入思考模式字段。
+
+        deepseek-chat 对应 V4 非思考模式，附带 thinking/reasoning_effort 可能导致上游异常；
+        deepseek-reasoner 及 deepseek-v4-* 才应启用思考参数。
+        """
+        model_key = (model_id or "").strip().lower()
+        if model_key == "deepseek-chat":
+            return False
+        if "reasoner" in model_key or model_key.startswith("deepseek-v4"):
+            return True
+        return False
+
+    @staticmethod
     def _deepseek_thinking_fields() -> dict:
         """DeepSeek V4 思考模式：与 OpenAI SDK extra_body 扁平化后的 JSON 一致。"""
         return {
             "reasoning_effort": "high",
             "thinking": {"type": "enabled"},
         }
+
+    def _resolve_client_config(self, base_url: Optional[str]) -> dict:
+        """按上游地址选择 HTTP 客户端配置（DeepSeek 官方 API 在 HTTP/2 下偶发 StreamReset）。"""
+        config = dict(self._client_config)
+        if base_url and "deepseek.com" in base_url.lower():
+            config["http2"] = False
+        return config
 
     @staticmethod
     def _sanitize_request_body_for_gemini(request_body: dict) -> None:
@@ -309,7 +331,9 @@ class AIService:
             "presence_penalty": presence_penalty,
             "stream": False,
         }
-        if self._is_deepseek_api(db_provider, base_url):
+        if self._is_deepseek_api(db_provider, base_url) and self._should_enable_deepseek_thinking(
+            model_for_upstream
+        ):
             request_body.update(self._deepseek_thinking_fields())
         if self._is_wavespeed_api(base_url):
             request_body["include_reasoning"] = False
@@ -332,7 +356,7 @@ class AIService:
         }
 
         # 调用 API（使用 HTTP/2 和 Gzip 支持）
-        async with httpx.AsyncClient(**self._client_config) as client:
+        async with httpx.AsyncClient(**self._resolve_client_config(base_url)) as client:
             response = await client.post(
                 api_url,
                 headers=request_headers,
@@ -502,7 +526,8 @@ class AIService:
         logger.info(f"  - API URL: {api_url}")
         logger.info(f"  - Model: {model_for_upstream}")
         logger.info(f"  - Messages count: {len(formatted_messages)}")
-        logger.info(f"  - HTTP/2 enabled: True")
+        client_config = self._resolve_client_config(base_url)
+        logger.info(f"  - HTTP/2 enabled: {client_config.get('http2', False)}")
         logger.info(f"  - Gzip compression: enabled")
         logger.info(f"  - Request headers keys: {list(request_headers.keys())}")
 
@@ -532,7 +557,9 @@ class AIService:
             "presence_penalty": presence_penalty,
             "stream": True,
         }
-        if self._is_deepseek_api(db_provider, base_url):
+        if self._is_deepseek_api(db_provider, base_url) and self._should_enable_deepseek_thinking(
+            model_for_upstream
+        ):
             request_body.update(self._deepseek_thinking_fields())
         if self._is_wavespeed_api(base_url):
             request_body["include_reasoning"] = False
@@ -555,8 +582,8 @@ class AIService:
         # 使用content参数手动发送JSON,确保正确的编码
         request_headers["Content-Length"] = str(request_body_size)
 
-        # 使用 HTTP/2 + Gzip 压缩的客户端
-        async with httpx.AsyncClient(**self._client_config) as client:
+        # 使用 HTTP/2 + Gzip 压缩的客户端（DeepSeek 官方 API 自动降级 HTTP/1.1）
+        async with httpx.AsyncClient(**client_config) as client:
             try:
                 async with client.stream(
                     "POST",
@@ -736,6 +763,26 @@ class AIService:
                         "model_id": actual_model_id,
                         "request_model": model_for_upstream,
                         "details": "请检查网络连接和API服务状态"
+                    }
+                }
+                yield json.dumps(error_chunk)
+                return
+            except httpx.RemoteProtocolError as e:
+                # HTTP/2 流被上游重置（DeepSeek 等偶发 StreamReset）
+                logger.error(f"❌ [API] 上游连接被重置:")
+                logger.error(f"  - Error Type: {type(e).__name__}")
+                logger.error(f"  - Error Message: {str(e)}")
+                logger.error(f"  - API URL: {api_url}")
+                logger.error(f"  - Request Model: {model_for_upstream}")
+                logger.error(f"  - HTTP/2 enabled: {client_config.get('http2', False)}")
+
+                error_chunk = {
+                    "error": {
+                        "message": "AI服务连接异常，请稍后重试",
+                        "type": "RemoteProtocolError",
+                        "api_url": api_url,
+                        "model_id": actual_model_id,
+                        "request_model": model_for_upstream,
                     }
                 }
                 yield json.dumps(error_chunk)

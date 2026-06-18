@@ -309,7 +309,6 @@ class DingmaInspirationGenerateService:
             user_input=user_input,
             scoped_tenant_id=scoped_public_tenant_id,
             inject_mode=KnowledgeInjectMode.COPYWRITING,
-            ip_persona_prompt=ip_persona_prompt or None,
         )
         if len(knowledge_block) > MAX_KNOWLEDGE_BLOCK_LENGTH:
             knowledge_block = knowledge_block[: MAX_KNOWLEDGE_BLOCK_LENGTH - 50] + "\n…（成分护栏已截断）"
